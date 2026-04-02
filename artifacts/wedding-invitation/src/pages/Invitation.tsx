@@ -122,7 +122,9 @@ function HeroSection() {
             data-testid="text-names"
           >
             Leon
-            <span className="font-playfair text-2xl sm:text-3xl not-italic text-yellow-600">&amp;</span>
+            <span className="font-playfair text-2xl sm:text-3xl not-italic text-yellow-600">
+              &amp;
+            </span>
             Yeh
           </h1>
         </div>
@@ -370,8 +372,10 @@ function MapsSection() {
               我們的故事
             </h3>
           </div>
-          <p className="font-noto-serif-tc text-sm text-green-700 leading-relaxed">我們雖然來自相同的家鄉，卻渲染著截然不同的文化。這是一段特別的旅程，從客廳的沙發，到婚姻的殿堂。
-          我們深刻到異國相愛的不易，但更認識到神的恩典夠用，即使我們處在不同環境，也能勇敢面對不確定的未來。</p>
+          <p className="font-noto-serif-tc text-sm text-green-700 leading-relaxed">
+            我們雖然來自相同的家鄉，卻渲染著截然不同的文化。這是一段特別的旅程，從客廳的沙發，到婚姻的殿堂。
+            我們深刻到異國相愛的不易，但更認識到神的恩典夠用，即使我們處在不同環境，也能勇敢面對不確定的未來。
+          </p>
         </div>
       </div>
     </section>
@@ -412,7 +416,7 @@ function WeddingDetailsSection() {
               icon: "📅",
               title: "日期",
               subtitle: "Date",
-              content: "2025年10月18日",
+              content: "2026年06月20日",
               sub: "星期六",
               delay: "delay-100",
             },
@@ -643,7 +647,9 @@ function RSVPSection() {
           <div className="flex justify-center mb-4">
             <div className="h-0.5 w-24 bg-gradient-to-r from-transparent via-yellow-400 to-transparent" />
           </div>
-          <p className="font-noto-serif-tc text-sm text-green-600">請於 2026年5月20日 前回覆</p>
+          <p className="font-noto-serif-tc text-sm text-green-600">
+            請於 2026年5月20日 前回覆
+          </p>
         </div>
 
         <div
@@ -755,8 +761,12 @@ function FooterSection() {
           <div className="h-px flex-1 bg-green-700/40" />
         </div>
 
-        <h2 className="font-great-vibes text-3xl sm:text-5xl text-yellow-300/80 mb-3">Leon & Yeh</h2>
-        <p className="font-noto-serif-tc text-green-400/50 text-xs tracking-widest mb-6">2026 · 06 · 20</p>
+        <h2 className="font-great-vibes text-3xl sm:text-5xl text-yellow-300/80 mb-3">
+          Leon & Yeh
+        </h2>
+        <p className="font-noto-serif-tc text-green-400/50 text-xs tracking-widest mb-6">
+          2026 · 06 · 20
+        </p>
 
         <div className="flex items-center justify-center gap-6">
           <div className="text-center">
@@ -784,7 +794,10 @@ function FooterSection() {
 
 export default function Invitation() {
   return (
-    <div className="min-h-screen overflow-x-hidden" style={{ paddingTop: NAV_HEIGHT }}>
+    <div
+      className="min-h-screen overflow-x-hidden"
+      style={{ paddingTop: NAV_HEIGHT }}
+    >
       <AudioPlayer />
       <FloatingNav />
       <FloatingKiwis />
