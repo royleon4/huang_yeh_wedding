@@ -3,7 +3,7 @@ import { KiwiIcon, KiwiFruit } from "@/components/KiwiIcon";
 import { NZMap } from "@/components/NZMap";
 import { TWMap } from "@/components/TWMap";
 import { AudioPlayer } from "@/components/AudioPlayer";
-import { FloatingNav, SECTIONS_COUNT } from "@/components/FloatingNav";
+import { FloatingNav, SECTIONS_COUNT, SECTIONS } from "@/components/FloatingNav";
 
 function useIntersectionObserver(threshold = 0.1) {
   const ref = useRef<HTMLDivElement>(null);
@@ -99,18 +99,21 @@ function FloatingArrows({ scrollContainerRef }: FloatingArrowsProps) {
   const isFirst = activeIndex === 0;
   const isLast = activeIndex === SECTIONS_COUNT - 1;
 
-  const buttonClass =
-    "flex items-center justify-center w-10 h-10 rounded-full bg-white/75 backdrop-blur-md shadow-lg border border-white/60 text-green-700 hover:bg-white/90 hover:text-green-900 transition-all duration-200 active:scale-95";
+  const prevLabel = !isFirst ? SECTIONS[activeIndex - 1].label : "";
+  const nextLabel = !isLast ? SECTIONS[activeIndex + 1].label : "";
+
+  const capsuleClass =
+    "fixed top-4 z-50 flex items-center gap-1 bg-white/75 backdrop-blur-md shadow-lg border border-white/60 text-green-700 hover:bg-white/90 hover:text-green-900 transition-all duration-200 active:scale-95 rounded-full px-2 py-1";
 
   return (
     <>
       {!isFirst && (
         <button
-          className={`fixed top-4 left-3 z-50 ${buttonClass}`}
-          aria-label="上一頁"
+          className={`${capsuleClass} left-3`}
+          aria-label={`上一頁：${prevLabel}`}
           onClick={() => scrollTo(activeIndex - 1)}
         >
-          <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+          <svg width="18" height="18" viewBox="0 0 18 18" fill="none" className="shrink-0">
             <path
               d="M11 4 L6 9 L11 14"
               stroke="currentColor"
@@ -119,15 +122,17 @@ function FloatingArrows({ scrollContainerRef }: FloatingArrowsProps) {
               strokeLinejoin="round"
             />
           </svg>
+          <span className="text-xs font-medium text-green-800/80 pr-1">{prevLabel}</span>
         </button>
       )}
       {!isLast && (
         <button
-          className={`fixed top-4 right-3 z-50 ${buttonClass}`}
-          aria-label="下一頁"
+          className={`${capsuleClass} right-3`}
+          aria-label={`下一頁：${nextLabel}`}
           onClick={() => scrollTo(activeIndex + 1)}
         >
-          <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+          <span className="text-xs font-medium text-green-800/80 pl-1">{nextLabel}</span>
+          <svg width="18" height="18" viewBox="0 0 18 18" fill="none" className="shrink-0">
             <path
               d="M7 4 L12 9 L7 14"
               stroke="currentColor"

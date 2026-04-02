@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 
-const SECTIONS = [
+export const SECTIONS = [
   {
     id: "section-hero",
     label: "首頁",
