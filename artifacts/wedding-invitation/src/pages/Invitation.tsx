@@ -220,7 +220,7 @@ function HeroSection() {
         >
           <div className="h-px flex-1 bg-gradient-to-r from-transparent via-green-400 opacity-50" />
           <div className="flex items-center gap-2">
-            <div className="animate-float"><KiwiIcon size={24} /></div>
+            <KiwiIcon size={24} />
             <span className="text-yellow-400 text-2xl drop-shadow">🐾</span>
           </div>
           <div className="h-px flex-1 bg-gradient-to-r from-transparent via-green-400 opacity-50" />
