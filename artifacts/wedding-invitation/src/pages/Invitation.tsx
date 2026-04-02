@@ -876,21 +876,6 @@ function FooterSection() {
   );
 }
 
-function LangToggle() {
-  const { lang, setLang } = useContext(LanguageCtx);
-  return (
-    <div className="fixed bottom-[4.5rem] left-3 z-50">
-      <button
-        onClick={() => setLang(lang === "zh" ? "en" : "zh")}
-        className="bg-white/75 backdrop-blur-md shadow-lg border border-white/60 rounded-full px-3 py-1.5 font-noto-serif-tc text-xs text-green-700 hover:bg-white/90 hover:text-green-900 transition-all active:scale-95 w-full"
-        aria-label="切換語言 / Toggle language"
-      >
-        {lang === "zh" ? "Eng" : "中文"}
-      </button>
-    </div>
-  );
-}
-
 const FONT_MIN = -5;
 const FONT_MAX = 8;
 
@@ -903,9 +888,18 @@ interface FontSizeControlsProps {
 }
 
 function FontSizeControls({ step, onIncrease, onDecrease, min, max }: FontSizeControlsProps) {
+  const { lang, setLang } = useContext(LanguageCtx);
   return (
     <div className="fixed bottom-4 left-3 z-50">
       <div className="flex items-center bg-white/75 backdrop-blur-md shadow-lg border border-white/60 rounded-full overflow-hidden">
+        <button
+          onClick={() => setLang(lang === "zh" ? "en" : "zh")}
+          aria-label="切換語言 / Toggle language"
+          className="px-3 py-2 font-noto-serif-tc text-xs text-green-700 hover:bg-white/90 hover:text-green-900 transition-all active:scale-95"
+        >
+          {lang === "zh" ? "Eng" : "中文"}
+        </button>
+        <div className="w-px h-4 bg-green-300/60" />
         <button
           onClick={onDecrease}
           disabled={step <= min}
@@ -1005,7 +999,6 @@ export default function Invitation() {
         <FloatingNav scrollContainerRef={scrollContainerRef} labels={t.nav} navAriaLabel={t.navAriaLabel} />
         <FloatingKiwis />
         <FloatingArrows scrollContainerRef={scrollContainerRef} />
-        <LangToggle />
         <FontSizeControls
           step={fontStep}
           min={FONT_MIN}
