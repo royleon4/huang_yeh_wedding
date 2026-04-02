@@ -147,6 +147,155 @@ function HeroSection() {
   );
 }
 
+const PHOTOS = [
+  {
+    src: "https://images.unsplash.com/photo-1529634597503-139d3726fed5?w=900&q=80",
+    caption: "在紐西蘭的草地上 · New Zealand"
+  },
+  {
+    src: "https://images.unsplash.com/photo-1504610926078-a1611febcad3?w=900&q=80",
+    caption: "奇異果之鄉的日落 · Kiwi Land Sunset"
+  },
+  {
+    src: "https://images.unsplash.com/photo-1464037866556-6812c9d1c72e?w=900&q=80",
+    caption: "攜手走過的風景 · Our Journey"
+  },
+  {
+    src: "https://images.unsplash.com/photo-1488085061387-422e29b40080?w=900&q=80",
+    caption: "小黑陪伴的每一天 · With 小黑"
+  },
+  {
+    src: "https://images.unsplash.com/photo-1533777857889-4be7c70b33f7?w=900&q=80",
+    caption: "台灣的溫暖懷抱 · Home in Taiwan"
+  }
+];
+
+function PhotoSlideshowSection() {
+  const { ref, isVisible } = useIntersectionObserver();
+  const [current, setCurrent] = useState(0);
+  const [fading, setFading] = useState(false);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setFading(true);
+      setTimeout(() => {
+        setCurrent(prev => (prev + 1) % PHOTOS.length);
+        setFading(false);
+      }, 600);
+    }, 4000);
+    return () => clearInterval(timer);
+  }, []);
+
+  function goTo(index: number) {
+    if (index === current) return;
+    setFading(true);
+    setTimeout(() => {
+      setCurrent(index);
+      setFading(false);
+    }, 600);
+  }
+
+  function prev() {
+    goTo((current - 1 + PHOTOS.length) % PHOTOS.length);
+  }
+
+  function next() {
+    goTo((current + 1) % PHOTOS.length);
+  }
+
+  return (
+    <section
+      ref={ref}
+      className="py-20 px-6"
+      style={{ background: "linear-gradient(180deg, #f5f8ee 0%, #faf6d8 100%)" }}
+    >
+      <div className="max-w-3xl mx-auto">
+        <div className={`text-center mb-12 transition-all duration-1000 ${isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-10"}`}>
+          <p className="font-noto-serif-tc text-xs tracking-[0.5em] text-green-600 uppercase mb-3">我們的故事</p>
+          <h2 className="font-playfair text-4xl italic text-green-800 mb-4">Our Moments</h2>
+          <div className="flex justify-center">
+            <div className="h-0.5 w-24 bg-gradient-to-r from-transparent via-yellow-400 to-transparent" />
+          </div>
+        </div>
+
+        <div className={`transition-all duration-1000 delay-200 ${isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-10"}`}>
+          <div className="relative rounded-3xl overflow-hidden invitation-shadow bg-white/40">
+            <div
+              className="relative w-full"
+              style={{ paddingBottom: "66%" }}
+            >
+              {PHOTOS.map((photo, i) => (
+                <img
+                  key={i}
+                  src={photo.src}
+                  alt={photo.caption}
+                  className="absolute inset-0 w-full h-full object-cover transition-opacity duration-700"
+                  style={{ opacity: i === current ? (fading ? 0 : 1) : 0 }}
+                />
+              ))}
+              <div
+                className="absolute inset-0 transition-opacity duration-700"
+                style={{
+                  background: "linear-gradient(to top, rgba(0,0,0,0.45) 0%, transparent 50%)",
+                  opacity: fading ? 0 : 1
+                }}
+              />
+              <div
+                className="absolute bottom-0 left-0 right-0 px-6 pb-5 transition-opacity duration-700"
+                style={{ opacity: fading ? 0 : 1 }}
+              >
+                <p className="font-noto-serif-tc text-white text-sm tracking-wider text-center drop-shadow">
+                  {PHOTOS[current].caption}
+                </p>
+              </div>
+
+              <button
+                onClick={prev}
+                className="absolute left-3 top-1/2 -translate-y-1/2 bg-white/60 hover:bg-white/90 backdrop-blur-sm rounded-full w-9 h-9 flex items-center justify-center transition-all shadow"
+                aria-label="上一張"
+              >
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                  <path d="M10 3 L5 8 L10 13" stroke="#2d5a1b" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              </button>
+              <button
+                onClick={next}
+                className="absolute right-3 top-1/2 -translate-y-1/2 bg-white/60 hover:bg-white/90 backdrop-blur-sm rounded-full w-9 h-9 flex items-center justify-center transition-all shadow"
+                aria-label="下一張"
+              >
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                  <path d="M6 3 L11 8 L6 13" stroke="#2d5a1b" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              </button>
+            </div>
+          </div>
+
+          <div className="flex justify-center gap-2.5 mt-5">
+            {PHOTOS.map((_, i) => (
+              <button
+                key={i}
+                onClick={() => goTo(i)}
+                className="transition-all duration-300 rounded-full"
+                style={{
+                  width: i === current ? 24 : 8,
+                  height: 8,
+                  background: i === current ? "#2d5a1b" : "#a8c490",
+                  opacity: i === current ? 1 : 0.5
+                }}
+                aria-label={`第 ${i + 1} 張`}
+              />
+            ))}
+          </div>
+
+          <p className="text-center font-noto-serif-tc text-xs text-green-500 mt-3 tracking-wider">
+            {current + 1} / {PHOTOS.length}
+          </p>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 function LoveStorySection() {
   const { ref, isVisible } = useIntersectionObserver();
   
@@ -587,6 +736,7 @@ export default function Invitation() {
     <div className="min-h-screen">
       <FloatingKiwis />
       <HeroSection />
+      <PhotoSlideshowSection />
       <LoveStorySection />
       <MapsSection />
       <WeddingDetailsSection />
