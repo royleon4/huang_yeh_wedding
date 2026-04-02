@@ -642,9 +642,7 @@ function RSVPSection() {
           <div className="flex justify-center mb-4">
             <div className="h-0.5 w-24 bg-gradient-to-r from-transparent via-yellow-400 to-transparent" />
           </div>
-          <p className="font-noto-serif-tc text-sm text-green-600">
-            請於 2025年9月30日 前回覆
-          </p>
+          <p className="font-noto-serif-tc text-sm text-green-600">請於 2026年5月20日 前回覆</p>
         </div>
 
         <div
