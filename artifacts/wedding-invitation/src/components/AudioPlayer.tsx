@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import weddingMusic from "@assets/【好喜歡與你在一起_I_Really_Love_To_Be_With_You】官方歌詞版MV_(Official_Lyric_1775123391235.mp4";
+import weddingMusic from "@assets/【好喜歡與你在一起_I_Really_Love_To_Be_With_You】官方歌詞版MV_(Official_Lyric_1775124403812.mp4";
 
 export function AudioPlayer() {
   const audioRef = useRef<HTMLAudioElement>(null);
