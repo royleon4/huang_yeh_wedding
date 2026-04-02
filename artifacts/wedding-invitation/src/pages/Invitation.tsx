@@ -90,8 +90,8 @@ function HeroSection() {
       setTimeout(() => {
         setCurrent((prev) => (prev + 1) % photos.length);
         setFading(false);
-      }, 800);
-    }, 5000);
+      }, 600);
+    }, 4000);
     return () => clearInterval(timer);
   }, [photos.length]);
 
@@ -124,7 +124,7 @@ function HeroSection() {
     setTimeout(() => {
       setCurrent(index);
       setFading(false);
-    }, 800);
+    }, 600);
   }
 
   function prev() {
@@ -137,7 +137,7 @@ function HeroSection() {
 
   return (
     <section
-      className="relative min-h-screen flex flex-col items-center justify-center overflow-hidden text-[17px]"
+      className={`relative min-h-screen flex flex-col items-center justify-center overflow-hidden text-[17px] ${!hasPhotos ? "kiwi-pattern" : ""}`}
       style={
         hasPhotos
           ? {}
