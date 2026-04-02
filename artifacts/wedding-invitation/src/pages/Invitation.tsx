@@ -443,17 +443,11 @@ function LoveStorySection() {
             <div className="flex justify-center">
               <div className="relative">
                 <div className="absolute -inset-4 bg-gradient-to-br from-blue-50 to-yellow-50 rounded-full blur-xl opacity-70" />
-                <div
-                  className="relative animate-wiggle overflow-hidden"
-                  style={{ width: 180, height: 180 }}
-                >
-                  <img
-                    src="/penguin.png"
-                    alt="葉黃素夢"
-                    className="absolute w-full object-cover object-top"
-                    style={{ top: "10%", height: "80%" }}
-                  />
-                </div>
+                <img
+                  src="/penguin.png"
+                  alt="葉黃素夢"
+                  className="relative animate-wiggle w-48 h-auto object-contain"
+                />
               </div>
             </div>
             <p className="text-center font-noto-serif-tc text-sm text-green-600 mt-3 tracking-wider">
@@ -935,17 +929,11 @@ function FooterSection() {
         <div className="flex justify-center mb-6">
           <div className="relative">
             <div className="absolute -inset-6 bg-blue-900/20 rounded-full blur-xl" />
-            <div
-              className="relative overflow-hidden opacity-90"
-              style={{ width: 100, height: 100 }}
-            >
-              <img
-                src="/penguin.png"
-                alt="葉黃素夢"
-                className="absolute w-full object-cover object-top"
-                style={{ top: "8%", height: "80%" }}
-              />
-            </div>
+            <img
+              src="/penguin.png"
+              alt="葉黃素夢"
+              className="relative w-32 h-auto object-contain opacity-90"
+            />
           </div>
         </div>
 
