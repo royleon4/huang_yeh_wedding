@@ -62,100 +62,83 @@ function FloatingKiwis() {
   );
 }
 
-interface SwipeArrowHintProps {
+interface FloatingArrowsProps {
   scrollContainerRef: React.RefObject<HTMLDivElement | null>;
-  dismissed: boolean;
 }
 
-function SwipeArrowHint({ scrollContainerRef, dismissed }: SwipeArrowHintProps) {
-  const [isLastSection, setIsLastSection] = useState(false);
-  const [phase, setPhase] = useState<"visible" | "dim" | "hidden">("visible");
-  const cycleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+function FloatingArrows({ scrollContainerRef }: FloatingArrowsProps) {
+  const [activeIndex, setActiveIndex] = useState(0);
 
   useEffect(() => {
     const container = scrollContainerRef.current;
     if (!container) return;
 
-    const updateLastSection = () => {
+    const updateIndex = () => {
       const vw = container.clientWidth;
       if (vw === 0) return;
       const index = Math.round(container.scrollLeft / vw);
-      setIsLastSection(index >= SECTIONS_COUNT - 1);
+      setActiveIndex(Math.min(Math.max(index, 0), SECTIONS_COUNT - 1));
     };
 
-    const observer = new ResizeObserver(updateLastSection);
+    const observer = new ResizeObserver(updateIndex);
     observer.observe(container);
-
-    container.addEventListener("scroll", updateLastSection, { passive: true });
-    updateLastSection();
+    container.addEventListener("scroll", updateIndex, { passive: true });
+    updateIndex();
     return () => {
-      container.removeEventListener("scroll", updateLastSection);
+      container.removeEventListener("scroll", updateIndex);
       observer.disconnect();
     };
   }, [scrollContainerRef]);
 
-  useEffect(() => {
-    if (dismissed) return;
+  const scrollTo = (index: number) => {
+    const container = scrollContainerRef.current;
+    if (!container) return;
+    container.scrollTo({ left: index * container.clientWidth, behavior: "smooth" });
+  };
 
-    const runCycle = () => {
-      setPhase("visible");
-      cycleTimerRef.current = setTimeout(() => {
-        setPhase("dim");
-        cycleTimerRef.current = setTimeout(() => {
-          setPhase("hidden");
-          cycleTimerRef.current = setTimeout(() => {
-            runCycle();
-          }, 1500);
-        }, 1200);
-      }, 2000);
-    };
+  const isFirst = activeIndex === 0;
+  const isLast = activeIndex === SECTIONS_COUNT - 1;
 
-    runCycle();
-
-    return () => {
-      if (cycleTimerRef.current) clearTimeout(cycleTimerRef.current);
-    };
-  }, [dismissed]);
-
-  if (dismissed || isLastSection) return null;
+  const buttonClass =
+    "flex items-center justify-center w-10 h-10 rounded-full bg-white/75 backdrop-blur-md shadow-lg border border-white/60 text-green-700 hover:bg-white/90 hover:text-green-900 transition-all duration-200 active:scale-95";
 
   return (
-    <div
-      className="fixed right-3 top-1/2 -translate-y-1/2 z-40 pointer-events-none transition-opacity duration-700"
-      style={{
-        opacity: phase === "visible" ? 1 : phase === "dim" ? 0.25 : 0,
-      }}
-    >
-      <div
-        className="flex flex-col items-center gap-1"
-        style={{
-          animation: phase === "visible" ? "swipeArrowPulse 1.2s ease-in-out infinite" : "none",
-        }}
-      >
-        <svg
-          width="28"
-          height="28"
-          viewBox="0 0 28 28"
-          fill="none"
-          className="drop-shadow-md"
+    <>
+      {!isFirst && (
+        <button
+          className={`fixed top-4 left-3 z-50 ${buttonClass}`}
+          aria-label="上一頁"
+          onClick={() => scrollTo(activeIndex - 1)}
         >
-          <circle cx="14" cy="14" r="13" fill="rgba(255,255,255,0.85)" />
-          <path
-            d="M11 9 L17 14 L11 19"
-            stroke="#2d6a1b"
-            strokeWidth="2.2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-        </svg>
-        <span
-          className="font-noto-serif-tc text-green-800 text-[9px] tracking-widest"
-          style={{ textShadow: "0 0 6px rgba(255,255,255,0.9)" }}
+          <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+            <path
+              d="M11 4 L6 9 L11 14"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+        </button>
+      )}
+      {!isLast && (
+        <button
+          className={`fixed top-4 right-3 z-50 ${buttonClass}`}
+          aria-label="下一頁"
+          onClick={() => scrollTo(activeIndex + 1)}
         >
-          滑動
-        </span>
-      </div>
-    </div>
+          <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+            <path
+              d="M7 4 L12 9 L7 14"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+        </button>
+      )}
+    </>
   );
 }
 
@@ -271,26 +254,6 @@ function HeroSection() {
           </p>
         </div>
 
-        {/* Swipe hint (replaces scroll hint) */}
-        <div
-          className="animate-bounce opacity-0 animate-fade-in-up"
-          style={{ animationDelay: "1.2s", animationFillMode: "forwards" }}
-        >
-          <p className="font-noto-serif-tc text-xs tracking-widest mb-2 text-green-600">
-            左右滑動
-          </p>
-          <div className="flex justify-center">
-            <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-              <path
-                d="M4 10 L16 10 M11 5 L16 10 L11 15"
-                stroke="#5a8c30"
-                strokeWidth="1.5"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
-          </div>
-        </div>
       </div>
     </section>
   );
@@ -765,100 +728,54 @@ function FooterSection() {
 
 export default function Invitation() {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
-  const [swipeDismissed, setSwipeDismissed] = useState(false);
-  const hasSwiped = useRef(false);
 
   useEffect(() => {
     const container = scrollContainerRef.current;
     if (!container) return;
 
-    let isPointerDown = false;
-    let startX = 0;
-    let startScrollLeft = 0;
-    let totalDx = 0;
-
-    const dismissArrow = () => {
-      if (!hasSwiped.current) {
-        hasSwiped.current = true;
-        setSwipeDismissed(true);
+    const handleWheel = (e: WheelEvent) => {
+      if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) {
+        e.preventDefault();
       }
     };
 
-    const handlePointerDown = (e: PointerEvent) => {
-      if (e.pointerType !== "mouse" || e.button !== 0) return;
-      isPointerDown = true;
-      startX = e.clientX;
-      startScrollLeft = container.scrollLeft;
-      totalDx = 0;
-      container.setPointerCapture(e.pointerId);
-      container.style.cursor = "grabbing";
-      container.style.userSelect = "none";
-    };
-
-    const handlePointerMove = (e: PointerEvent) => {
-      if (!isPointerDown || e.pointerType !== "mouse") return;
-      const dx = e.clientX - startX;
-      totalDx = Math.abs(dx);
-      container.scrollLeft = startScrollLeft - dx;
-      if (totalDx > 10) dismissArrow();
-    };
-
-    const handlePointerUp = (e: PointerEvent) => {
-      if (!isPointerDown || e.pointerType !== "mouse") return;
-      isPointerDown = false;
-      container.style.cursor = "";
-      container.style.userSelect = "";
-
-      if (totalDx > 10) {
-        const vw = container.clientWidth;
-        const nearestIndex = Math.round(container.scrollLeft / vw);
-        container.scrollTo({ left: nearestIndex * vw, behavior: "smooth" });
-      }
-    };
+    let touchStartX = 0;
+    let touchStartY = 0;
 
     const handleTouchStart = (e: TouchEvent) => {
-      startX = e.touches[0].clientX;
+      touchStartX = e.touches[0].clientX;
+      touchStartY = e.touches[0].clientY;
     };
 
-    const handleTouchEnd = (e: TouchEvent) => {
-      const dx = Math.abs(e.changedTouches[0].clientX - startX);
-      if (dx > 10) dismissArrow();
+    const handleTouchMove = (e: TouchEvent) => {
+      const dx = e.touches[0].clientX - touchStartX;
+      const dy = e.touches[0].clientY - touchStartY;
+      if (Math.abs(dx) > Math.abs(dy)) {
+        e.preventDefault();
+      }
     };
 
-    container.addEventListener("pointerdown", handlePointerDown);
-    container.addEventListener("pointermove", handlePointerMove);
-    container.addEventListener("pointerup", handlePointerUp);
-    container.addEventListener("pointercancel", handlePointerUp);
+    container.addEventListener("wheel", handleWheel, { passive: false });
     container.addEventListener("touchstart", handleTouchStart, { passive: true });
-    container.addEventListener("touchend", handleTouchEnd, { passive: true });
+    container.addEventListener("touchmove", handleTouchMove, { passive: false });
 
     return () => {
-      container.removeEventListener("pointerdown", handlePointerDown);
-      container.removeEventListener("pointermove", handlePointerMove);
-      container.removeEventListener("pointerup", handlePointerUp);
-      container.removeEventListener("pointercancel", handlePointerUp);
+      container.removeEventListener("wheel", handleWheel);
       container.removeEventListener("touchstart", handleTouchStart);
-      container.removeEventListener("touchend", handleTouchEnd);
+      container.removeEventListener("touchmove", handleTouchMove);
     };
   }, []);
-
-  const handleNavClick = () => {
-    if (!hasSwiped.current) {
-      hasSwiped.current = true;
-      setSwipeDismissed(true);
-    }
-  };
 
   return (
     <div className="w-screen h-screen overflow-hidden">
       <AudioPlayer />
-      <FloatingNav scrollContainerRef={scrollContainerRef} onNavClick={handleNavClick} />
+      <FloatingNav scrollContainerRef={scrollContainerRef} />
       <FloatingKiwis />
-      <SwipeArrowHint scrollContainerRef={scrollContainerRef} dismissed={swipeDismissed} />
+      <FloatingArrows scrollContainerRef={scrollContainerRef} />
       <div
         ref={scrollContainerRef}
         className="w-full h-full flex flex-row overflow-x-auto overflow-y-hidden snap-x snap-mandatory snap-container"
-        style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
+        style={{ scrollbarWidth: "none", msOverflowStyle: "none", touchAction: "pan-y" }}
       >
         <HeroSection />
         <LoveStorySection />
