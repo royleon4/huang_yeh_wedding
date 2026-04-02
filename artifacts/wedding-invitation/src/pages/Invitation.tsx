@@ -63,163 +63,48 @@ function FloatingKiwis() {
 }
 
 function HeroSection() {
-  const [photos, setPhotos] = useState<string[]>([]);
-  const [current, setCurrent] = useState(0);
-  const [fading, setFading] = useState(false);
-  const [uploading, setUploading] = useState(false);
-  const API_BASE = import.meta.env.BASE_URL ? `${window.location.origin}` : "";
-
-  const hasPhotos = photos.length > 0;
-
-  useEffect(() => {
-    const fetchPhotos = async () => {
-      try {
-        const res = await fetch(`${API_BASE}/api/photos`);
-        const data = await res.json();
-        if (data.photos) setPhotos(data.photos);
-      } catch (err) {
-        console.error("Failed to load photos:", err);
-      }
-    };
-    fetchPhotos();
-  }, []);
-
-  useEffect(() => {
-    if (photos.length === 0) return;
-    const timer = setInterval(() => {
-      setFading(true);
-      setTimeout(() => {
-        setCurrent((prev) => (prev + 1) % photos.length);
-        setFading(false);
-      }, 600);
-    }, 4000);
-    return () => clearInterval(timer);
-  }, [photos.length]);
-
-  const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (!files) return;
-    setUploading(true);
-    try {
-      const formData = new FormData();
-      Array.from(files).forEach((file) => formData.append("photos", file));
-      const res = await fetch(`${API_BASE}/api/photos/upload`, {
-        method: "POST",
-        body: formData,
-      });
-      if (res.ok) {
-        const result = await res.json();
-        setPhotos((prev) => [...prev, ...result.uploaded]);
-      }
-    } catch (err) {
-      console.error("Upload failed:", err);
-    } finally {
-      setUploading(false);
-      (e.target as HTMLInputElement).value = "";
-    }
-  };
-
-  function goTo(index: number) {
-    if (index === current) return;
-    setFading(true);
-    setTimeout(() => {
-      setCurrent(index);
-      setFading(false);
-    }, 600);
-  }
-
-  function prev() {
-    goTo((current - 1 + photos.length) % photos.length);
-  }
-
-  function next() {
-    goTo((current + 1) % photos.length);
-  }
-
   return (
     <section
       id="section-hero"
-      className={`relative min-h-screen flex flex-col items-center justify-center overflow-hidden text-[17px] ${!hasPhotos ? "kiwi-pattern" : ""}`}
-      style={
-        hasPhotos
-          ? {}
-          : {
-              background:
-                "linear-gradient(160deg, #f0f7e6 0%, #faf6d8 40%, #eef6e2 70%, #f8f4e0 100%)",
-            }
-      }
+      className="relative min-h-screen flex flex-col items-center justify-center overflow-hidden text-[17px] kiwi-pattern"
+      style={{
+        background:
+          "linear-gradient(160deg, #f0f7e6 0%, #faf6d8 40%, #eef6e2 70%, #f8f4e0 100%)",
+      }}
     >
-      {/* Photo background */}
-      {hasPhotos && (
-        <>
-          {photos.map((filename, i) => (
-            <img
-              key={filename}
-              src={`${API_BASE}/api/photos/image/${filename}`}
-              alt=""
-              aria-hidden="true"
-              className="absolute inset-0 w-full h-full object-cover transition-opacity duration-1000"
-              style={{ opacity: i === current ? (fading ? 0 : 1) : 0 }}
-            />
-          ))}
-          {/* Dark gradient overlay for readability */}
-          <div
-            className="absolute inset-0 pointer-events-none"
-            style={{
-              background:
-                "linear-gradient(to bottom, rgba(0,0,0,0.38) 0%, rgba(0,0,0,0.22) 50%, rgba(0,0,0,0.55) 100%)",
-            }}
-          />
-          {/* Subtle green tint at top/bottom for brand feel */}
-          <div
-            className="absolute inset-0 pointer-events-none"
-            style={{
-              background:
-                "linear-gradient(to bottom, rgba(20,50,10,0.18) 0%, transparent 40%, rgba(20,50,10,0.25) 100%)",
-            }}
-          />
-        </>
-      )}
-
-      {/* Decorative kiwis — no-photo state */}
-      {!hasPhotos && (
-        <div className="absolute inset-0 overflow-hidden pointer-events-none">
-          <div className="absolute -top-8 -left-8 opacity-10 animate-float-slow">
-            <KiwiIcon size={180} />
-          </div>
-          <div
-            className="absolute -bottom-10 -right-10 opacity-10 animate-float"
-            style={{ animationDelay: "2s" }}
-          >
-            <KiwiIcon size={200} />
-          </div>
-          <div
-            className="absolute top-1/4 -right-12 opacity-8 animate-float-slow"
-            style={{ animationDelay: "1s" }}
-          >
-            <KiwiIcon size={140} />
-          </div>
+      {/* Decorative kiwis */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute -top-8 -left-8 opacity-10 animate-float-slow">
+          <KiwiIcon size={180} />
         </div>
-      )}
+        <div
+          className="absolute -bottom-10 -right-10 opacity-10 animate-float"
+          style={{ animationDelay: "2s" }}
+        >
+          <KiwiIcon size={200} />
+        </div>
+        <div
+          className="absolute top-1/4 -right-12 opacity-8 animate-float-slow"
+          style={{ animationDelay: "1s" }}
+        >
+          <KiwiIcon size={140} />
+        </div>
+      </div>
 
       {/* Main content */}
       <div className="relative z-10 text-center px-4 sm:px-6 max-w-2xl mx-auto w-full">
         {/* Decorative top element */}
         <div className="flex items-center justify-center gap-4 mb-6 sm:mb-8">
-          <div
-            className={`h-px w-12 sm:w-16 bg-gradient-to-r from-transparent ${hasPhotos ? "to-white/60" : "to-green-600 opacity-40"}`}
-          />
+          <div className="h-px w-12 sm:w-16 bg-gradient-to-r from-transparent to-green-600 opacity-40" />
           <div className="animate-float">
             <KiwiIcon size={40} />
           </div>
-          <div
-            className={`h-px w-12 sm:w-16 bg-gradient-to-l from-transparent ${hasPhotos ? "to-white/60" : "to-green-600 opacity-40"}`}
-          />
+          <div className="h-px w-12 sm:w-16 bg-gradient-to-l from-transparent to-green-600 opacity-40" />
         </div>
 
         {/* Announcement */}
         <p
-          className={`font-noto-serif-tc text-xs tracking-[0.4em] uppercase mb-4 opacity-0 animate-fade-in-up ${hasPhotos ? "text-white/90 drop-shadow-lg" : "text-green-700"}`}
+          className="font-noto-serif-tc text-xs tracking-[0.4em] uppercase mb-4 opacity-0 animate-fade-in-up text-green-700"
           style={{ animationDelay: "0.2s", animationFillMode: "forwards" }}
           data-testid="text-announcement"
         >
@@ -232,18 +117,18 @@ function HeroSection() {
           style={{ animationDelay: "0.4s", animationFillMode: "forwards" }}
         >
           <h1
-            className={`font-playfair text-4xl sm:text-5xl leading-tight font-semibold italic flex items-center justify-center gap-4 whitespace-nowrap ${hasPhotos ? "text-white drop-shadow-2xl" : "text-green-800"}`}
+            className="font-playfair text-4xl sm:text-5xl leading-tight font-semibold italic flex items-center justify-center gap-4 whitespace-nowrap text-green-800"
             data-testid="text-names"
           >
             Leon
-            <span className={`font-playfair text-2xl sm:text-3xl not-italic ${hasPhotos ? "text-yellow-300 drop-shadow" : "text-yellow-600"}`}>&amp;</span>
+            <span className="font-playfair text-2xl sm:text-3xl not-italic text-yellow-600">&amp;</span>
             Yeh
           </h1>
         </div>
 
         {/* Chinese names */}
         <p
-          className={`font-noto-serif-tc text-xl sm:text-2xl tracking-[0.3em] mb-6 opacity-0 animate-fade-in-up ${hasPhotos ? "text-white/95 drop-shadow-lg" : "text-green-700"}`}
+          className="font-noto-serif-tc text-xl sm:text-2xl tracking-[0.3em] mb-6 opacity-0 animate-fade-in-up text-green-700"
           style={{ animationDelay: "0.6s", animationFillMode: "forwards" }}
           data-testid="text-chinese-names"
         >
@@ -255,29 +140,21 @@ function HeroSection() {
           className="flex items-center justify-center gap-4 mb-6 sm:mb-8 opacity-0 animate-fade-in-up"
           style={{ animationDelay: "0.7s", animationFillMode: "forwards" }}
         >
-          <div
-            className={`h-px flex-1 bg-gradient-to-r from-transparent opacity-50 ${hasPhotos ? "via-white/60" : "via-green-400"}`}
-          />
+          <div className="h-px flex-1 bg-gradient-to-r from-transparent via-green-400 opacity-50" />
           <span className="text-yellow-400 text-2xl drop-shadow">🐾</span>
-          <div
-            className={`h-px flex-1 bg-gradient-to-r from-transparent opacity-50 ${hasPhotos ? "via-white/60" : "via-green-400"}`}
-          />
+          <div className="h-px flex-1 bg-gradient-to-r from-transparent via-green-400 opacity-50" />
         </div>
 
         {/* Date card */}
         <div
-          className={`rounded-2xl px-4 py-4 sm:px-8 sm:py-5 mb-6 sm:mb-8 opacity-0 animate-fade-in-up backdrop-blur-sm invitation-shadow ${hasPhotos ? "bg-black/30 border border-white/20" : "bg-white/60"}`}
+          className="rounded-2xl px-4 py-4 sm:px-8 sm:py-5 mb-6 sm:mb-8 opacity-0 animate-fade-in-up backdrop-blur-sm invitation-shadow bg-white/60"
           style={{ animationDelay: "0.8s", animationFillMode: "forwards" }}
           data-testid="card-date"
         >
-          <p
-            className={`font-playfair font-semibold tracking-wide text-2xl sm:text-4xl md:text-[42px] ${hasPhotos ? "text-white drop-shadow" : "text-green-800"}`}
-          >
+          <p className="font-playfair font-semibold tracking-wide text-2xl sm:text-4xl md:text-[42px] text-green-800">
             2026 · 06 · 20
           </p>
-          <p
-            className={`font-noto-serif-tc mt-1 tracking-widest text-base sm:text-xl md:text-[25px] font-bold ${hasPhotos ? "text-white/90" : "text-green-600"}`}
-          >
+          <p className="font-noto-serif-tc mt-1 tracking-widest text-base sm:text-xl md:text-[25px] font-bold text-green-600">
             星期六 下午三點
           </p>
         </div>
@@ -287,16 +164,14 @@ function HeroSection() {
           className="animate-bounce opacity-0 animate-fade-in-up"
           style={{ animationDelay: "1.2s", animationFillMode: "forwards" }}
         >
-          <p
-            className={`font-noto-serif-tc text-xs tracking-widest mb-2 ${hasPhotos ? "text-white/70" : "text-green-600"}`}
-          >
+          <p className="font-noto-serif-tc text-xs tracking-widest mb-2 text-green-600">
             往下捲動
           </p>
           <div className="flex justify-center">
             <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
               <path
                 d="M10 4 L10 16 M5 11 L10 16 L15 11"
-                stroke={hasPhotos ? "rgba(255,255,255,0.7)" : "#5a8c30"}
+                stroke="#5a8c30"
                 strokeWidth="1.5"
                 strokeLinecap="round"
                 strokeLinejoin="round"
@@ -305,100 +180,6 @@ function HeroSection() {
           </div>
         </div>
       </div>
-
-      {/* Photo controls */}
-      {hasPhotos && (
-        <>
-          {/* Prev / Next arrows */}
-          <button
-            onClick={prev}
-            className="absolute left-4 top-1/2 -translate-y-1/2 z-20 bg-white/20 hover:bg-white/40 backdrop-blur-sm rounded-full w-11 h-11 flex items-center justify-center transition-all shadow-lg border border-white/30"
-            aria-label="上一張"
-          >
-            <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
-              <path
-                d="M11 4 L6 9 L11 14"
-                stroke="white"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
-          </button>
-          <button
-            onClick={next}
-            className="absolute right-4 top-1/2 -translate-y-1/2 z-20 bg-white/20 hover:bg-white/40 backdrop-blur-sm rounded-full w-11 h-11 flex items-center justify-center transition-all shadow-lg border border-white/30"
-            aria-label="下一張"
-          >
-            <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
-              <path
-                d="M7 4 L12 9 L7 14"
-                stroke="white"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
-          </button>
-
-          {/* Dot indicators (centred) + upload button (right corner) */}
-          <div className="absolute bottom-8 left-0 right-0 z-20 flex flex-col items-center gap-3">
-            <div className="flex gap-2">
-              {photos.map((filename, i) => (
-                <button
-                  key={filename}
-                  onClick={() => goTo(i)}
-                  className="transition-all duration-300 rounded-full"
-                  style={{
-                    width: i === current ? 28 : 8,
-                    height: 8,
-                    background:
-                      i === current ? "#f0d030" : "rgba(255,255,255,0.5)",
-                    boxShadow:
-                      i === current ? "0 0 8px rgba(240,208,48,0.6)" : "none",
-                  }}
-                  aria-label={`第 ${i + 1} 張`}
-                />
-              ))}
-            </div>
-
-          </div>
-
-          {/* Upload button — right corner */}
-          <label className="absolute bottom-6 right-5 z-20 inline-flex items-center gap-1.5 cursor-pointer group">
-            <input
-              type="file"
-              multiple
-              accept="image/*"
-              onChange={handleUpload}
-              disabled={uploading}
-              className="hidden"
-            />
-            <span className="text-white/50 group-hover:text-white/90 text-xs font-noto-serif-tc tracking-wider transition-colors drop-shadow">
-              {uploading ? "上傳中…" : "＋ 上傳照片"}
-            </span>
-          </label>
-        </>
-      )}
-
-      {/* Upload prompt — no-photo state */}
-      {!hasPhotos && (
-        <div className="absolute bottom-12 left-0 right-0 z-10 flex justify-center">
-          <label className="inline-flex items-center gap-2 cursor-pointer group">
-            <input
-              type="file"
-              multiple
-              accept="image/*"
-              onChange={handleUpload}
-              disabled={uploading}
-              className="hidden"
-            />
-            <span className="inline-block bg-green-700/90 hover:bg-green-800 text-white px-6 py-2.5 rounded-xl font-noto-serif-tc text-sm cursor-pointer transition-all shadow-md">
-              {uploading ? "上傳中…" : "📷 上傳婚紗照"}
-            </span>
-          </label>
-        </div>
-      )}
     </section>
   );
 }
@@ -705,10 +486,47 @@ function WeddingDetailsSection() {
   );
 }
 
-function KiwiGallerySection() {
+function PhotoWallSection() {
   const { ref, isVisible } = useIntersectionObserver();
+  const [photos, setPhotos] = useState<string[]>([]);
+  const [uploading, setUploading] = useState(false);
+  const API_BASE = import.meta.env.BASE_URL ? `${window.location.origin}` : "";
 
-  const kiwis = Array.from({ length: 7 });
+  useEffect(() => {
+    const fetchPhotos = async () => {
+      try {
+        const res = await fetch(`${API_BASE}/api/photos`);
+        const data = await res.json();
+        if (data.photos) setPhotos(data.photos);
+      } catch (err) {
+        console.error("Failed to load photos:", err);
+      }
+    };
+    fetchPhotos();
+  }, []);
+
+  const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files) return;
+    setUploading(true);
+    try {
+      const formData = new FormData();
+      Array.from(files).forEach((file) => formData.append("photos", file));
+      const res = await fetch(`${API_BASE}/api/photos/upload`, {
+        method: "POST",
+        body: formData,
+      });
+      if (res.ok) {
+        const result = await res.json();
+        setPhotos((prev) => [...prev, ...result.uploaded]);
+      }
+    } catch (err) {
+      console.error("Upload failed:", err);
+    } finally {
+      setUploading(false);
+      (e.target as HTMLInputElement).value = "";
+    }
+  };
 
   return (
     <section
@@ -719,82 +537,77 @@ function KiwiGallerySection() {
         background: "linear-gradient(180deg, #f8f9e8 0%, #f2f8e6 100%)",
       }}
     >
-      <div className="max-w-3xl mx-auto">
+      <div className="max-w-4xl mx-auto">
+        {/* Section header */}
         <div
           className={`text-center mb-8 md:mb-12 transition-all duration-1000 ${isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-10"}`}
         >
           <p className="font-noto-serif-tc text-xs tracking-[0.5em] text-green-600 uppercase mb-3">
-            奇異果的祝福
+            我們的相片
           </p>
           <h2 className="font-playfair text-2xl sm:text-3xl md:text-4xl italic text-green-800 mb-4">
-            Kiwi Blessings
+            Photo Wall
           </h2>
           <div className="flex justify-center">
             <div className="h-0.5 w-24 bg-gradient-to-r from-transparent via-yellow-400 to-transparent" />
           </div>
           <p className="font-noto-serif-tc text-sm text-green-600 mt-4">
-            每一顆奇異果，都是一份美好的祝福
+            分享你們與我們的美好瞬間
           </p>
         </div>
 
-        <div className="flex flex-wrap justify-center gap-3 sm:gap-4 mb-8 sm:mb-12">
-          {kiwis.map((_, i) => (
-            <div
-              key={i}
-              className={`transition-all duration-700 ${isVisible ? "opacity-100 scale-100" : "opacity-0 scale-75"}`}
-              style={{ transitionDelay: `${i * 100}ms` }}
-            >
-              <KiwiIcon
-                size={40 + (i % 3) * 8}
-                className="animate-float"
-                // @ts-ignore - style prop for animation delay
-              />
-            </div>
-          ))}
-        </div>
-
-        {/* Blessing cards */}
-        <div
-          className={`grid sm:grid-cols-2 gap-4 sm:gap-5 transition-all duration-1000 delay-500 ${isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-10"}`}
-        >
-          {[
-            {
-              zh: "願你們的愛情如奇異果般",
-              en: "Sweet on the inside",
-              icon: "💚",
-            },
-            {
-              zh: "外表樸實，內心豐盛",
-              en: "Simple outside, rich within",
-              icon: "✨",
-            },
-            {
-              zh: "帶著家鄉的溫暖",
-              en: "Carrying the warmth of home",
-              icon: "🏠",
-            },
-            {
-              zh: "在異鄉找到最美的歸宿",
-              en: "Finding love far from home",
-              icon: "💛",
-            },
-          ].map((blessing, i) => (
-            <div
-              key={i}
-              className="bg-white/70 rounded-2xl p-4 sm:p-5 invitation-shadow flex items-start gap-3"
-              data-testid={`card-blessing-${i}`}
-            >
-              <span className="text-2xl flex-shrink-0">{blessing.icon}</span>
-              <div className="min-w-0">
-                <p className="font-noto-serif-tc text-green-800 text-sm">
-                  {blessing.zh}
-                </p>
-                <p className="font-playfair text-green-500 text-sm italic mt-1">
-                  {blessing.en}
-                </p>
+        {/* Photo grid or empty state */}
+        {photos.length > 0 ? (
+          <div
+            className={`grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4 mb-8 transition-all duration-1000 delay-200 ${isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-10"}`}
+          >
+            {photos.map((filename, i) => (
+              <div
+                key={filename}
+                className="aspect-square rounded-2xl overflow-hidden invitation-shadow transition-all duration-700"
+                style={{ transitionDelay: `${i * 60}ms` }}
+              >
+                <img
+                  src={`${API_BASE}/api/photos/image/${filename}`}
+                  alt={`照片 ${i + 1}`}
+                  className="w-full h-full object-cover hover:scale-105 transition-transform duration-500"
+                />
               </div>
+            ))}
+          </div>
+        ) : (
+          <div
+            className={`flex flex-col items-center justify-center py-16 transition-all duration-1000 delay-200 ${isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-10"}`}
+          >
+            <div className="bg-white/70 rounded-3xl p-10 invitation-shadow text-center max-w-sm">
+              <div className="text-5xl mb-4">📷</div>
+              <p className="font-noto-serif-tc text-green-800 text-base mb-2">
+                還沒有照片
+              </p>
+              <p className="font-noto-serif-tc text-green-600 text-sm">
+                上傳你們與我們的美照，一起留下這份回憶
+              </p>
             </div>
-          ))}
+          </div>
+        )}
+
+        {/* Upload button */}
+        <div
+          className={`flex justify-center transition-all duration-1000 delay-400 ${isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-10"}`}
+        >
+          <label className="inline-flex items-center gap-2 cursor-pointer group">
+            <input
+              type="file"
+              multiple
+              accept="image/*"
+              onChange={handleUpload}
+              disabled={uploading}
+              className="hidden"
+            />
+            <span className="inline-block bg-green-700/90 hover:bg-green-800 text-white px-6 py-3 rounded-xl font-noto-serif-tc text-sm cursor-pointer transition-all shadow-md tracking-wider">
+              {uploading ? "上傳中…" : "📷 上傳照片"}
+            </span>
+          </label>
         </div>
       </div>
     </section>
@@ -987,7 +800,7 @@ export default function Invitation() {
       <LoveStorySection />
       <MapsSection />
       <WeddingDetailsSection />
-      <KiwiGallerySection />
+      <PhotoWallSection />
       <RSVPSection />
       <FooterSection />
     </div>
