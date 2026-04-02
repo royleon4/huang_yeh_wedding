@@ -180,7 +180,7 @@ function HeroSection() {
       <div className="relative z-10 text-center px-4 sm:px-6 max-w-2xl mx-auto w-full mt-8">
         {/* Announcement */}
         <p
-          className="font-noto-serif-tc text-xs tracking-[0.4em] uppercase mb-4 opacity-0 animate-fade-in-up text-green-700"
+          className="font-noto-serif-tc text-sm tracking-[0.4em] uppercase mb-4 opacity-0 animate-fade-in-up text-green-700"
           style={{ animationDelay: "0.2s", animationFillMode: "forwards" }}
           data-testid="text-announcement"
         >
@@ -283,7 +283,7 @@ function LoveStorySection() {
         <div
           className={`text-center mb-8 md:mb-16 transition-all duration-1000 ${isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-10"}`}
         >
-          <p className="font-noto-serif-tc text-xs tracking-[0.5em] text-green-600 uppercase mb-3">
+          <p className="font-noto-serif-tc text-sm tracking-[0.5em] text-green-600 uppercase mb-3">
             我們的故事
           </p>
           <h2 className="font-playfair text-2xl sm:text-3xl md:text-4xl italic text-green-800 mb-4">
@@ -406,7 +406,7 @@ function WeddingDetailsSection() {
         <div
           className={`text-center mb-8 md:mb-12 transition-all duration-1000 ${isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-10"}`}
         >
-          <p className="font-noto-serif-tc text-xs tracking-[0.5em] text-yellow-400/70 uppercase mb-3">
+          <p className="font-noto-serif-tc text-sm tracking-[0.5em] text-yellow-400/70 uppercase mb-3">
             婚禮詳情
           </p>
           <h2 className="font-playfair text-2xl sm:text-3xl md:text-4xl italic text-yellow-300 mb-4">
@@ -569,7 +569,7 @@ function PhotoWallSection() {
         <div
           className={`text-center mb-8 md:mb-12 transition-all duration-1000 ${isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-10"}`}
         >
-          <p className="font-noto-serif-tc text-xs tracking-[0.5em] text-green-600 uppercase mb-3">
+          <p className="font-noto-serif-tc text-sm tracking-[0.5em] text-green-600 uppercase mb-3">
             我們的相片
           </p>
           <h2 className="font-playfair text-2xl sm:text-3xl md:text-4xl italic text-green-800 mb-4">
@@ -712,7 +712,7 @@ function RSVPSection() {
         <div
           className={`text-center mb-8 md:mb-12 transition-all duration-1000 ${isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-10"}`}
         >
-          <p className="font-noto-serif-tc text-xs tracking-[0.5em] text-green-600 uppercase mb-3">
+          <p className="font-noto-serif-tc text-sm tracking-[0.5em] text-green-600 uppercase mb-3">
             出席確認
           </p>
           <h2 className="font-playfair text-2xl sm:text-3xl md:text-4xl italic text-green-800 mb-4">
