@@ -125,8 +125,8 @@ function HeroSection() {
           data-testid="card-date"
         >
           <p className="font-playfair font-semibold text-green-800 tracking-wide text-[42px]">2026 · 06 · 20</p>
-          <p className="font-noto-serif-tc text-sm text-green-600 mt-1 tracking-widest">
-            星期六　下午兩時
+          <p className="font-noto-serif-tc text-green-600 mt-1 tracking-widest text-[25px] font-bold">
+            星期六 下午三點
           </p>
         </div>
 
