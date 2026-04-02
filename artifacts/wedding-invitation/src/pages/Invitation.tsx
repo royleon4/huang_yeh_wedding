@@ -1,9 +1,88 @@
-import { useEffect, useRef, useState } from "react";
+import { createContext, useContext, useEffect, useRef, useState } from "react";
 import { KiwiIcon, KiwiFruit } from "@/components/KiwiIcon";
 import { NZMap } from "@/components/NZMap";
 import { TWMap } from "@/components/TWMap";
 import { AudioPlayer } from "@/components/AudioPlayer";
 import { FloatingNav, SECTIONS_COUNT, SECTIONS } from "@/components/FloatingNav";
+
+type Lang = "zh" | "en";
+
+const ZH = {
+  nav: { "section-hero": "首頁", "section-details": "婚禮詳情", "section-rsvp": "出席確認", "section-story": "愛情故事", "section-gallery": "相片牆", "section-footer": "結語" },
+  prev: "上一頁", next: "下一頁",
+  heroAnnouncement: "謹訂於此佳期",
+  heroDate: "星期六 下午三點",
+  heroPara1: "歷經兩年的等待與磨合，這段跨越台與紐的愛情，即將要迎來新的篇章。",
+  heroPara2: "在無聊的端午節假期，如果有空，我們歡迎每一位見證我們成長與愛情的親友。2026年6月20日，大家一齊同樂，我們都很期待分享自己重要的另一半給愛我們的親友，等你們噢！",
+  storyLabel: "我們的故事",
+  storyH2: "A Love Story",
+  dogCaption: "我們的小寶貝 · 葉黃素夢",
+  story1Title: "路邊撿回家的另一半：基督城的奇妙邂逅",
+  story1Body: "2024年的2月底，是一場令人略感疲憊的紐西蘭公路旅行的尾聲，抵達基督城（Christchurch）的那一晚迎來了轉折。透過司機 Joe 與鄭牧師的牽線，在一頓稀鬆平常的咖哩雞晚餐中，我遇見了 Leon。當時的我正因為旅途的心情低落，甚至打算隻身留在基督城睡麥當勞，卻沒想到這個「怪怪的」、在電話中說自己吃飽卻還是堅持赴約的紐西蘭大男孩，意外地闖進了我的生活。一句玩笑話「不然住你家地板？」開啟了聯繫的契機，原本預計只停留兩天的計畫，也因為這份特別的緣分，變成了長達兩週的深度停留。",
+  story2Title: "交往契機與遠距離的酸甜",
+  story2Body: "那兩週的時光，是我們故事的序章。Leon 陪我買了一台車，並耐心地陪著我練車，他也因為想換教會，我陪他去了不同族群的教會，短短的兩週我們在基督城的街道與美景穿梭，透過深度的對話與真誠的相處替我們打下了穩固的愛情地基。2024的3月10日，在我準備啟程前往奧克蘭的前夕，我們決定正式交往。同年7月我回到了台灣，開啟了長達兩年的跨國遠距戀愛。在我們相愛的日子裡，有七成的時間相隔兩地，拜這個世代方便得交通所賜，我們也都當小飛人到彼此的身邊。無法陪伴彼此時，每一次的訊息與視訊，也成了支撐我們度過遠距離孤獨的動力，甚至我們會透過作畫來抒發思念。中間隔著廣闊的太平洋，還以為如同薄冰的關係會持續不了多久，感謝神因著信仰，我們知道愛情不只是一種感覺，也是一個承諾約定，當無法親自照顧對方，我們交託仰望主，這不是簡單兩個人的愛情，更是有主一同參與的奇跡，我們都很珍惜彼此，能夠遇到相愛的人需要付出時間、精力、心血這都不容易，所以我們也感謝陪伴給我們鼓勵的夥伴們，謝謝你們。",
+  quoteZh: "從南半球的奇異果之鄉，到台灣的溫暖懷抱",
+  detailsLabel: "婚禮詳情",
+  detailsH2: "Wedding Details",
+  detailItems: [
+    { icon: "📅", label: "日期", sub: "Date", content: "2026年06月20日", note: "星期六" },
+    { icon: "⏰", label: "時間", sub: "Time", content: "下午三點", note: "3:00 PM" },
+    { icon: "📍", label: "地點", sub: "Venue", content: "德光長老教會", note: "台南市東區崇德四街100號" },
+  ],
+  dressLabel: "服裝建議",
+  dressGreen: "綠色系", dressYellow: "黃色系", dressKiwi: "歡迎融入奇異果元素 🥝",
+  galleryLabel: "我們的相片",
+  galleryH2: "Photo Wall",
+  gallerySubtitle: "分享你們與我們的美好瞬間",
+  galleryEmpty: "還沒有照片",
+  galleryEmptySub: "上傳你們與我們的美照，一起留下這份回憶",
+  galleryUploading: "上傳中…",
+  galleryUpload: "📷 上傳照片",
+  rsvpLabel: "出席確認",
+  rsvpH2: "RSVP",
+  rsvpDeadline: "請於 2026年5月20日 前回覆",
+  footerDog: "葉黃素夢 也很期待見到大家",
+};
+
+const EN = {
+  nav: { "section-hero": "Home", "section-details": "Details", "section-rsvp": "RSVP", "section-story": "Our Story", "section-gallery": "Gallery", "section-footer": "Closing" },
+  prev: "Prev", next: "Next",
+  heroAnnouncement: "You Are Invited",
+  heroDate: "Saturday, 3:00 PM",
+  heroPara1: "After two years of waiting and growing together, this love story spanning Taiwan and New Zealand is about to begin a beautiful new chapter.",
+  heroPara2: "During the Dragon Boat Festival holiday, we warmly welcome every dear friend who has witnessed our growth and love. Join us on June 20, 2026 — we can't wait to share the most important person in our lives with you. See you there!",
+  storyLabel: "OUR STORY",
+  storyH2: "A Love Story",
+  dogCaption: "Our Little One · Suomi",
+  story1Title: "Found by the Roadside: A Miraculous Encounter in Christchurch",
+  story1Body: "At the end of February 2024, a somewhat exhausting road trip through New Zealand reached its turning point upon arriving in Christchurch. Through the connections of driver Joe and Pastor Cheng, over a casual curry chicken dinner, I met Leon. At the time, my spirits were low from the journey — I had even considered staying alone in Christchurch and sleeping at McDonald's. But this \"quirky\" New Zealand guy, who claimed on the phone he'd already eaten yet still insisted on showing up, somehow wandered into my life. A joking remark — \"What if I just sleep on your floor?\" — opened the door to connection. What was supposed to be a two-day stop turned into two full weeks, thanks to this unexpected bond.",
+  story2Title: "How We Got Together & The Bittersweet of Long Distance",
+  story2Body: "Those two weeks were the prologue to our story. Leon patiently helped me buy and practice driving a car; I accompanied him to different churches as he explored new communities. In just two weeks we wandered Christchurch's streets and scenery, building the foundation of our love through deep conversations and genuine time together. On March 10, 2024 — the eve of my departure for Auckland — we made it official. In July of that year I returned to Taiwan, beginning nearly two years of long-distance love across the Pacific. For about seventy percent of our relationship we've been apart, yet thanks to the convenience of modern travel we've taken turns flying to each other's sides. When we couldn't be together, every message and video call became the fuel that carried us through the loneliness of distance — we even painted pictures to express how much we missed each other. With the vast Pacific between us, we wondered if something so fragile could really last. By the grace of God and our shared faith, we know that love is not just a feeling but a promise. When we couldn't care for each other in person, we entrusted ourselves to the Lord — this is not simply the love of two people, but a miracle in which He participates. We cherish each other deeply, and we are grateful to every friend who has encouraged us along the way. Thank you.",
+  quoteZh: "From Kiwi Land in the Southern Hemisphere to the Warmth of Home",
+  detailsLabel: "DETAILS",
+  detailsH2: "Wedding Details",
+  detailItems: [
+    { icon: "📅", label: "Date", sub: "Date", content: "June 20, 2026", note: "Saturday" },
+    { icon: "⏰", label: "Time", sub: "Time", content: "3:00 PM", note: "Saturday Afternoon" },
+    { icon: "📍", label: "Venue", sub: "Venue", content: "De-Guang Presbyterian Church", note: "No. 100, Chongde 4th St., East Dist., Tainan" },
+  ],
+  dressLabel: "Dress Code",
+  dressGreen: "Green tones", dressYellow: "Yellow tones", dressKiwi: "Kiwi elements welcome 🥝",
+  galleryLabel: "OUR PHOTOS",
+  galleryH2: "Photo Wall",
+  gallerySubtitle: "Share your precious moments with us",
+  galleryEmpty: "No photos yet",
+  galleryEmptySub: "Upload your favourite photos to share this memory together",
+  galleryUploading: "Uploading…",
+  galleryUpload: "📷 Upload Photos",
+  rsvpLabel: "RSVP",
+  rsvpH2: "RSVP",
+  rsvpDeadline: "Please respond by May 20, 2026",
+  footerDog: "Suomi can't wait to see you all",
+};
+
+const LanguageCtx = createContext<{ lang: Lang; setLang: (l: Lang) => void }>({ lang: "zh", setLang: () => {} });
+const useT = () => { const { lang } = useContext(LanguageCtx); return lang === "zh" ? ZH : EN; };
 
 function useIntersectionObserver(threshold = 0.1) {
   const ref = useRef<HTMLDivElement>(null);
@@ -68,6 +147,7 @@ interface FloatingArrowsProps {
 
 function FloatingArrows({ scrollContainerRef }: FloatingArrowsProps) {
   const [activeIndex, setActiveIndex] = useState(0);
+  const t = useT();
 
   useEffect(() => {
     const container = scrollContainerRef.current;
@@ -99,8 +179,8 @@ function FloatingArrows({ scrollContainerRef }: FloatingArrowsProps) {
   const isFirst = activeIndex === 0;
   const isLast = activeIndex === SECTIONS_COUNT - 1;
 
-  const prevLabel = !isFirst ? SECTIONS[activeIndex - 1].label : "";
-  const nextLabel = !isLast ? SECTIONS[activeIndex + 1].label : "";
+  const prevLabel = !isFirst ? (t.nav[SECTIONS[activeIndex - 1].id as keyof typeof t.nav] ?? SECTIONS[activeIndex - 1].label) : "";
+  const nextLabel = !isLast ? (t.nav[SECTIONS[activeIndex + 1].id as keyof typeof t.nav] ?? SECTIONS[activeIndex + 1].label) : "";
 
   const capsuleClass =
     "fixed top-4 z-50 flex flex-col items-center gap-1 bg-white/75 backdrop-blur-md shadow-lg border border-white/60 text-green-700 hover:bg-white/90 hover:text-green-900 transition-all duration-200 active:scale-95 rounded-2xl px-3 py-2";
@@ -110,7 +190,7 @@ function FloatingArrows({ scrollContainerRef }: FloatingArrowsProps) {
       {!isFirst && (
         <button
           className={`${capsuleClass} left-3`}
-          aria-label={`上一頁：${prevLabel}`}
+          aria-label={`${t.prev}：${prevLabel}`}
           onClick={() => scrollTo(activeIndex - 1)}
         >
           <svg width="18" height="18" viewBox="0 0 18 18" fill="none" className="shrink-0">
@@ -128,7 +208,7 @@ function FloatingArrows({ scrollContainerRef }: FloatingArrowsProps) {
       {!isLast && (
         <button
           className={`${capsuleClass} right-3 animate-heartbeat hover:[animation-play-state:paused]`}
-          aria-label={`下一頁：${nextLabel}`}
+          aria-label={`${t.next}：${nextLabel}`}
           onClick={() => scrollTo(activeIndex + 1)}
         >
           <svg width="18" height="18" viewBox="0 0 18 18" fill="none" className="shrink-0">
@@ -148,6 +228,7 @@ function FloatingArrows({ scrollContainerRef }: FloatingArrowsProps) {
 }
 
 function HeroSection() {
+  const t = useT();
   return (
     <section
       id="section-hero"
@@ -184,7 +265,7 @@ function HeroSection() {
           style={{ animationDelay: "0.2s", animationFillMode: "forwards" }}
           data-testid="text-announcement"
         >
-          謹訂於此佳期
+          {t.heroAnnouncement}
         </p>
 
         {/* Names — single grid so columns share widths across both rows */}
@@ -243,7 +324,7 @@ function HeroSection() {
             2026 · 06 · 20
           </p>
           <p className="font-noto-serif-tc mt-1 tracking-widest text-base sm:text-xl md:text-[25px] font-bold text-green-600">
-            星期六 下午三點
+            {t.heroDate}
           </p>
         </div>
 
@@ -253,10 +334,10 @@ function HeroSection() {
           style={{ animationDelay: "1.0s", animationFillMode: "forwards" }}
         >
           <p className="font-noto-serif-tc text-sm sm:text-base leading-relaxed tracking-wide text-green-700 mb-4">
-            歷經兩年的等待與磨合，這段跨越台與紐的愛情，即將要迎來新的篇章。
+            {t.heroPara1}
           </p>
           <p className="font-noto-serif-tc text-sm sm:text-base leading-relaxed tracking-wide text-green-700">
-            在無聊的端午節假期，如果有空，我們歡迎每一位見證我們成長與愛情的親友。2026年6月20日，大家一齊同樂，我們都很期待分享自己重要的另一半給愛我們的親友，等你們噢！
+            {t.heroPara2}
           </p>
         </div>
 
@@ -266,6 +347,7 @@ function HeroSection() {
 }
 
 function LoveStorySection() {
+  const t = useT();
   const { ref, isVisible } = useIntersectionObserver();
   const [isStoryOpen, setIsStoryOpen] = useState(false);
   const [isLongDistanceOpen, setIsLongDistanceOpen] = useState(false);
@@ -284,10 +366,10 @@ function LoveStorySection() {
           className={`text-center mb-8 md:mb-16 transition-all duration-1000 ${isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-10"}`}
         >
           <p className="font-noto-serif-tc text-sm tracking-[0.5em] text-green-600 uppercase mb-3">
-            我們的故事
+            {t.storyLabel}
           </p>
           <h2 className="font-playfair text-2xl sm:text-3xl md:text-4xl italic text-green-800 mb-4">
-            A Love Story
+            {t.storyH2}
           </h2>
           <div className="flex justify-center">
             <div className="h-0.5 w-24 bg-gradient-to-r from-transparent via-yellow-400 to-transparent" />
@@ -310,7 +392,7 @@ function LoveStorySection() {
               </div>
             </div>
             <p className="text-center font-noto-serif-tc text-sm text-green-600 mt-3 tracking-wider">
-              我們的小寶貝 · 葉黃素夢
+              {t.dogCaption}
             </p>
           </div>
 
@@ -324,7 +406,7 @@ function LoveStorySection() {
                   className="w-full flex items-center justify-between p-4 sm:p-5 text-left"
                 >
                   <span className="font-noto-serif-tc text-green-800 text-sm font-medium">
-                    路邊撿回家的另一半：基督城的奇妙邂逅
+                    {t.story1Title}
                   </span>
                   <svg
                     className={`flex-shrink-0 ml-3 w-4 h-4 text-green-600 transition-transform duration-300 ${isStoryOpen ? "rotate-180" : "rotate-0"}`}
@@ -340,7 +422,7 @@ function LoveStorySection() {
                   className={`transition-all duration-500 ease-in-out overflow-hidden ${isStoryOpen ? "max-h-[600px] opacity-100" : "max-h-0 opacity-0"}`}
                 >
                   <p className="font-noto-serif-tc text-green-800 leading-relaxed text-sm px-4 sm:px-5 pb-4 sm:pb-5">
-                    2024年的2月底，是一場令人略感疲憊的紐西蘭公路旅行的尾聲，抵達基督城（Christchurch）的那一晚迎來了轉折。透過司機 Joe 與鄭牧師的牽線，在一頓稀鬆平常的咖哩雞晚餐中，我遇見了 Leon。當時的我正因為旅途的心情低落，甚至打算隻身留在基督城睡麥當勞，卻沒想到這個「怪怪的」、在電話中說自己吃飽卻還是堅持赴約的紐西蘭大男孩，意外地闖進了我的生活。一句玩笑話「不然住你家地板？」開啟了聯繫的契機，原本預計只停留兩天的計畫，也因為這份特別的緣分，變成了長達兩週的深度停留。
+                    {t.story1Body}
                   </p>
                 </div>
               </div>
@@ -352,7 +434,7 @@ function LoveStorySection() {
                   aria-controls="long-distance-content"
                 >
                   <span className="font-noto-serif-tc text-green-800 text-sm font-medium">
-                    交往契機與遠距離的酸甜
+                    {t.story2Title}
                   </span>
                   <svg
                     className={`flex-shrink-0 ml-3 w-4 h-4 text-green-600 transition-transform duration-300 ${isLongDistanceOpen ? "rotate-180" : "rotate-0"}`}
@@ -369,7 +451,7 @@ function LoveStorySection() {
                   className={`transition-all duration-500 ease-in-out overflow-hidden ${isLongDistanceOpen ? "max-h-[1200px] opacity-100" : "max-h-0 opacity-0"}`}
                 >
                   <p className="font-noto-serif-tc text-green-800 leading-relaxed text-sm px-4 sm:px-5 pb-4 sm:pb-5">
-                    那兩週的時光，是我們故事的序章。Leon 陪我買了一台車，並耐心地陪著我練車，他也因為想換教會，我陪他去了不同族群的教會，短短的兩週我們在基督城的街道與美景穿梭，透過深度的對話與真誠的相處替我們打下了穩固的愛情地基。2024的3月10日，在我準備啟程前往奧克蘭的前夕，我們決定正式交往。同年7月我回到了台灣，開啟了長達兩年的跨國遠距戀愛。在我們相愛的日子裡，有七成的時間相隔兩地，拜這個世代方便得交通所賜，我們也都當小飛人到彼此的身邊。無法陪伴彼此時，每一次的訊息與視訊，也成了支撐我們度過遠距離孤獨的動力，甚至我們會透過作畫來抒發思念。中間隔著廣闊的太平洋，還以為如同薄冰的關係會持續不了多久，感謝神因著信仰，我們知道愛情不只是一種感覺，也是一個承諾約定，當無法親自照顧對方，我們交託仰望主，這不是簡單兩個人的愛情，更是有主一同參與的奇跡，我們都很珍惜彼此，能夠遇到相愛的人需要付出時間、精力、心血這都不容易，所以我們也感謝陪伴給我們鼓勵的夥伴們，謝謝你們。
+                    {t.story2Body}
                   </p>
                 </div>
               </div>
@@ -378,7 +460,7 @@ function LoveStorySection() {
                   "From Kiwi Land to Home"
                 </p>
                 <p className="font-noto-serif-tc text-xs text-green-600">
-                  從南半球的奇異果之鄉，到台灣的溫暖懷抱
+                  {t.quoteZh}
                 </p>
               </div>
             </div>
@@ -390,6 +472,7 @@ function LoveStorySection() {
 }
 
 function WeddingDetailsSection() {
+  const t = useT();
   const { ref, isVisible } = useIntersectionObserver();
 
   return (
@@ -407,10 +490,10 @@ function WeddingDetailsSection() {
           className={`text-center mb-8 md:mb-12 transition-all duration-1000 ${isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-10"}`}
         >
           <p className="font-noto-serif-tc text-sm tracking-[0.5em] text-yellow-400/70 uppercase mb-3">
-            婚禮詳情
+            {t.detailsLabel}
           </p>
           <h2 className="font-playfair text-2xl sm:text-3xl md:text-4xl italic text-yellow-300 mb-4">
-            Wedding Details
+            {t.detailsH2}
           </h2>
           <div className="flex justify-center">
             <div className="h-0.5 w-24 bg-gradient-to-r from-transparent via-yellow-400 to-transparent" />
@@ -418,50 +501,25 @@ function WeddingDetailsSection() {
         </div>
 
         <div className="grid md:grid-cols-3 gap-4 sm:gap-6">
-          {[
-            {
-              icon: "📅",
-              title: "日期",
-              subtitle: "Date",
-              content: "2026年06月20日",
-              sub: "星期六",
-              delay: "delay-100",
-            },
-            {
-              icon: "⏰",
-              title: "時間",
-              subtitle: "Time",
-              content: "下午三點",
-              sub: "3:00 PM",
-              delay: "delay-200",
-            },
-            {
-              icon: "📍",
-              title: "地點",
-              subtitle: "Venue",
-              content: "德光長老教會",
-              sub: "台南市東區崇德四街100號",
-              delay: "delay-300",
-            },
-          ].map((item) => (
+          {t.detailItems.map((item, i) => (
             <div
-              key={item.title}
-              className={`text-center bg-white/10 backdrop-blur-sm rounded-2xl p-4 sm:p-6 border border-yellow-400/20 transition-all duration-1000 ${item.delay} ${isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-10"}`}
-              data-testid={`card-detail-${item.title}`}
+              key={item.label}
+              className={`text-center bg-white/10 backdrop-blur-sm rounded-2xl p-4 sm:p-6 border border-yellow-400/20 transition-all duration-1000 ${["delay-100","delay-200","delay-300"][i] ?? ""} ${isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-10"}`}
+              data-testid={`card-detail-${item.label}`}
             >
               <div className="text-3xl sm:text-4xl mb-3">{item.icon}</div>
               <p className="font-noto-serif-tc text-yellow-400/70 text-xs tracking-widest mb-1">
-                {item.subtitle}
+                {item.sub}
               </p>
               <p className="font-noto-serif-tc text-yellow-200 text-sm sm:text-base font-medium">
-                {item.title}
+                {item.label}
               </p>
               <div className="h-px bg-yellow-400/20 my-3" />
               <p className="font-playfair text-yellow-100 text-base sm:text-lg font-semibold">
                 {item.content}
               </p>
               <p className="font-noto-serif-tc text-yellow-400/60 text-xs sm:text-sm mt-1">
-                {item.sub}
+                {item.note}
               </p>
             </div>
           ))}
@@ -472,20 +530,20 @@ function WeddingDetailsSection() {
           className={`mt-6 sm:mt-8 text-center bg-yellow-400/10 rounded-2xl p-4 sm:p-6 border border-yellow-400/20 transition-all duration-1000 delay-400 ${isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-10"}`}
         >
           <p className="font-noto-serif-tc text-yellow-300 text-sm tracking-wider mb-2">
-            服裝建議
+            {t.dressLabel}
           </p>
           <p className="font-playfair text-yellow-200 text-lg sm:text-xl italic mb-2">
             Dress Code
           </p>
           <div className="flex justify-center gap-3 sm:gap-4 flex-wrap">
             <span className="bg-green-700/50 text-green-200 px-3 sm:px-4 py-1 rounded-full text-sm font-noto-serif-tc border border-green-500/30">
-              綠色系
+              {t.dressGreen}
             </span>
             <span className="bg-yellow-700/30 text-yellow-200 px-3 sm:px-4 py-1 rounded-full text-sm font-noto-serif-tc border border-yellow-500/30">
-              黃色系
+              {t.dressYellow}
             </span>
             <span className="text-yellow-300/70 text-sm font-noto-serif-tc self-center">
-              歡迎融入奇異果元素 🥝
+              {t.dressKiwi}
             </span>
           </div>
         </div>
@@ -495,6 +553,7 @@ function WeddingDetailsSection() {
 }
 
 function PhotoWallSection() {
+  const t = useT();
   const { ref, isVisible } = useIntersectionObserver();
   const [photos, setPhotos] = useState<string[]>([]);
   const [uploading, setUploading] = useState(false);
@@ -570,16 +629,16 @@ function PhotoWallSection() {
           className={`text-center mb-8 md:mb-12 transition-all duration-1000 ${isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-10"}`}
         >
           <p className="font-noto-serif-tc text-sm tracking-[0.5em] text-green-600 uppercase mb-3">
-            我們的相片
+            {t.galleryLabel}
           </p>
           <h2 className="font-playfair text-2xl sm:text-3xl md:text-4xl italic text-green-800 mb-4">
-            Photo Wall
+            {t.galleryH2}
           </h2>
           <div className="flex justify-center">
             <div className="h-0.5 w-24 bg-gradient-to-r from-transparent via-yellow-400 to-transparent" />
           </div>
           <p className="font-noto-serif-tc text-sm text-green-600 mt-4">
-            分享你們與我們的美好瞬間
+            {t.gallerySubtitle}
           </p>
         </div>
 
@@ -610,10 +669,10 @@ function PhotoWallSection() {
             <div className="bg-white/70 rounded-3xl p-10 invitation-shadow text-center max-w-sm">
               <div className="text-5xl mb-4">📷</div>
               <p className="font-noto-serif-tc text-green-800 text-base mb-2">
-                還沒有照片
+                {t.galleryEmpty}
               </p>
               <p className="font-noto-serif-tc text-green-600 text-sm">
-                上傳你們與我們的美照，一起留下這份回憶
+                {t.galleryEmptySub}
               </p>
             </div>
           </div>
@@ -633,7 +692,7 @@ function PhotoWallSection() {
               className="hidden"
             />
             <span className="inline-block bg-green-700/90 hover:bg-green-800 text-white px-6 py-3 rounded-xl font-noto-serif-tc text-sm cursor-pointer transition-all shadow-md tracking-wider">
-              {uploading ? "上傳中…" : "📷 上傳照片"}
+              {uploading ? t.galleryUploading : t.galleryUpload}
             </span>
           </label>
         </div>
@@ -698,6 +757,7 @@ function PhotoWallSection() {
 }
 
 function RSVPSection() {
+  const t = useT();
   const { ref, isVisible } = useIntersectionObserver();
   return (
     <section
@@ -713,16 +773,16 @@ function RSVPSection() {
           className={`text-center mb-8 md:mb-12 transition-all duration-1000 ${isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-10"}`}
         >
           <p className="font-noto-serif-tc text-sm tracking-[0.5em] text-green-600 uppercase mb-3">
-            出席確認
+            {t.rsvpLabel}
           </p>
           <h2 className="font-playfair text-2xl sm:text-3xl md:text-4xl italic text-green-800 mb-4">
-            RSVP
+            {t.rsvpH2}
           </h2>
           <div className="flex justify-center mb-4">
             <div className="h-0.5 w-24 bg-gradient-to-r from-transparent via-yellow-400 to-transparent" />
           </div>
           <p className="font-noto-serif-tc text-sm text-green-600">
-            請於 2026年5月20日 前回覆
+            {t.rsvpDeadline}
           </p>
         </div>
 
@@ -744,6 +804,7 @@ function RSVPSection() {
 }
 
 function FooterSection() {
+  const t = useT();
   return (
     <footer
       id="section-footer"
@@ -766,7 +827,7 @@ function FooterSection() {
         </div>
 
         <p className="font-noto-serif-tc text-green-400/60 text-xs tracking-widest mb-4">
-          葉黃素夢 也很期待見到大家
+          {t.footerDog}
         </p>
 
         {/* Divider with kiwis */}
@@ -804,6 +865,21 @@ function FooterSection() {
         </p>
       </div>
     </footer>
+  );
+}
+
+function LangToggle() {
+  const { lang, setLang } = useContext(LanguageCtx);
+  return (
+    <div className="fixed bottom-[4.5rem] left-3 z-50">
+      <button
+        onClick={() => setLang(lang === "zh" ? "en" : "zh")}
+        className="bg-white/75 backdrop-blur-md shadow-lg border border-white/60 rounded-full px-3 py-1.5 font-noto-serif-tc text-xs text-green-700 hover:bg-white/90 hover:text-green-900 transition-all active:scale-95 w-full"
+        aria-label="切換語言 / Toggle language"
+      >
+        {lang === "zh" ? "Eng" : "中文"}
+      </button>
+    </div>
   );
 }
 
@@ -859,9 +935,17 @@ function getInitialFontStep(): number {
   return 0;
 }
 
+function getInitialLang(): Lang {
+  const stored = localStorage.getItem("weddingLang");
+  return stored === "en" ? "en" : "zh";
+}
+
 export default function Invitation() {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [fontStep, setFontStep] = useState<number>(getInitialFontStep);
+  const [lang, setLangState] = useState<Lang>(getInitialLang);
+  const setLang = (l: Lang) => { setLangState(l); localStorage.setItem("weddingLang", l); };
+  const t = lang === "zh" ? ZH : EN;
 
   useEffect(() => {
     document.documentElement.style.fontSize =
@@ -907,30 +991,33 @@ export default function Invitation() {
   }, []);
 
   return (
-    <div className="w-screen h-screen overflow-hidden">
-      <AudioPlayer />
-      <FloatingNav scrollContainerRef={scrollContainerRef} />
-      <FloatingKiwis />
-      <FloatingArrows scrollContainerRef={scrollContainerRef} />
-      <FontSizeControls
-        step={fontStep}
-        min={FONT_MIN}
-        max={FONT_MAX}
-        onIncrease={() => setFontStep((s) => Math.min(s + 1, FONT_MAX))}
-        onDecrease={() => setFontStep((s) => Math.max(s - 1, FONT_MIN))}
-      />
-      <div
-        ref={scrollContainerRef}
-        className="w-full h-full flex flex-row overflow-x-auto overflow-y-hidden snap-x snap-mandatory snap-container"
-        style={{ scrollbarWidth: "none", msOverflowStyle: "none", touchAction: "pan-y" }}
-      >
-        <HeroSection />
-        <WeddingDetailsSection />
-        <RSVPSection />
-        <LoveStorySection />
-        <PhotoWallSection />
-        <FooterSection />
+    <LanguageCtx.Provider value={{ lang, setLang }}>
+      <div className="w-screen h-screen overflow-hidden">
+        <AudioPlayer />
+        <FloatingNav scrollContainerRef={scrollContainerRef} labels={t.nav} />
+        <FloatingKiwis />
+        <FloatingArrows scrollContainerRef={scrollContainerRef} />
+        <LangToggle />
+        <FontSizeControls
+          step={fontStep}
+          min={FONT_MIN}
+          max={FONT_MAX}
+          onIncrease={() => setFontStep((s) => Math.min(s + 1, FONT_MAX))}
+          onDecrease={() => setFontStep((s) => Math.max(s - 1, FONT_MIN))}
+        />
+        <div
+          ref={scrollContainerRef}
+          className="w-full h-full flex flex-row overflow-x-auto overflow-y-hidden snap-x snap-mandatory snap-container"
+          style={{ scrollbarWidth: "none", msOverflowStyle: "none", touchAction: "pan-y" }}
+        >
+          <HeroSection />
+          <WeddingDetailsSection />
+          <RSVPSection />
+          <LoveStorySection />
+          <PhotoWallSection />
+          <FooterSection />
+        </div>
       </div>
-    </div>
+    </LanguageCtx.Provider>
   );
 }

@@ -70,9 +70,10 @@ export const SECTIONS_COUNT = SECTIONS.length;
 interface FloatingNavProps {
   scrollContainerRef: React.RefObject<HTMLDivElement | null>;
   onNavClick?: () => void;
+  labels?: Record<string, string>;
 }
 
-export function FloatingNav({ scrollContainerRef, onNavClick }: FloatingNavProps) {
+export function FloatingNav({ scrollContainerRef, onNavClick, labels }: FloatingNavProps) {
   const [activeIndex, setActiveIndex] = useState(0);
 
   useEffect(() => {
@@ -115,8 +116,8 @@ export function FloatingNav({ scrollContainerRef, onNavClick }: FloatingNavProps
           <button
             key={section.id}
             onClick={() => scrollTo(i)}
-            title={section.label}
-            aria-label={section.label}
+            title={labels?.[section.id] ?? section.label}
+            aria-label={labels?.[section.id] ?? section.label}
             className={`
               relative flex items-center justify-center w-8 h-8 rounded-full transition-all duration-300
               ${
