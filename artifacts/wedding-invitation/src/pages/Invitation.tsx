@@ -38,6 +38,10 @@ const ZH = {
   galleryEmptySub: "上傳你們與我們的美照，一起留下這份回憶",
   galleryUploading: "上傳中…",
   galleryUpload: "📷 上傳照片",
+  lightboxClose: "關閉",
+  lightboxPrev: "上一張",
+  lightboxNext: "下一張",
+  navAriaLabel: "快速導覽",
   rsvpLabel: "出席確認",
   rsvpH2: "RSVP",
   rsvpDeadline: "請於 2026年5月20日 前回覆",
@@ -75,6 +79,10 @@ const EN = {
   galleryEmptySub: "Upload your favourite photos to share this memory together",
   galleryUploading: "Uploading…",
   galleryUpload: "📷 Upload Photos",
+  lightboxClose: "Close",
+  lightboxPrev: "Previous",
+  lightboxNext: "Next",
+  navAriaLabel: "Quick Navigation",
   rsvpLabel: "RSVP",
   rsvpH2: "RSVP",
   rsvpDeadline: "Please respond by May 20, 2026",
@@ -716,7 +724,7 @@ function PhotoWallSection() {
           <button
             className="absolute top-4 right-4 text-white/80 hover:text-white bg-white/10 hover:bg-white/20 rounded-full w-10 h-10 flex items-center justify-center text-xl transition-all z-10"
             onClick={(e) => { e.stopPropagation(); setLightboxIndex(null); }}
-            aria-label="關閉"
+            aria-label={t.lightboxClose}
           >✕</button>
 
           {/* Prev arrow */}
@@ -724,7 +732,7 @@ function PhotoWallSection() {
             <button
               className="absolute left-3 sm:left-6 text-white/80 hover:text-white bg-white/10 hover:bg-white/20 rounded-full w-10 h-10 flex items-center justify-center text-2xl transition-all z-10"
               onClick={(e) => { e.stopPropagation(); setLightboxIndex(lightboxIndex - 1); }}
-              aria-label="上一張"
+              aria-label={t.lightboxPrev}
             >‹</button>
           )}
 
@@ -733,7 +741,7 @@ function PhotoWallSection() {
             <button
               className="absolute right-3 sm:right-6 text-white/80 hover:text-white bg-white/10 hover:bg-white/20 rounded-full w-10 h-10 flex items-center justify-center text-2xl transition-all z-10"
               onClick={(e) => { e.stopPropagation(); setLightboxIndex(lightboxIndex + 1); }}
-              aria-label="下一張"
+              aria-label={t.lightboxNext}
             >›</button>
           )}
 
@@ -994,7 +1002,7 @@ export default function Invitation() {
     <LanguageCtx.Provider value={{ lang, setLang }}>
       <div className="w-screen h-screen overflow-hidden">
         <AudioPlayer />
-        <FloatingNav scrollContainerRef={scrollContainerRef} labels={t.nav} />
+        <FloatingNav scrollContainerRef={scrollContainerRef} labels={t.nav} navAriaLabel={t.navAriaLabel} />
         <FloatingKiwis />
         <FloatingArrows scrollContainerRef={scrollContainerRef} />
         <LangToggle />

@@ -71,9 +71,10 @@ interface FloatingNavProps {
   scrollContainerRef: React.RefObject<HTMLDivElement | null>;
   onNavClick?: () => void;
   labels?: Record<string, string>;
+  navAriaLabel?: string;
 }
 
-export function FloatingNav({ scrollContainerRef, onNavClick, labels }: FloatingNavProps) {
+export function FloatingNav({ scrollContainerRef, onNavClick, labels, navAriaLabel }: FloatingNavProps) {
   const [activeIndex, setActiveIndex] = useState(0);
 
   useEffect(() => {
@@ -109,7 +110,7 @@ export function FloatingNav({ scrollContainerRef, onNavClick, labels }: Floating
     <div
       className="fixed top-0 left-0 right-0 z-50 flex justify-center pt-3 px-4 pointer-events-none"
       role="navigation"
-      aria-label="快速導覽"
+      aria-label={navAriaLabel ?? "快速導覽"}
     >
       <div className="flex flex-row items-center justify-center gap-1 bg-white/75 backdrop-blur-md shadow-xl border border-white/60 px-3 py-2 rounded-full pointer-events-auto">
         {SECTIONS.map((section, i) => (
