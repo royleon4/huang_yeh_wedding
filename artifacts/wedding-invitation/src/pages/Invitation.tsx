@@ -187,31 +187,27 @@ function HeroSection() {
           謹訂於此佳期
         </p>
 
-        {/* Names */}
+        {/* Names — single grid so columns share widths across both rows */}
         <div
-          className="mb-4 opacity-0 animate-fade-in-up"
+          className="grid grid-cols-[1fr_auto_1fr] items-center mb-6 opacity-0 animate-fade-in-up"
           style={{ animationDelay: "0.4s", animationFillMode: "forwards" }}
         >
+          {/* Row 1: English names */}
           <h1
-            className="font-playfair text-4xl sm:text-5xl leading-tight font-semibold italic flex items-center justify-center gap-4 whitespace-nowrap text-green-800"
+            className="font-playfair text-4xl sm:text-5xl leading-tight font-semibold italic text-right text-green-800"
             data-testid="text-names"
-          >
-            Leon
-            <span className="font-playfair text-2xl sm:text-3xl not-italic text-yellow-600">
-              &amp;
-            </span>
-            Yeh
-          </h1>
-        </div>
+          >Leon</h1>
+          <span className="font-playfair text-2xl sm:text-3xl not-italic text-yellow-600 px-3 sm:px-4 text-center">&amp;</span>
+          <h1 className="font-playfair text-4xl sm:text-5xl leading-tight font-semibold italic text-left text-green-800">Yeh</h1>
 
-        {/* Chinese names */}
-        <p
-          className="font-zen-old-mincho font-semibold text-3xl sm:text-4xl tracking-[0.4em] mb-6 opacity-0 animate-fade-in-up text-green-800"
-          style={{ animationDelay: "0.6s", animationFillMode: "forwards" }}
-          data-testid="text-chinese-names"
-        >
-          黃律詠 <span className="text-yellow-600 text-2xl sm:text-3xl">✦</span> 葉藝慧
-        </p>
+          {/* Row 2: Chinese names */}
+          <span
+            className="font-zen-old-mincho font-semibold text-3xl sm:text-4xl text-right text-green-800"
+            data-testid="text-chinese-names"
+          >黃律詠</span>
+          <span className="text-yellow-600 text-2xl sm:text-3xl px-3 sm:px-4 text-center">✦</span>
+          <span className="font-zen-old-mincho font-semibold text-3xl sm:text-4xl text-left text-green-800">葉藝慧</span>
+        </div>
 
         {/* Decorative divider */}
         <div
