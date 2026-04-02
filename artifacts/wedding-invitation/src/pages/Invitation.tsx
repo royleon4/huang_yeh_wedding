@@ -202,6 +202,7 @@ function HeroSection() {
 
 function LoveStorySection() {
   const { ref, isVisible } = useIntersectionObserver();
+  const [isStoryOpen, setIsStoryOpen] = useState(false);
 
   return (
     <section
@@ -251,10 +252,31 @@ function LoveStorySection() {
             className={`transition-all duration-1000 delay-400 ${isVisible ? "opacity-100 translate-x-0" : "opacity-0 translate-x-10"}`}
           >
             <div className="space-y-4 sm:space-y-5">
-              <div className="bg-white/70 rounded-2xl p-4 sm:p-5 invitation-shadow">
-                <p className="font-noto-serif-tc text-green-800 leading-relaxed text-sm">
-                  我們相遇於紐西蘭基督城，是一個綠油油的城市，
-                </p>
+              <div className="bg-white/70 rounded-2xl invitation-shadow overflow-hidden">
+                <button
+                  onClick={() => setIsStoryOpen(!isStoryOpen)}
+                  className="w-full flex items-center justify-between p-4 sm:p-5 text-left"
+                >
+                  <span className="font-noto-serif-tc text-green-800 text-sm font-medium">
+                    從意外的晚餐開始：基督城的奇妙邂逅
+                  </span>
+                  <svg
+                    className={`flex-shrink-0 ml-3 w-4 h-4 text-green-600 transition-transform duration-300 ${isStoryOpen ? "rotate-180" : "rotate-0"}`}
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    strokeWidth={2}
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+                <div
+                  className={`transition-all duration-500 ease-in-out overflow-hidden ${isStoryOpen ? "max-h-[600px] opacity-100" : "max-h-0 opacity-0"}`}
+                >
+                  <p className="font-noto-serif-tc text-green-800 leading-relaxed text-sm px-4 sm:px-5 pb-4 sm:pb-5">
+                    2024年的2月底，原本是一場令人略感疲憊的紐西蘭公路旅行，卻在抵達基督城（Christchurch）的那一晚迎來了轉折。透過司機 Joe 與鄭牧師的牽線，在一頓稀鬆平常的咖哩雞晚餐中，我遇見了 Leon。當時的我正因為旅途的心情低落，甚至打算隻身留在基督城睡麥當勞，卻沒想到這個「怪怪的」、在電話中說自己吃飽卻還是堅持赴約的紐西蘭大男孩，意外地闖進了我的生活。一句玩笑話「不然住你家地板？」開啟了聯繫的契機，原本預計只停留兩天的計畫，也因為這份特別的緣分，變成了長達兩週的深度停留。
+                  </p>
+                </div>
               </div>
               <div className="bg-white/70 rounded-2xl p-4 sm:p-5 invitation-shadow">
                 <p className="font-noto-serif-tc text-green-800 leading-relaxed text-sm">
