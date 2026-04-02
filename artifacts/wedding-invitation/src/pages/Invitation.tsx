@@ -122,7 +122,7 @@ function FloatingArrows({ scrollContainerRef }: FloatingArrowsProps) {
               strokeLinejoin="round"
             />
           </svg>
-          <span className="text-xs font-medium text-green-800/80">{prevLabel}</span>
+          <span className="text-xs font-medium text-green-800/80" style={{ writingMode: "vertical-rl" }}>{prevLabel}</span>
         </button>
       )}
       {!isLast && (
@@ -140,7 +140,7 @@ function FloatingArrows({ scrollContainerRef }: FloatingArrowsProps) {
               strokeLinejoin="round"
             />
           </svg>
-          <span className="text-xs font-medium text-green-800/80">{nextLabel}</span>
+          <span className="text-xs font-medium text-green-800/80" style={{ writingMode: "vertical-rl" }}>{nextLabel}</span>
         </button>
       )}
     </>
