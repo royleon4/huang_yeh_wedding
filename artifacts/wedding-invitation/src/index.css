@@ -225,6 +225,10 @@
   font-family: 'Noto Serif TC', serif;
 }
 
+.font-ma-shan-zheng {
+  font-family: 'Ma Shan Zheng', cursive;
+}
+
 @keyframes float {
   0%, 100% { transform: translateY(0px) rotate(-2deg); }
   50% { transform: translateY(-12px) rotate(2deg); }

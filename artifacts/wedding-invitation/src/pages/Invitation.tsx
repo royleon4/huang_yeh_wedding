@@ -215,11 +215,11 @@ function HeroSection() {
 
         {/* Chinese names */}
         <p
-          className="font-noto-serif-tc text-xl sm:text-2xl tracking-[0.3em] mb-6 opacity-0 animate-fade-in-up text-green-700"
+          className="font-ma-shan-zheng text-3xl sm:text-4xl tracking-[0.4em] mb-6 opacity-0 animate-fade-in-up text-green-800"
           style={{ animationDelay: "0.6s", animationFillMode: "forwards" }}
           data-testid="text-chinese-names"
         >
-          黃 ✦ 葉
+          黃律詠 <span className="text-yellow-600 text-2xl sm:text-3xl">✦</span> 葉藝慧
         </p>
 
         {/* Decorative divider */}
