@@ -26,36 +26,36 @@ function useIntersectionObserver(threshold = 0.1) {
 
 function FloatingKiwis() {
   return (
-    <div className="pointer-events-none select-none">
+    <div className="pointer-events-none select-none hidden sm:block">
       <div
         className="fixed top-[8%] left-[3%] opacity-20 animate-float"
         style={{ animationDelay: "0s" }}
       >
-        <KiwiIcon size={60} />
+        <KiwiIcon size={40} />
       </div>
       <div
         className="fixed top-[15%] right-[4%] opacity-15 animate-float-slow"
         style={{ animationDelay: "1.5s" }}
       >
-        <KiwiFruit size={40} />
+        <KiwiFruit size={28} />
       </div>
       <div
         className="fixed top-[45%] left-[2%] opacity-15 animate-float"
         style={{ animationDelay: "0.8s" }}
       >
-        <KiwiIcon size={45} />
+        <KiwiIcon size={32} />
       </div>
       <div
         className="fixed top-[65%] right-[3%] opacity-20 animate-float-slow"
         style={{ animationDelay: "2s" }}
       >
-        <KiwiFruit size={35} />
+        <KiwiFruit size={24} />
       </div>
       <div
         className="fixed top-[82%] left-[5%] opacity-10 animate-float"
         style={{ animationDelay: "1.2s" }}
       >
-        <KiwiIcon size={50} />
+        <KiwiIcon size={36} />
       </div>
     </div>
   );
@@ -201,23 +201,23 @@ function HeroSection() {
       )}
 
       {/* Main content */}
-      <div className="relative z-10 text-center px-6 max-w-2xl mx-auto w-full">
+      <div className="relative z-10 text-center px-4 sm:px-6 max-w-2xl mx-auto w-full">
         {/* Decorative top element */}
-        <div className="flex items-center justify-center gap-4 mb-8">
+        <div className="flex items-center justify-center gap-4 mb-6 sm:mb-8">
           <div
-            className={`h-px w-16 bg-gradient-to-r from-transparent ${hasPhotos ? "to-white/60" : "to-green-600 opacity-40"}`}
+            className={`h-px w-12 sm:w-16 bg-gradient-to-r from-transparent ${hasPhotos ? "to-white/60" : "to-green-600 opacity-40"}`}
           />
           <div className="animate-float">
-            <KiwiIcon size={50} />
+            <KiwiIcon size={40} />
           </div>
           <div
-            className={`h-px w-16 bg-gradient-to-l from-transparent ${hasPhotos ? "to-white/60" : "to-green-600 opacity-40"}`}
+            className={`h-px w-12 sm:w-16 bg-gradient-to-l from-transparent ${hasPhotos ? "to-white/60" : "to-green-600 opacity-40"}`}
           />
         </div>
 
         {/* Announcement */}
         <p
-          className={`font-noto-serif-tc text-sm tracking-[0.4em] uppercase mb-4 opacity-0 animate-fade-in-up ${hasPhotos ? "text-white/90 drop-shadow-lg" : "text-green-700"}`}
+          className={`font-noto-serif-tc text-xs tracking-[0.4em] uppercase mb-4 opacity-0 animate-fade-in-up ${hasPhotos ? "text-white/90 drop-shadow-lg" : "text-green-700"}`}
           style={{ animationDelay: "0.2s", animationFillMode: "forwards" }}
           data-testid="text-announcement"
         >
@@ -230,18 +230,18 @@ function HeroSection() {
           style={{ animationDelay: "0.4s", animationFillMode: "forwards" }}
         >
           <h1
-            className={`font-playfair text-7xl md:text-8xl leading-tight font-semibold italic ${hasPhotos ? "text-white drop-shadow-2xl" : "text-green-800"}`}
+            className={`font-playfair text-4xl sm:text-6xl md:text-7xl leading-tight font-semibold italic ${hasPhotos ? "text-white drop-shadow-2xl" : "text-green-800"}`}
             data-testid="text-names"
           >
             Leon
           </h1>
           <div className="flex items-center justify-center gap-3 my-2">
-            <div className={`h-px w-12 opacity-60 ${hasPhotos ? "bg-yellow-300" : "bg-yellow-500"}`} />
+            <div className={`h-px w-10 sm:w-12 opacity-60 ${hasPhotos ? "bg-yellow-300" : "bg-yellow-500"}`} />
             <span className={`font-playfair text-xl ${hasPhotos ? "text-yellow-300 drop-shadow" : "text-yellow-600"}`}>&amp;</span>
-            <div className={`h-px w-12 opacity-60 ${hasPhotos ? "bg-yellow-300" : "bg-yellow-500"}`} />
+            <div className={`h-px w-10 sm:w-12 opacity-60 ${hasPhotos ? "bg-yellow-300" : "bg-yellow-500"}`} />
           </div>
           <h1
-            className={`font-playfair text-7xl md:text-8xl leading-tight font-semibold italic ${hasPhotos ? "text-white drop-shadow-2xl" : "text-green-800"}`}
+            className={`font-playfair text-4xl sm:text-6xl md:text-7xl leading-tight font-semibold italic ${hasPhotos ? "text-white drop-shadow-2xl" : "text-green-800"}`}
           >
             Yeh
           </h1>
@@ -249,7 +249,7 @@ function HeroSection() {
 
         {/* Chinese names */}
         <p
-          className={`font-noto-serif-tc text-2xl tracking-[0.3em] mb-6 opacity-0 animate-fade-in-up ${hasPhotos ? "text-white/95 drop-shadow-lg" : "text-green-700"}`}
+          className={`font-noto-serif-tc text-xl sm:text-2xl tracking-[0.3em] mb-6 opacity-0 animate-fade-in-up ${hasPhotos ? "text-white/95 drop-shadow-lg" : "text-green-700"}`}
           style={{ animationDelay: "0.6s", animationFillMode: "forwards" }}
           data-testid="text-chinese-names"
         >
@@ -258,7 +258,7 @@ function HeroSection() {
 
         {/* Decorative divider */}
         <div
-          className="flex items-center justify-center gap-4 mb-8 opacity-0 animate-fade-in-up"
+          className="flex items-center justify-center gap-4 mb-6 sm:mb-8 opacity-0 animate-fade-in-up"
           style={{ animationDelay: "0.7s", animationFillMode: "forwards" }}
         >
           <div
@@ -272,17 +272,17 @@ function HeroSection() {
 
         {/* Date card */}
         <div
-          className={`rounded-2xl px-8 py-5 mb-8 opacity-0 animate-fade-in-up backdrop-blur-sm invitation-shadow ${hasPhotos ? "bg-black/30 border border-white/20" : "bg-white/60"}`}
+          className={`rounded-2xl px-4 py-4 sm:px-8 sm:py-5 mb-6 sm:mb-8 opacity-0 animate-fade-in-up backdrop-blur-sm invitation-shadow ${hasPhotos ? "bg-black/30 border border-white/20" : "bg-white/60"}`}
           style={{ animationDelay: "0.8s", animationFillMode: "forwards" }}
           data-testid="card-date"
         >
           <p
-            className={`font-playfair font-semibold tracking-wide text-[42px] ${hasPhotos ? "text-white drop-shadow" : "text-green-800"}`}
+            className={`font-playfair font-semibold tracking-wide text-2xl sm:text-4xl md:text-[42px] ${hasPhotos ? "text-white drop-shadow" : "text-green-800"}`}
           >
             2026 · 06 · 20
           </p>
           <p
-            className={`font-noto-serif-tc mt-1 tracking-widest text-[25px] font-bold ${hasPhotos ? "text-white/90" : "text-green-600"}`}
+            className={`font-noto-serif-tc mt-1 tracking-widest text-base sm:text-xl md:text-[25px] font-bold ${hasPhotos ? "text-white/90" : "text-green-600"}`}
           >
             星期六 下午三點
           </p>
@@ -415,19 +415,19 @@ function LoveStorySection() {
   return (
     <section
       ref={ref}
-      className="py-20 px-6"
+      className="py-12 md:py-20 px-4 sm:px-6"
       style={{
         background: "linear-gradient(180deg, #faf6d8 0%, #f5f8ee 100%)",
       }}
     >
       <div className="max-w-3xl mx-auto">
         <div
-          className={`text-center mb-16 transition-all duration-1000 ${isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-10"}`}
+          className={`text-center mb-8 md:mb-16 transition-all duration-1000 ${isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-10"}`}
         >
           <p className="font-noto-serif-tc text-xs tracking-[0.5em] text-green-600 uppercase mb-3">
             我們的故事
           </p>
-          <h2 className="font-playfair text-4xl italic text-green-800 mb-4">
+          <h2 className="font-playfair text-2xl sm:text-3xl md:text-4xl italic text-green-800 mb-4">
             A Love Story
           </h2>
           <div className="flex justify-center">
@@ -436,7 +436,7 @@ function LoveStorySection() {
         </div>
 
         {/* Story with dog */}
-        <div className="grid md:grid-cols-2 gap-12 items-center mb-16">
+        <div className="grid md:grid-cols-2 gap-6 md:gap-12 items-center mb-8 md:mb-16">
           <div
             className={`transition-all duration-1000 delay-200 ${isVisible ? "opacity-100 translate-x-0" : "opacity-0 -translate-x-10"}`}
           >
@@ -446,7 +446,7 @@ function LoveStorySection() {
                 <img
                   src="/penguin-story.png"
                   alt="葉黃素夢"
-                  className="relative animate-wiggle w-48 h-auto object-contain"
+                  className="relative animate-wiggle w-32 sm:w-40 md:w-48 h-auto object-contain"
                 />
               </div>
             </div>
@@ -458,20 +458,20 @@ function LoveStorySection() {
           <div
             className={`transition-all duration-1000 delay-400 ${isVisible ? "opacity-100 translate-x-0" : "opacity-0 translate-x-10"}`}
           >
-            <div className="space-y-5">
-              <div className="bg-white/70 rounded-2xl p-5 invitation-shadow">
+            <div className="space-y-4 sm:space-y-5">
+              <div className="bg-white/70 rounded-2xl p-4 sm:p-5 invitation-shadow">
                 <p className="font-noto-serif-tc text-green-800 leading-relaxed text-sm">
                   我們相遇於紐西蘭基督城，是一個綠油油的城市，
                 </p>
               </div>
-              <div className="bg-white/70 rounded-2xl p-5 invitation-shadow">
+              <div className="bg-white/70 rounded-2xl p-4 sm:p-5 invitation-shadow">
                 <p className="font-noto-serif-tc text-green-800 leading-relaxed text-sm">
                   葉黃素夢是我們愛情的見證者——牠第一個知道我們相愛的秘密，
                   也是第一個收到我們婚訊的「人」。
                 </p>
               </div>
-              <div className="bg-white/70 rounded-2xl p-5 invitation-shadow border-l-4 border-yellow-400">
-                <p className="font-great-vibes text-2xl text-green-700 mb-1">
+              <div className="bg-white/70 rounded-2xl p-4 sm:p-5 invitation-shadow border-l-4 border-yellow-400">
+                <p className="font-great-vibes text-xl sm:text-2xl text-green-700 mb-1">
                   "From Kiwi Land to Home"
                 </p>
                 <p className="font-noto-serif-tc text-xs text-green-600">
@@ -492,19 +492,19 @@ function MapsSection() {
   return (
     <section
       ref={ref}
-      className="py-20 px-6 overflow-hidden"
+      className="py-12 md:py-20 px-4 sm:px-6 overflow-hidden"
       style={{
         background: "linear-gradient(180deg, #f5f8ee 0%, #eef7e4 100%)",
       }}
     >
       <div className="max-w-4xl mx-auto">
         <div
-          className={`text-center mb-16 transition-all duration-1000 ${isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-10"}`}
+          className={`text-center mb-8 md:mb-16 transition-all duration-1000 ${isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-10"}`}
         >
           <p className="font-noto-serif-tc text-xs tracking-[0.5em] text-green-600 uppercase mb-3">
             橫跨兩個家
           </p>
-          <h2 className="font-playfair text-4xl italic text-green-800 mb-4">
+          <h2 className="font-playfair text-2xl sm:text-3xl md:text-4xl italic text-green-800 mb-4">
             Two Lands, One Heart
           </h2>
           <div className="flex justify-center">
@@ -512,7 +512,7 @@ function MapsSection() {
           </div>
         </div>
 
-        <div className="flex flex-col md:flex-row items-center justify-center gap-8 md:gap-16">
+        <div className="flex flex-col md:flex-row items-center justify-center gap-6 md:gap-16">
           {/* New Zealand */}
           <div
             className={`text-center transition-all duration-1000 delay-200 ${isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-10"}`}
@@ -522,7 +522,7 @@ function MapsSection() {
               <NZMap size={110} className="relative animate-float-slow" />
             </div>
             <div className="mt-4">
-              <p className="font-playfair text-xl text-green-800 font-semibold">
+              <p className="font-playfair text-lg sm:text-xl text-green-800 font-semibold">
                 New Zealand
               </p>
               <p className="font-noto-serif-tc text-sm text-green-600">
@@ -544,7 +544,7 @@ function MapsSection() {
             <div className="flex flex-col items-center gap-2">
               <div className="w-px h-8 bg-gradient-to-b from-transparent to-yellow-400 hidden md:block" />
               <div className="text-3xl animate-pulse-soft">💛</div>
-              <div className="font-great-vibes text-2xl text-yellow-600">
+              <div className="font-great-vibes text-xl sm:text-2xl text-yellow-600">
                 forever
               </div>
               <div
@@ -570,7 +570,7 @@ function MapsSection() {
               />
             </div>
             <div className="mt-4">
-              <p className="font-playfair text-xl text-red-700 font-semibold">
+              <p className="font-playfair text-lg sm:text-xl text-red-700 font-semibold">
                 Taiwan
               </p>
               <p className="font-noto-serif-tc text-sm text-red-600">台灣</p>
@@ -584,11 +584,11 @@ function MapsSection() {
 
         {/* Kiwi facts */}
         <div
-          className={`mt-16 bg-white/60 rounded-3xl p-8 invitation-shadow transition-all duration-1000 delay-500 ${isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-10"}`}
+          className={`mt-8 md:mt-16 bg-white/60 rounded-3xl p-5 sm:p-8 invitation-shadow transition-all duration-1000 delay-500 ${isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-10"}`}
         >
           <div className="flex items-center gap-3 mb-4">
             <KiwiIcon size={36} />
-            <h3 className="font-playfair text-xl text-green-800 italic">
+            <h3 className="font-playfair text-lg sm:text-xl text-green-800 italic">
               我們的故事
             </h3>
           </div>
@@ -610,7 +610,7 @@ function WeddingDetailsSection() {
   return (
     <section
       ref={ref}
-      className="py-20 px-6"
+      className="py-12 md:py-20 px-4 sm:px-6"
       style={{
         background:
           "linear-gradient(160deg, #2d5a1b 0%, #1a3a0f 50%, #2d5a1b 100%)",
@@ -618,12 +618,12 @@ function WeddingDetailsSection() {
     >
       <div className="max-w-3xl mx-auto">
         <div
-          className={`text-center mb-12 transition-all duration-1000 ${isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-10"}`}
+          className={`text-center mb-8 md:mb-12 transition-all duration-1000 ${isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-10"}`}
         >
           <p className="font-noto-serif-tc text-xs tracking-[0.5em] text-yellow-400/70 uppercase mb-3">
             婚禮詳情
           </p>
-          <h2 className="font-playfair text-4xl italic text-yellow-300 mb-4">
+          <h2 className="font-playfair text-2xl sm:text-3xl md:text-4xl italic text-yellow-300 mb-4">
             Wedding Details
           </h2>
           <div className="flex justify-center">
@@ -631,7 +631,7 @@ function WeddingDetailsSection() {
           </div>
         </div>
 
-        <div className="grid md:grid-cols-3 gap-6">
+        <div className="grid md:grid-cols-3 gap-4 sm:gap-6">
           {[
             {
               icon: "📅",
@@ -660,21 +660,21 @@ function WeddingDetailsSection() {
           ].map((item) => (
             <div
               key={item.title}
-              className={`text-center bg-white/10 backdrop-blur-sm rounded-2xl p-6 border border-yellow-400/20 transition-all duration-1000 ${item.delay} ${isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-10"}`}
+              className={`text-center bg-white/10 backdrop-blur-sm rounded-2xl p-4 sm:p-6 border border-yellow-400/20 transition-all duration-1000 ${item.delay} ${isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-10"}`}
               data-testid={`card-detail-${item.title}`}
             >
-              <div className="text-4xl mb-3">{item.icon}</div>
+              <div className="text-3xl sm:text-4xl mb-3">{item.icon}</div>
               <p className="font-noto-serif-tc text-yellow-400/70 text-xs tracking-widest mb-1">
                 {item.subtitle}
               </p>
-              <p className="font-noto-serif-tc text-yellow-200 text-base font-medium">
+              <p className="font-noto-serif-tc text-yellow-200 text-sm sm:text-base font-medium">
                 {item.title}
               </p>
               <div className="h-px bg-yellow-400/20 my-3" />
-              <p className="font-playfair text-yellow-100 text-lg font-semibold">
+              <p className="font-playfair text-yellow-100 text-base sm:text-lg font-semibold">
                 {item.content}
               </p>
-              <p className="font-noto-serif-tc text-yellow-400/60 text-sm mt-1">
+              <p className="font-noto-serif-tc text-yellow-400/60 text-xs sm:text-sm mt-1">
                 {item.sub}
               </p>
             </div>
@@ -683,19 +683,19 @@ function WeddingDetailsSection() {
 
         {/* Dress code */}
         <div
-          className={`mt-8 text-center bg-yellow-400/10 rounded-2xl p-6 border border-yellow-400/20 transition-all duration-1000 delay-400 ${isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-10"}`}
+          className={`mt-6 sm:mt-8 text-center bg-yellow-400/10 rounded-2xl p-4 sm:p-6 border border-yellow-400/20 transition-all duration-1000 delay-400 ${isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-10"}`}
         >
           <p className="font-noto-serif-tc text-yellow-300 text-sm tracking-wider mb-2">
             服裝建議
           </p>
-          <p className="font-playfair text-yellow-200 text-xl italic mb-2">
+          <p className="font-playfair text-yellow-200 text-lg sm:text-xl italic mb-2">
             Dress Code
           </p>
-          <div className="flex justify-center gap-4 flex-wrap">
-            <span className="bg-green-700/50 text-green-200 px-4 py-1 rounded-full text-sm font-noto-serif-tc border border-green-500/30">
+          <div className="flex justify-center gap-3 sm:gap-4 flex-wrap">
+            <span className="bg-green-700/50 text-green-200 px-3 sm:px-4 py-1 rounded-full text-sm font-noto-serif-tc border border-green-500/30">
               綠色系
             </span>
-            <span className="bg-yellow-700/30 text-yellow-200 px-4 py-1 rounded-full text-sm font-noto-serif-tc border border-yellow-500/30">
+            <span className="bg-yellow-700/30 text-yellow-200 px-3 sm:px-4 py-1 rounded-full text-sm font-noto-serif-tc border border-yellow-500/30">
               黃色系
             </span>
             <span className="text-yellow-300/70 text-sm font-noto-serif-tc self-center">
@@ -716,19 +716,19 @@ function KiwiGallerySection() {
   return (
     <section
       ref={ref}
-      className="py-20 px-6"
+      className="py-12 md:py-20 px-4 sm:px-6"
       style={{
         background: "linear-gradient(180deg, #f8f9e8 0%, #f2f8e6 100%)",
       }}
     >
       <div className="max-w-3xl mx-auto">
         <div
-          className={`text-center mb-12 transition-all duration-1000 ${isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-10"}`}
+          className={`text-center mb-8 md:mb-12 transition-all duration-1000 ${isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-10"}`}
         >
           <p className="font-noto-serif-tc text-xs tracking-[0.5em] text-green-600 uppercase mb-3">
             奇異果的祝福
           </p>
-          <h2 className="font-playfair text-4xl italic text-green-800 mb-4">
+          <h2 className="font-playfair text-2xl sm:text-3xl md:text-4xl italic text-green-800 mb-4">
             Kiwi Blessings
           </h2>
           <div className="flex justify-center">
@@ -739,7 +739,7 @@ function KiwiGallerySection() {
           </p>
         </div>
 
-        <div className="flex flex-wrap justify-center gap-4 mb-12">
+        <div className="flex flex-wrap justify-center gap-3 sm:gap-4 mb-8 sm:mb-12">
           {kiwis.map((_, i) => (
             <div
               key={i}
@@ -747,7 +747,7 @@ function KiwiGallerySection() {
               style={{ transitionDelay: `${i * 100}ms` }}
             >
               <KiwiIcon
-                size={60 + (i % 3) * 10}
+                size={40 + (i % 3) * 8}
                 className="animate-float"
                 // @ts-ignore - style prop for animation delay
               />
@@ -757,7 +757,7 @@ function KiwiGallerySection() {
 
         {/* Blessing cards */}
         <div
-          className={`grid md:grid-cols-2 gap-5 transition-all duration-1000 delay-500 ${isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-10"}`}
+          className={`grid sm:grid-cols-2 gap-4 sm:gap-5 transition-all duration-1000 delay-500 ${isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-10"}`}
         >
           {[
             {
@@ -783,11 +783,11 @@ function KiwiGallerySection() {
           ].map((blessing, i) => (
             <div
               key={i}
-              className="bg-white/70 rounded-2xl p-5 invitation-shadow flex items-start gap-3"
+              className="bg-white/70 rounded-2xl p-4 sm:p-5 invitation-shadow flex items-start gap-3"
               data-testid={`card-blessing-${i}`}
             >
-              <span className="text-2xl">{blessing.icon}</span>
-              <div>
+              <span className="text-2xl flex-shrink-0">{blessing.icon}</span>
+              <div className="min-w-0">
                 <p className="font-noto-serif-tc text-green-800 text-sm">
                   {blessing.zh}
                 </p>
@@ -816,19 +816,19 @@ function RSVPSection() {
   return (
     <section
       ref={ref}
-      className="py-20 px-6"
+      className="py-12 md:py-20 px-4 sm:px-6"
       style={{
         background: "linear-gradient(160deg, #faf6d8 0%, #f0f7e6 100%)",
       }}
     >
       <div className="max-w-xl mx-auto">
         <div
-          className={`text-center mb-12 transition-all duration-1000 ${isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-10"}`}
+          className={`text-center mb-8 md:mb-12 transition-all duration-1000 ${isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-10"}`}
         >
           <p className="font-noto-serif-tc text-xs tracking-[0.5em] text-green-600 uppercase mb-3">
             出席確認
           </p>
-          <h2 className="font-playfair text-4xl italic text-green-800 mb-4">
+          <h2 className="font-playfair text-2xl sm:text-3xl md:text-4xl italic text-green-800 mb-4">
             RSVP
           </h2>
           <div className="flex justify-center mb-4">
@@ -840,7 +840,7 @@ function RSVPSection() {
         </div>
 
         <div
-          className={`bg-white/80 rounded-3xl p-8 invitation-shadow transition-all duration-1000 delay-200 ${isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-10"}`}
+          className={`bg-white/80 rounded-3xl p-5 sm:p-8 invitation-shadow transition-all duration-1000 delay-200 ${isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-10"}`}
         >
           {!submitted ? (
             <form onSubmit={handleSubmit} className="space-y-5">
@@ -918,7 +918,7 @@ function RSVPSection() {
 function FooterSection() {
   return (
     <footer
-      className="py-16 px-6 text-center"
+      className="py-12 sm:py-16 px-4 sm:px-6 text-center"
       style={{
         background: "linear-gradient(160deg, #1a3a0f 0%, #0f2208 100%)",
       }}
@@ -931,7 +931,7 @@ function FooterSection() {
             <img
               src="/penguin-footer.png"
               alt="葉黃素夢"
-              className="relative w-32 h-auto object-contain opacity-90"
+              className="relative w-24 sm:w-32 h-auto object-contain opacity-90"
             />
           </div>
         </div>
@@ -947,7 +947,7 @@ function FooterSection() {
           <div className="h-px flex-1 bg-green-700/40" />
         </div>
 
-        <h2 className="font-great-vibes text-5xl text-yellow-300/80 mb-3">
+        <h2 className="font-great-vibes text-3xl sm:text-5xl text-yellow-300/80 mb-3">
           Ming &amp; Ying
         </h2>
         <p className="font-noto-serif-tc text-green-400/50 text-xs tracking-widest mb-6">
@@ -980,7 +980,7 @@ function FooterSection() {
 
 export default function Invitation() {
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen overflow-x-hidden">
       <FloatingKiwis />
       <HeroSection />
       <LoveStorySection />
