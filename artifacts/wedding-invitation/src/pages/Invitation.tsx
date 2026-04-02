@@ -124,9 +124,7 @@ function HeroSection() {
           style={{ animationDelay: "0.8s", animationFillMode: "forwards" }}
           data-testid="card-date"
         >
-          <p className="font-playfair text-3xl font-semibold text-green-800 tracking-wide">
-            2025 · 10 · 18
-          </p>
+          <p className="font-playfair font-semibold text-green-800 tracking-wide text-[42px]">2026 · 06 · 20</p>
           <p className="font-noto-serif-tc text-sm text-green-600 mt-1 tracking-widest">
             星期六　下午兩時
           </p>
