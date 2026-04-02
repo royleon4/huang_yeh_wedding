@@ -90,13 +90,13 @@ function HeroSection() {
           className="mb-4 opacity-0 animate-fade-in-up"
           style={{ animationDelay: "0.4s", animationFillMode: "forwards" }}
         >
-          <h1 className="font-great-vibes text-7xl md:text-8xl text-green-800 leading-tight bg-[transparent]" data-testid="text-names">Leon</h1>
+          <h1 className="font-playfair text-7xl md:text-8xl text-green-800 leading-tight font-semibold italic" data-testid="text-names">Leon</h1>
           <div className="flex items-center justify-center gap-3 my-2">
             <div className="h-px w-12 bg-yellow-500 opacity-60" />
             <span className="font-playfair text-yellow-600 text-xl">&amp;</span>
             <div className="h-px w-12 bg-yellow-500 opacity-60" />
           </div>
-          <h1 className="font-great-vibes text-7xl md:text-8xl text-green-800 leading-tight">Yeh</h1>
+          <h1 className="font-playfair text-7xl md:text-8xl text-green-800 leading-tight font-semibold italic">Yeh</h1>
         </div>
 
         {/* Chinese names */}
