@@ -365,7 +365,7 @@ function LoveStorySection() {
     <section
       id="section-story"
       ref={ref}
-      className="w-screen h-screen flex-shrink-0 snap-start overflow-y-auto section-pt pb-12 md:pb-20 px-4 sm:px-6"
+      className="w-screen h-screen flex-shrink-0 snap-start overflow-y-auto section-pt section-pb px-4 sm:px-6"
       style={{
         background: "linear-gradient(180deg, #faf6d8 0%, #f5f8ee 100%)",
       }}
@@ -492,7 +492,7 @@ function WeddingDetailsSection() {
     <section
       id="section-details"
       ref={ref}
-      className="w-screen h-screen flex-shrink-0 snap-start overflow-y-auto section-pt pb-12 md:pb-20 px-4 sm:px-6"
+      className="w-screen h-screen flex-shrink-0 snap-start overflow-y-auto section-pt section-pb px-4 sm:px-6"
       style={{
         background:
           "linear-gradient(160deg, #2d5a1b 0%, #1a3a0f 50%, #2d5a1b 100%)",
@@ -629,7 +629,7 @@ function PhotoWallSection() {
     <section
       id="section-gallery"
       ref={ref}
-      className="w-screen h-screen flex-shrink-0 snap-start overflow-y-auto section-pt pb-12 md:pb-20 px-4 sm:px-6"
+      className="w-screen h-screen flex-shrink-0 snap-start overflow-y-auto section-pt section-pb px-4 sm:px-6"
       style={{
         background: "linear-gradient(180deg, #f8f9e8 0%, #f2f8e6 100%)",
       }}
@@ -778,7 +778,7 @@ function RSVPSection() {
     <section
       id="section-rsvp"
       ref={ref}
-      className="w-screen h-screen flex-shrink-0 snap-start overflow-y-auto section-pt pb-12 md:pb-20 px-4 sm:px-6"
+      className="w-screen h-screen flex-shrink-0 snap-start overflow-y-auto section-pt section-pb px-4 sm:px-6"
       style={{
         background: "linear-gradient(160deg, #faf6d8 0%, #f0f7e6 100%)",
       }}
@@ -826,7 +826,7 @@ function FooterSection() {
   return (
     <footer
       id="section-footer"
-      className="w-screen h-screen flex-shrink-0 snap-start overflow-y-auto section-pt pb-12 sm:pb-16 px-4 sm:px-6 text-center flex flex-col justify-center"
+      className="w-screen h-screen flex-shrink-0 snap-start overflow-y-auto section-pt section-pb px-4 sm:px-6 text-center flex flex-col justify-center"
       style={{
         background: "linear-gradient(160deg, #1a3a0f 0%, #0f2208 100%)",
       }}

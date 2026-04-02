@@ -281,6 +281,7 @@
 
 :root {
   --nav-h: 64px;
+  --ctrl-h: 72px;
 }
 
 .section-pt {
@@ -289,6 +290,15 @@
 @media (min-width: 768px) {
   .section-pt {
     padding-top: calc(var(--nav-h) + 2rem);
+  }
+}
+
+.section-pb {
+  padding-bottom: calc(var(--ctrl-h) + 1rem);
+}
+@media (min-width: 640px) {
+  .section-pb {
+    padding-bottom: calc(var(--ctrl-h) + 2rem);
   }
 }
 
