@@ -814,15 +814,17 @@ interface FontSizeControlsProps {
   step: number;
   onIncrease: () => void;
   onDecrease: () => void;
+  min: number;
+  max: number;
 }
 
-function FontSizeControls({ step, onIncrease, onDecrease }: FontSizeControlsProps) {
+function FontSizeControls({ step, onIncrease, onDecrease, min, max }: FontSizeControlsProps) {
   return (
     <div className="fixed bottom-4 left-3 z-50">
       <div className="flex items-center bg-white/75 backdrop-blur-md shadow-lg border border-white/60 rounded-full overflow-hidden">
         <button
           onClick={onDecrease}
-          disabled={step <= FONT_MIN}
+          disabled={step <= min}
           aria-label="縮小字體"
           className="px-3 py-2 font-noto-serif-tc text-xs text-green-700 hover:bg-white/90 hover:text-green-900 transition-all active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed"
         >
@@ -831,7 +833,7 @@ function FontSizeControls({ step, onIncrease, onDecrease }: FontSizeControlsProp
         <div className="w-px h-4 bg-green-300/60" />
         <button
           onClick={onIncrease}
-          disabled={step >= FONT_MAX}
+          disabled={step >= max}
           aria-label="放大字體"
           className="px-3 py-2 font-noto-serif-tc text-xs text-green-700 hover:bg-white/90 hover:text-green-900 transition-all active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed"
         >
@@ -912,6 +914,8 @@ export default function Invitation() {
       <FloatingArrows scrollContainerRef={scrollContainerRef} />
       <FontSizeControls
         step={fontStep}
+        min={FONT_MIN}
+        max={FONT_MAX}
         onIncrease={() => setFontStep((s) => Math.min(s + 1, FONT_MAX))}
         onDecrease={() => setFontStep((s) => Math.max(s - 1, FONT_MIN))}
       />
