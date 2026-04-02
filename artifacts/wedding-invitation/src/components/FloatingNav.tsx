@@ -76,45 +76,43 @@ const SECTIONS = [
 ];
 
 export const NAV_HEIGHT = 68;
+export const SECTIONS_COUNT = SECTIONS.length;
 
-export function FloatingNav() {
+interface FloatingNavProps {
+  scrollContainerRef: React.RefObject<HTMLDivElement | null>;
+  onNavClick?: () => void;
+}
+
+export function FloatingNav({ scrollContainerRef, onNavClick }: FloatingNavProps) {
   const [activeIndex, setActiveIndex] = useState(0);
 
   useEffect(() => {
-    const ratios = new Array(SECTIONS.length).fill(0);
+    const container = scrollContainerRef.current;
+    if (!container) return;
 
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          const i = SECTIONS.findIndex((s) => s.id === entry.target.id);
-          if (i !== -1) {
-            ratios[i] = entry.intersectionRatio;
-          }
-        });
-        const best = ratios.indexOf(Math.max(...ratios));
-        setActiveIndex(best);
-      },
-      {
-        threshold: [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0],
-      }
-    );
+    const updateActiveIndex = () => {
+      const vw = container.clientWidth;
+      if (vw === 0) return;
+      const index = Math.round(container.scrollLeft / vw);
+      setActiveIndex(Math.min(Math.max(index, 0), SECTIONS.length - 1));
+    };
 
-    SECTIONS.forEach((section) => {
-      const el = document.getElementById(section.id);
-      if (el) observer.observe(el);
-    });
+    const observer = new ResizeObserver(updateActiveIndex);
+    observer.observe(container);
 
+    container.addEventListener("scroll", updateActiveIndex, { passive: true });
+    updateActiveIndex();
     return () => {
+      container.removeEventListener("scroll", updateActiveIndex);
       observer.disconnect();
     };
-  }, []);
+  }, [scrollContainerRef]);
 
-  const scrollTo = (id: string) => {
-    const el = document.getElementById(id);
-    if (el) {
-      const top = el.getBoundingClientRect().top + window.scrollY - NAV_HEIGHT;
-      window.scrollTo({ top, behavior: "smooth" });
-    }
+  const scrollTo = (index: number) => {
+    const container = scrollContainerRef.current;
+    if (!container) return;
+    container.scrollTo({ left: index * container.clientWidth, behavior: "smooth" });
+    onNavClick?.();
   };
 
   return (
@@ -127,7 +125,7 @@ export function FloatingNav() {
         {SECTIONS.map((section, i) => (
           <button
             key={section.id}
-            onClick={() => scrollTo(section.id)}
+            onClick={() => scrollTo(i)}
             title={section.label}
             aria-label={section.label}
             className={`

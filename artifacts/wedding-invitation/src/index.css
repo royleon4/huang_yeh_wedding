@@ -261,6 +261,12 @@
 .animate-fade-in-up { animation: fadeInUp 0.8s ease-out forwards; }
 .animate-pulse-soft { animation: pulse-soft 2s ease-in-out infinite; }
 
+@keyframes swipeArrowPulse {
+  0%, 100% { transform: scale(1) translateX(0); opacity: 1; }
+  40% { transform: scale(1.15) translateX(3px); opacity: 0.85; }
+  70% { transform: scale(0.95) translateX(-1px); opacity: 1; }
+}
+
 .delay-100 { animation-delay: 0.1s; }
 .delay-200 { animation-delay: 0.2s; }
 .delay-300 { animation-delay: 0.3s; }
@@ -281,4 +287,8 @@
     0 2px 4px -1px rgba(0,0,0,0.06),
     0 0 0 1px rgba(134, 173, 60, 0.1),
     inset 0 1px 0 rgba(255,255,255,0.6);
+}
+
+.snap-container::-webkit-scrollbar {
+  display: none;
 }

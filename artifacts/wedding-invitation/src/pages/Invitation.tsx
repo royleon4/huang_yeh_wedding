@@ -1,10 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { KiwiIcon, KiwiFruit } from "@/components/KiwiIcon";
-import { DogWithBow } from "@/components/DogIcon";
 import { NZMap } from "@/components/NZMap";
 import { TWMap } from "@/components/TWMap";
 import { AudioPlayer } from "@/components/AudioPlayer";
-import { FloatingNav, NAV_HEIGHT } from "@/components/FloatingNav";
+import { FloatingNav, SECTIONS_COUNT } from "@/components/FloatingNav";
 
 function useIntersectionObserver(threshold = 0.1) {
   const ref = useRef<HTMLDivElement>(null);
@@ -63,11 +62,108 @@ function FloatingKiwis() {
   );
 }
 
+interface SwipeArrowHintProps {
+  scrollContainerRef: React.RefObject<HTMLDivElement | null>;
+  dismissed: boolean;
+}
+
+function SwipeArrowHint({ scrollContainerRef, dismissed }: SwipeArrowHintProps) {
+  const [isLastSection, setIsLastSection] = useState(false);
+  const [phase, setPhase] = useState<"visible" | "dim" | "hidden">("visible");
+  const cycleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    const container = scrollContainerRef.current;
+    if (!container) return;
+
+    const updateLastSection = () => {
+      const vw = container.clientWidth;
+      if (vw === 0) return;
+      const index = Math.round(container.scrollLeft / vw);
+      setIsLastSection(index >= SECTIONS_COUNT - 1);
+    };
+
+    const observer = new ResizeObserver(updateLastSection);
+    observer.observe(container);
+
+    container.addEventListener("scroll", updateLastSection, { passive: true });
+    updateLastSection();
+    return () => {
+      container.removeEventListener("scroll", updateLastSection);
+      observer.disconnect();
+    };
+  }, [scrollContainerRef]);
+
+  useEffect(() => {
+    if (dismissed) return;
+
+    const runCycle = () => {
+      setPhase("visible");
+      cycleTimerRef.current = setTimeout(() => {
+        setPhase("dim");
+        cycleTimerRef.current = setTimeout(() => {
+          setPhase("hidden");
+          cycleTimerRef.current = setTimeout(() => {
+            runCycle();
+          }, 1500);
+        }, 1200);
+      }, 2000);
+    };
+
+    runCycle();
+
+    return () => {
+      if (cycleTimerRef.current) clearTimeout(cycleTimerRef.current);
+    };
+  }, [dismissed]);
+
+  if (dismissed || isLastSection) return null;
+
+  return (
+    <div
+      className="fixed right-3 top-1/2 -translate-y-1/2 z-40 pointer-events-none transition-opacity duration-700"
+      style={{
+        opacity: phase === "visible" ? 1 : phase === "dim" ? 0.25 : 0,
+      }}
+    >
+      <div
+        className="flex flex-col items-center gap-1"
+        style={{
+          animation: phase === "visible" ? "swipeArrowPulse 1.2s ease-in-out infinite" : "none",
+        }}
+      >
+        <svg
+          width="28"
+          height="28"
+          viewBox="0 0 28 28"
+          fill="none"
+          className="drop-shadow-md"
+        >
+          <circle cx="14" cy="14" r="13" fill="rgba(255,255,255,0.85)" />
+          <path
+            d="M11 9 L17 14 L11 19"
+            stroke="#2d6a1b"
+            strokeWidth="2.2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </svg>
+        <span
+          className="font-noto-serif-tc text-green-800 text-[9px] tracking-widest"
+          style={{ textShadow: "0 0 6px rgba(255,255,255,0.9)" }}
+        >
+          滑動
+        </span>
+      </div>
+    </div>
+  );
+}
+
 function HeroSection() {
   return (
     <section
       id="section-hero"
-      className="relative min-h-screen flex flex-col items-center justify-center overflow-hidden text-[17px] kiwi-pattern"
+      className="relative w-screen h-screen flex-shrink-0 flex flex-col items-center justify-center overflow-hidden text-[17px] kiwi-pattern snap-start"
       style={{
         background:
           "linear-gradient(160deg, #f0f7e6 0%, #faf6d8 40%, #eef6e2 70%, #f8f4e0 100%)",
@@ -93,7 +189,7 @@ function HeroSection() {
       </div>
 
       {/* Main content */}
-      <div className="relative z-10 text-center px-4 sm:px-6 max-w-2xl mx-auto w-full -mt-24 sm:-mt-32">
+      <div className="relative z-10 text-center px-4 sm:px-6 max-w-2xl mx-auto w-full">
         {/* Decorative top element */}
         <div className="flex items-center justify-center gap-4 mb-6 sm:mb-8">
           <div className="h-px w-12 sm:w-16 bg-gradient-to-r from-transparent to-green-600 opacity-40" />
@@ -175,18 +271,18 @@ function HeroSection() {
           </p>
         </div>
 
-        {/* Scroll hint */}
+        {/* Swipe hint (replaces scroll hint) */}
         <div
           className="animate-bounce opacity-0 animate-fade-in-up"
           style={{ animationDelay: "1.2s", animationFillMode: "forwards" }}
         >
           <p className="font-noto-serif-tc text-xs tracking-widest mb-2 text-green-600">
-            往下捲動
+            左右滑動
           </p>
           <div className="flex justify-center">
             <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
               <path
-                d="M10 4 L10 16 M5 11 L10 16 L15 11"
+                d="M4 10 L16 10 M11 5 L16 10 L11 15"
                 stroke="#5a8c30"
                 strokeWidth="1.5"
                 strokeLinecap="round"
@@ -209,7 +305,7 @@ function LoveStorySection() {
     <section
       id="section-story"
       ref={ref}
-      className="py-12 md:py-20 px-4 sm:px-6"
+      className="w-screen h-screen flex-shrink-0 snap-start overflow-y-auto py-12 md:py-20 px-4 sm:px-6"
       style={{
         background: "linear-gradient(180deg, #faf6d8 0%, #f5f8ee 100%)",
       }}
@@ -331,7 +427,7 @@ function MapsSection() {
     <section
       id="section-maps"
       ref={ref}
-      className="py-12 md:py-20 px-4 sm:px-6 overflow-hidden"
+      className="w-screen h-screen flex-shrink-0 snap-start overflow-y-auto py-12 md:py-20 px-4 sm:px-6"
       style={{
         background: "linear-gradient(180deg, #f5f8ee 0%, #eef7e4 100%)",
       }}
@@ -448,7 +544,7 @@ function WeddingDetailsSection() {
     <section
       id="section-details"
       ref={ref}
-      className="py-12 md:py-20 px-4 sm:px-6"
+      className="w-screen h-screen flex-shrink-0 snap-start overflow-y-auto py-12 md:py-20 px-4 sm:px-6"
       style={{
         background:
           "linear-gradient(160deg, #2d5a1b 0%, #1a3a0f 50%, #2d5a1b 100%)",
@@ -592,7 +688,7 @@ function PhotoWallSection() {
     <section
       id="section-gallery"
       ref={ref}
-      className="py-12 md:py-20 px-4 sm:px-6"
+      className="w-screen h-screen flex-shrink-0 snap-start overflow-y-auto py-12 md:py-20 px-4 sm:px-6"
       style={{
         background: "linear-gradient(180deg, #f8f9e8 0%, #f2f8e6 100%)",
       }}
@@ -688,7 +784,7 @@ function RSVPSection() {
     <section
       id="section-rsvp"
       ref={ref}
-      className="py-12 md:py-20 px-4 sm:px-6"
+      className="w-screen h-screen flex-shrink-0 snap-start overflow-y-auto py-12 md:py-20 px-4 sm:px-6"
       style={{
         background: "linear-gradient(160deg, #faf6d8 0%, #f0f7e6 100%)",
       }}
@@ -791,12 +887,12 @@ function FooterSection() {
   return (
     <footer
       id="section-footer"
-      className="py-12 sm:py-16 px-4 sm:px-6 text-center"
+      className="w-screen h-screen flex-shrink-0 snap-start overflow-y-auto py-12 sm:py-16 px-4 sm:px-6 text-center flex flex-col justify-center"
       style={{
         background: "linear-gradient(160deg, #1a3a0f 0%, #0f2208 100%)",
       }}
     >
-      <div className="max-w-2xl mx-auto">
+      <div className="max-w-2xl mx-auto w-full">
         {/* Penguin illustration */}
         <div className="flex justify-center mb-6">
           <div className="relative">
@@ -852,21 +948,110 @@ function FooterSection() {
 }
 
 export default function Invitation() {
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const [swipeDismissed, setSwipeDismissed] = useState(false);
+  const hasSwiped = useRef(false);
+
+  useEffect(() => {
+    const container = scrollContainerRef.current;
+    if (!container) return;
+
+    let isPointerDown = false;
+    let startX = 0;
+    let startScrollLeft = 0;
+    let totalDx = 0;
+
+    const dismissArrow = () => {
+      if (!hasSwiped.current) {
+        hasSwiped.current = true;
+        setSwipeDismissed(true);
+      }
+    };
+
+    const handlePointerDown = (e: PointerEvent) => {
+      if (e.pointerType !== "mouse" || e.button !== 0) return;
+      isPointerDown = true;
+      startX = e.clientX;
+      startScrollLeft = container.scrollLeft;
+      totalDx = 0;
+      container.setPointerCapture(e.pointerId);
+      container.style.cursor = "grabbing";
+      container.style.userSelect = "none";
+    };
+
+    const handlePointerMove = (e: PointerEvent) => {
+      if (!isPointerDown || e.pointerType !== "mouse") return;
+      const dx = e.clientX - startX;
+      totalDx = Math.abs(dx);
+      container.scrollLeft = startScrollLeft - dx;
+      if (totalDx > 10) dismissArrow();
+    };
+
+    const handlePointerUp = (e: PointerEvent) => {
+      if (!isPointerDown || e.pointerType !== "mouse") return;
+      isPointerDown = false;
+      container.style.cursor = "";
+      container.style.userSelect = "";
+
+      if (totalDx > 10) {
+        const vw = container.clientWidth;
+        const nearestIndex = Math.round(container.scrollLeft / vw);
+        container.scrollTo({ left: nearestIndex * vw, behavior: "smooth" });
+      }
+    };
+
+    const handleTouchStart = (e: TouchEvent) => {
+      startX = e.touches[0].clientX;
+    };
+
+    const handleTouchEnd = (e: TouchEvent) => {
+      const dx = Math.abs(e.changedTouches[0].clientX - startX);
+      if (dx > 10) dismissArrow();
+    };
+
+    container.addEventListener("pointerdown", handlePointerDown);
+    container.addEventListener("pointermove", handlePointerMove);
+    container.addEventListener("pointerup", handlePointerUp);
+    container.addEventListener("pointercancel", handlePointerUp);
+    container.addEventListener("touchstart", handleTouchStart, { passive: true });
+    container.addEventListener("touchend", handleTouchEnd, { passive: true });
+
+    return () => {
+      container.removeEventListener("pointerdown", handlePointerDown);
+      container.removeEventListener("pointermove", handlePointerMove);
+      container.removeEventListener("pointerup", handlePointerUp);
+      container.removeEventListener("pointercancel", handlePointerUp);
+      container.removeEventListener("touchstart", handleTouchStart);
+      container.removeEventListener("touchend", handleTouchEnd);
+    };
+  }, []);
+
+  const handleNavClick = () => {
+    if (!hasSwiped.current) {
+      hasSwiped.current = true;
+      setSwipeDismissed(true);
+    }
+  };
+
   return (
-    <div
-      className="min-h-screen overflow-x-hidden"
-      style={{ paddingTop: NAV_HEIGHT }}
-    >
+    <div className="w-screen h-screen overflow-hidden">
       <AudioPlayer />
-      <FloatingNav />
+      <FloatingNav scrollContainerRef={scrollContainerRef} onNavClick={handleNavClick} />
       <FloatingKiwis />
-      <HeroSection />
-      <LoveStorySection />
-      <MapsSection />
-      <WeddingDetailsSection />
-      <PhotoWallSection />
-      <RSVPSection />
-      <FooterSection />
+      <SwipeArrowHint scrollContainerRef={scrollContainerRef} dismissed={swipeDismissed} />
+      <div
+        ref={scrollContainerRef}
+        className="w-full h-full flex flex-row overflow-x-auto overflow-y-hidden snap-x snap-mandatory snap-container"
+        style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
+      >
+        <HeroSection />
+        <LoveStorySection />
+        <MapsSection />
+        <WeddingDetailsSection />
+        <PhotoWallSection />
+        <RSVPSection />
+        <FooterSection />
+      </div>
     </div>
   );
 }
