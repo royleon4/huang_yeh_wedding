@@ -6,8 +6,8 @@ const SECTIONS = [
     label: "首頁",
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
-        <path d="M12 21.7C17.3 17 22 13 22 8.5a10 10 0 0 0-20 0C2 13 6.7 17 12 21.7z" />
-        <circle cx="12" cy="8.5" r="3" />
+        <path d="M3 9.5L12 3l9 6.5V20a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9.5z" />
+        <path d="M9 21V12h6v9" />
       </svg>
     ),
   },
