@@ -22,16 +22,6 @@ const SECTIONS = [
     ),
   },
   {
-    id: "section-maps",
-    label: "地圖",
-    icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
-        <circle cx="12" cy="10" r="3" />
-        <path d="M12 21.7C17.3 17 22 13 22 10a10 10 0 0 0-20 0c0 3 4.7 7 10 11.7z" />
-      </svg>
-    ),
-  },
-  {
     id: "section-details",
     label: "婚禮詳情",
     icon: (

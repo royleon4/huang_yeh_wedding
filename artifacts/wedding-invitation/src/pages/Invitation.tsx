@@ -420,123 +420,6 @@ function LoveStorySection() {
   );
 }
 
-function MapsSection() {
-  const { ref, isVisible } = useIntersectionObserver();
-
-  return (
-    <section
-      id="section-maps"
-      ref={ref}
-      className="w-screen h-screen flex-shrink-0 snap-start overflow-y-auto py-12 md:py-20 px-4 sm:px-6"
-      style={{
-        background: "linear-gradient(180deg, #f5f8ee 0%, #eef7e4 100%)",
-      }}
-    >
-      <div className="max-w-4xl mx-auto">
-        <div
-          className={`text-center mb-8 md:mb-16 transition-all duration-1000 ${isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-10"}`}
-        >
-          <p className="font-noto-serif-tc text-xs tracking-[0.5em] text-green-600 uppercase mb-3">
-            橫跨兩個家
-          </p>
-          <h2 className="font-playfair text-2xl sm:text-3xl md:text-4xl italic text-green-800 mb-4">
-            Two Lands, One Heart
-          </h2>
-          <div className="flex justify-center">
-            <div className="h-0.5 w-24 bg-gradient-to-r from-transparent via-yellow-400 to-transparent" />
-          </div>
-        </div>
-
-        <div className="flex flex-col md:flex-row items-center justify-center gap-6 md:gap-16">
-          {/* New Zealand */}
-          <div
-            className={`text-center transition-all duration-1000 delay-200 ${isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-10"}`}
-          >
-            <div className="relative inline-block">
-              <div className="absolute -inset-6 bg-green-100 rounded-full blur-2xl opacity-50" />
-              <NZMap size={110} className="relative animate-float-slow" />
-            </div>
-            <div className="mt-4">
-              <p className="font-playfair text-lg sm:text-xl text-green-800 font-semibold">
-                New Zealand
-              </p>
-              <p className="font-noto-serif-tc text-sm text-green-600">
-                紐西蘭
-              </p>
-              <div className="flex justify-center mt-2">
-                <KiwiIcon size={28} className="opacity-70" />
-              </div>
-              <p className="font-noto-serif-tc text-xs text-green-500 mt-1 tracking-wider">
-                奇異果之鄉 · 我們相遇的地方
-              </p>
-            </div>
-          </div>
-
-          {/* Connector */}
-          <div
-            className={`flex flex-col items-center gap-3 transition-all duration-1000 delay-400 ${isVisible ? "opacity-100 scale-100" : "opacity-0 scale-75"}`}
-          >
-            <div className="flex flex-col items-center gap-2">
-              <div className="w-px h-8 bg-gradient-to-b from-transparent to-yellow-400 hidden md:block" />
-              <div className="text-3xl animate-pulse-soft">💛</div>
-              <div className="font-great-vibes text-xl sm:text-2xl text-yellow-600">
-                forever
-              </div>
-              <div
-                className="text-xl animate-pulse-soft"
-                style={{ animationDelay: "0.5s" }}
-              >
-                🐾
-              </div>
-              <div className="w-px h-8 bg-gradient-to-t from-transparent to-yellow-400 hidden md:block" />
-            </div>
-          </div>
-
-          {/* Taiwan */}
-          <div
-            className={`text-center transition-all duration-1000 delay-600 ${isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-10"}`}
-          >
-            <div className="relative inline-block">
-              <div className="absolute -inset-6 bg-red-50 rounded-full blur-2xl opacity-50" />
-              <TWMap
-                size={85}
-                className="relative animate-float-slow"
-                style={{ animationDelay: "1s" }}
-              />
-            </div>
-            <div className="mt-4">
-              <p className="font-playfair text-lg sm:text-xl text-red-700 font-semibold">
-                Taiwan
-              </p>
-              <p className="font-noto-serif-tc text-sm text-red-600">台灣</p>
-              <div className="flex justify-center mt-2 text-lg">🏠</div>
-              <p className="font-noto-serif-tc text-xs text-red-400 mt-1 tracking-wider">
-                溫暖的家 · 我們攜手的地方
-              </p>
-            </div>
-          </div>
-        </div>
-
-        {/* Kiwi facts */}
-        <div
-          className={`mt-8 md:mt-16 bg-white/60 rounded-3xl p-5 sm:p-8 invitation-shadow transition-all duration-1000 delay-500 ${isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-10"}`}
-        >
-          <div className="flex items-center gap-3 mb-4">
-            <KiwiIcon size={36} />
-            <h3 className="font-playfair text-lg sm:text-xl text-green-800 italic">
-              我們的故事
-            </h3>
-          </div>
-          <p className="font-noto-serif-tc text-sm text-green-700 leading-relaxed">
-            我們雖然來自相同的家鄉，卻渲染著截然不同的文化。這是一段特別的旅程，從客廳的沙發，到婚姻的殿堂。
-            我們深刻到異國相愛的不易，但更認識到神的恩典夠用，即使我們處在不同環境，也能勇敢面對不確定的未來。
-          </p>
-        </div>
-      </div>
-    </section>
-  );
-}
-
 function WeddingDetailsSection() {
   const { ref, isVisible } = useIntersectionObserver();
 
@@ -979,7 +862,6 @@ export default function Invitation() {
       >
         <HeroSection />
         <LoveStorySection />
-        <MapsSection />
         <WeddingDetailsSection />
         <PhotoWallSection />
         <RSVPSection />
