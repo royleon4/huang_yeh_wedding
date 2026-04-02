@@ -369,12 +369,8 @@ function MapsSection() {
               我們的故事
             </h3>
           </div>
-          <p className="font-noto-serif-tc text-sm text-green-700 leading-relaxed">
-            奇異果原產於中國，卻在紐西蘭找到了最適合它生長的土地。就像我們的愛情，
-            跨越了半個地球，在最意想不到的地方生根發芽。
-            每一顆奇異果都承載著兩個家鄉的陽光與雨水，而我們的婚姻，
-            也將融合兩種文化最美好的部分。
-          </p>
+          <p className="font-noto-serif-tc text-sm text-green-700 leading-relaxed">我們雖然來自相同的家鄉，卻渲染著截然不同的文化。這是一段特別的旅程，從客廳的沙發，到婚姻的殿堂。
+          我們深刻到異國相愛的不易，但更認識到神的恩典夠用，即使我們處在不同環境，也能勇敢面對不確定的未來。</p>
         </div>
       </div>
     </section>
