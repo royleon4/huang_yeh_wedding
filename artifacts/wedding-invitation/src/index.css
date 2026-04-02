@@ -279,6 +279,19 @@
   60%       { transform: scale(1); }
 }
 
+:root {
+  --nav-h: 64px;
+}
+
+.section-pt {
+  padding-top: calc(var(--nav-h) + 1rem);
+}
+@media (min-width: 768px) {
+  .section-pt {
+    padding-top: calc(var(--nav-h) + 2rem);
+  }
+}
+
 .animate-heartbeat { animation: heartbeat 2.4s ease-in-out infinite; }
 
 @keyframes lightboxScale {
