@@ -230,19 +230,11 @@ function HeroSection() {
           style={{ animationDelay: "0.4s", animationFillMode: "forwards" }}
         >
           <h1
-            className={`font-playfair text-4xl sm:text-6xl md:text-7xl leading-tight font-semibold italic ${hasPhotos ? "text-white drop-shadow-2xl" : "text-green-800"}`}
+            className={`font-playfair text-4xl sm:text-5xl leading-tight font-semibold italic flex items-center justify-center gap-4 whitespace-nowrap ${hasPhotos ? "text-white drop-shadow-2xl" : "text-green-800"}`}
             data-testid="text-names"
           >
             Leon
-          </h1>
-          <div className="flex items-center justify-center gap-3 my-2">
-            <div className={`h-px w-10 sm:w-12 opacity-60 ${hasPhotos ? "bg-yellow-300" : "bg-yellow-500"}`} />
-            <span className={`font-playfair text-xl ${hasPhotos ? "text-yellow-300 drop-shadow" : "text-yellow-600"}`}>&amp;</span>
-            <div className={`h-px w-10 sm:w-12 opacity-60 ${hasPhotos ? "bg-yellow-300" : "bg-yellow-500"}`} />
-          </div>
-          <h1
-            className={`font-playfair text-4xl sm:text-6xl md:text-7xl leading-tight font-semibold italic ${hasPhotos ? "text-white drop-shadow-2xl" : "text-green-800"}`}
-          >
+            <span className={`font-playfair text-2xl sm:text-3xl not-italic ${hasPhotos ? "text-yellow-300 drop-shadow" : "text-yellow-600"}`}>&amp;</span>
             Yeh
           </h1>
         </div>
