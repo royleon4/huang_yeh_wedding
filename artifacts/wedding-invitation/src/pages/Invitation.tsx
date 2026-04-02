@@ -758,9 +758,7 @@ function FooterSection() {
         <h2 className="font-great-vibes text-3xl sm:text-5xl text-yellow-300/80 mb-3">
           Ming &amp; Ying
         </h2>
-        <p className="font-noto-serif-tc text-green-400/50 text-xs tracking-widest mb-6">
-          2025 · 10 · 18
-        </p>
+        <p className="font-noto-serif-tc text-green-400/50 text-xs tracking-widest mb-6">2026 · 06 · 20</p>
 
         <div className="flex items-center justify-center gap-6">
           <div className="text-center">
