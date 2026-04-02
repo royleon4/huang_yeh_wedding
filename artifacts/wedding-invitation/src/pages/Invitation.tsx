@@ -910,6 +910,11 @@ export default function Invitation() {
       <FloatingNav scrollContainerRef={scrollContainerRef} />
       <FloatingKiwis />
       <FloatingArrows scrollContainerRef={scrollContainerRef} />
+      <FontSizeControls
+        step={fontStep}
+        onIncrease={() => setFontStep((s) => Math.min(s + 1, FONT_MAX))}
+        onDecrease={() => setFontStep((s) => Math.max(s - 1, FONT_MIN))}
+      />
       <div
         ref={scrollContainerRef}
         className="w-full h-full flex flex-row overflow-x-auto overflow-y-hidden snap-x snap-mandatory snap-container"
