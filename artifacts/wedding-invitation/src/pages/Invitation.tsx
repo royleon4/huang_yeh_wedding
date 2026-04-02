@@ -442,12 +442,22 @@ function LoveStorySection() {
           >
             <div className="flex justify-center">
               <div className="relative">
-                <div className="absolute -inset-4 bg-gradient-to-br from-green-100 to-yellow-50 rounded-full blur-xl opacity-60" />
-                <DogWithBow size={180} className="relative animate-wiggle" />
+                <div className="absolute -inset-4 bg-gradient-to-br from-blue-50 to-yellow-50 rounded-full blur-xl opacity-70" />
+                <div
+                  className="relative animate-wiggle overflow-hidden"
+                  style={{ width: 180, height: 180 }}
+                >
+                  <img
+                    src="/penguin.png"
+                    alt="葉黃素夢"
+                    className="absolute w-full object-cover object-top"
+                    style={{ top: "10%", height: "80%" }}
+                  />
+                </div>
               </div>
             </div>
             <p className="text-center font-noto-serif-tc text-sm text-green-600 mt-3 tracking-wider">
-              我們的毛小孩 · 小黑
+              我們的小寶貝 · 葉黃素夢
             </p>
           </div>
 
@@ -463,7 +473,7 @@ function LoveStorySection() {
               </div>
               <div className="bg-white/70 rounded-2xl p-5 invitation-shadow">
                 <p className="font-noto-serif-tc text-green-800 leading-relaxed text-sm">
-                  小黑是我們愛情的見證者——牠第一個知道我們相愛的秘密，
+                  葉黃素夢是我們愛情的見證者——牠第一個知道我們相愛的秘密，
                   也是第一個收到我們婚訊的「人」。
                 </p>
               </div>
@@ -921,16 +931,26 @@ function FooterSection() {
       }}
     >
       <div className="max-w-2xl mx-auto">
-        {/* Dog illustration */}
+        {/* Penguin illustration */}
         <div className="flex justify-center mb-6">
           <div className="relative">
-            <div className="absolute -inset-6 bg-green-900/40 rounded-full blur-xl" />
-            <DogWithBow size={100} className="relative opacity-80" />
+            <div className="absolute -inset-6 bg-blue-900/20 rounded-full blur-xl" />
+            <div
+              className="relative overflow-hidden opacity-90"
+              style={{ width: 100, height: 100 }}
+            >
+              <img
+                src="/penguin.png"
+                alt="葉黃素夢"
+                className="absolute w-full object-cover object-top"
+                style={{ top: "8%", height: "80%" }}
+              />
+            </div>
           </div>
         </div>
 
         <p className="font-noto-serif-tc text-green-400/60 text-xs tracking-widest mb-4">
-          小黑 也很期待見到大家
+          葉黃素夢 也很期待見到大家
         </p>
 
         {/* Divider with kiwis */}
