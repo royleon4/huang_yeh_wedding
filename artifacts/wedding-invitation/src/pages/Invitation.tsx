@@ -93,7 +93,7 @@ function HeroSection() {
       </div>
 
       {/* Main content */}
-      <div className="relative z-10 text-center px-4 sm:px-6 max-w-2xl mx-auto w-full">
+      <div className="relative z-10 text-center px-4 sm:px-6 max-w-2xl mx-auto w-full -mt-24 sm:-mt-32">
         {/* Decorative top element */}
         <div className="flex items-center justify-center gap-4 mb-6 sm:mb-8">
           <div className="h-px w-12 sm:w-16 bg-gradient-to-r from-transparent to-green-600 opacity-40" />
