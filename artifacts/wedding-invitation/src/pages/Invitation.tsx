@@ -147,7 +147,7 @@ function HeroSection() {
             }
       }
     >
-      {/* === PHOTO BACKGROUND (when photos exist) === */}
+      {/* Photo background */}
       {hasPhotos && (
         <>
           {photos.map((filename, i) => (
@@ -179,7 +179,7 @@ function HeroSection() {
         </>
       )}
 
-      {/* === DECORATIVE KIWIS (no-photo state only) === */}
+      {/* Decorative kiwis — no-photo state */}
       {!hasPhotos && (
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
           <div className="absolute -top-8 -left-8 opacity-10 animate-float-slow">
@@ -200,7 +200,7 @@ function HeroSection() {
         </div>
       )}
 
-      {/* === MAIN CONTENT === */}
+      {/* Main content */}
       <div className="relative z-10 text-center px-6 max-w-2xl mx-auto w-full">
         {/* Decorative top element */}
         <div className="flex items-center justify-center gap-4 mb-8">
@@ -312,7 +312,7 @@ function HeroSection() {
         </div>
       </div>
 
-      {/* === PHOTO CONTROLS (when photos exist) === */}
+      {/* Photo controls */}
       {hasPhotos && (
         <>
           {/* Prev / Next arrows */}
@@ -386,7 +386,7 @@ function HeroSection() {
         </>
       )}
 
-      {/* === UPLOAD PROMPT (no-photo state) === */}
+      {/* Upload prompt — no-photo state */}
       {!hasPhotos && (
         <div className="absolute bottom-12 left-0 right-0 z-10 flex justify-center">
           <label className="inline-flex items-center gap-2 cursor-pointer group">
