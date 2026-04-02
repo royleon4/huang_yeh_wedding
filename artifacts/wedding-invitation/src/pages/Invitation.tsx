@@ -203,6 +203,7 @@ function HeroSection() {
 function LoveStorySection() {
   const { ref, isVisible } = useIntersectionObserver();
   const [isStoryOpen, setIsStoryOpen] = useState(false);
+  const [isLongDistanceOpen, setIsLongDistanceOpen] = useState(false);
 
   return (
     <section
@@ -278,11 +279,35 @@ function LoveStorySection() {
                   </p>
                 </div>
               </div>
-              <div className="bg-white/70 rounded-2xl p-4 sm:p-5 invitation-shadow">
-                <p className="font-noto-serif-tc text-green-800 leading-relaxed text-sm">
-                  葉黃素夢是我們愛情的見證者——牠第一個知道我們相愛的秘密，
-                  也是第一個收到我們婚訊的「人」。
-                </p>
+              <div className="bg-white/70 rounded-2xl invitation-shadow overflow-hidden">
+                <button
+                  onClick={() => setIsLongDistanceOpen(!isLongDistanceOpen)}
+                  className="w-full flex items-center justify-between p-4 sm:p-5 text-left"
+                  aria-expanded={isLongDistanceOpen}
+                  aria-controls="long-distance-content"
+                >
+                  <span className="font-noto-serif-tc text-green-800 text-sm font-medium">
+                    交往契機與遠距離的酸甜
+                  </span>
+                  <svg
+                    className={`flex-shrink-0 ml-3 w-4 h-4 text-green-600 transition-transform duration-300 ${isLongDistanceOpen ? "rotate-180" : "rotate-0"}`}
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    strokeWidth={2}
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+                <div
+                  id="long-distance-content"
+                  className={`transition-all duration-500 ease-in-out overflow-hidden ${isLongDistanceOpen ? "max-h-[600px] opacity-100" : "max-h-0 opacity-0"}`}
+                >
+                  <p className="font-noto-serif-tc text-green-800 leading-relaxed text-sm px-4 sm:px-5 pb-4 sm:pb-5">
+                    葉黃素夢是我們愛情的見證者——牠第一個知道我們相愛的秘密，
+                    也是第一個收到我們婚訊的「人」。
+                  </p>
+                </div>
               </div>
               <div className="bg-white/70 rounded-2xl p-4 sm:p-5 invitation-shadow border-l-4 border-yellow-400">
                 <p className="font-great-vibes text-xl sm:text-2xl text-green-700 mb-1">
