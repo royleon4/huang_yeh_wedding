@@ -772,14 +772,6 @@ function PhotoWallSection() {
 
 function RSVPSection() {
   const { ref, isVisible } = useIntersectionObserver();
-  const [submitted, setSubmitted] = useState(false);
-  const [name, setName] = useState("");
-
-  function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setSubmitted(true);
-  }
-
   return (
     <section
       id="section-rsvp"
@@ -810,73 +802,14 @@ function RSVPSection() {
         <div
           className={`bg-white/80 rounded-3xl p-5 sm:p-8 invitation-shadow transition-all duration-1000 delay-200 ${isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-10"}`}
         >
-          {!submitted ? (
-            <form onSubmit={handleSubmit} className="space-y-5">
-              <div>
-                <label className="block font-noto-serif-tc text-sm text-green-700 mb-2">
-                  您的姓名
-                </label>
-                <input
-                  type="text"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  placeholder="請填寫姓名"
-                  className="w-full border border-green-200 rounded-xl px-4 py-3 font-noto-serif-tc text-sm text-green-800 bg-green-50/50 focus:outline-none focus:border-green-400 focus:ring-2 focus:ring-green-100 transition-all"
-                  data-testid="input-name"
-                  required
-                />
-              </div>
-              <div>
-                <label className="block font-noto-serif-tc text-sm text-green-700 mb-2">
-                  出席人數
-                </label>
-                <select
-                  className="w-full border border-green-200 rounded-xl px-4 py-3 font-noto-serif-tc text-sm text-green-800 bg-green-50/50 focus:outline-none focus:border-green-400 focus:ring-2 focus:ring-green-100 transition-all"
-                  data-testid="select-guests"
-                >
-                  <option value="1">1 人</option>
-                  <option value="2">2 人</option>
-                  <option value="3">3 人</option>
-                  <option value="4">4 人</option>
-                </select>
-              </div>
-              <div>
-                <label className="block font-noto-serif-tc text-sm text-green-700 mb-2">
-                  給新人的祝福
-                </label>
-                <textarea
-                  placeholder="寫下您的祝福..."
-                  rows={3}
-                  className="w-full border border-green-200 rounded-xl px-4 py-3 font-noto-serif-tc text-sm text-green-800 bg-green-50/50 focus:outline-none focus:border-green-400 focus:ring-2 focus:ring-green-100 transition-all resize-none"
-                  data-testid="textarea-blessing"
-                />
-              </div>
-              <button
-                type="submit"
-                className="w-full bg-green-700 text-white font-noto-serif-tc text-sm py-3.5 rounded-xl hover:bg-green-800 active:bg-green-900 transition-all duration-200 tracking-wider shadow-lg shadow-green-700/25"
-                data-testid="button-submit-rsvp"
-              >
-                確認出席 · Confirm Attendance
-              </button>
-            </form>
-          ) : (
-            <div className="text-center py-8">
-              <div className="text-5xl mb-4 animate-bounce">🥝</div>
-              <p className="font-playfair text-2xl text-green-800 mb-3 italic">
-                Thank you!
-              </p>
-              <p className="font-noto-serif-tc text-green-700 text-sm leading-relaxed">
-                {name}，感謝您的回覆！
-                <br />
-                我們非常期待與您共慶這份甜蜜的時光。
-              </p>
-              <div className="flex justify-center gap-2 mt-4">
-                <KiwiIcon size={30} />
-                <span className="text-green-500 text-xl self-center">💚</span>
-                <KiwiIcon size={30} />
-              </div>
-            </div>
-          )}
+          <iframe
+            src="https://docs.google.com/forms/d/e/1FAIpQLSeMnqHLFAmMpdtUrwr0BGtEnQYoS3SM40odyPEYOtZQNX8LlQ/viewform?embedded=true"
+            width="100%"
+            height="1224"
+            frameBorder="0"
+          >
+            載入中…
+          </iframe>
         </div>
       </div>
     </section>
