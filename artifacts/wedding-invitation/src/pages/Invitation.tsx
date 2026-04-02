@@ -498,6 +498,8 @@ function PhotoWallSection() {
   const { ref, isVisible } = useIntersectionObserver();
   const [photos, setPhotos] = useState<string[]>([]);
   const [uploading, setUploading] = useState(false);
+  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
+  const touchStartX = useRef<number | null>(null);
   const API_BASE = import.meta.env.BASE_URL ? `${window.location.origin}` : "";
 
   useEffect(() => {
@@ -512,6 +514,17 @@ function PhotoWallSection() {
     };
     fetchPhotos();
   }, []);
+
+  useEffect(() => {
+    if (lightboxIndex === null) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setLightboxIndex(null);
+      if (e.key === "ArrowLeft") setLightboxIndex((i) => (i !== null && i > 0 ? i - 1 : i));
+      if (e.key === "ArrowRight") setLightboxIndex((i) => (i !== null && i < photos.length - 1 ? i + 1 : i));
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [lightboxIndex, photos.length]);
 
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -572,8 +585,9 @@ function PhotoWallSection() {
             {photos.map((filename, i) => (
               <div
                 key={filename}
-                className="aspect-square rounded-2xl overflow-hidden invitation-shadow transition-all duration-700"
+                className="aspect-square rounded-2xl overflow-hidden invitation-shadow transition-all duration-700 cursor-pointer"
                 style={{ transitionDelay: `${i * 60}ms` }}
+                onClick={() => setLightboxIndex(i)}
               >
                 <img
                   src={`${API_BASE}/api/photos/image/${filename}`}
@@ -618,6 +632,61 @@ function PhotoWallSection() {
           </label>
         </div>
       </div>
+
+      {/* Lightbox */}
+      {lightboxIndex !== null && (
+        <div
+          className="fixed inset-0 z-50 bg-black/85 backdrop-blur-sm flex items-center justify-center"
+          onClick={() => setLightboxIndex(null)}
+          onTouchStart={(e) => { touchStartX.current = e.touches[0].clientX; }}
+          onTouchEnd={(e) => {
+            if (touchStartX.current === null) return;
+            const dx = e.changedTouches[0].clientX - touchStartX.current;
+            touchStartX.current = null;
+            if (dx < -50 && lightboxIndex < photos.length - 1) setLightboxIndex(lightboxIndex + 1);
+            if (dx > 50 && lightboxIndex > 0) setLightboxIndex(lightboxIndex - 1);
+          }}
+        >
+          {/* Close button */}
+          <button
+            className="absolute top-4 right-4 text-white/80 hover:text-white bg-white/10 hover:bg-white/20 rounded-full w-10 h-10 flex items-center justify-center text-xl transition-all z-10"
+            onClick={(e) => { e.stopPropagation(); setLightboxIndex(null); }}
+            aria-label="關閉"
+          >✕</button>
+
+          {/* Prev arrow */}
+          {lightboxIndex > 0 && (
+            <button
+              className="absolute left-3 sm:left-6 text-white/80 hover:text-white bg-white/10 hover:bg-white/20 rounded-full w-10 h-10 flex items-center justify-center text-2xl transition-all z-10"
+              onClick={(e) => { e.stopPropagation(); setLightboxIndex(lightboxIndex - 1); }}
+              aria-label="上一張"
+            >‹</button>
+          )}
+
+          {/* Next arrow */}
+          {lightboxIndex < photos.length - 1 && (
+            <button
+              className="absolute right-3 sm:right-6 text-white/80 hover:text-white bg-white/10 hover:bg-white/20 rounded-full w-10 h-10 flex items-center justify-center text-2xl transition-all z-10"
+              onClick={(e) => { e.stopPropagation(); setLightboxIndex(lightboxIndex + 1); }}
+              aria-label="下一張"
+            >›</button>
+          )}
+
+          {/* Image */}
+          <img
+            src={`${API_BASE}/api/photos/image/${photos[lightboxIndex]}`}
+            alt={`照片 ${lightboxIndex + 1}`}
+            className="max-h-[85vh] max-w-[88vw] object-contain rounded-xl shadow-2xl animate-fade-in-up"
+            style={{ animationDuration: "0.2s" }}
+            onClick={(e) => e.stopPropagation()}
+          />
+
+          {/* Page counter */}
+          <div className="absolute bottom-5 left-1/2 -translate-x-1/2 text-white/70 text-sm font-noto-serif-tc tracking-widest select-none">
+            {lightboxIndex + 1} / {photos.length}
+          </div>
+        </div>
+      )}
     </section>
   );
 }
