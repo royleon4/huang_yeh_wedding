@@ -188,25 +188,36 @@ function HeroSection() {
         </p>
 
         {/* Names — single grid so columns share widths across both rows */}
-        <div
-          className="grid grid-cols-[1fr_auto_1fr] items-center mb-6 opacity-0 animate-fade-in-up"
-          style={{ animationDelay: "0.4s", animationFillMode: "forwards" }}
-        >
+        <div className="grid grid-cols-[1fr_auto_1fr] items-center mb-6">
           {/* Row 1: English names */}
           <h1
-            className="font-playfair text-4xl sm:text-5xl leading-tight font-semibold italic text-right text-green-800"
+            className="font-playfair text-4xl sm:text-5xl leading-tight font-semibold italic text-right text-green-800 opacity-0 animate-fade-in-up"
+            style={{ animationDelay: "0.4s", animationFillMode: "forwards" }}
             data-testid="text-names"
           >Leon</h1>
-          <span className="font-playfair text-2xl sm:text-3xl not-italic text-yellow-600 px-3 sm:px-4 text-center">&amp;</span>
-          <h1 className="font-playfair text-4xl sm:text-5xl leading-tight font-semibold italic text-left text-green-800">Yeh</h1>
+          <span
+            className="font-playfair text-2xl sm:text-3xl not-italic text-yellow-600 px-3 sm:px-4 text-center opacity-0 animate-fade-in-up"
+            style={{ animationDelay: "0.4s", animationFillMode: "forwards" }}
+          >&amp;</span>
+          <span
+            className="font-playfair text-4xl sm:text-5xl leading-tight font-semibold italic text-left text-green-800 opacity-0 animate-fade-in-up"
+            style={{ animationDelay: "0.4s", animationFillMode: "forwards" }}
+          >Yeh</span>
 
           {/* Row 2: Chinese names */}
           <span
-            className="font-zen-old-mincho font-semibold text-3xl sm:text-4xl text-right text-green-800"
+            className="font-zen-old-mincho font-semibold text-3xl sm:text-4xl text-right text-green-800 opacity-0 animate-fade-in-up"
+            style={{ animationDelay: "0.6s", animationFillMode: "forwards" }}
             data-testid="text-chinese-names"
           >黃律詠</span>
-          <span className="text-yellow-600 text-2xl sm:text-3xl px-3 sm:px-4 text-center">✦</span>
-          <span className="font-zen-old-mincho font-semibold text-3xl sm:text-4xl text-left text-green-800">葉藝慧</span>
+          <span
+            className="text-yellow-600 text-2xl sm:text-3xl px-3 sm:px-4 text-center opacity-0 animate-fade-in-up"
+            style={{ animationDelay: "0.6s", animationFillMode: "forwards" }}
+          >✦</span>
+          <span
+            className="font-zen-old-mincho font-semibold text-3xl sm:text-4xl text-left text-green-800 opacity-0 animate-fade-in-up"
+            style={{ animationDelay: "0.6s", animationFillMode: "forwards" }}
+          >葉藝慧</span>
         </div>
 
         {/* Decorative divider */}
