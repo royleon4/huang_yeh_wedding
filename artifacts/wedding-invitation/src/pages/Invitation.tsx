@@ -207,6 +207,18 @@ function PhotoSlideshowSection() {
     fetchPhotos();
   }, []);
 
+  useEffect(() => {
+    if (photos.length === 0) return;
+    const timer = setInterval(() => {
+      setFading(true);
+      setTimeout(() => {
+        setCurrent((prev) => (prev + 1) % photos.length);
+        setFading(false);
+      }, 600);
+    }, 4000);
+    return () => clearInterval(timer);
+  }, [photos.length]);
+
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files) return;
@@ -229,52 +241,6 @@ function PhotoSlideshowSection() {
       (e.target as HTMLInputElement).value = "";
     }
   };
-
-  if (photos.length === 0) {
-    return (
-      <section
-        ref={ref}
-        className="py-20 px-6"
-        style={{ background: "linear-gradient(180deg, #f5f8ee 0%, #faf6d8 100%)" }}
-      >
-        <div className="max-w-3xl mx-auto text-center">
-          <p className="font-noto-serif-tc text-xs tracking-[0.5em] text-green-600 uppercase mb-3">
-            我們的故事
-          </p>
-          <h2 className="font-playfair text-4xl italic text-green-800 mb-6">
-            Our Moments
-          </h2>
-          <div className="bg-white/60 rounded-3xl p-12 invitation-shadow">
-            <p className="font-noto-serif-tc text-green-700 mb-6">尚無照片，點擊下方上傳</p>
-            <label className="inline-block">
-              <input
-                type="file"
-                multiple
-                accept="image/*"
-                onChange={handleUpload}
-                disabled={uploading}
-                className="hidden"
-              />
-              <span className="inline-block bg-green-700 text-white px-6 py-2.5 rounded-xl font-noto-serif-tc text-sm cursor-pointer hover:bg-green-800 transition-all">
-                {uploading ? "上傳中..." : "選擇照片"}
-              </span>
-            </label>
-          </div>
-        </div>
-      </section>
-    );
-  }
-
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setFading(true);
-      setTimeout(() => {
-        setCurrent((prev) => (prev + 1) % photos.length);
-        setFading(false);
-      }, 600);
-    }, 4000);
-    return () => clearInterval(timer);
-  }, [photos.length]);
 
   function goTo(index: number) {
     if (index === current) return;
@@ -316,101 +282,120 @@ function PhotoSlideshowSection() {
           </div>
         </div>
 
-        <div
-          className={`transition-all duration-1000 delay-200 ${isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-10"}`}
-        >
-          <div className="relative rounded-3xl overflow-hidden invitation-shadow bg-white/40">
-            <div className="relative w-full" style={{ paddingBottom: "66%" }}>
-              {photos.map((filename, i) => (
-                <img
+        {photos.length === 0 ? (
+          <div className="bg-white/60 rounded-3xl p-12 invitation-shadow text-center">
+            <p className="font-noto-serif-tc text-green-700 mb-6">尚無照片，點擊下方上傳</p>
+            <label className="inline-block">
+              <input
+                type="file"
+                multiple
+                accept="image/*"
+                onChange={handleUpload}
+                disabled={uploading}
+                className="hidden"
+              />
+              <span className="inline-block bg-green-700 text-white px-6 py-2.5 rounded-xl font-noto-serif-tc text-sm cursor-pointer hover:bg-green-800 transition-all">
+                {uploading ? "上傳中..." : "選擇照片"}
+              </span>
+            </label>
+          </div>
+        ) : (
+          <div
+            className={`transition-all duration-1000 delay-200 ${isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-10"}`}
+          >
+            <div className="relative rounded-3xl overflow-hidden invitation-shadow bg-white/40">
+              <div className="relative w-full" style={{ paddingBottom: "66%" }}>
+                {photos.map((filename, i) => (
+                  <img
+                    key={i}
+                    src={`${API_BASE}/api/photos/image/${filename}`}
+                    alt={`Photo ${i + 1}`}
+                    className="absolute inset-0 w-full h-full object-cover transition-opacity duration-700"
+                    style={{ opacity: i === current ? (fading ? 0 : 1) : 0 }}
+                  />
+                ))}
+                <div
+                  className="absolute inset-0 transition-opacity duration-700"
+                  style={{
+                    background:
+                      "linear-gradient(to top, rgba(0,0,0,0.45) 0%, transparent 50%)",
+                    opacity: fading ? 0 : 1,
+                  }}
+                />
+                <div
+                  className="absolute bottom-0 left-0 right-0 px-6 pb-5 transition-opacity duration-700"
+                  style={{ opacity: fading ? 0 : 1 }}
+                >
+                  <label className="inline-block">
+                    <input
+                      type="file"
+                      multiple
+                      accept="image/*"
+                      onChange={handleUpload}
+                      disabled={uploading}
+                      className="hidden"
+                    />
+                    <span className="text-white text-xs font-noto-serif-tc cursor-pointer hover:underline drop-shadow">
+                      {uploading ? "上傳中..." : "➕ 上傳更多照片"}
+                    </span>
+                  </label>
+                </div>
+
+                <button
+                  onClick={prev}
+                  className="absolute left-3 top-1/2 -translate-y-1/2 bg-white/60 hover:bg-white/90 backdrop-blur-sm rounded-full w-9 h-9 flex items-center justify-center transition-all shadow"
+                  aria-label="上一張"
+                >
+                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                    <path
+                      d="M10 3 L5 8 L10 13"
+                      stroke="#2d5a1b"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
+                </button>
+                <button
+                  onClick={next}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 bg-white/60 hover:bg-white/90 backdrop-blur-sm rounded-full w-9 h-9 flex items-center justify-center transition-all shadow"
+                  aria-label="下一張"
+                >
+                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                    <path
+                      d="M6 3 L11 8 L6 13"
+                      stroke="#2d5a1b"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
+                </button>
+              </div>
+            </div>
+
+            <div className="flex justify-center gap-2.5 mt-5">
+              {photos.map((_, i) => (
+                <button
                   key={i}
-                  src={`${API_BASE}/api/photos/image/${filename}`}
-                  alt={`Photo ${i + 1}`}
-                  className="absolute inset-0 w-full h-full object-cover transition-opacity duration-700"
-                  style={{ opacity: i === current ? (fading ? 0 : 1) : 0 }}
+                  onClick={() => goTo(i)}
+                  className="transition-all duration-300 rounded-full"
+                  style={{
+                    width: i === current ? 24 : 8,
+                    height: 8,
+                    background: i === current ? "#2d5a1b" : "#a8c490",
+                    opacity: i === current ? 1 : 0.5,
+                  }}
+                  aria-label={`第 ${i + 1} 張`}
                 />
               ))}
-              <div
-                className="absolute inset-0 transition-opacity duration-700"
-                style={{
-                  background:
-                    "linear-gradient(to top, rgba(0,0,0,0.45) 0%, transparent 50%)",
-                  opacity: fading ? 0 : 1,
-                }}
-              />
-              <div
-                className="absolute bottom-0 left-0 right-0 px-6 pb-5 transition-opacity duration-700"
-                style={{ opacity: fading ? 0 : 1 }}
-              >
-                <label className="inline-block">
-                  <input
-                    type="file"
-                    multiple
-                    accept="image/*"
-                    onChange={handleUpload}
-                    disabled={uploading}
-                    className="hidden"
-                  />
-                  <span className="text-white text-xs font-noto-serif-tc cursor-pointer hover:underline drop-shadow">
-                    {uploading ? "上傳中..." : "➕ 上傳更多照片"}
-                  </span>
-                </label>
-              </div>
-
-              <button
-                onClick={prev}
-                className="absolute left-3 top-1/2 -translate-y-1/2 bg-white/60 hover:bg-white/90 backdrop-blur-sm rounded-full w-9 h-9 flex items-center justify-center transition-all shadow"
-                aria-label="上一張"
-              >
-                <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                  <path
-                    d="M10 3 L5 8 L10 13"
-                    stroke="#2d5a1b"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                </svg>
-              </button>
-              <button
-                onClick={next}
-                className="absolute right-3 top-1/2 -translate-y-1/2 bg-white/60 hover:bg-white/90 backdrop-blur-sm rounded-full w-9 h-9 flex items-center justify-center transition-all shadow"
-                aria-label="下一張"
-              >
-                <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                  <path
-                    d="M6 3 L11 8 L6 13"
-                    stroke="#2d5a1b"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                </svg>
-              </button>
             </div>
-          </div>
 
-          <div className="flex justify-center gap-2.5 mt-5">
-            {photos.map((_, i) => (
-              <button
-                key={i}
-                onClick={() => goTo(i)}
-                className="transition-all duration-300 rounded-full"
-                style={{
-                  width: i === current ? 24 : 8,
-                  height: 8,
-                  background: i === current ? "#2d5a1b" : "#a8c490",
-                  opacity: i === current ? 1 : 0.5,
-                }}
-                aria-label={`第 ${i + 1} 張`}
-              />
-            ))}
+            <p className="text-center font-noto-serif-tc text-xs text-green-500 mt-3 tracking-wider">
+              {current + 1} / {photos.length}
+            </p>
           </div>
-
-          <p className="text-center font-noto-serif-tc text-xs text-green-500 mt-3 tracking-wider">
-            {current + 1} / {photos.length}
-          </p>
-        </div>
+        )}
       </div>
     </section>
   );
