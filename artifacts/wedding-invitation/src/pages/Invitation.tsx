@@ -105,7 +105,7 @@ function HeroSection() {
           style={{ animationDelay: "0.6s", animationFillMode: "forwards" }}
           data-testid="text-chinese-names"
         >
-          明 ✦ 盈
+          黃 ✦ 葉
         </p>
 
         {/* Decorative divider */}
