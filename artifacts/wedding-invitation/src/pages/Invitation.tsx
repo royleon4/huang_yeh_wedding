@@ -3,8 +3,8 @@ import { KiwiIcon, KiwiFruit } from "@/components/KiwiIcon";
 import { DogWithBow } from "@/components/DogIcon";
 import { NZMap } from "@/components/NZMap";
 import { TWMap } from "@/components/TWMap";
-import { useSectionSwipe } from "@/hooks/use-section-swipe";
 import { AudioPlayer } from "@/components/AudioPlayer";
+import { FloatingNav } from "@/components/FloatingNav";
 
 function useIntersectionObserver(threshold = 0.1) {
   const ref = useRef<HTMLDivElement>(null);
@@ -787,10 +787,10 @@ function FooterSection() {
 }
 
 export default function Invitation() {
-  useSectionSwipe();
   return (
     <div className="min-h-screen overflow-x-hidden">
       <AudioPlayer />
+      <FloatingNav />
       <FloatingKiwis />
       <HeroSection />
       <LoveStorySection />
