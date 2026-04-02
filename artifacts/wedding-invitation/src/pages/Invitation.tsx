@@ -4,6 +4,7 @@ import { DogWithBow } from "@/components/DogIcon";
 import { NZMap } from "@/components/NZMap";
 import { TWMap } from "@/components/TWMap";
 import { useSectionSwipe } from "@/hooks/use-section-swipe";
+import { AudioPlayer } from "@/components/AudioPlayer";
 
 function useIntersectionObserver(threshold = 0.1) {
   const ref = useRef<HTMLDivElement>(null);
@@ -789,6 +790,7 @@ export default function Invitation() {
   useSectionSwipe();
   return (
     <div className="min-h-screen overflow-x-hidden">
+      <AudioPlayer />
       <FloatingKiwis />
       <HeroSection />
       <LoveStorySection />
