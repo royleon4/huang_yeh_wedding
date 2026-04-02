@@ -75,7 +75,7 @@ const SECTIONS = [
   },
 ];
 
-export const NAV_HEIGHT = 52;
+export const NAV_HEIGHT = 68;
 
 export function FloatingNav() {
   const [activeIndex, setActiveIndex] = useState(0);
@@ -119,11 +119,11 @@ export function FloatingNav() {
 
   return (
     <div
-      className="fixed top-0 left-0 right-0 z-50"
+      className="fixed top-0 left-0 right-0 z-50 flex justify-center pt-3 px-4 pointer-events-none"
       role="navigation"
       aria-label="快速導覽"
     >
-      <div className="flex flex-row items-center justify-center gap-1 bg-white/70 backdrop-blur-md shadow-lg border-b border-white/60 px-2 py-1.5">
+      <div className="flex flex-row items-center justify-center gap-1 bg-white/75 backdrop-blur-md shadow-xl border border-white/60 px-3 py-2 rounded-full pointer-events-auto">
         {SECTIONS.map((section, i) => (
           <button
             key={section.id}
