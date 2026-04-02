@@ -75,6 +75,8 @@ const SECTIONS = [
   },
 ];
 
+export const NAV_HEIGHT = 52;
+
 export function FloatingNav() {
   const [activeIndex, setActiveIndex] = useState(0);
 
@@ -110,17 +112,18 @@ export function FloatingNav() {
   const scrollTo = (id: string) => {
     const el = document.getElementById(id);
     if (el) {
-      el.scrollIntoView({ behavior: "smooth" });
+      const top = el.getBoundingClientRect().top + window.scrollY - NAV_HEIGHT;
+      window.scrollTo({ top, behavior: "smooth" });
     }
   };
 
   return (
     <div
-      className="fixed right-3 top-1/2 -translate-y-1/2 z-50 flex flex-col gap-1.5 items-center"
+      className="fixed top-0 left-0 right-0 z-50"
       role="navigation"
       aria-label="快速導覽"
     >
-      <div className="flex flex-col gap-1.5 bg-white/70 backdrop-blur-md rounded-full px-1.5 py-2 shadow-lg border border-white/60">
+      <div className="flex flex-row items-center justify-center gap-1 bg-white/70 backdrop-blur-md shadow-lg border-b border-white/60 px-2 py-1.5">
         {SECTIONS.map((section, i) => (
           <button
             key={section.id}

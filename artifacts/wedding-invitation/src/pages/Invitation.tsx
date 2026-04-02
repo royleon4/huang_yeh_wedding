@@ -4,7 +4,7 @@ import { DogWithBow } from "@/components/DogIcon";
 import { NZMap } from "@/components/NZMap";
 import { TWMap } from "@/components/TWMap";
 import { AudioPlayer } from "@/components/AudioPlayer";
-import { FloatingNav } from "@/components/FloatingNav";
+import { FloatingNav, NAV_HEIGHT } from "@/components/FloatingNav";
 
 function useIntersectionObserver(threshold = 0.1) {
   const ref = useRef<HTMLDivElement>(null);
@@ -788,7 +788,7 @@ function FooterSection() {
 
 export default function Invitation() {
   return (
-    <div className="min-h-screen overflow-x-hidden">
+    <div className="min-h-screen overflow-x-hidden" style={{ paddingTop: NAV_HEIGHT }}>
       <AudioPlayer />
       <FloatingNav />
       <FloatingKiwis />
