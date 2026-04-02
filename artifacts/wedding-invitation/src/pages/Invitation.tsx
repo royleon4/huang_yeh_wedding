@@ -526,6 +526,12 @@ function PhotoWallSection() {
     return () => window.removeEventListener("keydown", onKey);
   }, [lightboxIndex, photos.length]);
 
+  useEffect(() => {
+    if (lightboxIndex !== null && lightboxIndex >= photos.length) {
+      setLightboxIndex(photos.length > 0 ? photos.length - 1 : null);
+    }
+  }, [photos.length, lightboxIndex]);
+
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files) return;
@@ -676,8 +682,8 @@ function PhotoWallSection() {
           <img
             src={`${API_BASE}/api/photos/image/${photos[lightboxIndex]}`}
             alt={`照片 ${lightboxIndex + 1}`}
-            className="max-h-[85vh] max-w-[88vw] object-contain rounded-xl shadow-2xl animate-fade-in-up"
-            style={{ animationDuration: "0.2s" }}
+            className="max-h-[90vh] max-w-[90vw] object-contain rounded-xl shadow-2xl"
+            style={{ animation: "lightboxScale 0.22s cubic-bezier(0.34,1.56,0.64,1) both" }}
             onClick={(e) => e.stopPropagation()}
           />
 
