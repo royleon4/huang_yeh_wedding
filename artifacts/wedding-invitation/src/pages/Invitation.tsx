@@ -524,9 +524,6 @@ function WeddingDetailsSection() {
               data-testid={`card-detail-${item.label}`}
             >
               <div className="text-3xl sm:text-4xl mb-3">{item.icon}</div>
-              <p className="font-noto-serif-tc text-yellow-400/70 text-xs tracking-widest mb-1">
-                {item.sub}
-              </p>
               <p className="font-noto-serif-tc text-yellow-200 text-sm sm:text-base font-medium">
                 {item.label}
               </p>
@@ -547,9 +544,6 @@ function WeddingDetailsSection() {
         >
           <p className="font-noto-serif-tc text-yellow-300 text-sm tracking-wider mb-2">
             {t.dressLabel}
-          </p>
-          <p className="font-playfair text-yellow-200 text-lg sm:text-xl italic mb-2">
-            Dress Code
           </p>
           <div className="flex justify-center gap-3 sm:gap-4 flex-wrap">
             <span className="bg-green-700/50 text-green-200 px-3 sm:px-4 py-1 rounded-full text-sm font-noto-serif-tc border border-green-500/30">
