@@ -96,9 +96,7 @@ function HeroSection() {
             <span className="font-playfair text-yellow-600 text-xl">&amp;</span>
             <div className="h-px w-12 bg-yellow-500 opacity-60" />
           </div>
-          <h1 className="font-great-vibes text-7xl md:text-8xl text-green-800 leading-tight">
-            Ying
-          </h1>
+          <h1 className="font-great-vibes text-7xl md:text-8xl text-green-800 leading-tight">Yeh</h1>
         </div>
 
         {/* Chinese names */}
