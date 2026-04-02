@@ -103,7 +103,7 @@ function FloatingArrows({ scrollContainerRef }: FloatingArrowsProps) {
   const nextLabel = !isLast ? SECTIONS[activeIndex + 1].label : "";
 
   const capsuleClass =
-    "fixed top-4 z-50 flex items-center gap-1 bg-white/75 backdrop-blur-md shadow-lg border border-white/60 text-green-700 hover:bg-white/90 hover:text-green-900 transition-all duration-200 active:scale-95 rounded-full px-2 py-1";
+    "fixed top-4 z-50 flex flex-col items-center gap-1 bg-white/75 backdrop-blur-md shadow-lg border border-white/60 text-green-700 hover:bg-white/90 hover:text-green-900 transition-all duration-200 active:scale-95 rounded-2xl px-3 py-2";
 
   return (
     <>
@@ -122,7 +122,7 @@ function FloatingArrows({ scrollContainerRef }: FloatingArrowsProps) {
               strokeLinejoin="round"
             />
           </svg>
-          <span className="text-xs font-medium text-green-800/80 pr-1">{prevLabel}</span>
+          <span className="text-xs font-medium text-green-800/80">{prevLabel}</span>
         </button>
       )}
       {!isLast && (
@@ -131,7 +131,6 @@ function FloatingArrows({ scrollContainerRef }: FloatingArrowsProps) {
           aria-label={`下一頁：${nextLabel}`}
           onClick={() => scrollTo(activeIndex + 1)}
         >
-          <span className="text-xs font-medium text-green-800/80 pl-1">{nextLabel}</span>
           <svg width="18" height="18" viewBox="0 0 18 18" fill="none" className="shrink-0">
             <path
               d="M7 4 L12 9 L7 14"
@@ -141,6 +140,7 @@ function FloatingArrows({ scrollContainerRef }: FloatingArrowsProps) {
               strokeLinejoin="round"
             />
           </svg>
+          <span className="text-xs font-medium text-green-800/80">{nextLabel}</span>
         </button>
       )}
     </>
