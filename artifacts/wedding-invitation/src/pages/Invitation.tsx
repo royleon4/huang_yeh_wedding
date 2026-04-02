@@ -347,12 +347,12 @@ function HeroSection() {
             </svg>
           </button>
 
-          {/* Dot indicators + upload button at bottom */}
+          {/* Dot indicators (centred) + upload button (right corner) */}
           <div className="absolute bottom-8 left-0 right-0 z-20 flex flex-col items-center gap-3">
             <div className="flex gap-2">
-              {photos.map((_, i) => (
+              {photos.map((filename, i) => (
                 <button
-                  key={i}
+                  key={filename}
                   onClick={() => goTo(i)}
                   className="transition-all duration-300 rounded-full"
                   style={{
@@ -368,21 +368,22 @@ function HeroSection() {
               ))}
             </div>
 
-            {/* Upload button */}
-            <label className="inline-flex items-center gap-1.5 cursor-pointer group">
-              <input
-                type="file"
-                multiple
-                accept="image/*"
-                onChange={handleUpload}
-                disabled={uploading}
-                className="hidden"
-              />
-              <span className="text-white/60 group-hover:text-white/90 text-xs font-noto-serif-tc tracking-wider transition-colors drop-shadow">
-                {uploading ? "上傳中…" : "＋ 上傳照片"}
-              </span>
-            </label>
           </div>
+
+          {/* Upload button — right corner */}
+          <label className="absolute bottom-6 right-5 z-20 inline-flex items-center gap-1.5 cursor-pointer group">
+            <input
+              type="file"
+              multiple
+              accept="image/*"
+              onChange={handleUpload}
+              disabled={uploading}
+              className="hidden"
+            />
+            <span className="text-white/50 group-hover:text-white/90 text-xs font-noto-serif-tc tracking-wider transition-colors drop-shadow">
+              {uploading ? "上傳中…" : "＋ 上傳照片"}
+            </span>
+          </label>
         </>
       )}
 
