@@ -3,6 +3,7 @@ import { KiwiIcon, KiwiFruit } from "@/components/KiwiIcon";
 import { DogWithBow } from "@/components/DogIcon";
 import { NZMap } from "@/components/NZMap";
 import { TWMap } from "@/components/TWMap";
+import { useSectionSwipe } from "@/hooks/use-section-swipe";
 
 function useIntersectionObserver(threshold = 0.1) {
   const ref = useRef<HTMLDivElement>(null);
@@ -137,6 +138,7 @@ function HeroSection() {
 
   return (
     <section
+      id="section-hero"
       className={`relative min-h-screen flex flex-col items-center justify-center overflow-hidden text-[17px] ${!hasPhotos ? "kiwi-pattern" : ""}`}
       style={
         hasPhotos
@@ -406,6 +408,7 @@ function LoveStorySection() {
 
   return (
     <section
+      id="section-story"
       ref={ref}
       className="py-12 md:py-20 px-4 sm:px-6"
       style={{
@@ -483,6 +486,7 @@ function MapsSection() {
 
   return (
     <section
+      id="section-maps"
       ref={ref}
       className="py-12 md:py-20 px-4 sm:px-6 overflow-hidden"
       style={{
@@ -601,6 +605,7 @@ function WeddingDetailsSection() {
 
   return (
     <section
+      id="section-details"
       ref={ref}
       className="py-12 md:py-20 px-4 sm:px-6"
       style={{
@@ -707,6 +712,7 @@ function KiwiGallerySection() {
 
   return (
     <section
+      id="section-gallery"
       ref={ref}
       className="py-12 md:py-20 px-4 sm:px-6"
       style={{
@@ -807,6 +813,7 @@ function RSVPSection() {
 
   return (
     <section
+      id="section-rsvp"
       ref={ref}
       className="py-12 md:py-20 px-4 sm:px-6"
       style={{
@@ -910,6 +917,7 @@ function RSVPSection() {
 function FooterSection() {
   return (
     <footer
+      id="section-footer"
       className="py-12 sm:py-16 px-4 sm:px-6 text-center"
       style={{
         background: "linear-gradient(160deg, #1a3a0f 0%, #0f2208 100%)",
@@ -971,6 +979,7 @@ function FooterSection() {
 }
 
 export default function Invitation() {
+  useSectionSwipe();
   return (
     <div className="min-h-screen overflow-x-hidden">
       <FloatingKiwis />
