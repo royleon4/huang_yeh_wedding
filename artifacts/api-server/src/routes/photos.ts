@@ -1,26 +1,56 @@
 import { Router, type IRouter, type Request, type Response } from "express";
+import multer from "multer";
 import { objectStorageClient } from "../lib/objectStorage";
 
 const router: IRouter = Router();
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 20 * 1024 * 1024 } });
 const BUCKET = process.env.DEFAULT_OBJECT_STORAGE_BUCKET_ID!;
-const PHOTO_PREFIX = "photos/喜帖照片選/";
+const PHOTO_PREFIX = "photos/wedding/";
+const IMAGE_RE = /\.(jpe?g|png|webp|gif|heic)$/i;
 
 router.get("/photos", async (_req: Request, res: Response) => {
   try {
     const [files] = await objectStorageClient.bucket(BUCKET).getFiles({ prefix: PHOTO_PREFIX });
     const names = files
       .map(f => f.name)
-      .filter(n => /\.(jpe?g|png|webp|gif|heic)$/i.test(n));
+      .filter(n => IMAGE_RE.test(n))
+      .map(n => n.replace(PHOTO_PREFIX, ""));
     res.json({ photos: names });
   } catch (err) {
     res.status(500).json({ error: String(err) });
   }
 });
 
-router.get("/photos/:folder/:filename", async (req: Request, res: Response) => {
+router.post("/photos/upload", upload.array("photos", 20), async (req: Request, res: Response) => {
   try {
-    const { folder, filename } = req.params;
-    const objectName = `photos/${folder}/${filename}`;
+    const files = req.files as Express.Multer.File[];
+    if (!files || files.length === 0) {
+      res.status(400).json({ error: "No files uploaded" });
+      return;
+    }
+    const uploaded: string[] = [];
+    for (const file of files) {
+      const ext = file.originalname.split(".").pop() || "jpg";
+      const safeName = `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+      const objectName = `${PHOTO_PREFIX}${safeName}`;
+      const gcsFile = objectStorageClient.bucket(BUCKET).file(objectName);
+      await gcsFile.save(file.buffer, { contentType: file.mimetype, resumable: false });
+      uploaded.push(safeName);
+    }
+    res.json({ uploaded });
+  } catch (err) {
+    res.status(500).json({ error: String(err) });
+  }
+});
+
+router.get("/photos/image/:filename", async (req: Request, res: Response) => {
+  try {
+    const { filename } = req.params;
+    if (!IMAGE_RE.test(filename)) {
+      res.status(400).json({ error: "Invalid file type" });
+      return;
+    }
+    const objectName = `${PHOTO_PREFIX}${filename}`;
     const file = objectStorageClient.bucket(BUCKET).file(objectName);
     const [exists] = await file.exists();
     if (!exists) {
