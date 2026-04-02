@@ -461,8 +461,7 @@ function LoveStorySection() {
             <div className="space-y-5">
               <div className="bg-white/70 rounded-2xl p-5 invitation-shadow">
                 <p className="font-noto-serif-tc text-green-800 leading-relaxed text-sm">
-                  我們相遇於紐西蘭的草地上，那裡有著世界上最甜美的奇異果，
-                  還有讓人心曠神怡的青山綠水。
+                  我們相遇於紐西蘭基督城，是一個綠油油的城市，
                 </p>
               </div>
               <div className="bg-white/70 rounded-2xl p-5 invitation-shadow">
@@ -590,7 +589,7 @@ function MapsSection() {
           <div className="flex items-center gap-3 mb-4">
             <KiwiIcon size={36} />
             <h3 className="font-playfair text-xl text-green-800 italic">
-              關於奇異果的小故事
+              我們的故事
             </h3>
           </div>
           <p className="font-noto-serif-tc text-sm text-green-700 leading-relaxed">
