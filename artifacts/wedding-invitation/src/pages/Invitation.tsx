@@ -783,10 +783,10 @@ export default function Invitation() {
         style={{ scrollbarWidth: "none", msOverflowStyle: "none", touchAction: "pan-y" }}
       >
         <HeroSection />
-        <LoveStorySection />
         <WeddingDetailsSection />
-        <PhotoWallSection />
         <RSVPSection />
+        <LoveStorySection />
+        <PhotoWallSection />
         <FooterSection />
       </div>
     </div>
