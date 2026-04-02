@@ -356,6 +356,7 @@ function HeroSection() {
 
 function LoveStorySection() {
   const t = useT();
+  const { lang } = useContext(LanguageCtx);
   const { ref, isVisible } = useIntersectionObserver();
   const [isStoryOpen, setIsStoryOpen] = useState(false);
   const [isLongDistanceOpen, setIsLongDistanceOpen] = useState(false);
@@ -373,12 +374,15 @@ function LoveStorySection() {
         <div
           className={`text-center mb-8 md:mb-16 transition-all duration-1000 ${isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-10"}`}
         >
-          <p className="font-noto-serif-tc text-sm tracking-[0.5em] text-green-600 uppercase mb-3">
-            {t.storyLabel}
-          </p>
-          <h2 className="font-playfair text-2xl sm:text-3xl md:text-4xl italic text-green-800 mb-4">
-            {t.storyH2}
-          </h2>
+          {lang === "zh" ? (
+            <h2 className="font-zen-old-mincho text-2xl sm:text-3xl md:text-4xl font-semibold text-green-800 mb-4">
+              {t.storyLabel}
+            </h2>
+          ) : (
+            <h2 className="font-playfair text-2xl sm:text-3xl md:text-4xl italic text-green-800 mb-4">
+              {t.storyH2}
+            </h2>
+          )}
           <div className="flex justify-center">
             <div className="h-0.5 w-24 bg-gradient-to-r from-transparent via-yellow-400 to-transparent" />
           </div>
@@ -481,6 +485,7 @@ function LoveStorySection() {
 
 function WeddingDetailsSection() {
   const t = useT();
+  const { lang } = useContext(LanguageCtx);
   const { ref, isVisible } = useIntersectionObserver();
 
   return (
@@ -497,12 +502,15 @@ function WeddingDetailsSection() {
         <div
           className={`text-center mb-8 md:mb-12 transition-all duration-1000 ${isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-10"}`}
         >
-          <p className="font-noto-serif-tc text-sm tracking-[0.5em] text-yellow-400/70 uppercase mb-3">
-            {t.detailsLabel}
-          </p>
-          <h2 className="font-playfair text-2xl sm:text-3xl md:text-4xl italic text-yellow-300 mb-4">
-            {t.detailsH2}
-          </h2>
+          {lang === "zh" ? (
+            <h2 className="font-zen-old-mincho text-2xl sm:text-3xl md:text-4xl font-semibold text-yellow-300 mb-4">
+              {t.detailsLabel}
+            </h2>
+          ) : (
+            <h2 className="font-playfair text-2xl sm:text-3xl md:text-4xl italic text-yellow-300 mb-4">
+              {t.detailsH2}
+            </h2>
+          )}
           <div className="flex justify-center">
             <div className="h-0.5 w-24 bg-gradient-to-r from-transparent via-yellow-400 to-transparent" />
           </div>
@@ -562,6 +570,7 @@ function WeddingDetailsSection() {
 
 function PhotoWallSection() {
   const t = useT();
+  const { lang } = useContext(LanguageCtx);
   const { ref, isVisible } = useIntersectionObserver();
   const [photos, setPhotos] = useState<string[]>([]);
   const [uploading, setUploading] = useState(false);
@@ -636,12 +645,15 @@ function PhotoWallSection() {
         <div
           className={`text-center mb-8 md:mb-12 transition-all duration-1000 ${isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-10"}`}
         >
-          <p className="font-noto-serif-tc text-sm tracking-[0.5em] text-green-600 uppercase mb-3">
-            {t.galleryLabel}
-          </p>
-          <h2 className="font-playfair text-2xl sm:text-3xl md:text-4xl italic text-green-800 mb-4">
-            {t.galleryH2}
-          </h2>
+          {lang === "zh" ? (
+            <h2 className="font-zen-old-mincho text-2xl sm:text-3xl md:text-4xl font-semibold text-green-800 mb-4">
+              {t.galleryLabel}
+            </h2>
+          ) : (
+            <h2 className="font-playfair text-2xl sm:text-3xl md:text-4xl italic text-green-800 mb-4">
+              {t.galleryH2}
+            </h2>
+          )}
           <div className="flex justify-center">
             <div className="h-0.5 w-24 bg-gradient-to-r from-transparent via-yellow-400 to-transparent" />
           </div>
@@ -766,6 +778,7 @@ function PhotoWallSection() {
 
 function RSVPSection() {
   const t = useT();
+  const { lang } = useContext(LanguageCtx);
   const { ref, isVisible } = useIntersectionObserver();
   return (
     <section
@@ -780,12 +793,15 @@ function RSVPSection() {
         <div
           className={`text-center mb-8 md:mb-12 transition-all duration-1000 ${isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-10"}`}
         >
-          <p className="font-noto-serif-tc text-sm tracking-[0.5em] text-green-600 uppercase mb-3">
-            {t.rsvpLabel}
-          </p>
-          <h2 className="font-playfair text-2xl sm:text-3xl md:text-4xl italic text-green-800 mb-4">
-            {t.rsvpH2}
-          </h2>
+          {lang === "zh" ? (
+            <h2 className="font-zen-old-mincho text-2xl sm:text-3xl md:text-4xl font-semibold text-green-800 mb-4">
+              {t.rsvpLabel}
+            </h2>
+          ) : (
+            <h2 className="font-playfair text-2xl sm:text-3xl md:text-4xl italic text-green-800 mb-4">
+              {t.rsvpH2}
+            </h2>
+          )}
           <div className="flex justify-center mb-4">
             <div className="h-0.5 w-24 bg-gradient-to-r from-transparent via-yellow-400 to-transparent" />
           </div>
