@@ -66,7 +66,6 @@ function HeroSection() {
           <KiwiIcon size={140} />
         </div>
       </div>
-
       <div className="relative z-10 text-center px-6 max-w-2xl mx-auto">
         {/* Decorative top element */}
         <div className="flex items-center justify-center gap-4 mb-8">
@@ -91,9 +90,7 @@ function HeroSection() {
           className="mb-4 opacity-0 animate-fade-in-up"
           style={{ animationDelay: "0.4s", animationFillMode: "forwards" }}
         >
-          <h1 className="font-great-vibes text-7xl md:text-8xl text-green-800 leading-tight" data-testid="text-names">
-            Ming
-          </h1>
+          <h1 className="font-great-vibes text-7xl md:text-8xl text-green-800 leading-tight" data-testid="text-names">Leon</h1>
           <div className="flex items-center justify-center gap-3 my-2">
             <div className="h-px w-12 bg-yellow-500 opacity-60" />
             <span className="font-playfair text-yellow-600 text-xl">&amp;</span>
