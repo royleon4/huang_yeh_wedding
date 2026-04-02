@@ -267,6 +267,16 @@
   70% { transform: scale(0.95) translateX(-1px); opacity: 1; }
 }
 
+@keyframes heartbeat {
+  0%, 100% { transform: scale(1); }
+  14%       { transform: scale(1.18); }
+  28%       { transform: scale(1); }
+  42%       { transform: scale(1.1); }
+  60%       { transform: scale(1); }
+}
+
+.animate-heartbeat { animation: heartbeat 2.4s ease-in-out infinite; }
+
 .delay-100 { animation-delay: 0.1s; }
 .delay-200 { animation-delay: 0.2s; }
 .delay-300 { animation-delay: 0.3s; }

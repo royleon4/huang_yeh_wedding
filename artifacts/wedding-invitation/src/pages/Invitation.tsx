@@ -127,7 +127,7 @@ function FloatingArrows({ scrollContainerRef }: FloatingArrowsProps) {
       )}
       {!isLast && (
         <button
-          className={`${capsuleClass} right-3`}
+          className={`${capsuleClass} right-3 animate-heartbeat hover:[animation-play-state:paused]`}
           aria-label={`下一頁：${nextLabel}`}
           onClick={() => scrollTo(activeIndex + 1)}
         >
