@@ -264,10 +264,10 @@ function HeroSection() {
           style={{ animationDelay: "1.0s", animationFillMode: "forwards" }}
         >
           <p className="font-noto-serif-tc text-sm sm:text-base leading-relaxed tracking-wide text-green-700 mb-4">
-            經過兩年的等待與磨合，這段跨越台灣與紐西蘭的愛情旅途，終於要迎來新的篇章，讓人好興奮。
+            歷經兩年的等待與磨合，這段跨越台與紐的愛情，即將要迎來新的篇章。
           </p>
           <p className="font-noto-serif-tc text-sm sm:text-base leading-relaxed tracking-wide text-green-700">
-            在無聊的端午節假期，如果有空，我們大力歡迎每一位見證我們成長與愛情的親友。2026年6月20日，大家一齊來同樂，我們都很期待分享自己重要的另一半給愛我們的親友，等你們噢！
+            在無聊的端午節假期，如果有空，我們歡迎每一位見證我們成長與愛情的親友。2026年6月20日，大家一齊同樂，我們都很期待分享自己重要的另一半給愛我們的親友，等你們噢！
           </p>
         </div>
 
