@@ -215,7 +215,7 @@ function HeroSection() {
 
         {/* Chinese names */}
         <p
-          className="font-ma-shan-zheng text-3xl sm:text-4xl tracking-[0.4em] mb-6 opacity-0 animate-fade-in-up text-green-800"
+          className="font-zen-old-mincho font-semibold text-3xl sm:text-4xl tracking-[0.4em] mb-6 opacity-0 animate-fade-in-up text-green-800"
           style={{ animationDelay: "0.6s", animationFillMode: "forwards" }}
           data-testid="text-chinese-names"
         >
