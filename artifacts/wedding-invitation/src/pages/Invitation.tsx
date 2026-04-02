@@ -444,7 +444,7 @@ function LoveStorySection() {
               <div className="relative">
                 <div className="absolute -inset-4 bg-gradient-to-br from-blue-50 to-yellow-50 rounded-full blur-xl opacity-70" />
                 <img
-                  src="/penguin.png"
+                  src="/penguin-story.png"
                   alt="葉黃素夢"
                   className="relative animate-wiggle w-48 h-auto object-contain"
                 />
