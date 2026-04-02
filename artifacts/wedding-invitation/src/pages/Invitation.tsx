@@ -807,8 +807,65 @@ function FooterSection() {
   );
 }
 
+const FONT_MIN = -5;
+const FONT_MAX = 8;
+
+interface FontSizeControlsProps {
+  step: number;
+  onIncrease: () => void;
+  onDecrease: () => void;
+}
+
+function FontSizeControls({ step, onIncrease, onDecrease }: FontSizeControlsProps) {
+  return (
+    <div className="fixed bottom-4 left-3 z-50">
+      <div className="flex items-center bg-white/75 backdrop-blur-md shadow-lg border border-white/60 rounded-full overflow-hidden">
+        <button
+          onClick={onDecrease}
+          disabled={step <= FONT_MIN}
+          aria-label="縮小字體"
+          className="px-3 py-2 font-noto-serif-tc text-xs text-green-700 hover:bg-white/90 hover:text-green-900 transition-all active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed"
+        >
+          A−
+        </button>
+        <div className="w-px h-4 bg-green-300/60" />
+        <button
+          onClick={onIncrease}
+          disabled={step >= FONT_MAX}
+          aria-label="放大字體"
+          className="px-3 py-2 font-noto-serif-tc text-xs text-green-700 hover:bg-white/90 hover:text-green-900 transition-all active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed"
+        >
+          A+
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function getInitialFontStep(): number {
+  const params = new URLSearchParams(window.location.search);
+  const param = params.get("fontsize");
+  if (param !== null) {
+    const n = parseInt(param, 10);
+    if (!isNaN(n)) return Math.min(Math.max(n, FONT_MIN), FONT_MAX);
+  }
+  const stored = localStorage.getItem("weddingFontStep");
+  if (stored !== null) {
+    const n = parseInt(stored, 10);
+    if (!isNaN(n)) return Math.min(Math.max(n, FONT_MIN), FONT_MAX);
+  }
+  return 0;
+}
+
 export default function Invitation() {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const [fontStep, setFontStep] = useState<number>(getInitialFontStep);
+
+  useEffect(() => {
+    document.documentElement.style.fontSize =
+      fontStep === 0 ? "" : `${16 + fontStep}px`;
+    localStorage.setItem("weddingFontStep", String(fontStep));
+  }, [fontStep]);
 
   useEffect(() => {
     const container = scrollContainerRef.current;
