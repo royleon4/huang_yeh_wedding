@@ -62,137 +62,13 @@ function FloatingKiwis() {
 }
 
 function HeroSection() {
-  return (
-    <section
-      className="relative min-h-screen flex flex-col items-center justify-center overflow-hidden kiwi-pattern text-[17px]"
-      style={{
-        background:
-          "linear-gradient(160deg, #f0f7e6 0%, #faf6d8 40%, #eef6e2 70%, #f8f4e0 100%)",
-      }}
-    >
-      {/* Background decorative kiwis */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute -top-8 -left-8 opacity-10 animate-float-slow">
-          <KiwiIcon size={180} />
-        </div>
-        <div
-          className="absolute -bottom-10 -right-10 opacity-10 animate-float"
-          style={{ animationDelay: "2s" }}
-        >
-          <KiwiIcon size={200} />
-        </div>
-        <div
-          className="absolute top-1/4 -right-12 opacity-8 animate-float-slow"
-          style={{ animationDelay: "1s" }}
-        >
-          <KiwiIcon size={140} />
-        </div>
-      </div>
-      <div className="relative z-10 text-center px-6 max-w-2xl mx-auto">
-        {/* Decorative top element */}
-        <div className="flex items-center justify-center gap-4 mb-8">
-          <div className="h-px w-16 bg-gradient-to-r from-transparent to-green-600 opacity-40" />
-          <div className="animate-float">
-            <KiwiIcon size={50} />
-          </div>
-          <div className="h-px w-16 bg-gradient-to-l from-transparent to-green-600 opacity-40" />
-        </div>
-
-        {/* Announcement */}
-        <p
-          className="font-noto-serif-tc text-sm tracking-[0.4em] text-green-700 uppercase mb-4 opacity-0 animate-fade-in-up"
-          style={{ animationDelay: "0.2s", animationFillMode: "forwards" }}
-          data-testid="text-announcement"
-        >
-          謹訂於此佳期
-        </p>
-
-        {/* Names */}
-        <div
-          className="mb-4 opacity-0 animate-fade-in-up"
-          style={{ animationDelay: "0.4s", animationFillMode: "forwards" }}
-        >
-          <h1
-            className="font-playfair text-7xl md:text-8xl text-green-800 leading-tight font-semibold italic"
-            data-testid="text-names"
-          >
-            Leon
-          </h1>
-          <div className="flex items-center justify-center gap-3 my-2">
-            <div className="h-px w-12 bg-yellow-500 opacity-60" />
-            <span className="font-playfair text-yellow-600 text-xl">&amp;</span>
-            <div className="h-px w-12 bg-yellow-500 opacity-60" />
-          </div>
-          <h1 className="font-playfair text-7xl md:text-8xl text-green-800 leading-tight font-semibold italic">
-            Yeh
-          </h1>
-        </div>
-
-        {/* Chinese names */}
-        <p
-          className="font-noto-serif-tc text-2xl text-green-700 tracking-[0.3em] mb-6 opacity-0 animate-fade-in-up"
-          style={{ animationDelay: "0.6s", animationFillMode: "forwards" }}
-          data-testid="text-chinese-names"
-        >
-          黃 ✦ 葉
-        </p>
-
-        {/* Decorative divider */}
-        <div
-          className="flex items-center justify-center gap-4 mb-8 opacity-0 animate-fade-in-up"
-          style={{ animationDelay: "0.7s", animationFillMode: "forwards" }}
-        >
-          <div className="h-px flex-1 bg-gradient-to-r from-transparent via-green-400 to-transparent opacity-50" />
-          <span className="text-yellow-500 text-2xl">🐾</span>
-          <div className="h-px flex-1 bg-gradient-to-r from-transparent via-green-400 to-transparent opacity-50" />
-        </div>
-
-        {/* Date */}
-        <div
-          className="bg-white/60 backdrop-blur-sm rounded-2xl px-8 py-5 invitation-shadow mb-8 opacity-0 animate-fade-in-up"
-          style={{ animationDelay: "0.8s", animationFillMode: "forwards" }}
-          data-testid="card-date"
-        >
-          <p className="font-playfair font-semibold text-green-800 tracking-wide text-[42px]">
-            2026 · 06 · 20
-          </p>
-          <p className="font-noto-serif-tc text-green-600 mt-1 tracking-widest text-[25px] font-bold">
-            星期六 下午三點
-          </p>
-        </div>
-
-        {/* Scroll hint */}
-        <div
-          className="animate-bounce opacity-50 opacity-0 animate-fade-in-up"
-          style={{ animationDelay: "1.2s", animationFillMode: "forwards" }}
-        >
-          <p className="font-noto-serif-tc text-xs text-green-600 tracking-widest mb-2">
-            往下捲動
-          </p>
-          <div className="flex justify-center">
-            <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-              <path
-                d="M10 4 L10 16 M5 11 L10 16 L15 11"
-                stroke="#5a8c30"
-                strokeWidth="1.5"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
-          </div>
-        </div>
-      </div>
-    </section>
-  );
-}
-
-function PhotoSlideshowSection() {
-  const { ref, isVisible } = useIntersectionObserver();
   const [photos, setPhotos] = useState<string[]>([]);
   const [current, setCurrent] = useState(0);
   const [fading, setFading] = useState(false);
   const [uploading, setUploading] = useState(false);
   const API_BASE = import.meta.env.BASE_URL ? `${window.location.origin}` : "";
+
+  const hasPhotos = photos.length > 0;
 
   useEffect(() => {
     const fetchPhotos = async () => {
@@ -214,8 +90,8 @@ function PhotoSlideshowSection() {
       setTimeout(() => {
         setCurrent((prev) => (prev + 1) % photos.length);
         setFading(false);
-      }, 600);
-    }, 4000);
+      }, 800);
+    }, 5000);
     return () => clearInterval(timer);
   }, [photos.length]);
 
@@ -232,7 +108,7 @@ function PhotoSlideshowSection() {
       });
       if (res.ok) {
         const result = await res.json();
-        setPhotos([...photos, ...result.uploaded]);
+        setPhotos((prev) => [...prev, ...result.uploaded]);
       }
     } catch (err) {
       console.error("Upload failed:", err);
@@ -248,7 +124,7 @@ function PhotoSlideshowSection() {
     setTimeout(() => {
       setCurrent(index);
       setFading(false);
-    }, 600);
+    }, 800);
   }
 
   function prev() {
@@ -261,31 +137,239 @@ function PhotoSlideshowSection() {
 
   return (
     <section
-      ref={ref}
-      className="py-20 px-6"
-      style={{
-        background: "linear-gradient(180deg, #f5f8ee 0%, #faf6d8 100%)",
-      }}
+      className="relative min-h-screen flex flex-col items-center justify-center overflow-hidden text-[17px]"
+      style={
+        hasPhotos
+          ? {}
+          : {
+              background:
+                "linear-gradient(160deg, #f0f7e6 0%, #faf6d8 40%, #eef6e2 70%, #f8f4e0 100%)",
+            }
+      }
     >
-      <div className="max-w-3xl mx-auto">
-        <div
-          className={`text-center mb-12 transition-all duration-1000 ${isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-10"}`}
-        >
-          <p className="font-noto-serif-tc text-xs tracking-[0.5em] text-green-600 uppercase mb-3">
-            我們的故事
-          </p>
-          <h2 className="font-playfair text-4xl italic text-green-800 mb-4">
-            Our Moments
-          </h2>
-          <div className="flex justify-center">
-            <div className="h-0.5 w-24 bg-gradient-to-r from-transparent via-yellow-400 to-transparent" />
+      {/* === PHOTO BACKGROUND (when photos exist) === */}
+      {hasPhotos && (
+        <>
+          {photos.map((filename, i) => (
+            <img
+              key={filename}
+              src={`${API_BASE}/api/photos/image/${filename}`}
+              alt=""
+              aria-hidden="true"
+              className="absolute inset-0 w-full h-full object-cover transition-opacity duration-1000"
+              style={{ opacity: i === current ? (fading ? 0 : 1) : 0 }}
+            />
+          ))}
+          {/* Dark gradient overlay for readability */}
+          <div
+            className="absolute inset-0 pointer-events-none"
+            style={{
+              background:
+                "linear-gradient(to bottom, rgba(0,0,0,0.38) 0%, rgba(0,0,0,0.22) 50%, rgba(0,0,0,0.55) 100%)",
+            }}
+          />
+          {/* Subtle green tint at top/bottom for brand feel */}
+          <div
+            className="absolute inset-0 pointer-events-none"
+            style={{
+              background:
+                "linear-gradient(to bottom, rgba(20,50,10,0.18) 0%, transparent 40%, rgba(20,50,10,0.25) 100%)",
+            }}
+          />
+        </>
+      )}
+
+      {/* === DECORATIVE KIWIS (no-photo state only) === */}
+      {!hasPhotos && (
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+          <div className="absolute -top-8 -left-8 opacity-10 animate-float-slow">
+            <KiwiIcon size={180} />
+          </div>
+          <div
+            className="absolute -bottom-10 -right-10 opacity-10 animate-float"
+            style={{ animationDelay: "2s" }}
+          >
+            <KiwiIcon size={200} />
+          </div>
+          <div
+            className="absolute top-1/4 -right-12 opacity-8 animate-float-slow"
+            style={{ animationDelay: "1s" }}
+          >
+            <KiwiIcon size={140} />
           </div>
         </div>
+      )}
 
-        {photos.length === 0 ? (
-          <div className="bg-white/60 rounded-3xl p-12 invitation-shadow text-center">
-            <p className="font-noto-serif-tc text-green-700 mb-6">尚無照片，點擊下方上傳</p>
-            <label className="inline-block">
+      {/* === MAIN CONTENT === */}
+      <div className="relative z-10 text-center px-6 max-w-2xl mx-auto w-full">
+        {/* Decorative top element */}
+        <div className="flex items-center justify-center gap-4 mb-8">
+          <div
+            className={`h-px w-16 bg-gradient-to-r from-transparent ${hasPhotos ? "to-white/60" : "to-green-600 opacity-40"}`}
+          />
+          <div className="animate-float">
+            <KiwiIcon size={50} />
+          </div>
+          <div
+            className={`h-px w-16 bg-gradient-to-l from-transparent ${hasPhotos ? "to-white/60" : "to-green-600 opacity-40"}`}
+          />
+        </div>
+
+        {/* Announcement */}
+        <p
+          className={`font-noto-serif-tc text-sm tracking-[0.4em] uppercase mb-4 opacity-0 animate-fade-in-up ${hasPhotos ? "text-white/90 drop-shadow-lg" : "text-green-700"}`}
+          style={{ animationDelay: "0.2s", animationFillMode: "forwards" }}
+          data-testid="text-announcement"
+        >
+          謹訂於此佳期
+        </p>
+
+        {/* Names */}
+        <div
+          className="mb-4 opacity-0 animate-fade-in-up"
+          style={{ animationDelay: "0.4s", animationFillMode: "forwards" }}
+        >
+          <h1
+            className={`font-playfair text-7xl md:text-8xl leading-tight font-semibold italic ${hasPhotos ? "text-white drop-shadow-2xl" : "text-green-800"}`}
+            data-testid="text-names"
+          >
+            Leon
+          </h1>
+          <div className="flex items-center justify-center gap-3 my-2">
+            <div className={`h-px w-12 opacity-60 ${hasPhotos ? "bg-yellow-300" : "bg-yellow-500"}`} />
+            <span className={`font-playfair text-xl ${hasPhotos ? "text-yellow-300 drop-shadow" : "text-yellow-600"}`}>&amp;</span>
+            <div className={`h-px w-12 opacity-60 ${hasPhotos ? "bg-yellow-300" : "bg-yellow-500"}`} />
+          </div>
+          <h1
+            className={`font-playfair text-7xl md:text-8xl leading-tight font-semibold italic ${hasPhotos ? "text-white drop-shadow-2xl" : "text-green-800"}`}
+          >
+            Yeh
+          </h1>
+        </div>
+
+        {/* Chinese names */}
+        <p
+          className={`font-noto-serif-tc text-2xl tracking-[0.3em] mb-6 opacity-0 animate-fade-in-up ${hasPhotos ? "text-white/95 drop-shadow-lg" : "text-green-700"}`}
+          style={{ animationDelay: "0.6s", animationFillMode: "forwards" }}
+          data-testid="text-chinese-names"
+        >
+          黃 ✦ 葉
+        </p>
+
+        {/* Decorative divider */}
+        <div
+          className="flex items-center justify-center gap-4 mb-8 opacity-0 animate-fade-in-up"
+          style={{ animationDelay: "0.7s", animationFillMode: "forwards" }}
+        >
+          <div
+            className={`h-px flex-1 bg-gradient-to-r from-transparent opacity-50 ${hasPhotos ? "via-white/60" : "via-green-400"}`}
+          />
+          <span className="text-yellow-400 text-2xl drop-shadow">🐾</span>
+          <div
+            className={`h-px flex-1 bg-gradient-to-r from-transparent opacity-50 ${hasPhotos ? "via-white/60" : "via-green-400"}`}
+          />
+        </div>
+
+        {/* Date card */}
+        <div
+          className={`rounded-2xl px-8 py-5 mb-8 opacity-0 animate-fade-in-up backdrop-blur-sm invitation-shadow ${hasPhotos ? "bg-black/30 border border-white/20" : "bg-white/60"}`}
+          style={{ animationDelay: "0.8s", animationFillMode: "forwards" }}
+          data-testid="card-date"
+        >
+          <p
+            className={`font-playfair font-semibold tracking-wide text-[42px] ${hasPhotos ? "text-white drop-shadow" : "text-green-800"}`}
+          >
+            2026 · 06 · 20
+          </p>
+          <p
+            className={`font-noto-serif-tc mt-1 tracking-widest text-[25px] font-bold ${hasPhotos ? "text-white/90" : "text-green-600"}`}
+          >
+            星期六 下午三點
+          </p>
+        </div>
+
+        {/* Scroll hint */}
+        <div
+          className="animate-bounce opacity-0 animate-fade-in-up"
+          style={{ animationDelay: "1.2s", animationFillMode: "forwards" }}
+        >
+          <p
+            className={`font-noto-serif-tc text-xs tracking-widest mb-2 ${hasPhotos ? "text-white/70" : "text-green-600"}`}
+          >
+            往下捲動
+          </p>
+          <div className="flex justify-center">
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+              <path
+                d="M10 4 L10 16 M5 11 L10 16 L15 11"
+                stroke={hasPhotos ? "rgba(255,255,255,0.7)" : "#5a8c30"}
+                strokeWidth="1.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </div>
+        </div>
+      </div>
+
+      {/* === PHOTO CONTROLS (when photos exist) === */}
+      {hasPhotos && (
+        <>
+          {/* Prev / Next arrows */}
+          <button
+            onClick={prev}
+            className="absolute left-4 top-1/2 -translate-y-1/2 z-20 bg-white/20 hover:bg-white/40 backdrop-blur-sm rounded-full w-11 h-11 flex items-center justify-center transition-all shadow-lg border border-white/30"
+            aria-label="上一張"
+          >
+            <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+              <path
+                d="M11 4 L6 9 L11 14"
+                stroke="white"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </button>
+          <button
+            onClick={next}
+            className="absolute right-4 top-1/2 -translate-y-1/2 z-20 bg-white/20 hover:bg-white/40 backdrop-blur-sm rounded-full w-11 h-11 flex items-center justify-center transition-all shadow-lg border border-white/30"
+            aria-label="下一張"
+          >
+            <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+              <path
+                d="M7 4 L12 9 L7 14"
+                stroke="white"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </button>
+
+          {/* Dot indicators + upload button at bottom */}
+          <div className="absolute bottom-8 left-0 right-0 z-20 flex flex-col items-center gap-3">
+            <div className="flex gap-2">
+              {photos.map((_, i) => (
+                <button
+                  key={i}
+                  onClick={() => goTo(i)}
+                  className="transition-all duration-300 rounded-full"
+                  style={{
+                    width: i === current ? 28 : 8,
+                    height: 8,
+                    background:
+                      i === current ? "#f0d030" : "rgba(255,255,255,0.5)",
+                    boxShadow:
+                      i === current ? "0 0 8px rgba(240,208,48,0.6)" : "none",
+                  }}
+                  aria-label={`第 ${i + 1} 張`}
+                />
+              ))}
+            </div>
+
+            {/* Upload button */}
+            <label className="inline-flex items-center gap-1.5 cursor-pointer group">
               <input
                 type="file"
                 multiple
@@ -294,109 +378,32 @@ function PhotoSlideshowSection() {
                 disabled={uploading}
                 className="hidden"
               />
-              <span className="inline-block bg-green-700 text-white px-6 py-2.5 rounded-xl font-noto-serif-tc text-sm cursor-pointer hover:bg-green-800 transition-all">
-                {uploading ? "上傳中..." : "選擇照片"}
+              <span className="text-white/60 group-hover:text-white/90 text-xs font-noto-serif-tc tracking-wider transition-colors drop-shadow">
+                {uploading ? "上傳中…" : "＋ 上傳照片"}
               </span>
             </label>
           </div>
-        ) : (
-          <div
-            className={`transition-all duration-1000 delay-200 ${isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-10"}`}
-          >
-            <div className="relative rounded-3xl overflow-hidden invitation-shadow bg-white/40">
-              <div className="relative w-full" style={{ paddingBottom: "66%" }}>
-                {photos.map((filename, i) => (
-                  <img
-                    key={i}
-                    src={`${API_BASE}/api/photos/image/${filename}`}
-                    alt={`Photo ${i + 1}`}
-                    className="absolute inset-0 w-full h-full object-cover transition-opacity duration-700"
-                    style={{ opacity: i === current ? (fading ? 0 : 1) : 0 }}
-                  />
-                ))}
-                <div
-                  className="absolute inset-0 transition-opacity duration-700"
-                  style={{
-                    background:
-                      "linear-gradient(to top, rgba(0,0,0,0.45) 0%, transparent 50%)",
-                    opacity: fading ? 0 : 1,
-                  }}
-                />
-                <div
-                  className="absolute bottom-0 left-0 right-0 px-6 pb-5 transition-opacity duration-700"
-                  style={{ opacity: fading ? 0 : 1 }}
-                >
-                  <label className="inline-block">
-                    <input
-                      type="file"
-                      multiple
-                      accept="image/*"
-                      onChange={handleUpload}
-                      disabled={uploading}
-                      className="hidden"
-                    />
-                    <span className="text-white text-xs font-noto-serif-tc cursor-pointer hover:underline drop-shadow">
-                      {uploading ? "上傳中..." : "➕ 上傳更多照片"}
-                    </span>
-                  </label>
-                </div>
+        </>
+      )}
 
-                <button
-                  onClick={prev}
-                  className="absolute left-3 top-1/2 -translate-y-1/2 bg-white/60 hover:bg-white/90 backdrop-blur-sm rounded-full w-9 h-9 flex items-center justify-center transition-all shadow"
-                  aria-label="上一張"
-                >
-                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                    <path
-                      d="M10 3 L5 8 L10 13"
-                      stroke="#2d5a1b"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
-                  </svg>
-                </button>
-                <button
-                  onClick={next}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 bg-white/60 hover:bg-white/90 backdrop-blur-sm rounded-full w-9 h-9 flex items-center justify-center transition-all shadow"
-                  aria-label="下一張"
-                >
-                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                    <path
-                      d="M6 3 L11 8 L6 13"
-                      stroke="#2d5a1b"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
-                  </svg>
-                </button>
-              </div>
-            </div>
-
-            <div className="flex justify-center gap-2.5 mt-5">
-              {photos.map((_, i) => (
-                <button
-                  key={i}
-                  onClick={() => goTo(i)}
-                  className="transition-all duration-300 rounded-full"
-                  style={{
-                    width: i === current ? 24 : 8,
-                    height: 8,
-                    background: i === current ? "#2d5a1b" : "#a8c490",
-                    opacity: i === current ? 1 : 0.5,
-                  }}
-                  aria-label={`第 ${i + 1} 張`}
-                />
-              ))}
-            </div>
-
-            <p className="text-center font-noto-serif-tc text-xs text-green-500 mt-3 tracking-wider">
-              {current + 1} / {photos.length}
-            </p>
-          </div>
-        )}
-      </div>
+      {/* === UPLOAD PROMPT (no-photo state) === */}
+      {!hasPhotos && (
+        <div className="absolute bottom-12 left-0 right-0 z-10 flex justify-center">
+          <label className="inline-flex items-center gap-2 cursor-pointer group">
+            <input
+              type="file"
+              multiple
+              accept="image/*"
+              onChange={handleUpload}
+              disabled={uploading}
+              className="hidden"
+            />
+            <span className="inline-block bg-green-700/90 hover:bg-green-800 text-white px-6 py-2.5 rounded-xl font-noto-serif-tc text-sm cursor-pointer transition-all shadow-md">
+              {uploading ? "上傳中…" : "📷 上傳婚紗照"}
+            </span>
+          </label>
+        </div>
+      )}
     </section>
   );
 }
@@ -967,7 +974,6 @@ export default function Invitation() {
   return (
     <div className="min-h-screen">
       <FloatingKiwis />
-      <PhotoSlideshowSection />
       <HeroSection />
       <LoveStorySection />
       <MapsSection />
