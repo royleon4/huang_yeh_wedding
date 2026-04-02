@@ -301,11 +301,10 @@ function LoveStorySection() {
                 </button>
                 <div
                   id="long-distance-content"
-                  className={`transition-all duration-500 ease-in-out overflow-hidden ${isLongDistanceOpen ? "max-h-[600px] opacity-100" : "max-h-0 opacity-0"}`}
+                  className={`transition-all duration-500 ease-in-out overflow-hidden ${isLongDistanceOpen ? "max-h-[1200px] opacity-100" : "max-h-0 opacity-0"}`}
                 >
                   <p className="font-noto-serif-tc text-green-800 leading-relaxed text-sm px-4 sm:px-5 pb-4 sm:pb-5">
-                    葉黃素夢是我們愛情的見證者——牠第一個知道我們相愛的秘密，
-                    也是第一個收到我們婚訊的「人」。
+                    那兩週的時光，是我們故事的序章。Leon 陪我買了一台車，並耐心地陪著我練車，他也因為想換教會，我陪他去了不同族群的教會，短短的兩週我們在基督城的街道與美景穿梭，透過深度的對話與真誠的相處替我們打下了穩固的愛情地基。2024的3月10日，在我準備啟程前往奧克蘭的前夕，我們決定正式交往。同年7月我回到了台灣，開啟了長達兩年的跨國遠距戀愛。在我們相愛的日子裡，有七成的時間相隔兩地，拜這個世代方便得交通所賜，我們也都當小飛人到彼此的身邊。無法陪伴彼此時，每一次的訊息與視訊，也成了支撐我們度過遠距離孤獨的動力，甚至我們會透過作畫來抒發思念。中間隔著廣闊的太平洋，還以為如同薄冰的關係會持續不了多久，感謝神因著信仰，我們知道愛情不只是一種感覺，也是一個承諾約定，當無法親自照顧對方，我們交託仰望主，這不是簡單兩個人的愛情，更是有主一同參與的奇跡，我們都很珍惜彼此，能夠遇到相愛的人需要付出時間、精力、心血這都不容易，所以我們也感謝陪伴給我們鼓勵的夥伴們，謝謝你們。
                   </p>
                 </div>
               </div>
