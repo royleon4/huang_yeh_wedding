@@ -967,8 +967,8 @@ export default function Invitation() {
   return (
     <div className="min-h-screen">
       <FloatingKiwis />
-      <HeroSection />
       <PhotoSlideshowSection />
+      <HeroSection />
       <LoveStorySection />
       <MapsSection />
       <WeddingDetailsSection />
