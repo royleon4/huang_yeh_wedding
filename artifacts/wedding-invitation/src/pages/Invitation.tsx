@@ -240,7 +240,7 @@ function HeroSection() {
   return (
     <section
       id="section-hero"
-      className="relative w-screen h-screen flex-shrink-0 flex flex-col items-center justify-center overflow-hidden text-[17px] kiwi-pattern snap-start section-pb"
+      className="relative w-screen h-screen flex-shrink-0 flex flex-col items-center justify-center overflow-hidden text-[17px] kiwi-pattern snap-start"
       style={{
         background:
           "linear-gradient(160deg, #f0f7e6 0%, #faf6d8 40%, #eef6e2 70%, #f8f4e0 100%)",
