@@ -49,7 +49,7 @@ function FloatingKiwis() {
 function HeroSection() {
   return (
     <section
-      className="relative min-h-screen flex flex-col items-center justify-center overflow-hidden kiwi-pattern"
+      className="relative min-h-screen flex flex-col items-center justify-center overflow-hidden kiwi-pattern text-[17px]"
       style={{
         background: "linear-gradient(160deg, #f0f7e6 0%, #faf6d8 40%, #eef6e2 70%, #f8f4e0 100%)"
       }}
