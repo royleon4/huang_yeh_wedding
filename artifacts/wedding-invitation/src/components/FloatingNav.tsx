@@ -65,7 +65,6 @@ export const SECTIONS = [
   },
 ];
 
-export const NAV_HEIGHT = 68;
 export const SECTIONS_COUNT = SECTIONS.length;
 
 interface FloatingNavProps {
