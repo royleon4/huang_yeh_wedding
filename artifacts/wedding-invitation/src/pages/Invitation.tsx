@@ -178,15 +178,6 @@ function HeroSection() {
 
       {/* Main content */}
       <div className="relative z-10 text-center px-4 sm:px-6 max-w-2xl mx-auto w-full">
-        {/* Decorative top element */}
-        <div className="flex items-center justify-center gap-4 mb-6 sm:mb-8">
-          <div className="h-px w-12 sm:w-16 bg-gradient-to-r from-transparent to-green-600 opacity-40" />
-          <div className="animate-float">
-            <KiwiIcon size={40} />
-          </div>
-          <div className="h-px w-12 sm:w-16 bg-gradient-to-l from-transparent to-green-600 opacity-40" />
-        </div>
-
         {/* Announcement */}
         <p
           className="font-noto-serif-tc text-xs tracking-[0.4em] uppercase mb-4 opacity-0 animate-fade-in-up text-green-700"
@@ -228,7 +219,10 @@ function HeroSection() {
           style={{ animationDelay: "0.7s", animationFillMode: "forwards" }}
         >
           <div className="h-px flex-1 bg-gradient-to-r from-transparent via-green-400 opacity-50" />
-          <span className="text-yellow-400 text-2xl drop-shadow">🐾</span>
+          <div className="flex items-center gap-2">
+            <div className="animate-float"><KiwiIcon size={24} /></div>
+            <span className="text-yellow-400 text-2xl drop-shadow">🐾</span>
+          </div>
           <div className="h-px flex-1 bg-gradient-to-r from-transparent via-green-400 opacity-50" />
         </div>
 
