@@ -930,7 +930,7 @@ function FooterSection() {
           <div className="relative">
             <div className="absolute -inset-6 bg-blue-900/20 rounded-full blur-xl" />
             <img
-              src="/penguin.png"
+              src="/penguin-footer.png"
               alt="葉黃素夢"
               className="relative w-32 h-auto object-contain opacity-90"
             />
