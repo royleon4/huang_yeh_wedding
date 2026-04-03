@@ -20,7 +20,12 @@ const ZH = {
   story1Title: "路邊撿回家的另一半：基督城的奇妙邂逅",
   story1Body: "2024年的2月底，是一場令人略感疲憊的紐西蘭公路旅行的尾聲，抵達基督城（Christchurch）的那一晚迎來了轉折。透過司機 Joe 與鄭牧師的牽線，在一頓稀鬆平常的咖哩雞晚餐中，我遇見了 Leon。當時的我正因為旅途的心情低落，甚至打算隻身留在基督城睡麥當勞，卻沒想到這個「怪怪的」、在電話中說自己吃飽卻還是堅持赴約的紐西蘭大男孩，意外地闖進了我的生活。一句玩笑話「不然住你家地板？」開啟了聯繫的契機，原本預計只停留兩天的計畫，也因為這份特別的緣分，變成了長達兩週的深度停留。",
   story2Title: "交往契機與遠距離的酸甜",
-  story2Body: "那兩週的時光，是我們故事的序章。Leon 陪我買了一台車，並耐心地陪著我練車，他也因為想換教會，我陪他去了不同族群的教會，短短的兩週我們在基督城的街道與美景穿梭，透過深度的對話與真誠的相處替我們打下了穩固的愛情地基。2024的3月10日，在我準備啟程前往奧克蘭的前夕，我們決定正式交往。同年7月我回到了台灣，開啟了長達兩年的跨國遠距戀愛。在我們相愛的日子裡，有七成的時間相隔兩地，拜這個世代方便得交通所賜，我們也都當小飛人到彼此的身邊。無法陪伴彼此時，每一次的訊息與視訊，也成了支撐我們度過遠距離孤獨的動力，甚至我們會透過作畫來抒發思念。中間隔著廣闊的太平洋，還以為如同薄冰的關係會持續不了多久，感謝神因著信仰，我們知道愛情不只是一種感覺，也是一個承諾約定，當無法親自照顧對方，我們交託仰望主，這不是簡單兩個人的愛情，更是有主一同參與的奇跡，我們都很珍惜彼此，能夠遇到相愛的人需要付出時間、精力、心血這都不容易，所以我們也感謝陪伴給我們鼓勵的夥伴們，謝謝你們。",
+  story2Body: [
+    "那兩週的時光，是我們故事的序章。Leon 陪我買了一台車，並耐心地陪著我練車，他也因為想換教會，我陪他去了不同族群的教會，短短的兩週我們在基督城的街道與美景穿梭，透過深度的對話與真誠的相處替我們打下了穩固的愛情地基。",
+    "2024的3月10日，在我準備啟程前往奧克蘭的前夕，我們決定正式交往。同年7月我回到了台灣，開啟了長達兩年的跨國遠距戀愛。",
+    "在我們相愛的日子裡，有七成的時間相隔兩地，拜這個世代方便得交通所賜，我們也都當小飛人到彼此的身邊。無法陪伴彼此時，每一次的訊息與視訊，也成了支撐我們度過遠距離孤獨的動力，甚至我們會透過作畫來抒發思念。",
+    "中間隔著廣闊的太平洋，還以為如同薄冰的關係會持續不了多久，感謝神因著信仰，我們知道愛情不只是一種感覺，也是一個承諾約定，當無法親自照顧對方，我們交託仰望主，這不是簡單兩個人的愛情，更是有主一同參與的奇跡，我們都很珍惜彼此，能夠遇到相愛的人需要付出時間、精力、心血這都不容易，所以我們也感謝陪伴給我們鼓勵的夥伴們，謝謝你們。",
+  ],
   quoteZh: "從南半球的奇異果之鄉，到台灣的溫暖懷抱",
   detailsLabel: "婚禮詳情",
   detailsH2: "Wedding Details",
@@ -61,7 +66,12 @@ const EN = {
   story1Title: "Found by the Roadside: A Miraculous Encounter in Christchurch",
   story1Body: "At the end of February 2024, a somewhat exhausting road trip through New Zealand reached its turning point upon arriving in Christchurch. Through the connections of driver Joe and Pastor Cheng, over a casual curry chicken dinner, I met Leon. At the time, my spirits were low from the journey — I had even considered staying alone in Christchurch and sleeping at McDonald's. But this \"quirky\" New Zealand guy, who claimed on the phone he'd already eaten yet still insisted on showing up, somehow wandered into my life. A joking remark — \"What if I just sleep on your floor?\" — opened the door to connection. What was supposed to be a two-day stop turned into two full weeks, thanks to this unexpected bond.",
   story2Title: "How We Got Together & The Bittersweet of Long Distance",
-  story2Body: "Those two weeks were the prologue to our story. Leon patiently helped me buy and practice driving a car; I accompanied him to different churches as he explored new communities. In just two weeks we wandered Christchurch's streets and scenery, building the foundation of our love through deep conversations and genuine time together. On March 10, 2024 — the eve of my departure for Auckland — we made it official. In July of that year I returned to Taiwan, beginning nearly two years of long-distance love across the Pacific. For about seventy percent of our relationship we've been apart, yet thanks to the convenience of modern travel we've taken turns flying to each other's sides. When we couldn't be together, every message and video call became the fuel that carried us through the loneliness of distance — we even painted pictures to express how much we missed each other. With the vast Pacific between us, we wondered if something so fragile could really last. By the grace of God and our shared faith, we know that love is not just a feeling but a promise. When we couldn't care for each other in person, we entrusted ourselves to the Lord — this is not simply the love of two people, but a miracle in which He participates. We cherish each other deeply, and we are grateful to every friend who has encouraged us along the way. Thank you.",
+  story2Body: [
+    "Those two weeks were the prologue to our story. Leon patiently helped me buy and practice driving a car; I accompanied him to different churches as he explored new communities. In just two weeks we wandered Christchurch's streets and scenery, building the foundation of our love through deep conversations and genuine time together.",
+    "On March 10, 2024 — the eve of my departure for Auckland — we made it official. In July of that year I returned to Taiwan, beginning nearly two years of long-distance love across the Pacific.",
+    "For about seventy percent of our relationship we've been apart, yet thanks to the convenience of modern travel we've taken turns flying to each other's sides. When we couldn't be together, every message and video call became the fuel that carried us through the loneliness of distance — we even painted pictures to express how much we missed each other.",
+    "With the vast Pacific between us, we wondered if something so fragile could really last. By the grace of God and our shared faith, we know that love is not just a feeling but a promise. When we couldn't care for each other in person, we entrusted ourselves to the Lord — this is not simply the love of two people, but a miracle in which He participates. We cherish each other deeply, and we are grateful to every friend who has encouraged us along the way. Thank you.",
+  ],
   quoteZh: "From Kiwi Land in the Southern Hemisphere to the Warmth of Home",
   detailsLabel: "DETAILS",
   detailsH2: "Wedding Details",
@@ -462,9 +472,13 @@ function LoveStorySection() {
                   id="long-distance-content"
                   className={`transition-all duration-500 ease-in-out overflow-hidden ${isLongDistanceOpen ? "max-h-[1200px] opacity-100" : "max-h-0 opacity-0"}`}
                 >
-                  <p className="font-noto-serif-tc text-green-800 leading-relaxed text-sm px-4 sm:px-5 pb-4 sm:pb-5">
-                    {t.story2Body}
-                  </p>
+                  <div className="px-4 sm:px-5 pb-4 sm:pb-5 space-y-3">
+                    {t.story2Body.map((para, i) => (
+                      <p key={i} className="font-noto-serif-tc text-green-800 leading-relaxed text-sm">
+                        {para}
+                      </p>
+                    ))}
+                  </div>
                 </div>
               </div>
               <div className="bg-white/70 rounded-2xl p-4 sm:p-5 invitation-shadow border-l-4 border-yellow-400">
