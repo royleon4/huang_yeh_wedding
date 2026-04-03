@@ -18,7 +18,11 @@ const ZH = {
   storyH2: "A Love Story",
   dogCaption: "我們的小寶貝 · 葉黃素夢",
   story1Title: "路邊撿回家的另一半：基督城的奇妙邂逅",
-  story1Body: "2024年的2月底，是一場令人略感疲憊的紐西蘭公路旅行的尾聲，抵達基督城（Christchurch）的那一晚迎來了轉折。透過司機 Joe 與鄭牧師的牽線，在一頓稀鬆平常的咖哩雞晚餐中，我遇見了 Leon。當時的我正因為旅途的心情低落，甚至打算隻身留在基督城睡麥當勞，卻沒想到這個「怪怪的」、在電話中說自己吃飽卻還是堅持赴約的紐西蘭大男孩，意外地闖進了我的生活。一句玩笑話「不然住你家地板？」開啟了聯繫的契機，原本預計只停留兩天的計畫，也因為這份特別的緣分，變成了長達兩週的深度停留。",
+  story1Body: [
+    "2024年的2月底，是一場令人略感疲憊的紐西蘭公路旅行的尾聲，抵達基督城（Christchurch）的那一晚迎來了轉折。透過司機 Joe 與鄭牧師的牽線，在一頓稀鬆平常的咖哩雞晚餐中，我遇見了 Leon。",
+    "當時的我正因為旅途的心情低落，甚至打算隻身留在基督城睡麥當勞，卻沒想到這個「怪怪的」、在電話中說自己吃飽卻還是堅持赴約的紐西蘭大男孩，意外地闖進了我的生活。",
+    "一句玩笑話「不然住你家地板？」開啟了聯繫的契機，原本預計只停留兩天的計畫，也因為這份特別的緣分，變成了長達兩週的深度停留。",
+  ],
   story2Title: "交往契機與遠距離的酸甜",
   story2Body: [
     "那兩週的時光，是我們故事的序章。Leon 陪我買了一台車，並耐心地陪著我練車，他也因為想換教會，我陪他去了不同族群的教會，短短的兩週我們在基督城的街道與美景穿梭，透過深度的對話與真誠的相處替我們打下了穩固的愛情地基。",
@@ -64,7 +68,11 @@ const EN = {
   storyH2: "A Love Story",
   dogCaption: "Our Little One · Suomi",
   story1Title: "Found by the Roadside: A Miraculous Encounter in Christchurch",
-  story1Body: "At the end of February 2024, a somewhat exhausting road trip through New Zealand reached its turning point upon arriving in Christchurch. Through the connections of driver Joe and Pastor Cheng, over a casual curry chicken dinner, I met Leon. At the time, my spirits were low from the journey — I had even considered staying alone in Christchurch and sleeping at McDonald's. But this \"quirky\" New Zealand guy, who claimed on the phone he'd already eaten yet still insisted on showing up, somehow wandered into my life. A joking remark — \"What if I just sleep on your floor?\" — opened the door to connection. What was supposed to be a two-day stop turned into two full weeks, thanks to this unexpected bond.",
+  story1Body: [
+    "At the end of February 2024, a somewhat exhausting road trip through New Zealand reached its turning point upon arriving in Christchurch. Through the connections of driver Joe and Pastor Cheng, over a casual curry chicken dinner, I met Leon.",
+    "At the time, my spirits were low from the journey — I had even considered staying alone in Christchurch and sleeping at McDonald's. But this \"quirky\" New Zealand guy, who claimed on the phone he'd already eaten yet still insisted on showing up, somehow wandered into my life.",
+    "A joking remark — \"What if I just sleep on your floor?\" — opened the door to connection. What was supposed to be a two-day stop turned into two full weeks, thanks to this unexpected bond.",
+  ],
   story2Title: "How We Got Together & The Bittersweet of Long Distance",
   story2Body: [
     "Those two weeks were the prologue to our story. Leon patiently helped me buy and practice driving a car; I accompanied him to different churches as he explored new communities. In just two weeks we wandered Christchurch's streets and scenery, building the foundation of our love through deep conversations and genuine time together.",
