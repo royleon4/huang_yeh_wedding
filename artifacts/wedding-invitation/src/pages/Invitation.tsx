@@ -962,9 +962,9 @@ function getInitialFontStep(): number {
 }
 
 function getInitialLang(): Lang {
-  const params = new URLSearchParams(window.location.search);
-  const param = params.get("lang");
-  if (param === "en" || param === "zh") return param;
+  const path = window.location.pathname.replace(/\/+$/, "");
+  if (path.endsWith("/en")) return "en";
+  if (path.endsWith("/zh")) return "zh";
   const stored = localStorage.getItem("weddingLang");
   return stored === "en" ? "en" : "zh";
 }
