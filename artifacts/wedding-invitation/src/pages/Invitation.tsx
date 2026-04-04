@@ -53,7 +53,7 @@ const ZH = {
   navAriaLabel: "快速導覽",
   rsvpLabel: "出席確認",
   rsvpH2: "RSVP",
-  rsvpDeadline: "請於 2026年5月20日 前回覆",
+  rsvpDeadline: "請於 2026年5月10日 前回覆",
   footerDog: "葉黃素夢 也很期待見到大家",
 };
 
