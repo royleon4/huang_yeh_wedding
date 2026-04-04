@@ -20,6 +20,7 @@ runButton = "Project"
 [agent]
 stack = "PNPM_WORKSPACE"
 expertMode = true
+integrations = ["google-sheet:1.0.0"]
 
 [postMerge]
 path = "scripts/post-merge.sh"
@@ -27,3 +28,6 @@ timeoutMs = 20000
 
 [objectStorage]
 defaultBucketID = "replit-objstore-d1942638-b90f-4274-ac94-74ceb86e5d6f"
+
+[nix]
+channel = "stable-25_05"
