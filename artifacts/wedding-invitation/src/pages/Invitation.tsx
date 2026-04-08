@@ -215,7 +215,7 @@ function FloatingArrows({ scrollContainerRef }: FloatingArrowsProps) {
   const nextLabel = !isLast ? (t.nav[SECTIONS[activeIndex + 1].id as keyof typeof t.nav] ?? SECTIONS[activeIndex + 1].label) : "";
 
   const capsuleClass =
-    "fixed top-4 z-50 flex flex-col items-center gap-1 bg-white/75 backdrop-blur-md shadow-lg border border-white/60 text-green-700 hover:bg-white/90 hover:text-green-900 transition-all duration-200 active:scale-95 rounded-2xl px-3 py-2";
+    "fixed top-[calc(var(--nav-h)+8px)] z-50 flex flex-col items-center gap-1 bg-white/75 backdrop-blur-md shadow-lg border border-white/60 text-green-700 hover:bg-white/90 hover:text-green-900 transition-all duration-200 active:scale-95 rounded-2xl px-3 py-2";
 
   return (
     <>
