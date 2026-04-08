@@ -79,7 +79,8 @@ const ZH = {
     { icon: "🏨", name: "飯店自有停車場 B2–B4", desc: "24 小時開放，入場告知守衛參加婚宴，取停車卡，離場交還", fee: "NT$100 / 小時（建議致電確認宴會優惠）" },
     { icon: "📞", name: "飯店總機", desc: "06-289-9988", fee: "" },
   ],
-  countdownDone: "我們結婚了！🎉",
+  countdownDone: "已過",
+  countdownPrefix: "倒數",
   countdownDay: "天",
   countdownHour: "小時",
   countdownMin: "分鐘",
@@ -157,7 +158,8 @@ const EN = {
     { icon: "🏨", name: "Hotel Car Park B2–B4", desc: "24 hrs. Tell the guard you're attending the banquet, collect a parking card, return it when leaving.", fee: "NT$100 / hr (call ahead to confirm banquet discount)" },
     { icon: "📞", name: "Hotel Front Desk", desc: "06-289-9988", fee: "" },
   ],
-  countdownDone: "We're Married! 🎉",
+  countdownDone: "已過",
+  countdownPrefix: "In",
   countdownDay: "Days",
   countdownHour: "Hours",
   countdownMin: "Minutes",
@@ -231,13 +233,16 @@ function CountdownWidget() {
       className="animate-fade-in-up"
       style={{ opacity: 0, animationDelay: "0.9s", animationFillMode: "forwards" }}
     >
-      <div className="inline-flex items-baseline justify-center gap-2 rounded-2xl px-6 py-2 backdrop-blur-sm invitation-shadow bg-white/50 border border-green-200/60">
+      <div className="inline-flex items-baseline justify-center gap-2 rounded-2xl px-5 py-1 backdrop-blur-sm invitation-shadow bg-white/50 border border-green-200/60">
         {done ? (
-          <span className="font-noto-serif-tc text-base sm:text-lg font-bold text-green-700 tracking-wide">
+          <span className="font-noto-serif-tc text-sm font-semibold text-green-600 tracking-widest">
             {t.countdownDone}
           </span>
         ) : (
           <>
+            <span className="font-noto-serif-tc text-xs font-medium text-green-500 tracking-wider self-end pb-1">
+              {t.countdownPrefix}
+            </span>
             <span className="font-playfair font-bold text-4xl sm:text-5xl text-green-800 leading-none tabular-nums">
               {value}
             </span>
@@ -501,7 +506,7 @@ function HeroSection() {
 
         {/* Date card */}
         <div
-          className="rounded-2xl px-4 py-3 sm:px-8 sm:py-5 mb-4 sm:mb-6 animate-fade-in-up backdrop-blur-sm invitation-shadow bg-white/60"
+          className="rounded-2xl px-4 py-3 sm:px-8 sm:py-5 mb-2 sm:mb-3 animate-fade-in-up backdrop-blur-sm invitation-shadow bg-white/60"
           style={{ opacity: 0, animationDelay: "0.8s", animationFillMode: "forwards" }}
           data-testid="card-date"
         >
@@ -514,7 +519,7 @@ function HeroSection() {
         </div>
 
         {/* Countdown */}
-        <div className="mb-3 sm:mb-4">
+        <div className="mb-2 sm:mb-3">
           <CountdownWidget />
         </div>
 
