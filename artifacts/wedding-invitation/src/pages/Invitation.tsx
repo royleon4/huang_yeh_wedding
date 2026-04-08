@@ -35,7 +35,7 @@ const ZH = {
   detailsH2: "Wedding Details",
   detailItems: [
     { icon: "📅", label: "日期 · 時間", sub: "Date & Time", content: "2026年06月20日", note: "星期六 · 下午三點" },
-    { icon: "📍", label: "地點", sub: "Venue", content: "德光長老教會", note: "台南市東區崇德四街100號" },
+    { icon: "📍", label: "地點", sub: "Venue", content: "德光長老教會", note: "台南市東區崇德四街100號", mapQuery: "台南市東區崇德四街100號" },
   ],
   banquetLabel: "家宴",
   banquetTime: "晚上 5:30",
@@ -88,7 +88,7 @@ const EN = {
   detailsH2: "Wedding Details",
   detailItems: [
     { icon: "📅", label: "Date & Time", sub: "Date & Time", content: "June 20, 2026", note: "Saturday · 3:00 PM" },
-    { icon: "📍", label: "Venue", sub: "Venue", content: "De-Guang Presbyterian Church", note: "No. 100, Chongde 4th St., East Dist., Tainan" },
+    { icon: "📍", label: "Venue", sub: "Venue", content: "De-Guang Presbyterian Church", note: "No. 100, Chongde 4th St., East Dist., Tainan", mapQuery: "台南市東區崇德四街100號" },
   ],
   banquetLabel: "Evening Banquet",
   banquetTime: "5:30 PM",
@@ -475,7 +475,18 @@ function WeddingDetailsSection() {
                 {item.content}
               </p>
               <p className="font-noto-serif-tc text-yellow-400/60 text-xs sm:text-sm mt-auto pt-1">
-                {item.note}
+                {item.mapQuery ? (
+                  <a
+                    href={`https://maps.google.com/maps?q=${encodeURIComponent(item.mapQuery)}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="underline underline-offset-2 hover:text-yellow-300 transition-colors"
+                  >
+                    {item.note}
+                  </a>
+                ) : (
+                  item.note
+                )}
               </p>
             </div>
           ))}
@@ -518,7 +529,14 @@ function WeddingDetailsSection() {
               <span className="text-xl shrink-0 mt-0.5">📍</span>
               <div>
                 <p className="font-noto-serif-tc text-yellow-400/80 text-xs sm:text-sm leading-relaxed">
-                  {t.banquetAddress}
+                  <a
+                    href={`https://maps.google.com/maps?q=${encodeURIComponent("台南市東區中華東路三段336巷1號2樓")}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="underline underline-offset-2 hover:text-yellow-300 transition-colors"
+                  >
+                    {t.banquetAddress}
+                  </a>
                 </p>
               </div>
             </div>
