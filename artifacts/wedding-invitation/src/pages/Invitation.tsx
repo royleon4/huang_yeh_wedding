@@ -178,6 +178,7 @@ interface FloatingArrowsProps {
 }
 
 function FloatingArrows({ scrollContainerRef }: FloatingArrowsProps) {
+  const t = useT();
   const [activeIndex, setActiveIndex] = useState(0);
 
   useEffect(() => {
@@ -217,7 +218,7 @@ function FloatingArrows({ scrollContainerRef }: FloatingArrowsProps) {
     <>
       <button
         className={`${btnBase} bottom-20 left-3 ${isFirst ? "opacity-20 pointer-events-none" : "hover:bg-white/90 hover:text-green-900"}`}
-        aria-label="上一頁"
+        aria-label={t.prev}
         onClick={() => scrollTo(activeIndex - 1)}
       >
         <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
@@ -226,7 +227,7 @@ function FloatingArrows({ scrollContainerRef }: FloatingArrowsProps) {
       </button>
       <button
         className={`${btnBase} bottom-20 right-3 ${isLast ? "opacity-20 pointer-events-none" : "animate-heartbeat hover:bg-white/90 hover:text-green-900 hover:[animation-play-state:paused]"}`}
-        aria-label="下一頁"
+        aria-label={t.next}
         onClick={() => scrollTo(activeIndex + 1)}
       >
         <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
@@ -267,7 +268,7 @@ function HeroSection() {
         </div>
       </div>
 
-      {/* Main content — scrollable on small phones so nothing is clipped */}
+      {/* Main content — reduced mobile sizing ensures nothing clips on small phones */}
       <div className="relative z-10 text-center px-4 sm:px-6 max-w-2xl mx-auto w-full">
         {/* Announcement */}
         <p
