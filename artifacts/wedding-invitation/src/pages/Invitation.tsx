@@ -597,8 +597,8 @@ function WeddingDetailsSection() {
             const isDateCard = i === 0;
             const handleDateClick = isDateCard ? () => {
               openInCalendar(
-                makeICS({ summary: t.calCeremonyTitle, location: t.calCeremonyLocation, description: t.calCeremonyDesc, dtStart: "20260620T070000Z", dtEnd: "20260620T090000Z" }),
-                { title: t.calCeremonyTitle, start: "20260620T070000Z", end: "20260620T090000Z", location: t.calCeremonyLocation, details: t.calCeremonyDesc }
+                makeICS({ summary: t.calCeremonyTitle, location: t.calCeremonyLocation, description: t.calCeremonyDesc, dtStart: "20260620T070000Z", dtEnd: "20260620T083000Z" }),
+                { title: t.calCeremonyTitle, start: "20260620T070000Z", end: "20260620T083000Z", location: t.calCeremonyLocation, details: t.calCeremonyDesc }
               );
             } : undefined;
             return (
@@ -665,14 +665,14 @@ function WeddingDetailsSection() {
               role="button"
               tabIndex={0}
               onClick={() => openInCalendar(
-                makeICS({ summary: t.calBanquetTitle, location: t.calBanquetLocation, description: t.calBanquetDesc, dtStart: "20260620T093000Z", dtEnd: "20260620T120000Z" }),
-                { title: t.calBanquetTitle, start: "20260620T093000Z", end: "20260620T120000Z", location: t.calBanquetLocation, details: t.calBanquetDesc }
+                makeICS({ summary: t.calBanquetTitle, location: t.calBanquetLocation, description: t.calBanquetDesc, dtStart: "20260620T093000Z", dtEnd: "20260620T113000Z" }),
+                { title: t.calBanquetTitle, start: "20260620T093000Z", end: "20260620T113000Z", location: t.calBanquetLocation, details: t.calBanquetDesc }
               )}
               onKeyDown={(e) => {
                 if (e.key === "Enter" || e.key === " ") {
                   openInCalendar(
-                    makeICS({ summary: t.calBanquetTitle, location: t.calBanquetLocation, description: t.calBanquetDesc, dtStart: "20260620T093000Z", dtEnd: "20260620T120000Z" }),
-                    { title: t.calBanquetTitle, start: "20260620T093000Z", end: "20260620T120000Z", location: t.calBanquetLocation, details: t.calBanquetDesc }
+                    makeICS({ summary: t.calBanquetTitle, location: t.calBanquetLocation, description: t.calBanquetDesc, dtStart: "20260620T093000Z", dtEnd: "20260620T113000Z" }),
+                    { title: t.calBanquetTitle, start: "20260620T093000Z", end: "20260620T113000Z", location: t.calBanquetLocation, details: t.calBanquetDesc }
                   );
                 }
               }}
