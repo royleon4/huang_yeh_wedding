@@ -3,7 +3,7 @@ import { KiwiIcon, KiwiFruit } from "@/components/KiwiIcon";
 import { NZMap } from "@/components/NZMap";
 import { TWMap } from "@/components/TWMap";
 import { AudioPlayer } from "@/components/AudioPlayer";
-import { FloatingNav, SECTIONS_COUNT, SECTIONS } from "@/components/FloatingNav";
+import { FloatingNav } from "@/components/FloatingNav";
 
 type Lang = "zh" | "en";
 
@@ -173,91 +173,6 @@ function FloatingKiwis() {
   );
 }
 
-interface FloatingArrowsProps {
-  scrollContainerRef: React.RefObject<HTMLDivElement | null>;
-}
-
-function FloatingArrows({ scrollContainerRef }: FloatingArrowsProps) {
-  const [activeIndex, setActiveIndex] = useState(0);
-  const t = useT();
-
-  useEffect(() => {
-    const container = scrollContainerRef.current;
-    if (!container) return;
-
-    const updateIndex = () => {
-      const vw = container.clientWidth;
-      if (vw === 0) return;
-      const index = Math.round(container.scrollLeft / vw);
-      setActiveIndex(Math.min(Math.max(index, 0), SECTIONS_COUNT - 1));
-    };
-
-    const observer = new ResizeObserver(updateIndex);
-    observer.observe(container);
-    container.addEventListener("scroll", updateIndex, { passive: true });
-    updateIndex();
-    return () => {
-      container.removeEventListener("scroll", updateIndex);
-      observer.disconnect();
-    };
-  }, [scrollContainerRef]);
-
-  const scrollTo = (index: number) => {
-    const container = scrollContainerRef.current;
-    if (!container) return;
-    container.scrollTo({ left: index * container.clientWidth, behavior: "smooth" });
-  };
-
-  const isFirst = activeIndex === 0;
-  const isLast = activeIndex === SECTIONS_COUNT - 1;
-
-  const prevLabel = !isFirst ? (t.nav[SECTIONS[activeIndex - 1].id as keyof typeof t.nav] ?? SECTIONS[activeIndex - 1].label) : "";
-  const nextLabel = !isLast ? (t.nav[SECTIONS[activeIndex + 1].id as keyof typeof t.nav] ?? SECTIONS[activeIndex + 1].label) : "";
-
-  const capsuleClass =
-    "fixed top-[calc(var(--nav-h)+8px)] z-50 flex flex-col items-center gap-1 bg-white/75 backdrop-blur-md shadow-lg border border-white/60 text-green-700 hover:bg-white/90 hover:text-green-900 transition-all duration-200 active:scale-95 rounded-2xl px-3 py-2";
-
-  return (
-    <>
-      {!isFirst && (
-        <button
-          className={`${capsuleClass} left-3`}
-          aria-label={`${t.prev}：${prevLabel}`}
-          onClick={() => scrollTo(activeIndex - 1)}
-        >
-          <svg width="18" height="18" viewBox="0 0 18 18" fill="none" className="shrink-0">
-            <path
-              d="M11 4 L6 9 L11 14"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
-          <span className="text-xs font-medium text-green-800/80" style={{ writingMode: "vertical-rl" }}>{prevLabel}</span>
-        </button>
-      )}
-      {!isLast && (
-        <button
-          className={`${capsuleClass} right-3 animate-heartbeat hover:[animation-play-state:paused]`}
-          aria-label={`${t.next}：${nextLabel}`}
-          onClick={() => scrollTo(activeIndex + 1)}
-        >
-          <svg width="18" height="18" viewBox="0 0 18 18" fill="none" className="shrink-0">
-            <path
-              d="M7 4 L12 9 L7 14"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
-          <span className="text-xs font-medium text-green-800/80" style={{ writingMode: "vertical-rl" }}>{nextLabel}</span>
-        </button>
-      )}
-    </>
-  );
-}
 
 function HeroSection() {
   const t = useT();
@@ -1083,7 +998,6 @@ export default function Invitation() {
         <AudioPlayer />
         <FloatingNav scrollContainerRef={scrollContainerRef} labels={t.nav} navAriaLabel={t.navAriaLabel} />
         <FloatingKiwis />
-        <FloatingArrows scrollContainerRef={scrollContainerRef} />
         <FontSizeControls
           step={fontStep}
           min={FONT_MIN}
