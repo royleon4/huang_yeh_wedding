@@ -130,7 +130,7 @@ const EN = {
   navAriaLabel: "Quick Navigation",
   rsvpLabel: "RSVP",
   rsvpH2: "RSVP",
-  rsvpDeadline: "Please respond by May 20, 2026",
+  rsvpDeadline: "Please respond by May 10, 2026",
   footerDog: "Suomi can't wait to see you all",
   addToCalendar: "Add to Calendar",
   calCeremonyTitle: "黃葉婚禮典禮",
