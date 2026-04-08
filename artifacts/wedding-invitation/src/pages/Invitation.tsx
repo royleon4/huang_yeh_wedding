@@ -142,9 +142,10 @@ function FloatingParticles() {
     { id: number; type: ParticleType; x: number; size: number; duration: number }[]
   >([]);
   const counterRef = useRef(0);
+  const removalTimeoutsRef = useRef<Set<ReturnType<typeof setTimeout>>>(new Set());
 
   useEffect(() => {
-    let timeoutId: ReturnType<typeof setTimeout>;
+    let spawnTimeoutId: ReturnType<typeof setTimeout>;
     const TYPES: ParticleType[] = ["heart", "kiwifruit", "kiwi"];
 
     const spawn = () => {
@@ -159,22 +160,27 @@ function FloatingParticles() {
         return [...prev, { id, type, x, size, duration }];
       });
 
-      setTimeout(() => {
+      const removalId = setTimeout(() => {
+        removalTimeoutsRef.current.delete(removalId);
         setParticles((prev) => prev.filter((p) => p.id !== id));
       }, duration * 1000 + 300);
+      removalTimeoutsRef.current.add(removalId);
     };
 
     const scheduleNext = () => {
       const delay = 1500 + Math.random() * 1500;
-      timeoutId = setTimeout(() => {
+      spawnTimeoutId = setTimeout(() => {
         spawn();
         scheduleNext();
       }, delay);
     };
 
-    spawn();
     scheduleNext();
-    return () => clearTimeout(timeoutId);
+    return () => {
+      clearTimeout(spawnTimeoutId);
+      removalTimeoutsRef.current.forEach(clearTimeout);
+      removalTimeoutsRef.current.clear();
+    };
   }, []);
 
   return (
