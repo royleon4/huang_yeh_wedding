@@ -179,7 +179,6 @@ interface FloatingArrowsProps {
 
 function FloatingArrows({ scrollContainerRef }: FloatingArrowsProps) {
   const [activeIndex, setActiveIndex] = useState(0);
-  const t = useT();
 
   useEffect(() => {
     const container = scrollContainerRef.current;
@@ -211,50 +210,29 @@ function FloatingArrows({ scrollContainerRef }: FloatingArrowsProps) {
   const isFirst = activeIndex === 0;
   const isLast = activeIndex === SECTIONS_COUNT - 1;
 
-  const prevLabel = !isFirst ? (t.nav[SECTIONS[activeIndex - 1].id as keyof typeof t.nav] ?? SECTIONS[activeIndex - 1].label) : "";
-  const nextLabel = !isLast ? (t.nav[SECTIONS[activeIndex + 1].id as keyof typeof t.nav] ?? SECTIONS[activeIndex + 1].label) : "";
-
-  const capsuleClass =
-    "fixed top-4 z-50 flex flex-col items-center gap-1 bg-white/75 backdrop-blur-md shadow-lg border border-white/60 text-green-700 hover:bg-white/90 hover:text-green-900 transition-all duration-200 active:scale-95 rounded-2xl px-3 py-2";
+  const btnBase =
+    "fixed z-50 w-10 h-10 rounded-full flex items-center justify-center bg-white/75 backdrop-blur-md shadow-lg border border-white/60 text-green-700 transition-all duration-300 active:scale-95";
 
   return (
     <>
-      {!isFirst && (
-        <button
-          className={`${capsuleClass} left-3`}
-          aria-label={`${t.prev}：${prevLabel}`}
-          onClick={() => scrollTo(activeIndex - 1)}
-        >
-          <svg width="18" height="18" viewBox="0 0 18 18" fill="none" className="shrink-0">
-            <path
-              d="M11 4 L6 9 L11 14"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
-          <span className="text-xs font-medium text-green-800/80" style={{ writingMode: "vertical-rl" }}>{prevLabel}</span>
-        </button>
-      )}
-      {!isLast && (
-        <button
-          className={`${capsuleClass} right-3 animate-heartbeat hover:[animation-play-state:paused]`}
-          aria-label={`${t.next}：${nextLabel}`}
-          onClick={() => scrollTo(activeIndex + 1)}
-        >
-          <svg width="18" height="18" viewBox="0 0 18 18" fill="none" className="shrink-0">
-            <path
-              d="M7 4 L12 9 L7 14"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
-          <span className="text-xs font-medium text-green-800/80" style={{ writingMode: "vertical-rl" }}>{nextLabel}</span>
-        </button>
-      )}
+      <button
+        className={`${btnBase} bottom-20 left-3 ${isFirst ? "opacity-20 pointer-events-none" : "hover:bg-white/90 hover:text-green-900"}`}
+        aria-label="上一頁"
+        onClick={() => scrollTo(activeIndex - 1)}
+      >
+        <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+          <path d="M11 4 L6 9 L11 14" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      </button>
+      <button
+        className={`${btnBase} bottom-20 right-3 ${isLast ? "opacity-20 pointer-events-none" : "animate-heartbeat hover:bg-white/90 hover:text-green-900 hover:[animation-play-state:paused]"}`}
+        aria-label="下一頁"
+        onClick={() => scrollTo(activeIndex + 1)}
+      >
+        <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+          <path d="M7 4 L12 9 L7 14" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      </button>
     </>
   );
 }
@@ -389,7 +367,7 @@ function LoveStorySection() {
     <section
       id="section-story"
       ref={ref}
-      className="w-screen h-screen flex-shrink-0 snap-start overflow-y-auto section-pt section-pb px-4 sm:px-6"
+      className="w-screen h-screen flex-shrink-0 snap-start overflow-y-auto overscroll-y-none section-pt section-pb px-4 sm:px-6"
       style={{
         background: "linear-gradient(180deg, #faf6d8 0%, #f5f8ee 100%)",
       }}
@@ -520,7 +498,7 @@ function WeddingDetailsSection() {
     <section
       id="section-details"
       ref={ref}
-      className="w-screen h-screen flex-shrink-0 snap-start overflow-y-auto section-pt section-pb px-4 sm:px-6"
+      className="w-screen h-screen flex-shrink-0 snap-start overflow-y-auto overscroll-y-none section-pt section-pb px-4 sm:px-6"
       style={{
         background:
           "linear-gradient(160deg, #2d5a1b 0%, #1a3a0f 50%, #2d5a1b 100%)",
@@ -701,7 +679,7 @@ function PhotoWallSection() {
     <section
       id="section-gallery"
       ref={ref}
-      className="w-screen h-screen flex-shrink-0 snap-start overflow-y-auto section-pt section-pb px-4 sm:px-6"
+      className="w-screen h-screen flex-shrink-0 snap-start overflow-y-auto overscroll-y-none section-pt section-pb px-4 sm:px-6"
       style={{
         background: "linear-gradient(180deg, #f8f9e8 0%, #f2f8e6 100%)",
       }}
@@ -850,7 +828,7 @@ function RSVPSection() {
     <section
       id="section-rsvp"
       ref={ref}
-      className="w-screen h-screen flex-shrink-0 snap-start overflow-y-auto section-pt section-pb px-4 sm:px-6"
+      className="w-screen h-screen flex-shrink-0 snap-start overflow-y-auto overscroll-y-none section-pt section-pb px-4 sm:px-6"
       style={{
         background: "linear-gradient(160deg, #faf6d8 0%, #f0f7e6 100%)",
       }}
@@ -898,7 +876,7 @@ function FooterSection() {
   return (
     <footer
       id="section-footer"
-      className="w-screen h-screen flex-shrink-0 snap-start overflow-y-auto section-pt section-pb px-4 sm:px-6 text-center flex flex-col justify-center"
+      className="w-screen h-screen flex-shrink-0 snap-start overflow-y-auto overscroll-y-none section-pt section-pb px-4 sm:px-6 text-center flex flex-col justify-center"
       style={{
         background: "linear-gradient(160deg, #1a3a0f 0%, #0f2208 100%)",
       }}
