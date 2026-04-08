@@ -4,6 +4,7 @@ import { NZMap } from "@/components/NZMap";
 import { TWMap } from "@/components/TWMap";
 import { AudioPlayer } from "@/components/AudioPlayer";
 import { FloatingNav } from "@/components/FloatingNav";
+import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion";
 
 type Lang = "zh" | "en";
 
@@ -778,63 +779,83 @@ function WeddingDetailsSection() {
             {t.transportLabel}
           </p>
 
-          {/* Ceremony parking */}
-          <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-4 sm:p-5 border border-yellow-400/20 mb-3">
-            <p className="font-noto-serif-tc text-yellow-200 text-xs sm:text-sm font-semibold mb-3 tracking-wide">
-              {t.transportCeremonyTitle}
-            </p>
-            <div className="space-y-3">
-              {t.transportCeremonyItems.map((item) => (
-                <div key={item.name} className="flex items-start gap-2">
-                  <span className="text-base shrink-0 mt-0.5">{item.icon}</span>
-                  <div className="min-w-0">
-                    <p className="font-noto-serif-tc text-yellow-100 text-xs sm:text-sm font-medium leading-snug">
-                      {item.name}
-                    </p>
-                    {item.desc && (
-                      <p className="font-noto-serif-tc text-yellow-400/60 text-xs leading-relaxed mt-0.5">
-                        {item.desc}
-                      </p>
-                    )}
-                    {item.fee && (
-                      <p className="font-noto-serif-tc text-green-300/70 text-xs mt-0.5">
-                        {item.fee}
-                      </p>
-                    )}
-                  </div>
+          <Accordion
+            type="multiple"
+            defaultValue={["ceremony", "banquet"]}
+            className="space-y-3"
+          >
+            {/* Ceremony parking */}
+            <AccordionItem
+              value="ceremony"
+              className="bg-white/10 backdrop-blur-sm rounded-2xl border border-yellow-400/20 overflow-hidden border-b-0"
+            >
+              <AccordionTrigger className="px-4 sm:px-5 py-3 hover:no-underline hover:bg-white/10 transition-colors [&[data-state=open]>svg]:rotate-180 [&>svg]:text-yellow-300/70">
+                <span className="font-noto-serif-tc text-yellow-200 text-xs sm:text-sm font-semibold tracking-wide text-left">
+                  {t.transportCeremonyTitle}
+                </span>
+              </AccordionTrigger>
+              <AccordionContent className="px-4 sm:px-5 pb-4 pt-0">
+                <div className="space-y-3">
+                  {t.transportCeremonyItems.map((item) => (
+                    <div key={item.name} className="flex items-start gap-2">
+                      <span className="text-base shrink-0 mt-0.5">{item.icon}</span>
+                      <div className="min-w-0">
+                        <p className="font-noto-serif-tc text-yellow-100 text-xs sm:text-sm font-medium leading-snug">
+                          {item.name}
+                        </p>
+                        {item.desc && (
+                          <p className="font-noto-serif-tc text-yellow-400/60 text-xs leading-relaxed mt-0.5">
+                            {item.desc}
+                          </p>
+                        )}
+                        {item.fee && (
+                          <p className="font-noto-serif-tc text-green-300/70 text-xs mt-0.5">
+                            {item.fee}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
-          </div>
+              </AccordionContent>
+            </AccordionItem>
 
-          {/* Banquet parking */}
-          <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-4 sm:p-5 border border-yellow-400/20">
-            <p className="font-noto-serif-tc text-yellow-200 text-xs sm:text-sm font-semibold mb-3 tracking-wide">
-              {t.transportBanquetTitle}
-            </p>
-            <div className="space-y-3">
-              {t.transportBanquetItems.map((item) => (
-                <div key={item.name} className="flex items-start gap-2">
-                  <span className="text-base shrink-0 mt-0.5">{item.icon}</span>
-                  <div className="min-w-0">
-                    <p className="font-noto-serif-tc text-yellow-100 text-xs sm:text-sm font-medium leading-snug">
-                      {item.name}
-                    </p>
-                    {item.desc && (
-                      <p className="font-noto-serif-tc text-yellow-400/60 text-xs leading-relaxed mt-0.5">
-                        {item.desc}
-                      </p>
-                    )}
-                    {item.fee && (
-                      <p className="font-noto-serif-tc text-green-300/70 text-xs mt-0.5">
-                        {item.fee}
-                      </p>
-                    )}
-                  </div>
+            {/* Banquet parking */}
+            <AccordionItem
+              value="banquet"
+              className="bg-white/10 backdrop-blur-sm rounded-2xl border border-yellow-400/20 overflow-hidden border-b-0"
+            >
+              <AccordionTrigger className="px-4 sm:px-5 py-3 hover:no-underline hover:bg-white/10 transition-colors [&[data-state=open]>svg]:rotate-180 [&>svg]:text-yellow-300/70">
+                <span className="font-noto-serif-tc text-yellow-200 text-xs sm:text-sm font-semibold tracking-wide text-left">
+                  {t.transportBanquetTitle}
+                </span>
+              </AccordionTrigger>
+              <AccordionContent className="px-4 sm:px-5 pb-4 pt-0">
+                <div className="space-y-3">
+                  {t.transportBanquetItems.map((item) => (
+                    <div key={item.name} className="flex items-start gap-2">
+                      <span className="text-base shrink-0 mt-0.5">{item.icon}</span>
+                      <div className="min-w-0">
+                        <p className="font-noto-serif-tc text-yellow-100 text-xs sm:text-sm font-medium leading-snug">
+                          {item.name}
+                        </p>
+                        {item.desc && (
+                          <p className="font-noto-serif-tc text-yellow-400/60 text-xs leading-relaxed mt-0.5">
+                            {item.desc}
+                          </p>
+                        )}
+                        {item.fee && (
+                          <p className="font-noto-serif-tc text-green-300/70 text-xs mt-0.5">
+                            {item.fee}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
-          </div>
+              </AccordionContent>
+            </AccordionItem>
+          </Accordion>
         </div>
       </div>
     </section>
