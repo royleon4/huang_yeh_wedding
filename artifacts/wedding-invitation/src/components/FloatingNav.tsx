@@ -151,21 +151,20 @@ export function FloatingNav({ scrollContainerRef, onNavClick, labels, navAriaLab
           <button
             onClick={() => scrollTo(activeIndex - 1)}
             aria-label={`${prevText}：${prevLabel}`}
-            className={`${pillBase} flex flex-col items-center justify-center gap-[0.25em] text-green-700 transition-all duration-200 active:scale-95 hover:bg-white/90 hover:text-green-900 px-[0.6em] py-[0.45em]`}
-            style={{ minWidth: "2.8em" }}
+            className={`${pillBase} flex flex-row items-center gap-[0.2em] text-green-700 transition-all duration-200 active:scale-95 hover:bg-white/90 hover:text-green-900 px-[0.6em] py-[0.45em]`}
           >
             <svg width="1em" height="1em" viewBox="0 0 18 18" fill="none" className="shrink-0">
               <path d="M11 4 L6 9 L11 14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
             <span
-              className="text-[0.65em] font-medium text-green-800/80 leading-tight"
-              style={{ writingMode: "vertical-rl", maxHeight: "4em", overflow: "hidden" }}
+              className="text-[0.85em] font-medium text-green-800/80"
+              style={{ width: "1.2em", wordBreak: "break-all", lineHeight: 1.1 }}
             >
               {prevLabel}
             </span>
           </button>
         ) : (
-          <div className="invisible" style={{ minWidth: "2.8em" }} aria-hidden="true" />
+          <div className="invisible" style={{ minWidth: "3.4em" }} aria-hidden="true" />
         )}
 
         {/* Center pill: icon row */}
@@ -196,21 +195,20 @@ export function FloatingNav({ scrollContainerRef, onNavClick, labels, navAriaLab
           <button
             onClick={() => scrollTo(activeIndex + 1)}
             aria-label={`${nextText}：${nextLabel}`}
-            className={`${pillBase} flex flex-col items-center justify-center gap-[0.25em] text-green-700 transition-all duration-200 active:scale-95 hover:bg-white/90 hover:text-green-900 animate-heartbeat hover:[animation-play-state:paused] px-[0.6em] py-[0.45em]`}
-            style={{ minWidth: "2.8em" }}
+            className={`${pillBase} flex flex-row items-center gap-[0.2em] text-green-700 transition-all duration-200 active:scale-95 hover:bg-white/90 hover:text-green-900 animate-heartbeat hover:[animation-play-state:paused] px-[0.6em] py-[0.45em]`}
           >
-            <svg width="1em" height="1em" viewBox="0 0 18 18" fill="none" className="shrink-0">
-              <path d="M7 4 L12 9 L7 14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
             <span
-              className="text-[0.65em] font-medium text-green-800/80 leading-tight"
-              style={{ writingMode: "vertical-rl", maxHeight: "4em", overflow: "hidden" }}
+              className="text-[0.85em] font-medium text-green-800/80 text-right"
+              style={{ width: "1.2em", wordBreak: "break-all", lineHeight: 1.1 }}
             >
               {nextLabel}
             </span>
+            <svg width="1em" height="1em" viewBox="0 0 18 18" fill="none" className="shrink-0">
+              <path d="M7 4 L12 9 L7 14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
           </button>
         ) : (
-          <div className="invisible" style={{ minWidth: "2.8em" }} aria-hidden="true" />
+          <div className="invisible" style={{ minWidth: "3.4em" }} aria-hidden="true" />
         )}
 
       </div>
