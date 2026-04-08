@@ -301,7 +301,7 @@ function HeroSection() {
             style={{ opacity: 0, animationDelay: "0.4s", animationFillMode: "forwards" }}
           >&amp;</span>
           <span
-            className="font-playfair text-3xl sm:text-5xl leading-tight font-semibold italic text-left text-green-800 animate-fade-in-up"
+            className="font-playfair text-xl sm:text-3xl leading-tight font-semibold italic text-left text-green-800 animate-fade-in-up"
             style={{ opacity: 0, animationDelay: "0.4s", animationFillMode: "forwards" }}
           >YehYeh</span>
 
