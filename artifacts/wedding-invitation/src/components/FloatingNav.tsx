@@ -140,6 +140,7 @@ export function FloatingNav({ scrollContainerRef, onNavClick, labels, navAriaLab
     <div
       ref={navWrapperRef}
       className="fixed top-0 left-0 right-0 z-50 flex justify-center pt-[0.75em] px-[1em] pointer-events-none"
+      style={{ fontSize: '16px' }}
       role="navigation"
       aria-label={navAriaLabel ?? "快速導覽"}
     >
