@@ -34,8 +34,7 @@ const ZH = {
   detailsLabel: "婚禮詳情",
   detailsH2: "Wedding Details",
   detailItems: [
-    { icon: "📅", label: "日期", sub: "Date", content: "2026年06月20日", note: "星期六" },
-    { icon: "⏰", label: "時間", sub: "Time", content: "下午三點", note: "3:00 PM" },
+    { icon: "📅", label: "日期 · 時間", sub: "Date & Time", content: "2026年06月20日", note: "星期六 · 下午三點" },
     { icon: "📍", label: "地點", sub: "Venue", content: "德光長老教會", note: "台南市東區崇德四街100號" },
   ],
   banquetLabel: "家宴",
@@ -88,8 +87,7 @@ const EN = {
   detailsLabel: "DETAILS",
   detailsH2: "Wedding Details",
   detailItems: [
-    { icon: "📅", label: "Date", sub: "Date", content: "June 20, 2026", note: "Saturday" },
-    { icon: "⏰", label: "Time", sub: "Time", content: "3:00 PM", note: "Saturday Afternoon" },
+    { icon: "📅", label: "Date & Time", sub: "Date & Time", content: "June 20, 2026", note: "Saturday · 3:00 PM" },
     { icon: "📍", label: "Venue", sub: "Venue", content: "De-Guang Presbyterian Church", note: "No. 100, Chongde 4th St., East Dist., Tainan" },
   ],
   banquetLabel: "Evening Banquet",
@@ -546,7 +544,7 @@ function WeddingDetailsSection() {
           </div>
         </div>
 
-        <div className="grid md:grid-cols-3 gap-4 sm:gap-6">
+        <div className="grid grid-cols-2 gap-4 sm:gap-6">
           {t.detailItems.map((item, i) => (
             <div
               key={item.label}
