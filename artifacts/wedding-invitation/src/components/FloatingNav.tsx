@@ -133,8 +133,8 @@ export function FloatingNav({ scrollContainerRef, onNavClick, labels, navAriaLab
     ? (labels?.[SECTIONS[activeIndex + 1].id] ?? SECTIONS[activeIndex + 1].label)
     : "";
 
-  const capBase =
-    "flex flex-col items-center justify-center gap-[0.3em] bg-white/75 backdrop-blur-md shadow-xl border border-white/60 text-green-700 transition-all duration-200 active:scale-95 px-[0.55em] py-[0.4em]";
+  const pillBase =
+    "bg-white/75 backdrop-blur-md shadow-xl border border-white/60 rounded-full";
 
   return (
     <div
@@ -143,14 +143,14 @@ export function FloatingNav({ scrollContainerRef, onNavClick, labels, navAriaLab
       role="navigation"
       aria-label={navAriaLabel ?? "快速導覽"}
     >
-      <div className="flex flex-row items-stretch gap-[3px] pointer-events-auto">
+      <div className="flex flex-row items-center gap-[0.4em] pointer-events-auto">
 
-        {/* Left end cap: prev button or transparent spacer */}
+        {/* Left pill: prev button or invisible spacer */}
         {!isFirst ? (
           <button
             onClick={() => scrollTo(activeIndex - 1)}
             aria-label={`${prevText}：${prevLabel}`}
-            className={`${capBase} rounded-l-full rounded-r-lg hover:bg-white/90 hover:text-green-900`}
+            className={`${pillBase} flex flex-col items-center justify-center gap-[0.25em] text-green-700 transition-all duration-200 active:scale-95 hover:bg-white/90 hover:text-green-900 px-[0.6em] py-[0.45em]`}
             style={{ minWidth: "2.8em" }}
           >
             <svg width="1em" height="1em" viewBox="0 0 18 18" fill="none" className="shrink-0">
@@ -167,8 +167,8 @@ export function FloatingNav({ scrollContainerRef, onNavClick, labels, navAriaLab
           <div className="invisible" style={{ minWidth: "2.8em" }} aria-hidden="true" />
         )}
 
-        {/* Center icon capsule */}
-        <div className="flex flex-row items-center justify-center gap-[0.15em] bg-white/75 backdrop-blur-md shadow-xl border border-white/60 px-[0.5em] py-[0.4em] rounded-lg">
+        {/* Center pill: icon row */}
+        <div className={`${pillBase} flex flex-row items-center justify-center gap-[0.15em] px-[0.5em] py-[0.4em]`}>
           {SECTIONS.map((section, i) => (
             <button
               key={section.id}
@@ -190,12 +190,12 @@ export function FloatingNav({ scrollContainerRef, onNavClick, labels, navAriaLab
           ))}
         </div>
 
-        {/* Right end cap: next button or transparent spacer */}
+        {/* Right pill: next button or invisible spacer */}
         {!isLast ? (
           <button
             onClick={() => scrollTo(activeIndex + 1)}
             aria-label={`${nextText}：${nextLabel}`}
-            className={`${capBase} rounded-r-full rounded-l-lg hover:bg-white/90 hover:text-green-900 animate-heartbeat hover:[animation-play-state:paused]`}
+            className={`${pillBase} flex flex-col items-center justify-center gap-[0.25em] text-green-700 transition-all duration-200 active:scale-95 hover:bg-white/90 hover:text-green-900 animate-heartbeat hover:[animation-play-state:paused] px-[0.6em] py-[0.45em]`}
             style={{ minWidth: "2.8em" }}
           >
             <svg width="1em" height="1em" viewBox="0 0 18 18" fill="none" className="shrink-0">
