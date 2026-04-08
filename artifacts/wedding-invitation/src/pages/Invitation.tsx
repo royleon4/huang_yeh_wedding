@@ -267,86 +267,86 @@ function HeroSection() {
         </div>
       </div>
 
-      {/* Main content */}
-      <div className="relative z-10 text-center px-4 sm:px-6 max-w-2xl mx-auto w-full mt-8">
+      {/* Main content — scrollable on small phones so nothing is clipped */}
+      <div className="relative z-10 text-center px-4 sm:px-6 max-w-2xl mx-auto w-full">
         {/* Announcement */}
         <p
-          className="font-noto-serif-tc text-sm tracking-[0.4em] uppercase mb-4 opacity-0 animate-fade-in-up text-green-700"
-          style={{ animationDelay: "0.2s", animationFillMode: "forwards" }}
+          className="font-noto-serif-tc text-sm tracking-[0.4em] uppercase mb-3 sm:mb-4 animate-fade-in-up text-green-700"
+          style={{ opacity: 0, animationDelay: "0.2s", animationFillMode: "forwards" }}
           data-testid="text-announcement"
         >
           {t.heroAnnouncement}
         </p>
 
         {/* Names — single grid so columns share widths across both rows */}
-        <div className="grid grid-cols-[1fr_auto_1fr] items-center mb-6">
+        <div className="grid grid-cols-[1fr_auto_1fr] items-center mb-4 sm:mb-6">
           {/* Row 1: English names */}
           <h1
-            className="font-playfair text-4xl sm:text-5xl leading-tight font-semibold italic text-right text-green-800 opacity-0 animate-fade-in-up"
-            style={{ animationDelay: "0.4s", animationFillMode: "forwards" }}
+            className="font-playfair text-3xl sm:text-5xl leading-tight font-semibold italic text-right text-green-800 animate-fade-in-up"
+            style={{ opacity: 0, animationDelay: "0.4s", animationFillMode: "forwards" }}
             data-testid="text-names"
           >Leon</h1>
           <span
-            className="font-playfair text-2xl sm:text-3xl not-italic text-yellow-600 px-3 sm:px-4 text-center opacity-0 animate-fade-in-up"
-            style={{ animationDelay: "0.4s", animationFillMode: "forwards" }}
+            className="font-playfair text-xl sm:text-3xl not-italic text-yellow-600 px-2 sm:px-4 text-center animate-fade-in-up"
+            style={{ opacity: 0, animationDelay: "0.4s", animationFillMode: "forwards" }}
           >&amp;</span>
           <span
-            className="font-playfair text-4xl sm:text-5xl leading-tight font-semibold italic text-left text-green-800 opacity-0 animate-fade-in-up"
-            style={{ animationDelay: "0.4s", animationFillMode: "forwards" }}
+            className="font-playfair text-3xl sm:text-5xl leading-tight font-semibold italic text-left text-green-800 animate-fade-in-up"
+            style={{ opacity: 0, animationDelay: "0.4s", animationFillMode: "forwards" }}
           >Yeh</span>
 
           {/* Row 2: Chinese names */}
           <span
-            className="font-zen-old-mincho font-semibold text-3xl sm:text-4xl text-right text-green-800 opacity-0 animate-fade-in-up"
-            style={{ animationDelay: "0.6s", animationFillMode: "forwards" }}
+            className="font-zen-old-mincho font-semibold text-2xl sm:text-4xl text-right text-green-800 animate-fade-in-up"
+            style={{ opacity: 0, animationDelay: "0.6s", animationFillMode: "forwards" }}
             data-testid="text-chinese-names"
           >黃律詠</span>
           <span
-            className="text-yellow-600 text-2xl sm:text-3xl px-3 sm:px-4 text-center opacity-0 animate-fade-in-up"
-            style={{ animationDelay: "0.6s", animationFillMode: "forwards" }}
+            className="text-yellow-600 text-xl sm:text-3xl px-2 sm:px-4 text-center animate-fade-in-up"
+            style={{ opacity: 0, animationDelay: "0.6s", animationFillMode: "forwards" }}
           >✦</span>
           <span
-            className="font-zen-old-mincho font-semibold text-3xl sm:text-4xl text-left text-green-800 opacity-0 animate-fade-in-up"
-            style={{ animationDelay: "0.6s", animationFillMode: "forwards" }}
+            className="font-zen-old-mincho font-semibold text-2xl sm:text-4xl text-left text-green-800 animate-fade-in-up"
+            style={{ opacity: 0, animationDelay: "0.6s", animationFillMode: "forwards" }}
           >葉藝慧</span>
         </div>
 
         {/* Decorative divider */}
         <div
-          className="flex items-center justify-center gap-4 mb-6 sm:mb-8 opacity-0 animate-fade-in-up"
-          style={{ animationDelay: "0.7s", animationFillMode: "forwards" }}
+          className="flex items-center justify-center gap-4 mb-4 sm:mb-6 animate-fade-in-up"
+          style={{ opacity: 0, animationDelay: "0.7s", animationFillMode: "forwards" }}
         >
           <div className="h-px flex-1 bg-gradient-to-r from-transparent via-green-400 opacity-50" />
           <div className="flex items-center gap-2">
-            <KiwiIcon size={24} />
-            <span className="text-yellow-400 text-2xl drop-shadow">🐾</span>
+            <KiwiIcon size={20} />
+            <span className="text-yellow-400 text-xl drop-shadow">🐾</span>
           </div>
           <div className="h-px flex-1 bg-gradient-to-r from-transparent via-green-400 opacity-50" />
         </div>
 
         {/* Date card */}
         <div
-          className="rounded-2xl px-4 py-4 sm:px-8 sm:py-5 mb-6 sm:mb-8 opacity-0 animate-fade-in-up backdrop-blur-sm invitation-shadow bg-white/60"
-          style={{ animationDelay: "0.8s", animationFillMode: "forwards" }}
+          className="rounded-2xl px-4 py-3 sm:px-8 sm:py-5 mb-4 sm:mb-6 animate-fade-in-up backdrop-blur-sm invitation-shadow bg-white/60"
+          style={{ opacity: 0, animationDelay: "0.8s", animationFillMode: "forwards" }}
           data-testid="card-date"
         >
           <p className="font-playfair font-semibold tracking-wide text-2xl sm:text-4xl md:text-[42px] text-green-800">
             2026 · 06 · 20
           </p>
-          <p className="font-noto-serif-tc mt-1 tracking-widest text-base sm:text-xl md:text-[25px] font-bold text-green-600">
+          <p className="font-noto-serif-tc mt-1 tracking-widest text-sm sm:text-xl md:text-[25px] font-bold text-green-600">
             {t.heroDate}
           </p>
         </div>
 
         {/* Invitation paragraphs */}
         <div
-          className="opacity-0 animate-fade-in-up mb-6 sm:mb-8 px-2"
-          style={{ animationDelay: "1.0s", animationFillMode: "forwards" }}
+          className="animate-fade-in-up mb-4 sm:mb-6 px-2"
+          style={{ opacity: 0, animationDelay: "1.0s", animationFillMode: "forwards" }}
         >
-          <p className="font-noto-serif-tc text-sm sm:text-base leading-relaxed tracking-wide text-green-700 mb-4">
+          <p className="font-noto-serif-tc text-xs sm:text-sm leading-relaxed tracking-wide text-green-700 mb-3">
             {t.heroPara1}
           </p>
-          <p className="font-noto-serif-tc text-sm sm:text-base leading-relaxed tracking-wide text-green-700">
+          <p className="font-noto-serif-tc text-xs sm:text-sm leading-relaxed tracking-wide text-green-700">
             {t.heroPara2}
           </p>
         </div>
@@ -522,11 +522,11 @@ function WeddingDetailsSection() {
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-4 sm:gap-6">
+        <div className="grid grid-cols-2 gap-4 sm:gap-6 items-stretch">
           {t.detailItems.map((item, i) => (
             <div
               key={item.label}
-              className={`text-center bg-white/10 backdrop-blur-sm rounded-2xl p-4 sm:p-6 border border-yellow-400/20 transition-all duration-1000 ${["delay-100","delay-200","delay-300"][i] ?? ""} ${isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-10"}`}
+              className={`flex flex-col text-center bg-white/10 backdrop-blur-sm rounded-2xl p-4 sm:p-6 border border-yellow-400/20 transition-all duration-1000 ${["delay-100","delay-200","delay-300"][i] ?? ""} ${isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-10"}`}
               data-testid={`card-detail-${item.label}`}
             >
               <div className="text-3xl sm:text-4xl mb-3">{item.icon}</div>
@@ -537,7 +537,7 @@ function WeddingDetailsSection() {
               <p className="font-playfair text-yellow-100 text-base sm:text-lg font-semibold">
                 {item.content}
               </p>
-              <p className="font-noto-serif-tc text-yellow-400/60 text-xs sm:text-sm mt-1">
+              <p className="font-noto-serif-tc text-yellow-400/60 text-xs sm:text-sm mt-auto pt-1">
                 {item.note}
               </p>
             </div>
