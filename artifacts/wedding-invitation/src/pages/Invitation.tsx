@@ -215,13 +215,17 @@ function useCountdown() {
 
 function CountdownWidget() {
   const t = useT();
+  const { lang } = useContext(LanguageCtx);
   const { done, value, unit } = useCountdown();
-  const unitLabel: Record<string, string> = {
+  const labelMap: Record<string, string> = {
     day: t.countdownDay,
     hour: t.countdownHour,
     min: t.countdownMin,
     sec: t.countdownSec,
   };
+  const label = lang === "en" && value === 1
+    ? labelMap[unit].replace(/s$/i, "")
+    : labelMap[unit];
   return (
     <div
       className="animate-fade-in-up"
@@ -238,7 +242,7 @@ function CountdownWidget() {
               {value}
             </span>
             <span className="font-noto-serif-tc text-sm sm:text-base font-semibold text-green-600 tracking-widest">
-              {unitLabel[unit]}
+              {label}
             </span>
           </>
         )}
