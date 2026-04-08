@@ -749,6 +749,12 @@ function PhotoWallSection() {
   const [uploading, setUploading] = useState(false);
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
   const touchStartX = useRef<number | null>(null);
+  const [lbScale, setLbScale] = useState(1);
+  const [lbTranslate, setLbTranslate] = useState({ x: 0, y: 0 });
+  const pinchStartDist = useRef<number | null>(null);
+  const pinchStartScale = useRef(1);
+  const panStart = useRef<{ fx: number; fy: number; tx: number; ty: number } | null>(null);
+  const [isGesturing, setIsGesturing] = useState(false);
   const API_BASE = import.meta.env.BASE_URL ? `${window.location.origin}` : "";
 
   useEffect(() => {
@@ -774,6 +780,14 @@ function PhotoWallSection() {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [lightboxIndex, photos.length]);
+
+  useEffect(() => {
+    setLbScale(1);
+    setLbTranslate({ x: 0, y: 0 });
+    pinchStartDist.current = null;
+    panStart.current = null;
+    touchStartX.current = null;
+  }, [lightboxIndex]);
 
   useEffect(() => {
     if (lightboxIndex !== null && lightboxIndex >= photos.length) {
@@ -895,15 +909,52 @@ function PhotoWallSection() {
       {lightboxIndex !== null && (
         <div
           className="fixed inset-0 z-50 bg-black/85 backdrop-blur-sm flex items-center justify-center"
-          onClick={() => setLightboxIndex(null)}
-          onTouchStart={(e) => { touchStartX.current = e.touches[0].clientX; }}
-          onTouchEnd={(e) => {
-            if (touchStartX.current === null) return;
-            const dx = e.changedTouches[0].clientX - touchStartX.current;
-            touchStartX.current = null;
-            if (dx < -50 && lightboxIndex < photos.length - 1) setLightboxIndex(lightboxIndex + 1);
-            if (dx > 50 && lightboxIndex > 0) setLightboxIndex(lightboxIndex - 1);
+          onClick={() => { if (lbScale > 1) { setLbScale(1); setLbTranslate({ x: 0, y: 0 }); } else { setLightboxIndex(null); } }}
+          onTouchStart={(e) => {
+            setIsGesturing(true);
+            if (e.touches.length === 2) {
+              const dx = e.touches[0].clientX - e.touches[1].clientX;
+              const dy = e.touches[0].clientY - e.touches[1].clientY;
+              pinchStartDist.current = Math.sqrt(dx * dx + dy * dy);
+              pinchStartScale.current = lbScale;
+              touchStartX.current = null;
+              panStart.current = null;
+            } else if (e.touches.length === 1) {
+              touchStartX.current = e.touches[0].clientX;
+              panStart.current = { fx: e.touches[0].clientX, fy: e.touches[0].clientY, tx: lbTranslate.x, ty: lbTranslate.y };
+              pinchStartDist.current = null;
+            }
           }}
+          onTouchMove={(e) => {
+            e.preventDefault();
+            if (e.touches.length === 2 && pinchStartDist.current !== null) {
+              const dx = e.touches[0].clientX - e.touches[1].clientX;
+              const dy = e.touches[0].clientY - e.touches[1].clientY;
+              const dist = Math.sqrt(dx * dx + dy * dy);
+              const newScale = Math.min(Math.max(pinchStartScale.current * (dist / pinchStartDist.current), 1), 5);
+              setLbScale(newScale);
+              if (newScale <= 1) setLbTranslate({ x: 0, y: 0 });
+            } else if (e.touches.length === 1 && lbScale > 1 && panStart.current) {
+              setLbTranslate({
+                x: panStart.current.tx + (e.touches[0].clientX - panStart.current.fx),
+                y: panStart.current.ty + (e.touches[0].clientY - panStart.current.fy),
+              });
+              touchStartX.current = null;
+            }
+          }}
+          onTouchEnd={(e) => {
+            setIsGesturing(false);
+            if (lbScale < 1.05) { setLbScale(1); setLbTranslate({ x: 0, y: 0 }); }
+            if (lbScale <= 1 && touchStartX.current !== null && e.touches.length === 0) {
+              const dx = e.changedTouches[0].clientX - touchStartX.current;
+              if (dx < -50 && lightboxIndex < photos.length - 1) setLightboxIndex(lightboxIndex + 1);
+              if (dx > 50 && lightboxIndex > 0) setLightboxIndex(lightboxIndex - 1);
+            }
+            touchStartX.current = null;
+            panStart.current = null;
+            pinchStartDist.current = null;
+          }}
+          style={{ touchAction: "none" }}
         >
           {/* Close button */}
           <button
@@ -912,17 +963,15 @@ function PhotoWallSection() {
             aria-label={t.lightboxClose}
           >✕</button>
 
-          {/* Prev arrow */}
-          {lightboxIndex > 0 && (
+          {/* Prev / Next arrows — hide when zoomed in */}
+          {lbScale === 1 && lightboxIndex > 0 && (
             <button
               className="absolute left-3 sm:left-6 text-white/80 hover:text-white bg-white/10 hover:bg-white/20 rounded-full w-10 h-10 flex items-center justify-center text-2xl transition-all z-10"
               onClick={(e) => { e.stopPropagation(); setLightboxIndex(lightboxIndex - 1); }}
               aria-label={t.lightboxPrev}
             >‹</button>
           )}
-
-          {/* Next arrow */}
-          {lightboxIndex < photos.length - 1 && (
+          {lbScale === 1 && lightboxIndex < photos.length - 1 && (
             <button
               className="absolute right-3 sm:right-6 text-white/80 hover:text-white bg-white/10 hover:bg-white/20 rounded-full w-10 h-10 flex items-center justify-center text-2xl transition-all z-10"
               onClick={(e) => { e.stopPropagation(); setLightboxIndex(lightboxIndex + 1); }}
@@ -935,13 +984,20 @@ function PhotoWallSection() {
             src={`${API_BASE}/api/photos/image/${photos[lightboxIndex]}`}
             alt={`照片 ${lightboxIndex + 1}`}
             className="max-h-[90vh] max-w-[90vw] object-contain rounded-xl shadow-2xl"
-            style={{ animation: "lightboxScale 0.22s cubic-bezier(0.34,1.56,0.64,1) both" }}
+            style={{
+              animation: "lightboxScale 0.22s cubic-bezier(0.34,1.56,0.64,1) both",
+              transform: `translate(${lbTranslate.x}px, ${lbTranslate.y}px) scale(${lbScale})`,
+              transition: isGesturing ? "none" : "transform 0.2s ease",
+              cursor: lbScale > 1 ? "grab" : "default",
+            }}
             onClick={(e) => e.stopPropagation()}
+            draggable={false}
           />
 
           {/* Page counter */}
           <div className="absolute bottom-5 left-1/2 -translate-x-1/2 text-white/70 text-sm font-noto-serif-tc tracking-widest select-none">
             {lightboxIndex + 1} / {photos.length}
+            {lbScale > 1 && <span className="ml-2 text-white/50 text-xs">縮小：點擊背景</span>}
           </div>
         </div>
       )}
