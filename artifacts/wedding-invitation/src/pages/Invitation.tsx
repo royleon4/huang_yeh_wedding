@@ -669,14 +669,14 @@ function WeddingDetailsSection() {
               role="button"
               tabIndex={0}
               onClick={() => openInCalendar(
-                makeICS({ summary: t.calBanquetTitle, location: t.calBanquetLocation, description: t.calBanquetDesc, dtStart: "20260620T173000", dtEnd: "20260620T193000", tzid: "Asia/Taipei" }),
-                { title: t.calBanquetTitle, start: "20260620T173000", end: "20260620T193000", location: t.calBanquetLocation, details: t.calBanquetDesc }
+                makeICS({ summary: t.calBanquetTitle, location: t.calBanquetLocation, description: t.calBanquetDesc, dtStart: "20260620T173000", dtEnd: "20260620T190000", tzid: "Asia/Taipei" }),
+                { title: t.calBanquetTitle, start: "20260620T173000", end: "20260620T190000", location: t.calBanquetLocation, details: t.calBanquetDesc }
               )}
               onKeyDown={(e) => {
                 if (e.key === "Enter" || e.key === " ") {
                   openInCalendar(
-                    makeICS({ summary: t.calBanquetTitle, location: t.calBanquetLocation, description: t.calBanquetDesc, dtStart: "20260620T173000", dtEnd: "20260620T193000", tzid: "Asia/Taipei" }),
-                    { title: t.calBanquetTitle, start: "20260620T173000", end: "20260620T193000", location: t.calBanquetLocation, details: t.calBanquetDesc }
+                    makeICS({ summary: t.calBanquetTitle, location: t.calBanquetLocation, description: t.calBanquetDesc, dtStart: "20260620T173000", dtEnd: "20260620T190000", tzid: "Asia/Taipei" }),
+                    { title: t.calBanquetTitle, start: "20260620T173000", end: "20260620T190000", location: t.calBanquetLocation, details: t.calBanquetDesc }
                   );
                 }
               }}
