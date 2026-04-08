@@ -174,15 +174,26 @@ function makeICS({ summary, location, description, dtStart, dtEnd }: {
   ].join("\r\n");
 }
 
-function openInCalendar(content: string): void {
-  const blob = new Blob([content], { type: "text/calendar;charset=utf-8" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
+function openInCalendar(
+  icsContent: string,
+  gcal: { title: string; start: string; end: string; location: string; details: string }
+): void {
+  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as unknown as Record<string, unknown>).MSStream;
+  if (isIOS) {
+    const a = document.createElement("a");
+    a.href = `data:text/calendar;charset=utf-8,${encodeURIComponent(icsContent)}`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  } else {
+    const url = new URL("https://calendar.google.com/calendar/render");
+    url.searchParams.set("action", "TEMPLATE");
+    url.searchParams.set("text", gcal.title);
+    url.searchParams.set("dates", `${gcal.start}/${gcal.end}`);
+    url.searchParams.set("details", gcal.details);
+    url.searchParams.set("location", gcal.location);
+    window.open(url.toString(), "_blank", "noopener,noreferrer");
+  }
 }
 
 function FloatingParticles() {
@@ -585,13 +596,10 @@ function WeddingDetailsSection() {
           {t.detailItems.map((item, i) => {
             const isDateCard = i === 0;
             const handleDateClick = isDateCard ? () => {
-              openInCalendar(makeICS({
-                summary: t.calCeremonyTitle,
-                location: t.calCeremonyLocation,
-                description: t.calCeremonyDesc,
-                dtStart: "20260620T070000Z",
-                dtEnd: "20260620T090000Z",
-              }));
+              openInCalendar(
+                makeICS({ summary: t.calCeremonyTitle, location: t.calCeremonyLocation, description: t.calCeremonyDesc, dtStart: "20260620T070000Z", dtEnd: "20260620T090000Z" }),
+                { title: t.calCeremonyTitle, start: "20260620T070000Z", end: "20260620T090000Z", location: t.calCeremonyLocation, details: t.calCeremonyDesc }
+              );
             } : undefined;
             return (
               <div
@@ -656,22 +664,16 @@ function WeddingDetailsSection() {
               className="flex items-start gap-3 cursor-pointer hover:opacity-80 active:opacity-60 transition-opacity"
               role="button"
               tabIndex={0}
-              onClick={() => openInCalendar(makeICS({
-                summary: t.calBanquetTitle,
-                location: t.calBanquetLocation,
-                description: t.calBanquetDesc,
-                dtStart: "20260620T093000Z",
-                dtEnd: "20260620T120000Z",
-              }))}
+              onClick={() => openInCalendar(
+                makeICS({ summary: t.calBanquetTitle, location: t.calBanquetLocation, description: t.calBanquetDesc, dtStart: "20260620T093000Z", dtEnd: "20260620T120000Z" }),
+                { title: t.calBanquetTitle, start: "20260620T093000Z", end: "20260620T120000Z", location: t.calBanquetLocation, details: t.calBanquetDesc }
+              )}
               onKeyDown={(e) => {
                 if (e.key === "Enter" || e.key === " ") {
-                  openInCalendar(makeICS({
-                    summary: t.calBanquetTitle,
-                    location: t.calBanquetLocation,
-                    description: t.calBanquetDesc,
-                    dtStart: "20260620T093000Z",
-                    dtEnd: "20260620T120000Z",
-                  }));
+                  openInCalendar(
+                    makeICS({ summary: t.calBanquetTitle, location: t.calBanquetLocation, description: t.calBanquetDesc, dtStart: "20260620T093000Z", dtEnd: "20260620T120000Z" }),
+                    { title: t.calBanquetTitle, start: "20260620T093000Z", end: "20260620T120000Z", location: t.calBanquetLocation, details: t.calBanquetDesc }
+                  );
                 }
               }}
             >
