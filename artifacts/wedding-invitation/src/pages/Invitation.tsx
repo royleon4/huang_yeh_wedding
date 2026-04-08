@@ -233,20 +233,20 @@ function CountdownWidget() {
       className="animate-fade-in-up"
       style={{ opacity: 0, animationDelay: "0.9s", animationFillMode: "forwards" }}
     >
-      <div className="inline-flex items-baseline justify-center gap-2 rounded-2xl px-5 py-1 backdrop-blur-sm invitation-shadow bg-white/50 border border-green-200/60">
+      <div className="inline-flex items-end justify-center gap-2 rounded-2xl px-5 pt-1 pb-1.5 backdrop-blur-sm invitation-shadow bg-white/50 border border-green-200/60">
         {done ? (
           <span className="font-noto-serif-tc text-sm font-semibold text-green-600 tracking-widest">
             {t.countdownDone}
           </span>
         ) : (
           <>
-            <span className="font-noto-serif-tc text-xs font-medium text-green-500 tracking-wider self-end pb-1">
+            <span className="font-noto-serif-tc text-xs font-medium text-green-500 tracking-wider pb-0.5">
               {t.countdownPrefix}
             </span>
-            <span className="font-playfair font-bold text-4xl sm:text-5xl text-green-800 leading-none tabular-nums">
+            <span className="font-playfair font-bold text-4xl sm:text-5xl text-green-800 leading-[0.85] tabular-nums">
               {value}
             </span>
-            <span className="font-noto-serif-tc text-sm sm:text-base font-semibold text-green-600 tracking-widest">
+            <span className="font-noto-serif-tc text-sm sm:text-base font-semibold text-green-600 tracking-widest pb-0.5">
               {label}
             </span>
           </>
@@ -506,7 +506,7 @@ function HeroSection() {
 
         {/* Date card */}
         <div
-          className="rounded-2xl px-4 py-3 sm:px-8 sm:py-5 mb-2 sm:mb-3 animate-fade-in-up backdrop-blur-sm invitation-shadow bg-white/60"
+          className="rounded-2xl px-4 py-3 sm:px-8 sm:py-5 mb-1 animate-fade-in-up backdrop-blur-sm invitation-shadow bg-white/60"
           style={{ opacity: 0, animationDelay: "0.8s", animationFillMode: "forwards" }}
           data-testid="card-date"
         >
