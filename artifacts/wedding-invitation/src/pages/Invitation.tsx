@@ -79,6 +79,11 @@ const ZH = {
     { icon: "🏨", name: "飯店自有停車場 B2–B4", desc: "24 小時開放，入場告知守衛參加婚宴，取停車卡，離場交還", fee: "NT$100 / 小時（建議致電確認宴會優惠）" },
     { icon: "📞", name: "飯店總機", desc: "06-289-9988", fee: "" },
   ],
+  countdownDone: "我們結婚了！🎉",
+  countdownDay: "天",
+  countdownHour: "小時",
+  countdownMin: "分鐘",
+  countdownSec: "秒",
 };
 
 const EN = {
@@ -152,6 +157,11 @@ const EN = {
     { icon: "🏨", name: "Hotel Car Park B2–B4", desc: "24 hrs. Tell the guard you're attending the banquet, collect a parking card, return it when leaving.", fee: "NT$100 / hr (call ahead to confirm banquet discount)" },
     { icon: "📞", name: "Hotel Front Desk", desc: "06-289-9988", fee: "" },
   ],
+  countdownDone: "We're Married! 🎉",
+  countdownDay: "Days",
+  countdownHour: "Hours",
+  countdownMin: "Minutes",
+  countdownSec: "Seconds",
 };
 
 const LanguageCtx = createContext<{ lang: Lang; setLang: (l: Lang) => void }>({ lang: "zh", setLang: () => {} });
@@ -175,6 +185,66 @@ function useIntersectionObserver(threshold = 0.1) {
   }, [threshold]);
 
   return { ref, isVisible };
+}
+
+const WEDDING_TARGET = new Date("2026-06-20T15:00:00+08:00").getTime();
+
+function useCountdown() {
+  const calc = () => {
+    const diff = WEDDING_TARGET - Date.now();
+    if (diff <= 0) return { done: true, value: 0, unit: "sec" as const };
+    const totalSec = Math.floor(diff / 1000);
+    const totalMin = Math.floor(diff / 60000);
+    const totalHour = Math.floor(diff / 3600000);
+    const totalDay = Math.floor(diff / 86400000);
+    if (totalDay >= 1) return { done: false, value: totalDay, unit: "day" as const };
+    if (totalHour >= 1) return { done: false, value: totalHour, unit: "hour" as const };
+    if (totalMin >= 1) return { done: false, value: totalMin, unit: "min" as const };
+    return { done: false, value: totalSec, unit: "sec" as const };
+  };
+
+  const [state, setState] = useState(calc);
+
+  useEffect(() => {
+    const id = setInterval(() => setState(calc()), 1000);
+    return () => clearInterval(id);
+  }, []);
+
+  return state;
+}
+
+function CountdownWidget() {
+  const t = useT();
+  const { done, value, unit } = useCountdown();
+  const unitLabel: Record<string, string> = {
+    day: t.countdownDay,
+    hour: t.countdownHour,
+    min: t.countdownMin,
+    sec: t.countdownSec,
+  };
+  return (
+    <div
+      className="animate-fade-in-up"
+      style={{ opacity: 0, animationDelay: "0.9s", animationFillMode: "forwards" }}
+    >
+      <div className="inline-flex items-baseline justify-center gap-2 rounded-2xl px-6 py-2 backdrop-blur-sm invitation-shadow bg-white/50 border border-green-200/60">
+        {done ? (
+          <span className="font-noto-serif-tc text-base sm:text-lg font-bold text-green-700 tracking-wide">
+            {t.countdownDone}
+          </span>
+        ) : (
+          <>
+            <span className="font-playfair font-bold text-4xl sm:text-5xl text-green-800 leading-none tabular-nums">
+              {value}
+            </span>
+            <span className="font-noto-serif-tc text-sm sm:text-base font-semibold text-green-600 tracking-widest">
+              {unitLabel[unit]}
+            </span>
+          </>
+        )}
+      </div>
+    </div>
+  );
 }
 
 function makeICS({ summary, location, description, dtStart, dtEnd, tzid }: {
@@ -439,10 +509,15 @@ function HeroSection() {
           </p>
         </div>
 
+        {/* Countdown */}
+        <div className="mb-3 sm:mb-4">
+          <CountdownWidget />
+        </div>
+
         {/* Invitation paragraphs */}
         <div
           className="animate-fade-in-up mb-4 sm:mb-6 px-2"
-          style={{ opacity: 0, animationDelay: "1.0s", animationFillMode: "forwards" }}
+          style={{ opacity: 0, animationDelay: "1.1s", animationFillMode: "forwards" }}
         >
           <p className="font-noto-serif-tc text-xs sm:text-sm leading-relaxed tracking-wide text-green-700 mb-3">
             {t.heroPara1}
