@@ -579,7 +579,7 @@ function WeddingDetailsSection() {
 
         {/* Banquet info */}
         <div
-          className={`mt-4 bg-yellow-400/10 backdrop-blur-sm rounded-2xl p-5 sm:p-6 border border-yellow-400/30 transition-all duration-1000 delay-350 ${isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-10"}`}
+          className={`mt-4 bg-yellow-400/10 backdrop-blur-sm rounded-2xl p-5 sm:p-6 border border-yellow-400/30 transition-all duration-1000 delay-300 ${isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-10"}`}
         >
           <p className="font-zen-old-mincho text-yellow-300 text-lg sm:text-xl font-semibold text-center mb-4 tracking-widest">
             {t.banquetLabel}
@@ -594,7 +594,7 @@ function WeddingDetailsSection() {
               </div>
             </div>
             <div className="flex items-start gap-3">
-              <span className="text-xl shrink-0 mt-0.5">🏨</span>
+              <span className="text-xl shrink-0 mt-0.5">🍽️</span>
               <div>
                 <p className="font-noto-serif-tc text-yellow-100 text-sm sm:text-base font-semibold leading-snug">
                   {t.banquetVenue}
