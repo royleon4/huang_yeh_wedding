@@ -65,6 +65,19 @@ const ZH = {
   calBanquetTitle: "黃葉家宴",
   calBanquetLocation: "台糖長榮酒店（台南）吃遍天下自助餐廳, 台南市東區中華東路三段336巷1號2樓",
   calBanquetDesc: "Leon 黃律詠 & YehYeh 葉藝慧 婚禮家宴\n2026年06月20日 晚上5:30\n台糖長榮酒店（台南）吃遍天下自助餐廳\n台南市東區中華東路三段336巷1號2樓",
+  transportLabel: "交通與停車",
+  transportCeremonyTitle: "典禮 · 德光長老教會",
+  transportBanquetTitle: "家宴 · 台糖長榮酒店",
+  transportCeremonyItems: [
+    { icon: "🅿️", name: "路邊停車格", desc: "崇德四街、崇德路沿線", fee: "約 NT$20 / 小時" },
+    { icon: "🏛️", name: "榮譽街公有停車場", desc: "東區榮譽街 2 號 131 巷，汽車約 300 格", fee: "NT$20 / 小時，機車免費" },
+    { icon: "🏫", name: "崇明國中假日停車", desc: "週六日開放，需確認當日是否有校內活動", fee: "免費" },
+    { icon: "🏬", name: "德安百貨地下停車場", desc: "步行約 5–10 分鐘", fee: "依消費折抵" },
+  ],
+  transportBanquetItems: [
+    { icon: "🏨", name: "飯店自有停車場 B2–B4", desc: "24 小時開放，入場告知守衛參加婚宴，取停車卡，離場交還", fee: "NT$100 / 小時（建議致電確認宴會優惠）" },
+    { icon: "📞", name: "飯店總機", desc: "06-289-9988", fee: "" },
+  ],
 };
 
 const EN = {
@@ -125,6 +138,19 @@ const EN = {
   calBanquetTitle: "黃葉家宴",
   calBanquetLocation: "Evergreen Laurel Hotel Tainan — Eat Around the World Buffet",
   calBanquetDesc: "Leon & YehYeh Wedding Banquet\nJune 20, 2026 · 5:30 PM\nEvergreen Laurel Hotel Tainan\nNo. 1, Lane 336, Sec. 3, Zhonghua E. Rd., East Dist., Tainan, 2F",
+  transportLabel: "Getting There",
+  transportCeremonyTitle: "Ceremony · De-Guang Presbyterian Church",
+  transportBanquetTitle: "Banquet · Evergreen Laurel Hotel",
+  transportCeremonyItems: [
+    { icon: "🅿️", name: "Street Parking", desc: "Along Chongde 4th St. & Chongde Rd.", fee: "Approx. NT$20 / hr" },
+    { icon: "🏛️", name: "Rongyue St. Public Car Park", desc: "No. 2, Lane 131, Rongyue St., East Dist. — 300+ spaces", fee: "NT$20 / hr (cars), free (motorcycles)" },
+    { icon: "🏫", name: "Chongming Jr. High (Weekend Lot)", desc: "Open Sat & Sun — confirm availability on the day", fee: "Free" },
+    { icon: "🏬", name: "De-An Department Store (Basement)", desc: "Approx. 5–10 min walk", fee: "Free with purchase" },
+  ],
+  transportBanquetItems: [
+    { icon: "🏨", name: "Hotel Car Park B2–B4", desc: "24 hrs. Tell the guard you're attending the banquet, collect a parking card, return it when leaving.", fee: "NT$100 / hr (call ahead to confirm banquet discount)" },
+    { icon: "📞", name: "Hotel Front Desk", desc: "06-289-9988", fee: "" },
+  ],
 };
 
 const LanguageCtx = createContext<{ lang: Lang; setLang: (l: Lang) => void }>({ lang: "zh", setLang: () => {} });
@@ -734,6 +760,80 @@ function WeddingDetailsSection() {
             <span className="text-yellow-300/70 text-sm font-noto-serif-tc self-center">
               {t.dressKiwi}
             </span>
+          </div>
+        </div>
+
+        {/* Transport & Parking */}
+        <div
+          className={`mt-6 sm:mt-8 transition-all duration-1000 delay-500 ${isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-10"}`}
+        >
+          {/* Divider */}
+          <div className="flex items-center gap-3 mb-5">
+            <div className="flex-1 h-px bg-gradient-to-r from-transparent via-yellow-400/50 to-transparent" />
+            <span className="text-yellow-300 text-base">🚗</span>
+            <div className="flex-1 h-px bg-gradient-to-r from-transparent via-yellow-400/50 to-transparent" />
+          </div>
+
+          <p className="font-zen-old-mincho text-yellow-300 text-base sm:text-lg font-semibold text-center tracking-widest mb-4">
+            {t.transportLabel}
+          </p>
+
+          {/* Ceremony parking */}
+          <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-4 sm:p-5 border border-yellow-400/20 mb-3">
+            <p className="font-noto-serif-tc text-yellow-200 text-xs sm:text-sm font-semibold mb-3 tracking-wide">
+              {t.transportCeremonyTitle}
+            </p>
+            <div className="space-y-3">
+              {t.transportCeremonyItems.map((item) => (
+                <div key={item.name} className="flex items-start gap-2">
+                  <span className="text-base shrink-0 mt-0.5">{item.icon}</span>
+                  <div className="min-w-0">
+                    <p className="font-noto-serif-tc text-yellow-100 text-xs sm:text-sm font-medium leading-snug">
+                      {item.name}
+                    </p>
+                    {item.desc && (
+                      <p className="font-noto-serif-tc text-yellow-400/60 text-xs leading-relaxed mt-0.5">
+                        {item.desc}
+                      </p>
+                    )}
+                    {item.fee && (
+                      <p className="font-noto-serif-tc text-green-300/70 text-xs mt-0.5">
+                        {item.fee}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Banquet parking */}
+          <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-4 sm:p-5 border border-yellow-400/20">
+            <p className="font-noto-serif-tc text-yellow-200 text-xs sm:text-sm font-semibold mb-3 tracking-wide">
+              {t.transportBanquetTitle}
+            </p>
+            <div className="space-y-3">
+              {t.transportBanquetItems.map((item) => (
+                <div key={item.name} className="flex items-start gap-2">
+                  <span className="text-base shrink-0 mt-0.5">{item.icon}</span>
+                  <div className="min-w-0">
+                    <p className="font-noto-serif-tc text-yellow-100 text-xs sm:text-sm font-medium leading-snug">
+                      {item.name}
+                    </p>
+                    {item.desc && (
+                      <p className="font-noto-serif-tc text-yellow-400/60 text-xs leading-relaxed mt-0.5">
+                        {item.desc}
+                      </p>
+                    )}
+                    {item.fee && (
+                      <p className="font-noto-serif-tc text-green-300/70 text-xs mt-0.5">
+                        {item.fee}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       </div>
