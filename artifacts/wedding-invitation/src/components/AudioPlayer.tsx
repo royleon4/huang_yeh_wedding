@@ -3,12 +3,14 @@ import weddingMusic from "@assets/【好喜歡與你在一起_I_Really_Love_To_B
 
 export function AudioPlayer() {
   const audioRef = useRef<HTMLAudioElement>(null);
-  const [muted, setMuted] = useState(true);
+  const [muted, setMuted] = useState(false);
   const startedRef = useRef(false);
 
   useEffect(() => {
     const audio = audioRef.current;
     if (!audio) return;
+
+    audio.volume = 0.2;
 
     const tryPlay = () => {
       if (startedRef.current) return;
@@ -27,6 +29,7 @@ export function AudioPlayer() {
       window.removeEventListener("scroll", tryPlay);
     };
 
+    tryPlay();
     window.addEventListener("click", tryPlay);
     window.addEventListener("touchstart", tryPlay);
     window.addEventListener("scroll", tryPlay);
@@ -65,24 +68,18 @@ export function AudioPlayer() {
         src={weddingMusic}
         loop
         autoPlay
-        muted
         preload="none"
       />
       <button
         onClick={toggleMute}
         aria-label={muted ? "播放音樂" : "靜音"}
-        className="fixed bottom-6 right-6 z-50 w-11 h-11 rounded-full flex items-center justify-center shadow-lg transition-all duration-300 hover:scale-110 active:scale-95 border border-white/30"
-        style={{
-          background: "rgba(255,255,255,0.18)",
-          backdropFilter: "blur(10px)",
-          WebkitBackdropFilter: "blur(10px)",
-        }}
+        className="fixed bottom-4 right-3 z-50 w-9 h-9 rounded-full flex items-center justify-center shadow-lg transition-all duration-300 hover:bg-white/60 active:scale-95 border border-white/60 bg-white/40 backdrop-blur-md"
       >
         {muted ? (
           <svg
             xmlns="http://www.w3.org/2000/svg"
-            width="20"
-            height="20"
+            width="18"
+            height="18"
             viewBox="0 0 24 24"
             fill="none"
             stroke="#5a8c30"
@@ -97,8 +94,8 @@ export function AudioPlayer() {
         ) : (
           <svg
             xmlns="http://www.w3.org/2000/svg"
-            width="20"
-            height="20"
+            width="18"
+            height="18"
             viewBox="0 0 24 24"
             fill="none"
             stroke="#5a8c30"
