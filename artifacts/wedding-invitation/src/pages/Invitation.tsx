@@ -58,6 +58,7 @@ const ZH = {
   rsvpH2: "RSVP",
   rsvpDeadline: "請於 2026年5月10日 前回覆",
   footerDog: "葉黃素夢 也很期待見到大家",
+  addToCalendar: "加入行事曆",
 };
 
 const EN = {
@@ -111,6 +112,7 @@ const EN = {
   rsvpH2: "RSVP",
   rsvpDeadline: "Please respond by May 20, 2026",
   footerDog: "Suomi can't wait to see you all",
+  addToCalendar: "Add to Calendar",
 };
 
 const LanguageCtx = createContext<{ lang: Lang; setLang: (l: Lang) => void }>({ lang: "zh", setLang: () => {} });
@@ -134,6 +136,42 @@ function useIntersectionObserver(threshold = 0.1) {
   }, [threshold]);
 
   return { ref, isVisible };
+}
+
+function makeICS({ summary, location, description, dtStart, dtEnd }: {
+  summary: string; location: string; description: string;
+  dtStart: string; dtEnd: string;
+}): string {
+  const esc = (s: string) =>
+    s.replace(/\\/g, "\\\\").replace(/\n/g, "\\n").replace(/,/g, "\\,").replace(/;/g, "\\;");
+  return [
+    "BEGIN:VCALENDAR",
+    "VERSION:2.0",
+    "PRODID:-//Leon & YehYeh Wedding//EN",
+    "CALSCALE:GREGORIAN",
+    "METHOD:PUBLISH",
+    "BEGIN:VEVENT",
+    `DTSTART:${dtStart}`,
+    `DTEND:${dtEnd}`,
+    `SUMMARY:${esc(summary)}`,
+    `LOCATION:${esc(location)}`,
+    `DESCRIPTION:${esc(description)}`,
+    "STATUS:CONFIRMED",
+    "END:VEVENT",
+    "END:VCALENDAR",
+  ].join("\r\n");
+}
+
+function downloadICS(filename: string, content: string): void {
+  const blob = new Blob([content], { type: "text/calendar;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
 }
 
 function FloatingParticles() {
@@ -533,36 +571,57 @@ function WeddingDetailsSection() {
         </div>
 
         <div className="grid grid-cols-2 gap-4 sm:gap-6 items-stretch">
-          {t.detailItems.map((item, i) => (
-            <div
-              key={item.label}
-              className={`flex flex-col text-center bg-white/10 backdrop-blur-sm rounded-2xl p-4 sm:p-6 border border-yellow-400/20 transition-all duration-1000 ${["delay-100","delay-200","delay-300"][i] ?? ""} ${isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-10"}`}
-              data-testid={`card-detail-${item.label}`}
-            >
-              <div className="text-3xl sm:text-4xl mb-3">{item.icon}</div>
-              <p className="font-noto-serif-tc text-yellow-200 text-sm sm:text-base font-medium">
-                {item.label}
-              </p>
-              <div className="h-px bg-yellow-400/20 my-3" />
-              <p className="font-playfair text-yellow-100 text-base sm:text-lg font-semibold">
-                {item.content}
-              </p>
-              <p className="font-noto-serif-tc text-yellow-400/60 text-xs sm:text-sm mt-auto pt-1">
-                {item.mapQuery ? (
-                  <a
-                    href={`https://maps.google.com/maps?q=${encodeURIComponent(item.mapQuery)}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="underline underline-offset-2 hover:text-yellow-300 transition-colors"
-                  >
-                    {item.note}
-                  </a>
-                ) : (
-                  item.note
+          {t.detailItems.map((item, i) => {
+            const isDateCard = i === 0;
+            const handleDateClick = isDateCard ? () => {
+              downloadICS("wedding-ceremony.ics", makeICS({
+                summary: lang === "zh" ? "Leon & YehYeh 婚禮典禮" : "Leon & YehYeh Wedding Ceremony",
+                location: "德光長老教會, 台南市東區崇德四街100號",
+                description: lang === "zh"
+                  ? "Leon 黃律詠 & YehYeh 葉藝慧 婚禮典禮\n2026年06月20日 下午3點\n德光長老教會\n台南市東區崇德四街100號"
+                  : "Leon & YehYeh Wedding Ceremony\nJune 20, 2026 · 3:00 PM\nDe-Guang Presbyterian Church\nNo. 100, Chongde 4th St., East Dist., Tainan",
+                dtStart: "20260620T070000Z",
+                dtEnd: "20260620T090000Z",
+              }));
+            } : undefined;
+            return (
+              <div
+                key={item.label}
+                className={`flex flex-col text-center bg-white/10 backdrop-blur-sm rounded-2xl p-4 sm:p-6 border border-yellow-400/20 transition-all duration-1000 ${["delay-100","delay-200","delay-300"][i] ?? ""} ${isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-10"} ${isDateCard ? "cursor-pointer hover:bg-white/20 active:scale-[0.97]" : ""}`}
+                onClick={handleDateClick}
+                role={isDateCard ? "button" : undefined}
+                data-testid={`card-detail-${item.label}`}
+              >
+                <div className="text-3xl sm:text-4xl mb-3">{item.icon}</div>
+                <p className="font-noto-serif-tc text-yellow-200 text-sm sm:text-base font-medium">
+                  {item.label}
+                </p>
+                <div className="h-px bg-yellow-400/20 my-3" />
+                <p className="font-playfair text-yellow-100 text-base sm:text-lg font-semibold">
+                  {item.content}
+                </p>
+                <p className="font-noto-serif-tc text-yellow-400/60 text-xs sm:text-sm mt-auto pt-1">
+                  {item.mapQuery ? (
+                    <a
+                      href={`https://maps.google.com/maps?q=${encodeURIComponent(item.mapQuery)}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="underline underline-offset-2 hover:text-yellow-300 transition-colors"
+                    >
+                      {item.note}
+                    </a>
+                  ) : (
+                    item.note
+                  )}
+                </p>
+                {isDateCard && (
+                  <p className="font-noto-serif-tc text-yellow-400/50 text-xs mt-2">
+                    📅 {t.addToCalendar}
+                  </p>
                 )}
-              </p>
-            </div>
-          ))}
+              </div>
+            );
+          })}
         </div>
 
         {/* Banquet divider */}
@@ -582,11 +641,28 @@ function WeddingDetailsSection() {
             {t.banquetLabel}
           </p>
           <div className="space-y-3">
-            <div className="flex items-start gap-3">
+            <div
+              className="flex items-start gap-3 cursor-pointer hover:opacity-80 active:opacity-60 transition-opacity"
+              role="button"
+              onClick={() => downloadICS("wedding-banquet.ics", makeICS({
+                summary: lang === "zh" ? "Leon & YehYeh 家宴" : "Leon & YehYeh Wedding Banquet",
+                location: lang === "zh"
+                  ? "台糖長榮酒店（台南）吃遍天下自助餐廳, 台南市東區中華東路三段336巷1號2樓"
+                  : "Evergreen Laurel Hotel Tainan — Eat Around the World Buffet",
+                description: lang === "zh"
+                  ? "Leon 黃律詠 & YehYeh 葉藝慧 婚禮家宴\n2026年06月20日 晚上5:30\n台糖長榮酒店（台南）吃遍天下自助餐廳\n台南市東區中華東路三段336巷1號2樓"
+                  : "Leon & YehYeh Wedding Banquet\nJune 20, 2026 · 5:30 PM\nEvergreen Laurel Hotel Tainan\nNo. 1, Lane 336, Sec. 3, Zhonghua E. Rd., East Dist., Tainan, 2F",
+                dtStart: "20260620T093000Z",
+                dtEnd: "20260620T120000Z",
+              }))}
+            >
               <span className="text-xl shrink-0 mt-0.5">⏰</span>
               <div>
                 <p className="font-noto-serif-tc text-yellow-100 text-sm sm:text-base font-semibold">
                   {t.banquetTime}
+                </p>
+                <p className="font-noto-serif-tc text-yellow-400/50 text-xs mt-0.5">
+                  📅 {t.addToCalendar}
                 </p>
               </div>
             </div>
