@@ -34,7 +34,7 @@ const ZH = {
   detailsLabel: "婚禮詳情",
   detailsH2: "Wedding Details",
   detailItems: [
-    { icon: "📅", label: "日期 · 時間", sub: "Date & Time", content: "2026年06月20日", note: "星期六 · 下午 3:00 – 4:15" },
+    { icon: "📅", label: "日期 · 時間", sub: "Date & Time", content: "2026年\n6月20日", note: "星期六 · 下午 3:00 – 4:15" },
     { icon: "📍", label: "地點", sub: "Venue", content: "德光長老教會", note: "台南市東區崇德四街100號", mapQuery: "台南市東區崇德四街100號" },
   ],
   banquetLabel: "家宴",
@@ -94,7 +94,7 @@ const EN = {
   detailsLabel: "DETAILS",
   detailsH2: "Wedding Details",
   detailItems: [
-    { icon: "📅", label: "Date & Time", sub: "Date & Time", content: "June 20, 2026", note: "Saturday · 3:00 – 4:15 PM" },
+    { icon: "📅", label: "Date & Time", sub: "Date & Time", content: "2026\nJune 20", note: "Saturday · 3:00 – 4:15 PM" },
     { icon: "📍", label: "Venue", sub: "Venue", content: "De-Guang Presbyterian Church", note: "No. 100, Chongde 4th St., East Dist., Tainan", mapQuery: "台南市東區崇德四街100號" },
   ],
   banquetLabel: "Evening Banquet",
@@ -620,7 +620,7 @@ function WeddingDetailsSection() {
                   {item.label}
                 </p>
                 <div className="h-px bg-yellow-400/20 my-3" />
-                <p className="font-playfair text-yellow-100 text-base sm:text-lg font-semibold">
+                <p className="font-playfair text-yellow-100 text-base sm:text-lg font-semibold whitespace-pre-line">
                   {item.content}
                 </p>
                 <p className="font-noto-serif-tc text-yellow-400/60 text-xs sm:text-sm mt-auto pt-1">
