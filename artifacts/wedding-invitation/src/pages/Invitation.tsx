@@ -136,6 +136,73 @@ function useIntersectionObserver(threshold = 0.1) {
   return { ref, isVisible };
 }
 
+function FloatingParticles() {
+  type ParticleType = "heart" | "kiwifruit" | "kiwi";
+  const [particles, setParticles] = useState<
+    { id: number; type: ParticleType; x: number; size: number; duration: number }[]
+  >([]);
+  const counterRef = useRef(0);
+
+  useEffect(() => {
+    let timeoutId: ReturnType<typeof setTimeout>;
+    const TYPES: ParticleType[] = ["heart", "kiwifruit", "kiwi"];
+
+    const spawn = () => {
+      const id = ++counterRef.current;
+      const type = TYPES[Math.floor(Math.random() * 3)];
+      const x = 8 + Math.random() * 84;
+      const size = 16 + Math.random() * 12;
+      const duration = 4 + Math.random() * 3;
+
+      setParticles((prev) => {
+        if (prev.length >= 12) return prev;
+        return [...prev, { id, type, x, size, duration }];
+      });
+
+      setTimeout(() => {
+        setParticles((prev) => prev.filter((p) => p.id !== id));
+      }, duration * 1000 + 300);
+    };
+
+    const scheduleNext = () => {
+      const delay = 1500 + Math.random() * 1500;
+      timeoutId = setTimeout(() => {
+        spawn();
+        scheduleNext();
+      }, delay);
+    };
+
+    spawn();
+    scheduleNext();
+    return () => clearTimeout(timeoutId);
+  }, []);
+
+  return (
+    <div className="pointer-events-none select-none">
+      {particles.map((p) => (
+        <div
+          key={p.id}
+          style={{
+            position: "fixed",
+            bottom: 0,
+            left: `${p.x}%`,
+            zIndex: 39,
+            animation: `floatUpFade ${p.duration}s ease-out forwards`,
+          }}
+        >
+          {p.type === "heart" && (
+            <svg width={p.size} height={p.size} viewBox="0 0 24 24" fill="#4ade80">
+              <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" />
+            </svg>
+          )}
+          {p.type === "kiwifruit" && <KiwiFruit size={p.size} />}
+          {p.type === "kiwi" && <KiwiIcon size={p.size} />}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function FloatingKiwis() {
   return (
     <div className="pointer-events-none select-none hidden sm:block">
@@ -1015,6 +1082,7 @@ export default function Invitation() {
       <div className="w-screen h-screen overflow-hidden">
         <AudioPlayer />
         <FloatingNav scrollContainerRef={scrollContainerRef} labels={t.nav} navAriaLabel={t.navAriaLabel} />
+        <FloatingParticles />
         <FloatingKiwis />
         <FontSizeControls
           step={fontStep}
