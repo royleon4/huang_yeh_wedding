@@ -906,7 +906,7 @@ function FontSizeControls({ step, onIncrease, onDecrease, min, max }: FontSizeCo
   const { lang, setLang } = useContext(LanguageCtx);
   return (
     <div className="fixed bottom-4 left-3 z-50">
-      <div className="flex items-center bg-white/75 backdrop-blur-md shadow-lg border border-white/60 rounded-full overflow-hidden">
+      <div className="flex items-center bg-white/40 backdrop-blur-md shadow-lg border border-white/60 rounded-full overflow-hidden">
         <button
           onClick={() => setLang(lang === "zh" ? "en" : "zh")}
           aria-label="切換語言 / Toggle language"
