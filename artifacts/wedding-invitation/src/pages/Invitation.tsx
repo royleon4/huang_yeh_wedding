@@ -38,7 +38,7 @@ const ZH = {
     { icon: "📍", label: "地點", sub: "Venue", content: "德光長老教會", note: "台南市東區崇德四街100號", mapQuery: "台南市東區崇德四街100號" },
   ],
   banquetLabel: "家宴",
-  banquetTime: "下午 5:30 – 晚上 7:00",
+  banquetTime: "晚上 5:30 – 7:00",
   banquetVenue: "台糖長榮酒店（台南）吃遍天下自助餐廳",
   banquetAddress: "台南市東區中華東路三段336巷1號2樓",
   dressLabel: "服裝建議",
