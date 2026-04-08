@@ -150,9 +150,9 @@ function useIntersectionObserver(threshold = 0.1) {
   return { ref, isVisible };
 }
 
-function makeICS({ summary, location, description, dtStart, dtEnd }: {
+function makeICS({ summary, location, description, dtStart, dtEnd, tzid }: {
   summary: string; location: string; description: string;
-  dtStart: string; dtEnd: string;
+  dtStart: string; dtEnd: string; tzid: string;
 }): string {
   const esc = (s: string) =>
     s.replace(/\\/g, "\\\\").replace(/\n/g, "\\n").replace(/,/g, "\\,").replace(/;/g, "\\;");
@@ -163,8 +163,8 @@ function makeICS({ summary, location, description, dtStart, dtEnd }: {
     "CALSCALE:GREGORIAN",
     "METHOD:PUBLISH",
     "BEGIN:VEVENT",
-    `DTSTART:${dtStart}`,
-    `DTEND:${dtEnd}`,
+    `DTSTART;TZID=${tzid}:${dtStart}`,
+    `DTEND;TZID=${tzid}:${dtEnd}`,
     `SUMMARY:${esc(summary)}`,
     `LOCATION:${esc(location)}`,
     `DESCRIPTION:${esc(description)}`,
@@ -195,7 +195,7 @@ function openInCalendar(
       details: gcal.details,
       location: gcal.location,
     });
-    const gcalUrl = `https://calendar.google.com/calendar/render?${params.toString()}&dates=${gcal.start}/${gcal.end}`;
+    const gcalUrl = `https://calendar.google.com/calendar/render?${params.toString()}&dates=${gcal.start}/${gcal.end}&ctz=Asia/Taipei`;
     window.open(gcalUrl, "_blank", "noopener,noreferrer");
   }
 }
@@ -601,8 +601,8 @@ function WeddingDetailsSection() {
             const isDateCard = i === 0;
             const handleDateClick = isDateCard ? () => {
               openInCalendar(
-                makeICS({ summary: t.calCeremonyTitle, location: t.calCeremonyLocation, description: t.calCeremonyDesc, dtStart: "20260620T070000Z", dtEnd: "20260620T083000Z" }),
-                { title: t.calCeremonyTitle, start: "20260620T070000Z", end: "20260620T083000Z", location: t.calCeremonyLocation, details: t.calCeremonyDesc }
+                makeICS({ summary: t.calCeremonyTitle, location: t.calCeremonyLocation, description: t.calCeremonyDesc, dtStart: "20260620T150000", dtEnd: "20260620T161500", tzid: "Asia/Taipei" }),
+                { title: t.calCeremonyTitle, start: "20260620T150000", end: "20260620T161500", location: t.calCeremonyLocation, details: t.calCeremonyDesc }
               );
             } : undefined;
             return (
@@ -669,14 +669,14 @@ function WeddingDetailsSection() {
               role="button"
               tabIndex={0}
               onClick={() => openInCalendar(
-                makeICS({ summary: t.calBanquetTitle, location: t.calBanquetLocation, description: t.calBanquetDesc, dtStart: "20260620T093000Z", dtEnd: "20260620T113000Z" }),
-                { title: t.calBanquetTitle, start: "20260620T093000Z", end: "20260620T113000Z", location: t.calBanquetLocation, details: t.calBanquetDesc }
+                makeICS({ summary: t.calBanquetTitle, location: t.calBanquetLocation, description: t.calBanquetDesc, dtStart: "20260620T173000", dtEnd: "20260620T193000", tzid: "Asia/Taipei" }),
+                { title: t.calBanquetTitle, start: "20260620T173000", end: "20260620T193000", location: t.calBanquetLocation, details: t.calBanquetDesc }
               )}
               onKeyDown={(e) => {
                 if (e.key === "Enter" || e.key === " ") {
                   openInCalendar(
-                    makeICS({ summary: t.calBanquetTitle, location: t.calBanquetLocation, description: t.calBanquetDesc, dtStart: "20260620T093000Z", dtEnd: "20260620T113000Z" }),
-                    { title: t.calBanquetTitle, start: "20260620T093000Z", end: "20260620T113000Z", location: t.calBanquetLocation, details: t.calBanquetDesc }
+                    makeICS({ summary: t.calBanquetTitle, location: t.calBanquetLocation, description: t.calBanquetDesc, dtStart: "20260620T173000", dtEnd: "20260620T193000", tzid: "Asia/Taipei" }),
+                    { title: t.calBanquetTitle, start: "20260620T173000", end: "20260620T193000", location: t.calBanquetLocation, details: t.calBanquetDesc }
                   );
                 }
               }}
