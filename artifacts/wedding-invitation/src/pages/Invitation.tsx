@@ -303,7 +303,7 @@ function HeroSection() {
           <span
             className="font-playfair text-3xl sm:text-5xl leading-tight font-semibold italic text-left text-green-800 animate-fade-in-up"
             style={{ opacity: 0, animationDelay: "0.4s", animationFillMode: "forwards" }}
-          >Yeh</span>
+          >YehYeh</span>
 
           {/* Row 2: Chinese names */}
           <span
@@ -934,7 +934,7 @@ function FooterSection() {
         </div>
 
         <h2 className="font-great-vibes text-3xl sm:text-5xl text-yellow-300/80 mb-3">
-          Leon & Yeh
+          Leon & YehYeh
         </h2>
         <p className="font-noto-serif-tc text-green-400/50 text-xs tracking-widest mb-6">
           2026 · 06 · 20
