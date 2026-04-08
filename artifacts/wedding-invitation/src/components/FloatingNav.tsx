@@ -198,7 +198,7 @@ export function FloatingNav({ scrollContainerRef, onNavClick, labels, navAriaLab
             className={`${pillBase} flex flex-row items-center gap-[0.2em] text-green-700 transition-all duration-200 active:scale-95 hover:bg-white/90 hover:text-green-900 animate-heartbeat hover:[animation-play-state:paused] px-[0.6em] py-[0.45em]`}
           >
             <span
-              className="text-[0.85em] font-medium text-green-800/80 text-right"
+              className="text-[0.85em] font-medium text-green-800/80 text-left"
               style={{ width: "1.2em", wordBreak: "break-all", lineHeight: 1.1 }}
             >
               {nextLabel}
