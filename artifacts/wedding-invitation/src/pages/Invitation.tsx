@@ -38,6 +38,10 @@ const ZH = {
     { icon: "⏰", label: "時間", sub: "Time", content: "下午三點", note: "3:00 PM" },
     { icon: "📍", label: "地點", sub: "Venue", content: "德光長老教會", note: "台南市東區崇德四街100號" },
   ],
+  banquetLabel: "家宴",
+  banquetTime: "晚上 5:30",
+  banquetVenue: "台糖長榮酒店（台南）吃遍天下自助餐廳",
+  banquetAddress: "台南市東區中華東路三段336巷1號2樓",
   dressLabel: "服裝建議",
   dressGreen: "綠色系", dressYellow: "黃色系", dressKiwi: "歡迎融入奇異果元素 🥝",
   galleryLabel: "我們的相片",
@@ -88,6 +92,10 @@ const EN = {
     { icon: "⏰", label: "Time", sub: "Time", content: "3:00 PM", note: "Saturday Afternoon" },
     { icon: "📍", label: "Venue", sub: "Venue", content: "De-Guang Presbyterian Church", note: "No. 100, Chongde 4th St., East Dist., Tainan" },
   ],
+  banquetLabel: "Evening Banquet",
+  banquetTime: "5:30 PM",
+  banquetVenue: "Evergreen Laurel Hotel Tainan — \"Eat Around the World\" Buffet",
+  banquetAddress: "No. 1, Lane 336, Sec. 3, Zhonghua E. Rd., East Dist., Tainan, 2F",
   dressLabel: "Dress Code",
   dressGreen: "Green tones", dressYellow: "Yellow tones", dressKiwi: "Kiwi elements welcome 🥝",
   galleryLabel: "OUR PHOTOS",
@@ -558,6 +566,50 @@ function WeddingDetailsSection() {
               </p>
             </div>
           ))}
+        </div>
+
+        {/* Banquet divider */}
+        <div
+          className={`flex items-center gap-3 mt-6 sm:mt-8 transition-all duration-1000 delay-300 ${isVisible ? "opacity-100" : "opacity-0"}`}
+        >
+          <div className="flex-1 h-px bg-gradient-to-r from-transparent via-yellow-400/50 to-transparent" />
+          <span className="text-yellow-300 text-lg">🍽️</span>
+          <div className="flex-1 h-px bg-gradient-to-r from-transparent via-yellow-400/50 to-transparent" />
+        </div>
+
+        {/* Banquet info */}
+        <div
+          className={`mt-4 bg-yellow-400/10 backdrop-blur-sm rounded-2xl p-5 sm:p-6 border border-yellow-400/30 transition-all duration-1000 delay-350 ${isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-10"}`}
+        >
+          <p className="font-zen-old-mincho text-yellow-300 text-lg sm:text-xl font-semibold text-center mb-4 tracking-widest">
+            {t.banquetLabel}
+          </p>
+          <div className="space-y-3">
+            <div className="flex items-start gap-3">
+              <span className="text-xl shrink-0 mt-0.5">⏰</span>
+              <div>
+                <p className="font-noto-serif-tc text-yellow-100 text-sm sm:text-base font-semibold">
+                  {t.banquetTime}
+                </p>
+              </div>
+            </div>
+            <div className="flex items-start gap-3">
+              <span className="text-xl shrink-0 mt-0.5">🏨</span>
+              <div>
+                <p className="font-noto-serif-tc text-yellow-100 text-sm sm:text-base font-semibold leading-snug">
+                  {t.banquetVenue}
+                </p>
+              </div>
+            </div>
+            <div className="flex items-start gap-3">
+              <span className="text-xl shrink-0 mt-0.5">📍</span>
+              <div>
+                <p className="font-noto-serif-tc text-yellow-400/80 text-xs sm:text-sm leading-relaxed">
+                  {t.banquetAddress}
+                </p>
+              </div>
+            </div>
+          </div>
         </div>
 
         {/* Dress code */}
