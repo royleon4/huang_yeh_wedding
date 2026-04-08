@@ -174,16 +174,15 @@ function makeICS({ summary, location, description, dtStart, dtEnd }: {
   ].join("\r\n");
 }
 
-function downloadICS(filename: string, content: string): void {
+function openInCalendar(content: string): void {
   const blob = new Blob([content], { type: "text/calendar;charset=utf-8" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
-  a.download = filename;
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
-  URL.revokeObjectURL(url);
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
 function FloatingParticles() {
@@ -586,7 +585,7 @@ function WeddingDetailsSection() {
           {t.detailItems.map((item, i) => {
             const isDateCard = i === 0;
             const handleDateClick = isDateCard ? () => {
-              downloadICS("wedding-ceremony.ics", makeICS({
+              openInCalendar(makeICS({
                 summary: t.calCeremonyTitle,
                 location: t.calCeremonyLocation,
                 description: t.calCeremonyDesc,
@@ -657,7 +656,7 @@ function WeddingDetailsSection() {
               className="flex items-start gap-3 cursor-pointer hover:opacity-80 active:opacity-60 transition-opacity"
               role="button"
               tabIndex={0}
-              onClick={() => downloadICS("wedding-banquet.ics", makeICS({
+              onClick={() => openInCalendar(makeICS({
                 summary: t.calBanquetTitle,
                 location: t.calBanquetLocation,
                 description: t.calBanquetDesc,
@@ -666,7 +665,7 @@ function WeddingDetailsSection() {
               }))}
               onKeyDown={(e) => {
                 if (e.key === "Enter" || e.key === " ") {
-                  downloadICS("wedding-banquet.ics", makeICS({
+                  openInCalendar(makeICS({
                     summary: t.calBanquetTitle,
                     location: t.calBanquetLocation,
                     description: t.calBanquetDesc,
