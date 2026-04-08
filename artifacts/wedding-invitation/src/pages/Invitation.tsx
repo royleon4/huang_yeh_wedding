@@ -953,6 +953,17 @@ function RSVPSection() {
   const t = useT();
   const { lang } = useContext(LanguageCtx);
   const { ref, isVisible } = useIntersectionObserver();
+
+  useEffect(() => {
+    const handleMessage = (e: MessageEvent) => {
+      if (typeof e.origin === "string" && e.origin.includes("google.com")) {
+        const section = document.getElementById("section-rsvp");
+        if (section) section.scrollTop = 0;
+      }
+    };
+    window.addEventListener("message", handleMessage);
+    return () => window.removeEventListener("message", handleMessage);
+  }, []);
   return (
     <section
       id="section-rsvp"

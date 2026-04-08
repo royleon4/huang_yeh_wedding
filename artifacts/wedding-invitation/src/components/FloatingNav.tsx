@@ -119,6 +119,8 @@ export function FloatingNav({ scrollContainerRef, onNavClick, labels, navAriaLab
   const scrollTo = (index: number) => {
     const container = scrollContainerRef.current;
     if (!container) return;
+    const targetSection = document.getElementById(SECTIONS[index].id);
+    if (targetSection) targetSection.scrollTop = 0;
     container.scrollTo({ left: index * container.clientWidth, behavior: "smooth" });
     onNavClick?.();
   };
