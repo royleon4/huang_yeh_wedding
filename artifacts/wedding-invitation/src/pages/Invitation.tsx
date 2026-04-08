@@ -1266,10 +1266,13 @@ function getInitialLang(): Lang {
   return stored === "en" ? "en" : "zh";
 }
 
+const PARTICLE_SECTIONS = new Set([0, 4]);
+
 export default function Invitation() {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [fontStep, setFontStep] = useState<number>(getInitialFontStep);
   const [lang, setLangState] = useState<Lang>(getInitialLang);
+  const [activeSectionIndex, setActiveSectionIndex] = useState(0);
   const setLang = (l: Lang) => { setLangState(l); localStorage.setItem("weddingLang", l); };
   const t = lang === "zh" ? ZH : EN;
 
@@ -1282,6 +1285,12 @@ export default function Invitation() {
   useEffect(() => {
     const container = scrollContainerRef.current;
     if (!container) return;
+
+    const updateIndex = () => {
+      const vw = container.clientWidth;
+      if (vw === 0) return;
+      setActiveSectionIndex(Math.round(container.scrollLeft / vw));
+    };
 
     const handleWheel = (e: WheelEvent) => {
       if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) {
@@ -1305,23 +1314,32 @@ export default function Invitation() {
       }
     };
 
+    container.addEventListener("scroll", updateIndex, { passive: true });
     container.addEventListener("wheel", handleWheel, { passive: false });
     container.addEventListener("touchstart", handleTouchStart, { passive: true });
     container.addEventListener("touchmove", handleTouchMove, { passive: false });
 
     return () => {
+      container.removeEventListener("scroll", updateIndex);
       container.removeEventListener("wheel", handleWheel);
       container.removeEventListener("touchstart", handleTouchStart);
       container.removeEventListener("touchmove", handleTouchMove);
     };
   }, []);
 
+  const showParticles = PARTICLE_SECTIONS.has(activeSectionIndex);
+
   return (
     <LanguageCtx.Provider value={{ lang, setLang }}>
       <div className="w-screen h-screen overflow-hidden">
         <AudioPlayer />
         <FloatingNav scrollContainerRef={scrollContainerRef} labels={t.nav} navAriaLabel={t.navAriaLabel} />
-        <FloatingParticles />
+        <div
+          className="pointer-events-none"
+          style={{ opacity: showParticles ? 1 : 0, transition: "opacity 0.6s ease" }}
+        >
+          <FloatingParticles />
+        </div>
         <FloatingKiwis />
         <FontSizeControls
           step={fontStep}
