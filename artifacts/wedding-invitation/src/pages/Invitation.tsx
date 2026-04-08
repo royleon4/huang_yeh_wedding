@@ -59,6 +59,12 @@ const ZH = {
   rsvpDeadline: "請於 2026年5月10日 前回覆",
   footerDog: "葉黃素夢 也很期待見到大家",
   addToCalendar: "加入行事曆",
+  calCeremonyTitle: "Leon & YehYeh 婚禮典禮",
+  calCeremonyLocation: "德光長老教會, 台南市東區崇德四街100號",
+  calCeremonyDesc: "Leon 黃律詠 & YehYeh 葉藝慧 婚禮典禮\n2026年06月20日 下午3點\n德光長老教會\n台南市東區崇德四街100號",
+  calBanquetTitle: "Leon & YehYeh 家宴",
+  calBanquetLocation: "台糖長榮酒店（台南）吃遍天下自助餐廳, 台南市東區中華東路三段336巷1號2樓",
+  calBanquetDesc: "Leon 黃律詠 & YehYeh 葉藝慧 婚禮家宴\n2026年06月20日 晚上5:30\n台糖長榮酒店（台南）吃遍天下自助餐廳\n台南市東區中華東路三段336巷1號2樓",
 };
 
 const EN = {
@@ -113,6 +119,12 @@ const EN = {
   rsvpDeadline: "Please respond by May 20, 2026",
   footerDog: "Suomi can't wait to see you all",
   addToCalendar: "Add to Calendar",
+  calCeremonyTitle: "Leon & YehYeh Wedding Ceremony",
+  calCeremonyLocation: "De-Guang Presbyterian Church, No. 100, Chongde 4th St., East Dist., Tainan",
+  calCeremonyDesc: "Leon & YehYeh Wedding Ceremony\nJune 20, 2026 · 3:00 PM\nDe-Guang Presbyterian Church\nNo. 100, Chongde 4th St., East Dist., Tainan",
+  calBanquetTitle: "Leon & YehYeh Wedding Banquet",
+  calBanquetLocation: "Evergreen Laurel Hotel Tainan — Eat Around the World Buffet",
+  calBanquetDesc: "Leon & YehYeh Wedding Banquet\nJune 20, 2026 · 5:30 PM\nEvergreen Laurel Hotel Tainan\nNo. 1, Lane 336, Sec. 3, Zhonghua E. Rd., East Dist., Tainan, 2F",
 };
 
 const LanguageCtx = createContext<{ lang: Lang; setLang: (l: Lang) => void }>({ lang: "zh", setLang: () => {} });
@@ -575,11 +587,9 @@ function WeddingDetailsSection() {
             const isDateCard = i === 0;
             const handleDateClick = isDateCard ? () => {
               downloadICS("wedding-ceremony.ics", makeICS({
-                summary: lang === "zh" ? "Leon & YehYeh 婚禮典禮" : "Leon & YehYeh Wedding Ceremony",
-                location: "德光長老教會, 台南市東區崇德四街100號",
-                description: lang === "zh"
-                  ? "Leon 黃律詠 & YehYeh 葉藝慧 婚禮典禮\n2026年06月20日 下午3點\n德光長老教會\n台南市東區崇德四街100號"
-                  : "Leon & YehYeh Wedding Ceremony\nJune 20, 2026 · 3:00 PM\nDe-Guang Presbyterian Church\nNo. 100, Chongde 4th St., East Dist., Tainan",
+                summary: t.calCeremonyTitle,
+                location: t.calCeremonyLocation,
+                description: t.calCeremonyDesc,
                 dtStart: "20260620T070000Z",
                 dtEnd: "20260620T090000Z",
               }));
@@ -589,6 +599,8 @@ function WeddingDetailsSection() {
                 key={item.label}
                 className={`flex flex-col text-center bg-white/10 backdrop-blur-sm rounded-2xl p-4 sm:p-6 border border-yellow-400/20 transition-all duration-1000 ${["delay-100","delay-200","delay-300"][i] ?? ""} ${isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-10"} ${isDateCard ? "cursor-pointer hover:bg-white/20 active:scale-[0.97]" : ""}`}
                 onClick={handleDateClick}
+                onKeyDown={isDateCard ? (e) => { if (e.key === "Enter" || e.key === " ") handleDateClick?.(); } : undefined}
+                tabIndex={isDateCard ? 0 : undefined}
                 role={isDateCard ? "button" : undefined}
                 data-testid={`card-detail-${item.label}`}
               >
@@ -644,17 +656,25 @@ function WeddingDetailsSection() {
             <div
               className="flex items-start gap-3 cursor-pointer hover:opacity-80 active:opacity-60 transition-opacity"
               role="button"
+              tabIndex={0}
               onClick={() => downloadICS("wedding-banquet.ics", makeICS({
-                summary: lang === "zh" ? "Leon & YehYeh 家宴" : "Leon & YehYeh Wedding Banquet",
-                location: lang === "zh"
-                  ? "台糖長榮酒店（台南）吃遍天下自助餐廳, 台南市東區中華東路三段336巷1號2樓"
-                  : "Evergreen Laurel Hotel Tainan — Eat Around the World Buffet",
-                description: lang === "zh"
-                  ? "Leon 黃律詠 & YehYeh 葉藝慧 婚禮家宴\n2026年06月20日 晚上5:30\n台糖長榮酒店（台南）吃遍天下自助餐廳\n台南市東區中華東路三段336巷1號2樓"
-                  : "Leon & YehYeh Wedding Banquet\nJune 20, 2026 · 5:30 PM\nEvergreen Laurel Hotel Tainan\nNo. 1, Lane 336, Sec. 3, Zhonghua E. Rd., East Dist., Tainan, 2F",
+                summary: t.calBanquetTitle,
+                location: t.calBanquetLocation,
+                description: t.calBanquetDesc,
                 dtStart: "20260620T093000Z",
                 dtEnd: "20260620T120000Z",
               }))}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  downloadICS("wedding-banquet.ics", makeICS({
+                    summary: t.calBanquetTitle,
+                    location: t.calBanquetLocation,
+                    description: t.calBanquetDesc,
+                    dtStart: "20260620T093000Z",
+                    dtEnd: "20260620T120000Z",
+                  }));
+                }
+              }}
             >
               <span className="text-xl shrink-0 mt-0.5">⏰</span>
               <div>
