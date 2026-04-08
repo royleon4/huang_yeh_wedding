@@ -180,19 +180,23 @@ function openInCalendar(
 ): void {
   const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as unknown as Record<string, unknown>).MSStream;
   if (isIOS) {
+    const blob = new Blob([icsContent], { type: "text/calendar;charset=utf-8" });
+    const blobUrl = URL.createObjectURL(blob);
     const a = document.createElement("a");
-    a.href = `data:text/calendar;charset=utf-8,${encodeURIComponent(icsContent)}`;
+    a.href = blobUrl;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
   } else {
-    const url = new URL("https://calendar.google.com/calendar/render");
-    url.searchParams.set("action", "TEMPLATE");
-    url.searchParams.set("text", gcal.title);
-    url.searchParams.set("dates", `${gcal.start}/${gcal.end}`);
-    url.searchParams.set("details", gcal.details);
-    url.searchParams.set("location", gcal.location);
-    window.open(url.toString(), "_blank", "noopener,noreferrer");
+    const params = new URLSearchParams({
+      action: "TEMPLATE",
+      text: gcal.title,
+      details: gcal.details,
+      location: gcal.location,
+    });
+    const gcalUrl = `https://calendar.google.com/calendar/render?${params.toString()}&dates=${gcal.start}/${gcal.end}`;
+    window.open(gcalUrl, "_blank", "noopener,noreferrer");
   }
 }
 
