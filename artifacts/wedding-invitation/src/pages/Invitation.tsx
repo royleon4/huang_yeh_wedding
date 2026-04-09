@@ -77,6 +77,7 @@ const ZH = {
   ],
   transportBanquetItems: [
     { icon: "🏨", name: "長榮桂冠酒店停車場 B2–B4", desc: "參加家宴可折抵 4 小時免費，僅限汽車。入場告知守衛參加婚宴，取停車卡，離場時交還兌換", fee: "4 小時免費（汽車限定）" },
+    { icon: "🛵", name: "附近路邊機車停車格", desc: "酒店周邊中華東路三段、富農街一帶", fee: "" },
     { icon: "📞", name: "飯店總機", desc: "06-289-9988", fee: "" },
   ],
   countdownDone: "已過",
@@ -156,6 +157,7 @@ const EN = {
   ],
   transportBanquetItems: [
     { icon: "🏨", name: "Evergreen Laurel Hotel Car Park B2–B4", desc: "Banquet guests get 4 hours free (cars only). Tell the guard you're attending the banquet, collect a parking card, return it when leaving to redeem.", fee: "4 hrs free (cars only)" },
+    { icon: "🛵", name: "Nearby Motorcycle Parking", desc: "Street bays along Zhonghua E. Rd. Sec. 3 & Funong St.", fee: "" },
     { icon: "📞", name: "Hotel Front Desk", desc: "06-289-9988", fee: "" },
   ],
   countdownDone: "已過",
