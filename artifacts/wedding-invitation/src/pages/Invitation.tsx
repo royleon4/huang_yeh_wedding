@@ -75,6 +75,7 @@ const ZH = {
     { icon: "🚌", name: "市區公車", desc: "典禮：崇德路沿線設有站點｜家宴：中華東路三段沿線設有站點", fee: "" },
     { icon: "🚇", name: "台南捷運", desc: "目前尚未通車⋯ 德光教會站，大概十年後見！", fee: "" },
   ],
+  transportParkingLabel: "停車資訊",
   transportCeremonyItems: [
     { icon: "🅿️", name: "路邊停車格", desc: "崇德四街、崇德路沿線", fee: "約 NT$20 / 小時" },
     { icon: "🏛️", name: "榮譽街公有停車場", desc: "東區榮譽街 2 號 131 巷，汽車約 300 格，步行約 13 分鐘", fee: "NT$20 / 小時，機車免費" },
@@ -161,6 +162,7 @@ const EN = {
     { icon: "🚌", name: "City Bus", desc: "Ceremony: stops along Chongde Rd. | Banquet: stops along Zhonghua E. Rd. Sec. 3", fee: "" },
     { icon: "🚇", name: "Tainan MRT", desc: "Not yet open… see you at De-Guang Church Station in about 10 years!", fee: "" },
   ],
+  transportParkingLabel: "Parking",
   transportCeremonyItems: [
     { icon: "🅿️", name: "Street Parking", desc: "Along Chongde 4th St. & Chongde Rd.", fee: "Approx. NT$20 / hr" },
     { icon: "🏛️", name: "Rongyue St. Public Car Park", desc: "No. 2, Lane 131, Rongyue St., East Dist. — 300+ spaces, approx. 13 min walk", fee: "NT$20 / hr (cars), free (motorcycles)" },
@@ -772,6 +774,68 @@ function WeddingDetailsSection() {
           })}
         </div>
 
+        {/* Dress code - right below ceremony cards */}
+        <div
+          className={`mt-5 sm:mt-6 text-center bg-yellow-400/10 rounded-2xl p-4 sm:p-6 border border-yellow-400/20 transition-all duration-1000 delay-300 ${isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-10"}`}
+        >
+          <p className="font-noto-serif-tc text-yellow-300 text-sm tracking-wider mb-2">
+            {t.dressLabel}
+          </p>
+          <div className="flex justify-center gap-3 sm:gap-4 flex-wrap">
+            <span className="bg-green-700/50 text-green-200 px-3 sm:px-4 py-1 rounded-full text-sm font-noto-serif-tc border border-green-500/30">
+              {t.dressGreen}
+            </span>
+            <span className="bg-yellow-700/30 text-yellow-200 px-3 sm:px-4 py-1 rounded-full text-sm font-noto-serif-tc border border-yellow-500/30">
+              {t.dressYellow}
+            </span>
+            <span className="text-yellow-300/70 text-sm font-noto-serif-tc self-center">
+              {t.dressKiwi}
+            </span>
+          </div>
+        </div>
+
+        {/* Ceremony parking - inline below ceremony info */}
+        <div
+          className={`mt-3 transition-all duration-1000 delay-400 ${isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-10"}`}
+        >
+          <Accordion type="single" collapsible defaultValue="ceremony-parking">
+            <AccordionItem
+              value="ceremony-parking"
+              className="bg-white/10 backdrop-blur-sm rounded-2xl border border-yellow-400/20 overflow-hidden border-b-0"
+            >
+              <AccordionTrigger className="px-4 sm:px-5 py-3 hover:no-underline hover:bg-white/10 transition-colors [&[data-state=open]>svg]:rotate-180 [&>svg]:text-yellow-300/70">
+                <span className="font-noto-serif-tc text-yellow-200 text-xs sm:text-sm font-semibold tracking-wide text-left">
+                  🚗 {t.transportParkingLabel}
+                </span>
+              </AccordionTrigger>
+              <AccordionContent className="px-4 sm:px-5 pb-4 pt-0">
+                <div className="space-y-3">
+                  {t.transportCeremonyItems.map((item) => (
+                    <div key={item.name} className="flex items-start gap-2">
+                      <span className="text-base shrink-0 mt-0.5">{item.icon}</span>
+                      <div className="min-w-0">
+                        <p className="font-noto-serif-tc text-yellow-100 text-xs sm:text-sm font-medium leading-snug">
+                          {item.name}
+                        </p>
+                        {item.desc && (
+                          <p className="font-noto-serif-tc text-yellow-400/60 text-xs leading-relaxed mt-0.5">
+                            {item.desc}
+                          </p>
+                        )}
+                        {item.fee && (
+                          <p className="font-noto-serif-tc text-green-300/70 text-xs mt-0.5">
+                            {item.fee}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </AccordionContent>
+            </AccordionItem>
+          </Accordion>
+        </div>
+
         {/* Banquet divider */}
         <div
           className={`flex items-center gap-3 mt-6 sm:mt-8 transition-all duration-1000 delay-300 ${isVisible ? "opacity-100" : "opacity-0"}`}
@@ -842,90 +906,18 @@ function WeddingDetailsSection() {
           </div>
         </div>
 
-        {/* Dress code */}
+        {/* Banquet parking - inline below banquet info */}
         <div
-          className={`mt-6 sm:mt-8 text-center bg-yellow-400/10 rounded-2xl p-4 sm:p-6 border border-yellow-400/20 transition-all duration-1000 delay-400 ${isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-10"}`}
+          className={`mt-3 transition-all duration-1000 delay-400 ${isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-10"}`}
         >
-          <p className="font-noto-serif-tc text-yellow-300 text-sm tracking-wider mb-2">
-            {t.dressLabel}
-          </p>
-          <div className="flex justify-center gap-3 sm:gap-4 flex-wrap">
-            <span className="bg-green-700/50 text-green-200 px-3 sm:px-4 py-1 rounded-full text-sm font-noto-serif-tc border border-green-500/30">
-              {t.dressGreen}
-            </span>
-            <span className="bg-yellow-700/30 text-yellow-200 px-3 sm:px-4 py-1 rounded-full text-sm font-noto-serif-tc border border-yellow-500/30">
-              {t.dressYellow}
-            </span>
-            <span className="text-yellow-300/70 text-sm font-noto-serif-tc self-center">
-              {t.dressKiwi}
-            </span>
-          </div>
-        </div>
-
-        {/* Transport & Parking */}
-        <div
-          className={`mt-6 sm:mt-8 transition-all duration-1000 delay-500 ${isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-10"}`}
-        >
-          {/* Divider */}
-          <div className="flex items-center gap-3 mb-5">
-            <div className="flex-1 h-px bg-gradient-to-r from-transparent via-yellow-400/50 to-transparent" />
-            <span className="text-yellow-300 text-base">🚗</span>
-            <div className="flex-1 h-px bg-gradient-to-r from-transparent via-yellow-400/50 to-transparent" />
-          </div>
-
-          <p className="font-zen-old-mincho text-yellow-300 text-base sm:text-lg font-semibold text-center tracking-widest mb-4">
-            {t.transportLabel}
-          </p>
-
-          <Accordion
-            type="multiple"
-            defaultValue={["ceremony", "banquet", "transit"]}
-            className="space-y-3"
-          >
-            {/* Ceremony parking */}
+          <Accordion type="single" collapsible defaultValue="banquet-parking">
             <AccordionItem
-              value="ceremony"
+              value="banquet-parking"
               className="bg-white/10 backdrop-blur-sm rounded-2xl border border-yellow-400/20 overflow-hidden border-b-0"
             >
               <AccordionTrigger className="px-4 sm:px-5 py-3 hover:no-underline hover:bg-white/10 transition-colors [&[data-state=open]>svg]:rotate-180 [&>svg]:text-yellow-300/70">
                 <span className="font-noto-serif-tc text-yellow-200 text-xs sm:text-sm font-semibold tracking-wide text-left">
-                  {t.transportCeremonyTitle}
-                </span>
-              </AccordionTrigger>
-              <AccordionContent className="px-4 sm:px-5 pb-4 pt-0">
-                <div className="space-y-3">
-                  {t.transportCeremonyItems.map((item) => (
-                    <div key={item.name} className="flex items-start gap-2">
-                      <span className="text-base shrink-0 mt-0.5">{item.icon}</span>
-                      <div className="min-w-0">
-                        <p className="font-noto-serif-tc text-yellow-100 text-xs sm:text-sm font-medium leading-snug">
-                          {item.name}
-                        </p>
-                        {item.desc && (
-                          <p className="font-noto-serif-tc text-yellow-400/60 text-xs leading-relaxed mt-0.5">
-                            {item.desc}
-                          </p>
-                        )}
-                        {item.fee && (
-                          <p className="font-noto-serif-tc text-green-300/70 text-xs mt-0.5">
-                            {item.fee}
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </AccordionContent>
-            </AccordionItem>
-
-            {/* Banquet parking */}
-            <AccordionItem
-              value="banquet"
-              className="bg-white/10 backdrop-blur-sm rounded-2xl border border-yellow-400/20 overflow-hidden border-b-0"
-            >
-              <AccordionTrigger className="px-4 sm:px-5 py-3 hover:no-underline hover:bg-white/10 transition-colors [&[data-state=open]>svg]:rotate-180 [&>svg]:text-yellow-300/70">
-                <span className="font-noto-serif-tc text-yellow-200 text-xs sm:text-sm font-semibold tracking-wide text-left">
-                  {t.transportBanquetTitle}
+                  🚗 {t.transportParkingLabel}
                 </span>
               </AccordionTrigger>
               <AccordionContent className="px-4 sm:px-5 pb-4 pt-0">
@@ -953,15 +945,26 @@ function WeddingDetailsSection() {
                 </div>
               </AccordionContent>
             </AccordionItem>
+          </Accordion>
+        </div>
 
-            {/* Public transit */}
+        {/* Public transit - at bottom with own header */}
+        <div
+          className={`mt-6 sm:mt-8 transition-all duration-1000 delay-500 ${isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-10"}`}
+        >
+          <div className="flex items-center gap-3 mb-3">
+            <div className="flex-1 h-px bg-gradient-to-r from-transparent via-yellow-400/50 to-transparent" />
+            <span className="text-yellow-300 text-base">🚇</span>
+            <div className="flex-1 h-px bg-gradient-to-r from-transparent via-yellow-400/50 to-transparent" />
+          </div>
+          <Accordion type="single" collapsible defaultValue="transit">
             <AccordionItem
               value="transit"
               className="bg-white/10 backdrop-blur-sm rounded-2xl border border-yellow-400/20 overflow-hidden border-b-0"
             >
               <AccordionTrigger className="px-4 sm:px-5 py-3 hover:no-underline hover:bg-white/10 transition-colors [&[data-state=open]>svg]:rotate-180 [&>svg]:text-yellow-300/70">
                 <span className="font-noto-serif-tc text-yellow-200 text-xs sm:text-sm font-semibold tracking-wide text-left">
-                  {t.transportTransitTitle}
+                  🚇 {t.transportTransitTitle}
                 </span>
               </AccordionTrigger>
               <AccordionContent className="px-4 sm:px-5 pb-4 pt-0">
