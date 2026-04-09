@@ -72,8 +72,8 @@ const ZH = {
   transportCeremonyItems: [
     { icon: "🅿️", name: "路邊停車格", desc: "崇德四街、崇德路沿線", fee: "約 NT$20 / 小時" },
     { icon: "🏛️", name: "榮譽街公有停車場", desc: "東區榮譽街 2 號 131 巷，汽車約 300 格", fee: "NT$20 / 小時，機車免費" },
-    { icon: "🏛️", name: "臺南文化中心立體停車場", desc: "步行約 10 分鐘", fee: "收費停車" },
-    { icon: "🌿", name: "巴克禮公園停車場", desc: "步行約 15 分鐘", fee: "收費停車" },
+    { icon: "🏛️", name: "臺南文化中心立體停車場", desc: "步行約 10 分鐘", fee: "" },
+    { icon: "🌿", name: "巴克禮公園停車場", desc: "步行約 15 分鐘", fee: "" },
   ],
   transportBanquetItems: [
     { icon: "🏨", name: "長榮桂冠酒店停車場 B2–B4", desc: "參加家宴可折抵 4 小時免費，僅限汽車。入場告知守衛參加婚宴，取停車卡，離場時交還兌換", fee: "4 小時免費（汽車限定）" },
@@ -151,8 +151,8 @@ const EN = {
   transportCeremonyItems: [
     { icon: "🅿️", name: "Street Parking", desc: "Along Chongde 4th St. & Chongde Rd.", fee: "Approx. NT$20 / hr" },
     { icon: "🏛️", name: "Rongyue St. Public Car Park", desc: "No. 2, Lane 131, Rongyue St., East Dist. — 300+ spaces", fee: "NT$20 / hr (cars), free (motorcycles)" },
-    { icon: "🏛️", name: "Tainan Cultural Center Car Park", desc: "Approx. 10 min walk", fee: "Paid parking" },
-    { icon: "🌿", name: "Bakerlee Park Car Park", desc: "Approx. 15 min walk", fee: "Paid parking" },
+    { icon: "🏛️", name: "Tainan Cultural Center Car Park", desc: "Approx. 10 min walk", fee: "" },
+    { icon: "🌿", name: "Bakerlee Park Car Park", desc: "Approx. 15 min walk", fee: "" },
   ],
   transportBanquetItems: [
     { icon: "🏨", name: "Evergreen Laurel Hotel Car Park B2–B4", desc: "Banquet guests get 4 hours free (cars only). Tell the guard you're attending the banquet, collect a parking card, return it when leaving to redeem.", fee: "4 hrs free (cars only)" },
