@@ -952,42 +952,30 @@ function WeddingDetailsSection() {
         <div
           className={`mt-6 sm:mt-8 transition-all duration-1000 delay-500 ${isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-10"}`}
         >
-          <div className="flex items-center gap-3 mb-3">
+          <div className="flex items-center gap-3 mb-4">
             <div className="flex-1 h-px bg-gradient-to-r from-transparent via-yellow-400/50 to-transparent" />
-            <span className="text-yellow-300 text-base">🚇</span>
+            <span className="font-noto-serif-tc text-yellow-300 text-sm font-semibold tracking-widest whitespace-nowrap">
+              🚇 {t.transportTransitTitle}
+            </span>
             <div className="flex-1 h-px bg-gradient-to-r from-transparent via-yellow-400/50 to-transparent" />
           </div>
-          <Accordion type="single" collapsible defaultValue="transit">
-            <AccordionItem
-              value="transit"
-              className="bg-white/10 backdrop-blur-sm rounded-2xl border border-yellow-400/20 overflow-hidden border-b-0"
-            >
-              <AccordionTrigger className="px-4 sm:px-5 py-3 hover:no-underline hover:bg-white/10 transition-colors [&[data-state=open]>svg]:rotate-180 [&>svg]:text-yellow-300/70">
-                <span className="font-noto-serif-tc text-yellow-200 text-xs sm:text-sm font-semibold tracking-wide text-left">
-                  🚇 {t.transportTransitTitle}
-                </span>
-              </AccordionTrigger>
-              <AccordionContent className="px-4 sm:px-5 pb-4 pt-0">
-                <div className="space-y-3">
-                  {t.transportTransitItems.map((item) => (
-                    <div key={item.name} className="flex items-start gap-2">
-                      <span className="text-base shrink-0 mt-0.5">{item.icon}</span>
-                      <div className="min-w-0">
-                        <p className="font-noto-serif-tc text-yellow-100 text-xs sm:text-sm font-medium leading-snug">
-                          {item.name}
-                        </p>
-                        {item.desc && (
-                          <p className="font-noto-serif-tc text-yellow-400/60 text-xs leading-relaxed mt-0.5">
-                            {item.desc}
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                  ))}
+          <div className="bg-white/10 backdrop-blur-sm rounded-2xl border border-yellow-400/20 px-4 sm:px-5 py-4 space-y-3">
+            {t.transportTransitItems.map((item) => (
+              <div key={item.name} className="flex items-start gap-2">
+                <span className="text-base shrink-0 mt-0.5">{item.icon}</span>
+                <div className="min-w-0">
+                  <p className="font-noto-serif-tc text-yellow-100 text-xs sm:text-sm font-medium leading-snug">
+                    {item.name}
+                  </p>
+                  {item.desc && (
+                    <p className="font-noto-serif-tc text-yellow-400/60 text-xs leading-relaxed mt-0.5">
+                      {item.desc}
+                    </p>
+                  )}
                 </div>
-              </AccordionContent>
-            </AccordionItem>
-          </Accordion>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     </section>
