@@ -39,7 +39,7 @@ const ZH = {
     { icon: "📍", label: "地點", sub: "Venue", content: "德光長老教會", note: "台南市東區崇德四街100號", mapQuery: "台南市東區崇德四街100號" },
   ],
   banquetLabel: "家宴",
-  banquetTime: "晚上 5:30 – 9:00（可自由離開）",
+  banquetTime: "晚上 5:30 – 9:00\n（可自由離開）",
   banquetVenue: "台糖長榮酒店（台南）吃遍天下自助餐廳",
   banquetAddress: "台南市東區中華東路三段336巷1號2樓",
   dressLabel: "服裝建議",
@@ -119,7 +119,7 @@ const EN = {
     { icon: "📍", label: "Venue", sub: "Venue", content: "De-Guang Presbyterian Church", note: "No. 100, Chongde 4th St., East Dist., Tainan", mapQuery: "台南市東區崇德四街100號" },
   ],
   banquetLabel: "Evening Banquet",
-  banquetTime: "5:30 – 9:00 PM (feel free to leave anytime)",
+  banquetTime: "5:30 – 9:00 PM\n(feel free to leave anytime)",
   banquetVenue: "Evergreen Laurel Hotel Tainan — \"Eat Around the World\" Buffet",
   banquetAddress: "No. 1, Lane 336, Sec. 3, Zhonghua E. Rd., East Dist., Tainan, 2F",
   dressLabel: "Dress Code",
@@ -796,7 +796,7 @@ function WeddingDetailsSection() {
             >
               <span className="text-xl shrink-0 mt-0.5">⏰</span>
               <div>
-                <p className="font-noto-serif-tc text-yellow-100 text-sm sm:text-base font-semibold">
+                <p className="font-noto-serif-tc text-yellow-100 text-sm sm:text-base font-semibold whitespace-pre-line">
                   {t.banquetTime}
                 </p>
                 <p className="font-noto-serif-tc text-yellow-400/50 text-xs mt-0.5">
