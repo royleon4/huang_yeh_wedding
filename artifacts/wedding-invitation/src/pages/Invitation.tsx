@@ -69,6 +69,12 @@ const ZH = {
   transportLabel: "交通與停車",
   transportCeremonyTitle: "典禮 · 德光長老教會",
   transportBanquetTitle: "家宴 · 台糖長榮酒店",
+  transportTransitTitle: "大眾運輸",
+  transportTransitItems: [
+    { icon: "🚆", name: "台南火車站", desc: "距兩個會場皆約 3 公里，出站後建議搭計程車或公車前往", fee: "" },
+    { icon: "🚌", name: "市區公車", desc: "典禮：崇德路沿線設有站點｜家宴：中華東路三段沿線設有站點", fee: "" },
+    { icon: "🚇", name: "台南捷運", desc: "目前尚未通車⋯ 德光教會站，大概十年後見！", fee: "" },
+  ],
   transportCeremonyItems: [
     { icon: "🅿️", name: "路邊停車格", desc: "崇德四街、崇德路沿線", fee: "約 NT$20 / 小時" },
     { icon: "🏛️", name: "榮譽街公有停車場", desc: "東區榮譽街 2 號 131 巷，汽車約 300 格，步行約 13 分鐘", fee: "NT$20 / 小時，機車免費" },
@@ -149,6 +155,12 @@ const EN = {
   transportLabel: "Getting There",
   transportCeremonyTitle: "Ceremony · De-Guang Presbyterian Church",
   transportBanquetTitle: "Banquet · Evergreen Laurel Hotel",
+  transportTransitTitle: "Public Transport",
+  transportTransitItems: [
+    { icon: "🚆", name: "Tainan Railway Station", desc: "Approx. 3 km from both venues. A taxi or city bus is recommended after arrival.", fee: "" },
+    { icon: "🚌", name: "City Bus", desc: "Ceremony: stops along Chongde Rd. | Banquet: stops along Zhonghua E. Rd. Sec. 3", fee: "" },
+    { icon: "🚇", name: "Tainan MRT", desc: "Not yet open… see you at De-Guang Church Station in about 10 years!", fee: "" },
+  ],
   transportCeremonyItems: [
     { icon: "🅿️", name: "Street Parking", desc: "Along Chongde 4th St. & Chongde Rd.", fee: "Approx. NT$20 / hr" },
     { icon: "🏛️", name: "Rongyue St. Public Car Park", desc: "No. 2, Lane 131, Rongyue St., East Dist. — 300+ spaces, approx. 13 min walk", fee: "NT$20 / hr (cars), free (motorcycles)" },
@@ -867,7 +879,7 @@ function WeddingDetailsSection() {
 
           <Accordion
             type="multiple"
-            defaultValue={["ceremony", "banquet"]}
+            defaultValue={["ceremony", "banquet", "transit"]}
             className="space-y-3"
           >
             {/* Ceremony parking */}
@@ -933,6 +945,37 @@ function WeddingDetailsSection() {
                         {item.fee && (
                           <p className="font-noto-serif-tc text-green-300/70 text-xs mt-0.5">
                             {item.fee}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </AccordionContent>
+            </AccordionItem>
+
+            {/* Public transit */}
+            <AccordionItem
+              value="transit"
+              className="bg-white/10 backdrop-blur-sm rounded-2xl border border-yellow-400/20 overflow-hidden border-b-0"
+            >
+              <AccordionTrigger className="px-4 sm:px-5 py-3 hover:no-underline hover:bg-white/10 transition-colors [&[data-state=open]>svg]:rotate-180 [&>svg]:text-yellow-300/70">
+                <span className="font-noto-serif-tc text-yellow-200 text-xs sm:text-sm font-semibold tracking-wide text-left">
+                  {t.transportTransitTitle}
+                </span>
+              </AccordionTrigger>
+              <AccordionContent className="px-4 sm:px-5 pb-4 pt-0">
+                <div className="space-y-3">
+                  {t.transportTransitItems.map((item) => (
+                    <div key={item.name} className="flex items-start gap-2">
+                      <span className="text-base shrink-0 mt-0.5">{item.icon}</span>
+                      <div className="min-w-0">
+                        <p className="font-noto-serif-tc text-yellow-100 text-xs sm:text-sm font-medium leading-snug">
+                          {item.name}
+                        </p>
+                        {item.desc && (
+                          <p className="font-noto-serif-tc text-yellow-400/60 text-xs leading-relaxed mt-0.5">
+                            {item.desc}
                           </p>
                         )}
                       </div>
