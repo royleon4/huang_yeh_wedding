@@ -39,7 +39,7 @@ const ZH = {
     { icon: "📍", label: "地點", sub: "Venue", content: "德光長老教會", note: "台南市東區崇德四街100號", mapQuery: "台南市東區崇德四街100號" },
   ],
   banquetLabel: "家宴",
-  banquetTime: "晚上 5:30 – 7:00",
+  banquetTime: "晚上 5:30 – 9:00（可自由離開）",
   banquetVenue: "台糖長榮酒店（台南）吃遍天下自助餐廳",
   banquetAddress: "台南市東區中華東路三段336巷1號2樓",
   dressLabel: "服裝建議",
@@ -65,7 +65,7 @@ const ZH = {
   calCeremonyDesc: "Leon 黃律詠 & YehYeh 葉藝慧 婚禮典禮\n2026年06月20日 下午3點\n德光長老教會\n台南市東區崇德四街100號",
   calBanquetTitle: "黃葉家宴",
   calBanquetLocation: "台糖長榮酒店（台南）吃遍天下自助餐廳, 台南市東區中華東路三段336巷1號2樓",
-  calBanquetDesc: "Leon 黃律詠 & YehYeh 葉藝慧 婚禮家宴\n2026年06月20日 晚上5:30\n台糖長榮酒店（台南）吃遍天下自助餐廳\n台南市東區中華東路三段336巷1號2樓",
+  calBanquetDesc: "Leon 黃律詠 & YehYeh 葉藝慧 婚禮家宴\n2026年06月20日 晚上5:30 – 9:00（可自由離開）\n台糖長榮酒店（台南）吃遍天下自助餐廳\n台南市東區中華東路三段336巷1號2樓",
   transportLabel: "交通與停車",
   transportCeremonyTitle: "典禮 · 德光長老教會",
   transportBanquetTitle: "家宴 · 台糖長榮酒店",
@@ -118,7 +118,7 @@ const EN = {
     { icon: "📍", label: "Venue", sub: "Venue", content: "De-Guang Presbyterian Church", note: "No. 100, Chongde 4th St., East Dist., Tainan", mapQuery: "台南市東區崇德四街100號" },
   ],
   banquetLabel: "Evening Banquet",
-  banquetTime: "5:30 – 7:00 PM",
+  banquetTime: "5:30 – 9:00 PM (feel free to leave anytime)",
   banquetVenue: "Evergreen Laurel Hotel Tainan — \"Eat Around the World\" Buffet",
   banquetAddress: "No. 1, Lane 336, Sec. 3, Zhonghua E. Rd., East Dist., Tainan, 2F",
   dressLabel: "Dress Code",
@@ -144,7 +144,7 @@ const EN = {
   calCeremonyDesc: "Leon & YehYeh Wedding Ceremony\nJune 20, 2026 · 3:00 PM\nDe-Guang Presbyterian Church\nNo. 100, Chongde 4th St., East Dist., Tainan",
   calBanquetTitle: "黃葉家宴",
   calBanquetLocation: "Evergreen Laurel Hotel Tainan — Eat Around the World Buffet",
-  calBanquetDesc: "Leon & YehYeh Wedding Banquet\nJune 20, 2026 · 5:30 PM\nEvergreen Laurel Hotel Tainan\nNo. 1, Lane 336, Sec. 3, Zhonghua E. Rd., East Dist., Tainan, 2F",
+  calBanquetDesc: "Leon & YehYeh Wedding Banquet\nJune 20, 2026 · 5:30 – 9:00 PM (feel free to leave anytime)\nEvergreen Laurel Hotel Tainan\nNo. 1, Lane 336, Sec. 3, Zhonghua E. Rd., East Dist., Tainan, 2F",
   transportLabel: "Getting There",
   transportCeremonyTitle: "Ceremony · De-Guang Presbyterian Church",
   transportBanquetTitle: "Banquet · Evergreen Laurel Hotel",
@@ -780,14 +780,14 @@ function WeddingDetailsSection() {
               role="button"
               tabIndex={0}
               onClick={() => openInCalendar(
-                makeICS({ summary: t.calBanquetTitle, location: t.calBanquetLocation, description: t.calBanquetDesc, dtStart: "20260620T173000", dtEnd: "20260620T190000", tzid: "Asia/Taipei" }),
-                { title: t.calBanquetTitle, start: "20260620T173000", end: "20260620T190000", location: t.calBanquetLocation, details: t.calBanquetDesc }
+                makeICS({ summary: t.calBanquetTitle, location: t.calBanquetLocation, description: t.calBanquetDesc, dtStart: "20260620T173000", dtEnd: "20260620T210000", tzid: "Asia/Taipei" }),
+                { title: t.calBanquetTitle, start: "20260620T173000", end: "20260620T210000", location: t.calBanquetLocation, details: t.calBanquetDesc }
               )}
               onKeyDown={(e) => {
                 if (e.key === "Enter" || e.key === " ") {
                   openInCalendar(
-                    makeICS({ summary: t.calBanquetTitle, location: t.calBanquetLocation, description: t.calBanquetDesc, dtStart: "20260620T173000", dtEnd: "20260620T190000", tzid: "Asia/Taipei" }),
-                    { title: t.calBanquetTitle, start: "20260620T173000", end: "20260620T190000", location: t.calBanquetLocation, details: t.calBanquetDesc }
+                    makeICS({ summary: t.calBanquetTitle, location: t.calBanquetLocation, description: t.calBanquetDesc, dtStart: "20260620T173000", dtEnd: "20260620T210000", tzid: "Asia/Taipei" }),
+                    { title: t.calBanquetTitle, start: "20260620T173000", end: "20260620T210000", location: t.calBanquetLocation, details: t.calBanquetDesc }
                   );
                 }
               }}
