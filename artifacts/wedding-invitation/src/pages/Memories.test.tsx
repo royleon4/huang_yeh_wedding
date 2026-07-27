@@ -7,6 +7,24 @@ import Memories from "./Memories";
 describe("/Memories", () => {
   beforeEach(() => {
     localStorage.clear();
+    vi.spyOn(window.HTMLMediaElement.prototype, "play").mockResolvedValue();
+    vi.spyOn(window.HTMLMediaElement.prototype, "pause").mockImplementation(
+      () => {},
+    );
+    vi.stubGlobal(
+      "IntersectionObserver",
+      class {
+        observe() {}
+        disconnect() {}
+      },
+    );
+    vi.stubGlobal(
+      "ResizeObserver",
+      class {
+        observe() {}
+        disconnect() {}
+      },
+    );
     vi.stubGlobal(
       "fetch",
       vi.fn().mockResolvedValue({
@@ -19,7 +37,20 @@ describe("/Memories", () => {
   afterEach(() => {
     cleanup();
     window.history.replaceState({}, "", "/");
+    vi.restoreAllMocks();
     vi.unstubAllGlobals();
+  });
+
+  it("offers /Memories from both the home content and primary navigation", async () => {
+    render(<App />);
+
+    expect(
+      await screen.findByRole("link", { name: "瀏覽婚禮相簿" }),
+    ).toHaveProperty("pathname", "/Memories");
+    expect(screen.getByRole("link", { name: "婚禮相簿" })).toHaveProperty(
+      "pathname",
+      "/Memories",
+    );
   });
 
   it("renders at /Memories when opened or refreshed directly", async () => {
@@ -64,6 +95,9 @@ describe("/Memories", () => {
 
     await user.click(screen.getByRole("button", { name: "下一張" }));
     expect(screen.getByRole("dialog", { name: "婚禮照片 2" })).toBeTruthy();
+    expect(document.activeElement).toBe(
+      screen.getByRole("button", { name: "下一張" }),
+    );
 
     await user.click(screen.getByRole("button", { name: "上一張" }));
     expect(screen.getByRole("dialog", { name: "婚禮照片 1" })).toBeTruthy();
@@ -71,6 +105,63 @@ describe("/Memories", () => {
     await user.click(screen.getByRole("button", { name: "關閉" }));
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
     expect(document.activeElement).toBe(firstPhoto);
+  });
+
+  it("traps focus in the modal and makes the page behind it inert", async () => {
+    const user = userEvent.setup();
+    render(<Memories />);
+
+    const firstPhoto = await screen.findByRole("button", {
+      name: "開啟照片 1",
+    });
+    const pageContent = screen.getByTestId("memories-page-content");
+    await user.click(firstPhoto);
+
+    const close = screen.getByRole("button", { name: "關閉" });
+    const next = screen.getByRole("button", { name: "下一張" });
+    expect(document.activeElement).toBe(close);
+    expect(pageContent?.getAttribute("aria-hidden")).toBe("true");
+    expect((pageContent as HTMLElement).inert).toBe(true);
+
+    await user.tab({ shift: true });
+    expect(document.activeElement).toBe(next);
+    await user.tab();
+    expect(document.activeElement).toBe(close);
+  });
+
+  it("supports Arrow keys and Escape without moving focus between slides", async () => {
+    const user = userEvent.setup();
+    render(<Memories />);
+
+    const firstPhoto = await screen.findByRole("button", {
+      name: "開啟照片 1",
+    });
+    await user.click(firstPhoto);
+    const close = screen.getByRole("button", { name: "關閉" });
+
+    await user.keyboard("{ArrowRight}");
+    expect(screen.getByRole("dialog", { name: "婚禮照片 2" })).toBeTruthy();
+    expect(document.activeElement).toBe(close);
+
+    await user.keyboard("{ArrowLeft}");
+    expect(screen.getByRole("dialog", { name: "婚禮照片 1" })).toBeTruthy();
+    expect(document.activeElement).toBe(close);
+
+    await user.keyboard("{Escape}");
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(document.activeElement).toBe(firstPhoto);
+  });
+
+  it("restores the page title when leaving Memories", async () => {
+    document.title = "Wedding invitation";
+    const { unmount } = render(<Memories />);
+
+    await waitFor(() =>
+      expect(document.title).toBe("婚禮相簿 | Leon & YehYeh"),
+    );
+    unmount();
+
+    expect(document.title).toBe("Wedding invitation");
   });
 
   it("uses and updates the same saved language preference as the invitation", async () => {

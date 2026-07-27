@@ -60,8 +60,11 @@ export default function Memories() {
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
   const openerRef = useRef<HTMLButtonElement | null>(null);
+  const pageContentRef = useRef<HTMLDivElement>(null);
+  const dialogRef = useRef<HTMLDivElement>(null);
   const touchStartX = useRef<number | null>(null);
   const t = COPY[lang];
+  const isLightboxOpen = lightboxIndex !== null;
 
   const loadPhotos = async () => {
     setStatus("loading");
@@ -92,13 +95,22 @@ export default function Memories() {
   }, []);
 
   useEffect(() => {
+    const originalTitle = document.title;
+    return () => {
+      document.title = originalTitle;
+    };
+  }, []);
+
+  useEffect(() => {
     document.title = `${t.pageTitle} | Leon & YehYeh`;
   }, [t.pageTitle]);
 
   useEffect(() => {
-    if (lightboxIndex === null) return;
+    if (!isLightboxOpen) return;
     const previousOverflow = document.body.style.overflow;
+    const pageContent = pageContentRef.current;
     document.body.style.overflow = "hidden";
+    if (pageContent) pageContent.inert = true;
     closeButtonRef.current?.focus();
 
     const onKeyDown = (event: KeyboardEvent) => {
@@ -113,15 +125,33 @@ export default function Memories() {
           index !== null && index < photos.length - 1 ? index + 1 : index,
         );
       }
+      if (event.key === "Tab") {
+        const focusable = Array.from(
+          dialogRef.current?.querySelectorAll<HTMLButtonElement>(
+            "button:not([disabled])",
+          ) ?? [],
+        );
+        if (focusable.length === 0) return;
+        const first = focusable[0];
+        const last = focusable[focusable.length - 1];
+        if (event.shiftKey && document.activeElement === first) {
+          event.preventDefault();
+          last.focus();
+        } else if (!event.shiftKey && document.activeElement === last) {
+          event.preventDefault();
+          first.focus();
+        }
+      }
     };
 
     window.addEventListener("keydown", onKeyDown);
     return () => {
       document.body.style.overflow = previousOverflow;
+      if (pageContent) pageContent.inert = false;
       window.removeEventListener("keydown", onKeyDown);
       openerRef.current?.focus();
     };
-  }, [lightboxIndex, photos.length]);
+  }, [isLightboxOpen, photos.length]);
 
   const switchLanguage = () => {
     const nextLang = lang === "zh" ? "en" : "zh";
@@ -139,99 +169,106 @@ export default function Memories() {
       className="min-h-screen bg-[linear-gradient(160deg,#f0f7e6_0%,#faf6d8_42%,#eef6e2_100%)] px-4 pb-14 pt-5 sm:px-6"
       lang={lang === "zh" ? "zh-Hant" : "en"}
     >
-      <nav
-        className="mx-auto flex max-w-6xl items-center justify-between gap-3"
-        aria-label={t.pageTitle}
+      <div
+        ref={pageContentRef}
+        data-testid="memories-page-content"
+        aria-hidden={isLightboxOpen || undefined}
       >
-        <Link
-          href="/"
-          className="inline-flex min-h-11 items-center gap-2 rounded-full border border-white/70 bg-white/70 px-4 py-2 font-noto-serif-tc text-sm text-green-800 shadow-md backdrop-blur-md transition hover:bg-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green-700"
+        <nav
+          className="mx-auto flex max-w-6xl items-center justify-between gap-3"
+          aria-label={t.pageTitle}
         >
-          <span aria-hidden="true">←</span>
-          {t.home}
-        </Link>
-        <button
-          type="button"
-          onClick={switchLanguage}
-          aria-label={t.toggleLanguage}
-          className="min-h-11 rounded-full border border-white/70 bg-white/70 px-4 py-2 font-noto-serif-tc text-sm text-green-800 shadow-md backdrop-blur-md transition hover:bg-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green-700"
-        >
-          {lang === "zh" ? "Eng" : "中文"}
-        </button>
-      </nav>
+          <Link
+            href="/"
+            className="inline-flex min-h-11 items-center gap-2 rounded-full border border-white/70 bg-white/70 px-4 py-2 font-noto-serif-tc text-sm text-green-800 shadow-md backdrop-blur-md transition hover:bg-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green-700"
+          >
+            <span aria-hidden="true">←</span>
+            {t.home}
+          </Link>
+          <button
+            type="button"
+            onClick={switchLanguage}
+            aria-label={t.toggleLanguage}
+            className="min-h-11 rounded-full border border-white/70 bg-white/70 px-4 py-2 font-noto-serif-tc text-sm text-green-800 shadow-md backdrop-blur-md transition hover:bg-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green-700"
+          >
+            {lang === "zh" ? "Eng" : "中文"}
+          </button>
+        </nav>
 
-      <header className="mx-auto max-w-3xl pb-8 pt-10 text-center sm:pb-12 sm:pt-16">
-        <KiwiFruit size={34} className="mx-auto mb-4" />
-        <p className="font-noto-serif-tc text-xs font-semibold tracking-[0.35em] text-green-600">
-          {t.eyebrow}
-        </p>
-        <h1 className="mt-3 font-playfair text-5xl font-semibold italic text-green-900 sm:text-7xl">
-          {t.title}
-        </h1>
-        <p className="mx-auto mt-4 max-w-xl font-noto-serif-tc text-sm leading-relaxed text-green-700 sm:text-base">
-          {t.subtitle}
-        </p>
-        <div className="mx-auto mt-5 h-0.5 w-28 bg-gradient-to-r from-transparent via-yellow-500 to-transparent" />
-      </header>
+        <header className="mx-auto max-w-3xl pb-8 pt-10 text-center sm:pb-12 sm:pt-16">
+          <KiwiFruit size={34} className="mx-auto mb-4" />
+          <p className="font-noto-serif-tc text-xs font-semibold tracking-[0.35em] text-green-600">
+            {t.eyebrow}
+          </p>
+          <h1 className="mt-3 font-playfair text-5xl font-semibold italic text-green-900 sm:text-7xl">
+            {t.title}
+          </h1>
+          <p className="mx-auto mt-4 max-w-xl font-noto-serif-tc text-sm leading-relaxed text-green-700 sm:text-base">
+            {t.subtitle}
+          </p>
+          <div className="mx-auto mt-5 h-0.5 w-28 bg-gradient-to-r from-transparent via-yellow-500 to-transparent" />
+        </header>
 
-      <section className="mx-auto max-w-6xl" aria-live="polite">
-        {status === "loading" && (
-          <div className="flex min-h-56 items-center justify-center">
-            <p className="font-noto-serif-tc text-green-700">{t.loading}</p>
-          </div>
-        )}
+        <section className="mx-auto max-w-6xl" aria-live="polite">
+          {status === "loading" && (
+            <div className="flex min-h-56 items-center justify-center">
+              <p className="font-noto-serif-tc text-green-700">{t.loading}</p>
+            </div>
+          )}
 
-        {status === "error" && (
-          <div className="mx-auto flex min-h-56 max-w-md flex-col items-center justify-center rounded-3xl bg-white/70 p-8 text-center shadow-xl">
-            <p className="font-noto-serif-tc text-green-900">{t.error}</p>
-            <button
-              type="button"
-              onClick={() => void loadPhotos()}
-              className="mt-5 min-h-11 rounded-xl bg-green-800 px-5 py-2 text-sm text-white transition hover:bg-green-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green-800"
-            >
-              {t.retry}
-            </button>
-          </div>
-        )}
-
-        {status === "ready" && photos.length === 0 && (
-          <div className="mx-auto flex min-h-56 max-w-md flex-col items-center justify-center rounded-3xl bg-white/70 p-8 text-center shadow-xl">
-            <span className="text-5xl" aria-hidden="true">
-              📷
-            </span>
-            <p className="mt-4 font-noto-serif-tc text-lg text-green-900">
-              {t.empty}
-            </p>
-            <p className="mt-2 font-noto-serif-tc text-sm text-green-700">
-              {t.emptySub}
-            </p>
-          </div>
-        )}
-
-        {status === "ready" && photos.length > 0 && (
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4">
-            {photos.map((filename, index) => (
+          {status === "error" && (
+            <div className="mx-auto flex min-h-56 max-w-md flex-col items-center justify-center rounded-3xl bg-white/70 p-8 text-center shadow-xl">
+              <p className="font-noto-serif-tc text-green-900">{t.error}</p>
               <button
-                key={`${filename}-${index}`}
                 type="button"
-                onClick={(event) => openLightbox(index, event.currentTarget)}
-                aria-label={`${t.openPhoto} ${index + 1}`}
-                className="group aspect-square overflow-hidden rounded-xl bg-white shadow-md transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green-800 sm:rounded-2xl"
+                onClick={() => void loadPhotos()}
+                className="mt-5 min-h-11 rounded-xl bg-green-800 px-5 py-2 text-sm text-white transition hover:bg-green-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green-800"
               >
-                <img
-                  src={photoUrl(filename)}
-                  alt={`${t.photo} ${index + 1}`}
-                  loading="lazy"
-                  className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
-                />
+                {t.retry}
               </button>
-            ))}
-          </div>
-        )}
-      </section>
+            </div>
+          )}
+
+          {status === "ready" && photos.length === 0 && (
+            <div className="mx-auto flex min-h-56 max-w-md flex-col items-center justify-center rounded-3xl bg-white/70 p-8 text-center shadow-xl">
+              <span className="text-5xl" aria-hidden="true">
+                📷
+              </span>
+              <p className="mt-4 font-noto-serif-tc text-lg text-green-900">
+                {t.empty}
+              </p>
+              <p className="mt-2 font-noto-serif-tc text-sm text-green-700">
+                {t.emptySub}
+              </p>
+            </div>
+          )}
+
+          {status === "ready" && photos.length > 0 && (
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4">
+              {photos.map((filename, index) => (
+                <button
+                  key={`${filename}-${index}`}
+                  type="button"
+                  onClick={(event) => openLightbox(index, event.currentTarget)}
+                  aria-label={`${t.openPhoto} ${index + 1}`}
+                  className="group aspect-square overflow-hidden rounded-xl bg-white shadow-md transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green-800 sm:rounded-2xl"
+                >
+                  <img
+                    src={photoUrl(filename)}
+                    alt={`${t.photo} ${index + 1}`}
+                    loading="lazy"
+                    className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
+                  />
+                </button>
+              ))}
+            </div>
+          )}
+        </section>
+      </div>
 
       {lightboxIndex !== null && (
         <div
+          ref={dialogRef}
           role="dialog"
           aria-modal="true"
           aria-label={`${t.photo} ${lightboxIndex + 1}`}
