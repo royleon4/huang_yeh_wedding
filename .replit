@@ -6,6 +6,9 @@ id = "artifacts/api-server"
 [[artifacts]]
 id = "artifacts/mockup-sandbox"
 
+[[artifacts]]
+id = "artifacts/wedding-invitation"
+
 [deployment]
 router = "application"
 deploymentTarget = "autoscale"
@@ -16,6 +19,27 @@ env = { "CI" = "true" }
 
 [workflows]
 runButton = "Project"
+
+[[workflows.workflow]]
+name = "Project"
+mode = "parallel"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "artifacts/wedding-invitation: web"
+
+[[workflows.workflow]]
+name = "artifacts/wedding-invitation: web"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "PORT=19315 BASE_PATH=/ pnpm --filter @workspace/wedding-invitation run dev"
+waitForPort = 19315
+
+[workflows.workflow.metadata]
+outputType = "webview"
 
 [agent]
 stack = "PNPM_WORKSPACE"
