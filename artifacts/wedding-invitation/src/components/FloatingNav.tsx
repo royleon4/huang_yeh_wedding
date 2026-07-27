@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { Link } from "wouter";
 
 export const SECTIONS = [
   {
@@ -191,6 +192,19 @@ export function FloatingNav({ scrollContainerRef, onNavClick, labels, navAriaLab
               {section.icon}
             </button>
           ))}
+          <Link
+            href="/Memories"
+            onClick={() => localStorage.setItem("weddingLang", isEn ? "en" : "zh")}
+            title={labels?.memories ?? "婚禮相簿"}
+            aria-label={labels?.memories ?? "婚禮相簿"}
+            className="relative flex items-center justify-center w-[2em] h-[2em] rounded-full text-green-700/60 transition-all duration-300 hover:bg-green-100 hover:text-green-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green-700"
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="w-[1em] h-[1em]">
+              <rect x="3" y="3" width="18" height="18" rx="2" />
+              <circle cx="8.5" cy="8.5" r="1.5" />
+              <path d="m21 15-5-5L5 21" />
+            </svg>
+          </Link>
         </div>
 
         {/* Right pill: next button or invisible spacer */}

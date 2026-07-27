@@ -1,4 +1,5 @@
 import { createContext, useContext, useEffect, useRef, useState } from "react";
+import { Link } from "wouter";
 import { KiwiIcon, KiwiFruit } from "@/components/KiwiIcon";
 import { NZMap } from "@/components/NZMap";
 import { TWMap } from "@/components/TWMap";
@@ -9,12 +10,13 @@ import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/
 type Lang = "zh" | "en";
 
 const ZH = {
-  nav: { "section-hero": "首頁", "section-details": "婚禮詳情", "section-rsvp": "出席確認", "section-story": "愛情故事", "section-gallery": "相片牆", "section-footer": "結語" },
+  nav: { "section-hero": "首頁", "section-details": "婚禮詳情", "section-rsvp": "出席確認", "section-story": "愛情故事", "section-gallery": "相片牆", "section-footer": "結語", memories: "婚禮相簿" },
   prev: "上一頁", next: "下一頁",
   heroAnnouncement: "謹訂於此佳期",
   heroDate: "星期六 下午三點",
   heroPara1: "歷經兩年的等待與磨合，這段跨越台與紐的愛情，即將要迎來新的篇章。",
   heroPara2: "在無聊的端午節假期，如果有空，我們歡迎每一位見證我們成長與愛情的親友。2026年6月20日，大家一齊同樂，我們都很期待分享自己重要的另一半給愛我們的親友，等你們噢！",
+  heroMemories: "瀏覽婚禮相簿",
   storyLabel: "我們的故事",
   storyH2: "A Love Story",
   dogCaption: "我們的小寶貝 · 葉黃素夢",
@@ -96,12 +98,13 @@ const ZH = {
 };
 
 const EN = {
-  nav: { "section-hero": "Home", "section-details": "Details", "section-rsvp": "RSVP", "section-story": "Our Story", "section-gallery": "Gallery", "section-footer": "Closing" },
+  nav: { "section-hero": "Home", "section-details": "Details", "section-rsvp": "RSVP", "section-story": "Our Story", "section-gallery": "Gallery", "section-footer": "Closing", memories: "Wedding Gallery" },
   prev: "Prev", next: "Next",
   heroAnnouncement: "You Are Invited",
   heroDate: "Saturday, 3:00 PM",
   heroPara1: "After two years of waiting and growing together, this love story spanning Taiwan and New Zealand is about to begin a beautiful new chapter.",
   heroPara2: "During the Dragon Boat Festival holiday, we warmly welcome every dear friend who has witnessed our growth and love. Join us on June 20, 2026 — we can't wait to share the most important person in our lives with you. See you there!",
+  heroMemories: "View wedding gallery",
   storyLabel: "OUR STORY",
   storyH2: "A Love Story",
   dogCaption: "Our Little One · Suomi",
@@ -435,6 +438,7 @@ function FloatingKiwis() {
 
 function HeroSection() {
   const t = useT();
+  const { lang } = useContext(LanguageCtx);
   return (
     <section
       id="section-hero"
@@ -550,6 +554,14 @@ function HeroSection() {
           <p className="font-noto-serif-tc text-xs sm:text-sm leading-relaxed tracking-wide text-green-700">
             {t.heroPara2}
           </p>
+          <Link
+            href="/Memories"
+            onClick={() => localStorage.setItem("weddingLang", lang)}
+            className="mt-4 inline-flex min-h-11 items-center justify-center rounded-full bg-green-800 px-5 py-2 font-noto-serif-tc text-sm text-white shadow-md transition hover:bg-green-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green-800"
+          >
+            {t.heroMemories}
+            <span className="ml-2" aria-hidden="true">→</span>
+          </Link>
         </div>
 
       </div>
