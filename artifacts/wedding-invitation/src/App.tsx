@@ -10,9 +10,6 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <Switch>
         <Route path="/Memories" component={Memories} />
-        <Route path="/Memories/" component={Memories} />
-        <Route path="/memories" component={Memories} />
-        <Route path="/memories/" component={Memories} />
         <Route component={Invitation} />
       </Switch>
     </QueryClientProvider>
