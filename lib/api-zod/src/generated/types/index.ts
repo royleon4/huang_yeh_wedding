@@ -7,3 +7,6 @@
  */
 
 export * from "./healthStatus";
+export * from "./listPublicPhotosParams";
+export * from "./publicPhoto";
+export * from "./publicPhotoPage";
