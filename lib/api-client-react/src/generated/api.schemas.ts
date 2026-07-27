@@ -8,3 +8,33 @@
 export interface HealthStatus {
   status: string;
 }
+
+export interface PublicPhoto {
+  id: string;
+  /** Controlled website endpoint; never a Google Drive URL */
+  mediaUrl: string;
+  contentType: string;
+  /** @nullable */
+  width: number | null;
+  /** @nullable */
+  height: number | null;
+  createdAt: string;
+}
+
+export interface PublicPhotoPage {
+  photos: PublicPhoto[];
+  /** @nullable */
+  nextCursor: string | null;
+}
+
+export type ListPublicPhotosParams = {
+  /**
+   * Opaque cursor returned by the previous page
+   */
+  cursor?: string;
+  /**
+   * @minimum 1
+   * @maximum 100
+   */
+  limit?: number;
+};
