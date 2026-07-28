@@ -11,6 +11,8 @@ const ALLOWED_FORMATS = new Set(["jpeg", "png", "webp", "heif"]);
 const MAX_PIXELS = 120_000_000;
 const MAX_DIMENSION = 30_000;
 const MIN_DIMENSION = 64;
+const THUMBNAIL_MAX_DIMENSION = 1600;
+const THUMBNAIL_QUALITY = 82;
 
 export class ImageValidationError extends Error {
   constructor(message, code = "INVALID_IMAGE") {
@@ -20,41 +22,85 @@ export class ImageValidationError extends Error {
   }
 }
 
+function assertSupportedMimeType(mimeType) {
+  if (!ALLOWED_MIME_TYPES.has(mimeType)) {
+    throw new ImageValidationError(
+      "Unsupported image type",
+      "UNSUPPORTED_IMAGE_TYPE",
+    );
+  }
+}
+
+async function readMetadata(bytes) {
+  let metadata;
+  try {
+    metadata = await sharp(bytes, {
+      failOn: "error",
+      limitInputPixels: MAX_PIXELS,
+      sequentialRead: true,
+    }).metadata();
+  } catch {
+    throw new ImageValidationError("The selected file is not a valid image");
+  }
+
+  if (
+    !ALLOWED_FORMATS.has(metadata.format) ||
+    !metadata.width ||
+    !metadata.height
+  ) {
+    throw new ImageValidationError("Unsupported or unreadable image");
+  }
+  if (
+    metadata.width > MAX_DIMENSION ||
+    metadata.height > MAX_DIMENSION ||
+    metadata.width * metadata.height > MAX_PIXELS
+  ) {
+    throw new ImageValidationError("Image dimensions are too large");
+  }
+  return metadata;
+}
+
+async function createThumbnailBuffer(bytes) {
+  try {
+    return await sharp(bytes, {
+      failOn: "error",
+      limitInputPixels: MAX_PIXELS,
+      sequentialRead: true,
+    })
+      .rotate()
+      .resize({
+        width: THUMBNAIL_MAX_DIMENSION,
+        height: THUMBNAIL_MAX_DIMENSION,
+        fit: "inside",
+        withoutEnlargement: true,
+      })
+      .webp({ quality: THUMBNAIL_QUALITY, effort: 4 })
+      .toBuffer({ resolveWithObject: true });
+  } catch {
+    throw new ImageValidationError("The thumbnail could not be generated");
+  }
+}
+
 export function createImageProcessor() {
   return {
+    async createThumbnail({ bytes, mimeType }) {
+      assertSupportedMimeType(mimeType);
+      const metadata = await readMetadata(bytes);
+      if (metadata.width < MIN_DIMENSION || metadata.height < MIN_DIMENSION) {
+        throw new ImageValidationError("Image dimensions are too small");
+      }
+      const thumbnail = await createThumbnailBuffer(bytes);
+      return {
+        thumbnailBytes: thumbnail.data,
+        thumbnailContentType: "image/webp",
+        thumbnailWidth: thumbnail.info.width,
+        thumbnailHeight: thumbnail.info.height,
+      };
+    },
+
     async process({ bytes, mimeType }) {
-      if (!ALLOWED_MIME_TYPES.has(mimeType)) {
-        throw new ImageValidationError(
-          "Unsupported image type",
-          "UNSUPPORTED_IMAGE_TYPE",
-        );
-      }
-
-      let metadata;
-      try {
-        metadata = await sharp(bytes, {
-          failOn: "error",
-          limitInputPixels: MAX_PIXELS,
-          sequentialRead: true,
-        }).metadata();
-      } catch {
-        throw new ImageValidationError("The selected file is not a valid image");
-      }
-
-      if (
-        !ALLOWED_FORMATS.has(metadata.format) ||
-        !metadata.width ||
-        !metadata.height
-      ) {
-        throw new ImageValidationError("Unsupported or unreadable image");
-      }
-      if (
-        metadata.width > MAX_DIMENSION ||
-        metadata.height > MAX_DIMENSION ||
-        metadata.width * metadata.height > MAX_PIXELS
-      ) {
-        throw new ImageValidationError("Image dimensions are too large");
-      }
+      assertSupportedMimeType(mimeType);
+      const metadata = await readMetadata(bytes);
 
       const input = sharp(bytes, {
         failOn: "error",
@@ -96,24 +142,13 @@ export function createImageProcessor() {
         throw new ImageValidationError("Image dimensions are too small");
       }
 
-      const thumbnailBytes = await sharp(normalized.data, {
-        failOn: "error",
-        limitInputPixels: MAX_PIXELS,
-      })
-        .resize({
-          width: 1600,
-          height: 1600,
-          fit: "inside",
-          withoutEnlargement: true,
-        })
-        .webp({ quality: 82, effort: 4 })
-        .toBuffer();
+      const thumbnail = await createThumbnailBuffer(normalized.data);
 
       return {
         originalBytes: normalized.data,
         originalContentType,
         originalExtension,
-        thumbnailBytes,
+        thumbnailBytes: thumbnail.data,
         thumbnailContentType: "image/webp",
         width: normalized.info.width,
         height: normalized.info.height,
