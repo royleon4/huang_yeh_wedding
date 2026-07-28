@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
 import App from "./App.jsx";
 import ProcessSyncAdmin from "./ProcessSyncAdmin.jsx";
+import GalleryEnhancements from "./GalleryEnhancements.jsx";
 import { PROCESS_DEFINITIONS } from "./gallery-model.mjs";
 import "./styles.css";
 import "./collections.css";
@@ -11,6 +12,7 @@ import "./photo-lightbox.css";
 import "./feature-controls.css";
 
 const PROCESSES_UPDATED_EVENT = "memories:processes-updated";
+const PHOTO_DELETED_EVENT = "memories:photo-deleted";
 
 function applyServerProcesses(processes) {
   const normalized = Array.isArray(processes)
@@ -60,10 +62,15 @@ function MemoriesRoot() {
       applyServerProcesses(event.detail?.processes);
       setProcessRevision((value) => value + 1);
     };
+    const onPhotoDeleted = () => {
+      setProcessRevision((value) => value + 1);
+    };
     window.addEventListener(PROCESSES_UPDATED_EVENT, onProcessesUpdated);
+    window.addEventListener(PHOTO_DELETED_EVENT, onPhotoDeleted);
     return () => {
       cancelled = true;
       window.removeEventListener(PROCESSES_UPDATED_EVENT, onProcessesUpdated);
+      window.removeEventListener(PHOTO_DELETED_EVENT, onPhotoDeleted);
     };
   }, []);
 
@@ -71,6 +78,7 @@ function MemoriesRoot() {
     <>
       <App key={processRevision} />
       <ProcessSyncAdmin />
+      <GalleryEnhancements />
     </>
   );
 }
