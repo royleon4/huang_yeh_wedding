@@ -26,12 +26,14 @@ The Publishing environment must provide the production database connection as:
 DATABASE_URL
 ```
 
-Do not replace it with the development database URL. The Drive folder secrets are independent and remain required for upload functionality:
+Do not replace it with the development database URL. The Drive root-folder secret and current administrator secret are independent:
 
 ```text
 MEMORIES_DRIVE_PHOTOS_FOLDER_ID
-MEMORIES_DRIVE_THUMBNAILS_FOLDER_ID
+MEMORIES_ADMIN_TOKEN
 ```
+
+The runtime discovers or creates `訪客上傳`, `生活照`, `系統縮圖`, and `00 未分類` below the root. A separate thumbnail-folder secret is not required.
 
 ## Adding a migration
 
