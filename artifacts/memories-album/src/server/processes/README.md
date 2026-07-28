@@ -1,0 +1,1 @@
+This directory implements Google Drive wedding-process folder reconciliation for issue #33. Public process responses omit Drive identifiers. Administrator mutations require MEMORIES_ADMIN_TOKEN until ticket #6 replaces the temporary boundary.
