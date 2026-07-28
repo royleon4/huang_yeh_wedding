@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { decodePhotoCursor, encodePhotoCursor } from "./cursor.mjs";
 
 export class PostgresPhotoRepository {
@@ -38,9 +39,10 @@ export class PostgresPhotoRepository {
           id, batch_id, drive_file_id, thumbnail_drive_file_id,
           original_filename, mime_type, byte_size, width, height,
           content_hash, content_version, uploader_type, uploader_name,
-          visibility, processing_state, created_at, updated_at
+          visibility, processing_state, drive_parent_folder_id,
+          created_at, updated_at
         ) VALUES (
-          $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$16
+          $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$17
         ) RETURNING *`,
         [
           photo.id,
@@ -58,6 +60,7 @@ export class PostgresPhotoRepository {
           photo.uploaderName ?? null,
           photo.visibility ?? "public",
           photo.processingState ?? "ready",
+          photo.driveParentFolderId ?? null,
           photo.createdAt ?? new Date().toISOString(),
         ],
       );
@@ -70,6 +73,38 @@ export class PostgresPhotoRepository {
       }
       throw error;
     }
+  }
+
+  async upsertDrivePhotoMetadata(file, { source = "official", parentFolderId = null } = {}) {
+    const createdAt = file.createdTime || file.modifiedTime || new Date().toISOString();
+    const result = await this.pool.query(
+      `INSERT INTO memories_photos (
+        id, drive_file_id, original_filename, mime_type, byte_size,
+        content_hash, content_version, uploader_type, uploader_name,
+        visibility, processing_state, drive_parent_folder_id,
+        created_at, updated_at
+      ) VALUES ($1,$2,$3,$4,$5,$6,1,$7,$8,'public','ready',$9,$10,$10)
+      ON CONFLICT (drive_file_id) DO UPDATE SET
+        original_filename = EXCLUDED.original_filename,
+        mime_type = EXCLUDED.mime_type,
+        byte_size = EXCLUDED.byte_size,
+        drive_parent_folder_id = EXCLUDED.drive_parent_folder_id,
+        updated_at = now()
+      RETURNING *`,
+      [
+        randomUUID(),
+        file.id,
+        file.name || "Google Drive photo",
+        file.mimeType || "image/jpeg",
+        Number(file.size || 0),
+        `drive:${file.id}`,
+        source,
+        source === "guest" ? "Google Drive guest" : "婚禮攝影",
+        parentFolderId,
+        new Date(createdAt).toISOString(),
+      ],
+    );
+    return mapPhotoRow(result.rows[0], []);
   }
 
   async listPublicPhotos({
@@ -138,6 +173,40 @@ export class PostgresPhotoRepository {
       ? mapPhotoRow(result.rows[0], result.rows[0].process_ids)
       : null;
   }
+
+  async replacePhotoProcessByDriveFile(driveFileId, processId, parentFolderId) {
+    const client = typeof this.pool.connect === "function" ? await this.pool.connect() : this.pool;
+    try {
+      await client.query("BEGIN");
+      const photoResult = await client.query(
+        `UPDATE memories_photos
+         SET drive_parent_folder_id = $2, updated_at = now()
+         WHERE drive_file_id = $1
+         RETURNING id`,
+        [driveFileId, parentFolderId],
+      );
+      if (photoResult.rows[0]) {
+        const photoId = photoResult.rows[0].id;
+        await client.query(
+          `DELETE FROM memories_photo_processes WHERE photo_id = $1`,
+          [photoId],
+        );
+        if (processId) {
+          await client.query(
+            `INSERT INTO memories_photo_processes (photo_id, process_id)
+             VALUES ($1,$2) ON CONFLICT DO NOTHING`,
+            [photoId, processId],
+          );
+        }
+      }
+      await client.query("COMMIT");
+    } catch (error) {
+      await client.query("ROLLBACK");
+      throw error;
+    } finally {
+      client.release?.();
+    }
+  }
 }
 
 function mapBatchRow(row) {
@@ -157,6 +226,7 @@ function mapPhotoRow(row, processIds = []) {
     batchId: row.batch_id,
     driveFileId: row.drive_file_id,
     thumbnailDriveFileId: row.thumbnail_drive_file_id,
+    driveParentFolderId: row.drive_parent_folder_id,
     originalFilename: row.original_filename,
     mimeType: row.mime_type,
     byteSize: Number(row.byte_size),

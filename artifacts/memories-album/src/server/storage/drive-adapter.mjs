@@ -1,15 +1,17 @@
 const DRIVE_UPLOAD_PATH =
   "/upload/drive/v3/files?uploadType=multipart&fields=id,name,mimeType,size&supportsAllDrives=true";
+const FOLDER_MIME = "application/vnd.google-apps.folder";
 
 export class DriveConnectorError extends Error {
-  constructor(status) {
+  constructor(status, code = null) {
     super(`Google Drive request failed with status ${status}`);
     this.name = "DriveConnectorError";
     this.status = status;
     this.code =
-      status === 429 || status >= 500
+      code ??
+      (status === 429 || status >= 500
         ? "DRIVE_RETRYABLE"
-        : "DRIVE_REQUEST_FAILED";
+        : "DRIVE_REQUEST_FAILED");
   }
 }
 
@@ -34,18 +36,74 @@ export class GoogleDriveStorage {
     return response;
   }
 
-  async uploadOriginal({ bytes, filename, contentType }) {
+  async listChildren(parentId) {
+    const q = encodeURIComponent(`'${parentId}' in parents and trashed = false`);
+    const response = await this.#request(
+      `/drive/v3/files?q=${q}&fields=files(id,name,mimeType,size,parents,modifiedTime)&pageSize=1000&orderBy=name_natural&supportsAllDrives=true&includeItemsFromAllDrives=true`,
+    );
+    const data = await response.json();
+    return Array.isArray(data?.files) ? data.files : [];
+  }
+
+  async createFolder({ parentId, name }) {
+    const response = await this.#request(
+      "/drive/v3/files?fields=id,name,mimeType,parents&supportsAllDrives=true",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json; charset=UTF-8" },
+        body: JSON.stringify({ name, mimeType: FOLDER_MIME, parents: [parentId] }),
+      },
+    );
+    return response.json();
+  }
+
+  async rename(fileId, name) {
+    const response = await this.#request(
+      `/drive/v3/files/${encodeURIComponent(fileId)}?fields=id,name,mimeType,parents&supportsAllDrives=true`,
+      {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json; charset=UTF-8" },
+        body: JSON.stringify({ name }),
+      },
+    );
+    return response.json();
+  }
+
+  async move(fileId, { fromParentId = null, toParentId }) {
+    const params = new URLSearchParams({
+      addParents: toParentId,
+      fields: "id,name,mimeType,parents",
+      supportsAllDrives: "true",
+    });
+    if (fromParentId) params.set("removeParents", fromParentId);
+    const response = await this.#request(
+      `/drive/v3/files/${encodeURIComponent(fileId)}?${params.toString()}`,
+      { method: "PATCH" },
+    );
+    return response.json();
+  }
+
+  async findOrCreateFolder(parentId, name) {
+    const children = await this.listChildren(parentId);
+    const existing = children.find(
+      (item) => item.mimeType === FOLDER_MIME && item.name === name,
+    );
+    return existing ?? this.createFolder({ parentId, name });
+  }
+
+  async uploadOriginal({ bytes, filename, contentType, parentId = null }) {
     return this.#upload({
       bytes,
       filename,
       contentType,
-      folderId: this.originalFolderId,
+      folderId: parentId ?? this.originalFolderId,
       description: "Memories original",
     });
   }
 
-  async uploadThumbnail({ bytes, filename, contentType = "image/webp" }) {
-    if (!this.thumbnailFolderId) {
+  async uploadThumbnail({ bytes, filename, contentType = "image/webp", parentId = null }) {
+    const folderId = parentId ?? this.thumbnailFolderId;
+    if (!folderId) {
       const error = new Error(
         "MEMORIES_DRIVE_THUMBNAILS_FOLDER_ID is required before storing derivatives",
       );
@@ -56,7 +114,7 @@ export class GoogleDriveStorage {
       bytes,
       filename,
       contentType,
-      folderId: this.thumbnailFolderId,
+      folderId,
       description: "Memories web thumbnail",
     });
   }
@@ -84,9 +142,7 @@ export class GoogleDriveStorage {
       body,
     });
     const data = await response.json();
-    if (!data?.id) {
-      throw new Error("Google Drive upload did not return a file id");
-    }
+    if (!data?.id) throw new Error("Google Drive upload did not return a file id");
     return {
       fileId: data.id,
       name: data.name ?? filename,
@@ -98,9 +154,7 @@ export class GoogleDriveStorage {
     const response = await this.#request(
       `/drive/v3/files/${encodeURIComponent(fileId)}?alt=media&supportsAllDrives=true`,
     );
-    if (!response.body) {
-      throw new Error("Google Drive returned an empty file body");
-    }
+    if (!response.body) throw new Error("Google Drive returned an empty file body");
     return {
       body: response.body,
       contentType:

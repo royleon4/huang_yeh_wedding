@@ -82,14 +82,22 @@ function safeAssetPath(pathname) {
   return resolved.startsWith(`${publicDirectory}${path.sep}`) ? resolved : null;
 }
 
-function reportApiFailure(error) {
-  console.warn("Memories API unavailable", {
-    name: error instanceof Error ? error.name : "UnknownError",
-    code:
-      typeof error === "object" && error !== null && "code" in error
-        ? String(error.code)
-        : undefined,
-  });
+function boundedStorageError(error) {
+  const code = error?.code ?? "MEMORIES_STORAGE_UNAVAILABLE";
+  const messages = {
+    MEMORIES_ROOT_FOLDER_MISSING:
+      "Production is missing the Memories Google Drive root-folder setting.",
+    THUMBNAIL_FOLDER_NOT_CONFIGURED:
+      "The Memories thumbnail folder is not configured.",
+    DRIVE_RETRYABLE:
+      "Google Drive is temporarily unavailable. Please retry shortly.",
+    DRIVE_REQUEST_FAILED:
+      "Google Drive rejected the request. Reconnect the Replit Google Drive integration.",
+  };
+  return {
+    error: messages[code] ?? "Memories storage is temporarily unavailable",
+    code,
+  };
 }
 
 async function handleStandaloneApi(request, response, url) {
@@ -104,18 +112,22 @@ async function handleStandaloneApi(request, response, url) {
 
   if (
     url.pathname.startsWith(`${MEMORIES_API_PATH}/photos`) ||
-    url.pathname.startsWith(`${MEMORIES_API_PATH}/upload-batches`)
+    url.pathname.startsWith(`${MEMORIES_API_PATH}/upload-batches`) ||
+    url.pathname.startsWith(`${MEMORIES_API_PATH}/processes`) ||
+    url.pathname.startsWith(`${MEMORIES_API_PATH}/admin/processes`)
   ) {
     try {
       const runtime = await getMemoriesRuntime();
+      if (await runtime.processApi(request, response, url)) return true;
       if (await runtime.uploadApi(request, response, url)) return true;
       if (await runtime.photoApi(request, response, url)) return true;
     } catch (error) {
-      reportApiFailure(error);
+      console.warn("Memories API unavailable", {
+        name: error instanceof Error ? error.name : "UnknownError",
+        code: error?.code,
+      });
       if (!response.headersSent) {
-        sendJson(response, 503, {
-          error: "Memories storage is temporarily unavailable",
-        });
+        sendJson(response, 503, boundedStorageError(error));
       } else {
         response.destroy();
       }
@@ -185,6 +197,7 @@ export function createServer() {
     void handleRequest(request, response).catch((error) => {
       console.error("Memories request failed", {
         name: error instanceof Error ? error.name : "UnknownError",
+        code: error?.code,
       });
       if (!response.headersSent) {
         sendJson(response, 500, { error: "Internal server error" });
