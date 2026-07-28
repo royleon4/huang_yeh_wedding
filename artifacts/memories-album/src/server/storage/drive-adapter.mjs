@@ -45,7 +45,7 @@ export class GoogleDriveStorage {
   async listChildren(parentId) {
     const q = encodeURIComponent(`'${parentId}' in parents and trashed = false`);
     const response = await this.#request(
-      `/drive/v3/files?q=${q}&fields=files(id,name,mimeType,size,parents,modifiedTime)&pageSize=1000&orderBy=name_natural&supportsAllDrives=true&includeItemsFromAllDrives=true`,
+      `/drive/v3/files?q=${q}&fields=files(id,name,mimeType,size,parents,createdTime,modifiedTime,imageMediaMetadata(time))&pageSize=1000&orderBy=name_natural&supportsAllDrives=true&includeItemsFromAllDrives=true`,
     );
     const data = await response.json();
     return Array.isArray(data?.files) ? data.files : [];
@@ -56,7 +56,7 @@ export class GoogleDriveStorage {
       `'${driveQueryValue(parentId)}' in parents and name = '${driveQueryValue(name)}' and trashed = false`,
     );
     const response = await this.#request(
-      `/drive/v3/files?q=${q}&fields=files(id,name,mimeType,size,parents,modifiedTime)&pageSize=10&orderBy=createdTime&supportsAllDrives=true&includeItemsFromAllDrives=true`,
+      `/drive/v3/files?q=${q}&fields=files(id,name,mimeType,size,parents,createdTime,modifiedTime,imageMediaMetadata(time))&pageSize=10&orderBy=createdTime&supportsAllDrives=true&includeItemsFromAllDrives=true`,
     );
     const data = await response.json();
     return Array.isArray(data?.files) ? (data.files[0] ?? null) : null;
