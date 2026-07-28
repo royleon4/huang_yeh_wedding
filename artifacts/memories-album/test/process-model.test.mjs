@@ -2,10 +2,13 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { identityForDriveProcess } from "../src/server/processes/model.mjs";
 
-test("default Drive folders reuse stable website process ids", () => {
+test("Drive folder identity and label are canonical for every process", () => {
   assert.deepEqual(identityForDriveProcess("folder-a", "進場"), {
-    id: "entrance",
-    en: "Entrance",
+    id: "drive-folder-a",
+    en: "進場",
   });
-  assert.equal(identityForDriveProcess("folder-b", "自訂流程").id.startsWith("drive-"), true);
+  assert.deepEqual(identityForDriveProcess("folder-b", "自訂流程"), {
+    id: "drive-folder-b",
+    en: "自訂流程",
+  });
 });
