@@ -26,6 +26,7 @@ export default function PhotoLightbox({
   const pointers = useRef(new Map());
   const gesture = useRef(null);
   const closeButtonRef = useRef(null);
+  const stageRef = useRef(null);
 
   const canPrevious = selectedIndex > 0;
   const canNext = selectedIndex < photos.length - 1;
@@ -59,6 +60,25 @@ export default function PhotoLightbox({
     resetView();
     setLoading(true);
   }, [photo?.id]);
+
+  useEffect(() => {
+    const stage = stageRef.current;
+    if (!stage) return undefined;
+
+    const onWheel = (event) => {
+      event.preventDefault();
+      setZoom((current) => {
+        const bounded = clampZoom(
+          current + (event.deltaY < 0 ? ZOOM_STEP : -ZOOM_STEP),
+        );
+        if (bounded === MIN_ZOOM) setOffset({ x: 0, y: 0 });
+        return bounded;
+      });
+    };
+
+    stage.addEventListener("wheel", onWheel, { passive: false });
+    return () => stage.removeEventListener("wheel", onWheel);
+  }, []);
 
   useEffect(() => {
     const previousOverflow = document.body.style.overflow;
@@ -236,12 +256,9 @@ export default function PhotoLightbox({
       </button>
 
       <div
+        ref={stageRef}
         className={`photo-viewer-stage ${zoom > MIN_ZOOM ? "is-zoomed" : ""}`}
         onDoubleClick={() => setBoundedZoom(zoom === MIN_ZOOM ? 2 : MIN_ZOOM)}
-        onWheel={(event) => {
-          event.preventDefault();
-          setBoundedZoom(zoom + (event.deltaY < 0 ? ZOOM_STEP : -ZOOM_STEP));
-        }}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerEnd}
