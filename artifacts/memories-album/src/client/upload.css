@@ -17,13 +17,18 @@
   font-size: .82rem;
 }
 
-.upload-form input[type="text"] {
+.upload-form input[type="text"],
+.upload-form select {
   width: 100%;
   border: 1px solid var(--line);
   border-radius: .8rem;
   background: rgba(255, 252, 245, .82);
   padding: .85rem .95rem;
   color: var(--ink);
+}
+
+.upload-form select {
+  cursor: pointer;
 }
 
 .file-picker {
