@@ -45,23 +45,6 @@ test("primary navigation is publicly reported as hidden by default", async () =>
   });
 });
 
-test("admin password is validated server-side", async () => {
-  await withApi(async (origin) => {
-    const rejected = await fetch(`${origin}/Memories/api/admin/session`, {
-      method: "POST",
-      headers: { Authorization: "Bearer wrong-password" },
-    });
-    assert.equal(rejected.status, 401);
-
-    const accepted = await fetch(`${origin}/Memories/api/admin/session`, {
-      method: "POST",
-      headers: { Authorization: "Bearer correct-admin-password" },
-    });
-    assert.equal(accepted.status, 200);
-    assert.deepEqual(await accepted.json(), { authenticated: true });
-  });
-});
-
 test("only an authenticated admin can change primary navigation visibility", async () => {
   await withApi(async (origin) => {
     const unauthorized = await fetch(`${origin}/Memories/api/admin/settings`, {

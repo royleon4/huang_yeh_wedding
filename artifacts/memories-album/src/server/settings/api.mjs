@@ -58,20 +58,11 @@ export function createSettingsApi({ repository, adminToken }) {
     url = new URL(request.url ?? "/", "http://localhost"),
   ) {
     try {
-      if (request.method === "GET" && url.pathname === "/Memories/api/settings") {
-        json(response, 200, await repository.getPublicSettings());
-        return true;
-      }
-
       if (
-        request.method === "POST" &&
-        url.pathname === "/Memories/api/admin/session"
+        request.method === "GET" &&
+        url.pathname === "/Memories/api/settings"
       ) {
-        if (!authorized(request, adminToken)) {
-          json(response, 401, { error: "Unauthorized", code: "UNAUTHORIZED" });
-          return true;
-        }
-        json(response, 200, { authenticated: true });
+        json(response, 200, await repository.getPublicSettings());
         return true;
       }
 
@@ -104,7 +95,10 @@ export function createSettingsApi({ repository, adminToken }) {
       return false;
     } catch (error) {
       if (error?.status && error?.code) {
-        json(response, error.status, { error: error.message, code: error.code });
+        json(response, error.status, {
+          error: error.message,
+          code: error.code,
+        });
         return true;
       }
       throw error;

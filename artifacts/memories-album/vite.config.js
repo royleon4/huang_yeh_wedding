@@ -1,5 +1,6 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
+import { createAdminSessionApi } from "./src/server/admin/session-api.mjs";
 import { getMemoriesRuntime } from "./src/server/runtime.mjs";
 
 const CANONICAL_BASE = "/Memories";
@@ -50,6 +51,13 @@ function memoriesDevelopmentRoutes() {
           return;
         }
 
+        if (url.pathname === `${API_BASE}/admin/session`) {
+          createAdminSessionApi({
+            adminToken: process.env.MEMORIES_ADMIN_TOKEN,
+          })(request, response, url);
+          return;
+        }
+
         if (
           url.pathname.startsWith(`${API_BASE}/photos`) ||
           url.pathname.startsWith(`${API_BASE}/upload-batches`)
@@ -62,9 +70,7 @@ function memoriesDevelopmentRoutes() {
             console.warn("Memories development API unavailable", {
               name: error instanceof Error ? error.name : "UnknownError",
               code:
-                typeof error === "object" &&
-                error !== null &&
-                "code" in error
+                typeof error === "object" && error !== null && "code" in error
                   ? String(error.code)
                   : undefined,
             });

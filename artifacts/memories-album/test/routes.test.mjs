@@ -2,15 +2,17 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { createServer } from "../src/app.mjs";
 
-async function withServer(run) {
-  const server = createServer();
+async function withServer(run, options) {
+  const server = createServer(options);
   await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
   const address = server.address();
   assert.equal(typeof address, "object");
   try {
     await run(`http://127.0.0.1:${address.port}`);
   } finally {
-    await new Promise((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
+    await new Promise((resolve, reject) =>
+      server.close((error) => (error ? reject(error) : resolve())),
+    );
   }
 }
 
@@ -20,7 +22,9 @@ test("redirects uppercase and lowercase entry paths to the canonical URL", async
     assert.equal(canonical.status, 308);
     assert.equal(canonical.headers.get("location"), "/Memories/");
 
-    const lowercase = await fetch(`${origin}/memories/?from=guest`, { redirect: "manual" });
+    const lowercase = await fetch(`${origin}/memories/?from=guest`, {
+      redirect: "manual",
+    });
     assert.equal(lowercase.status, 308);
     assert.equal(lowercase.headers.get("location"), "/Memories/?from=guest");
   });
@@ -49,11 +53,62 @@ test("serves an isolated health endpoint", async () => {
   });
 });
 
+test("validates an admin session without initializing Drive or the database", async () => {
+  let runtimeRequested = false;
+  await withServer(
+    async (origin) => {
+      const accepted = await fetch(`${origin}/Memories/api/admin/session`, {
+        method: "POST",
+        headers: { Authorization: "Bearer correct-password" },
+      });
+      assert.equal(accepted.status, 200);
+      assert.deepEqual(await accepted.json(), { authenticated: true });
+
+      const rejected = await fetch(`${origin}/Memories/api/admin/session`, {
+        method: "POST",
+        headers: { Authorization: "Bearer wrong-password" },
+      });
+      assert.equal(rejected.status, 401);
+      assert.equal((await rejected.json()).code, "UNAUTHORIZED");
+      assert.equal(runtimeRequested, false);
+    },
+    {
+      env: { MEMORIES_ADMIN_TOKEN: "correct-password" },
+      getRuntime() {
+        runtimeRequested = true;
+        throw new Error("Runtime must not initialize for admin login");
+      },
+    },
+  );
+});
+
+test("reports missing admin configuration as unavailable, not a wrong password", async () => {
+  await withServer(
+    async (origin) => {
+      const response = await fetch(`${origin}/Memories/api/admin/session`, {
+        method: "POST",
+        headers: { Authorization: "Bearer any-password" },
+      });
+      assert.equal(response.status, 503);
+      assert.equal((await response.json()).code, "ADMIN_TOKEN_NOT_CONFIGURED");
+    },
+    {
+      env: {},
+      getRuntime() {
+        throw new Error("Runtime must not initialize for admin login");
+      },
+    },
+  );
+});
+
 test("keeps unknown API routes JSON-only", async () => {
   await withServer(async (origin) => {
     const response = await fetch(`${origin}/Memories/api/unknown`);
     assert.equal(response.status, 404);
-    assert.match(response.headers.get("content-type") ?? "", /^application\/json/);
+    assert.match(
+      response.headers.get("content-type") ?? "",
+      /^application\/json/,
+    );
   });
 });
 
