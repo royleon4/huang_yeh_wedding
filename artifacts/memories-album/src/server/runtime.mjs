@@ -35,6 +35,24 @@ async function createRuntime(env) {
   ]);
   const pool = new Pool({ connectionString: env.DATABASE_URL, max: 5 });
   const repository = new PostgresPhotoRepository(pool);
+  repository.clearThumbnail = async (photoId, expectedFileId = null) => {
+    const result = await pool.query(
+      `UPDATE memories_photos
+       SET thumbnail_drive_file_id = NULL, updated_at = now()
+       WHERE id = $1
+         AND ($2::text IS NULL OR thumbnail_drive_file_id = $2)
+       RETURNING id`,
+      [photoId, expectedFileId],
+    );
+    if (!result.rows[0]) {
+      const current = await repository.findPublicPhoto(photoId);
+      if (current && !current.thumbnailDriveFileId) return current;
+      const error = new Error("Thumbnail reference changed during repair");
+      error.code = "THUMBNAIL_REPAIR_CONFLICT";
+      throw error;
+    }
+    return repository.findPublicPhoto(photoId);
+  };
   const durableUploadRepository = new PostgresDurableUploadRepository(pool);
   const processRepository = new PostgresProcessRepository(pool);
   const settingsRepository = new PostgresSettingsRepository(pool);
