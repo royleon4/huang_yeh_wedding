@@ -77,6 +77,8 @@ test("an unreadable same-name Drive thumbnail is ignored and replaced", async ()
   assert.equal(uploadCount, 1);
   assert.deepEqual(downloads, [
     "inaccessible-thumb",
+    "inaccessible-thumb",
+    "inaccessible-thumb",
     source.driveFileId,
     "replacement-thumb",
   ]);
