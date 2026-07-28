@@ -121,16 +121,16 @@ export function createProcessApi({ repository, synchronizer, adminToken }) {
         return true;
       }
 
-      const renameMatch = url.pathname.match(
+      const processMatch = url.pathname.match(
         /^\/Memories\/api\/admin\/processes\/([^/]+)$/,
       );
-      if (request.method === "PATCH" && renameMatch) {
+      if (request.method === "PATCH" && processMatch) {
         if (!adminAuthorized(request, adminToken)) {
           json(response, 401, { error: "Unauthorized", code: "UNAUTHORIZED" });
           return true;
         }
         const processes = await repository.listProcesses();
-        const process = processes.find((item) => item.id === renameMatch[1]);
+        const process = processes.find((item) => item.id === processMatch[1]);
         if (!process) {
           json(response, 404, { error: "Process not found", code: "NOT_FOUND" });
           return true;
@@ -147,6 +147,38 @@ export function createProcessApi({ repository, synchronizer, adminToken }) {
         }
         const updated = await synchronizer.renameProcess(process, labelZh, labelEn);
         json(response, 200, { process: publicProcess(updated) });
+        return true;
+      }
+
+      if (request.method === "DELETE" && processMatch) {
+        if (!adminAuthorized(request, adminToken)) {
+          json(response, 401, { error: "Unauthorized", code: "UNAUTHORIZED" });
+          return true;
+        }
+        const processes = await synchronizer.syncProcessFoldersFromDrive();
+        const process = processes.find((item) => item.id === processMatch[1]);
+        if (!process?.driveFolderId) {
+          json(response, 404, { error: "Process not found", code: "NOT_FOUND" });
+          return true;
+        }
+        const children = await synchronizer.drive.listChildren(process.driveFolderId);
+        if (children.length > 0) {
+          json(response, 409, {
+            error: `此分類仍有 ${children.length} 個檔案，請先移動或刪除其中照片。`,
+            code: "PROCESS_NOT_EMPTY",
+            itemCount: children.length,
+          });
+          return true;
+        }
+        await synchronizer.drive.delete(process.driveFolderId);
+        const remaining = await synchronizer.syncProcessFoldersFromDrive();
+        const reordered = remaining.length
+          ? await synchronizer.reorderProcesses(remaining.map((item) => item.id))
+          : [];
+        json(response, 200, {
+          deletedProcessId: process.id,
+          processes: reordered.map(publicProcess),
+        });
         return true;
       }
 

@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
 import App from "./App.jsx";
 import ProcessSyncAdmin from "./ProcessSyncAdmin.jsx";
+import ProcessCategoryDeleteControls from "./ProcessCategoryDeleteControls.jsx";
 import GalleryEnhancements from "./GalleryEnhancements.jsx";
 import BottomCollectionNav from "./BottomCollectionNav.jsx";
 import { PROCESS_DEFINITIONS } from "./gallery-model.mjs";
@@ -46,7 +47,6 @@ async function hydrateProcessesFromServer() {
     applyServerProcesses(body.processes);
     return true;
   } catch {
-    // Keep the process list empty rather than falling back to bundled categories.
     return false;
   }
 }
@@ -80,6 +80,7 @@ function MemoriesRoot() {
     <>
       <App key={processRevision} />
       <ProcessSyncAdmin />
+      <ProcessCategoryDeleteControls />
       <GalleryEnhancements />
       <BottomCollectionNav />
     </>
