@@ -19,16 +19,26 @@ export class MemoryPhotoRepository {
   constructor(seed = [], batches = []) {
     this.#photos = seed.map((photo) => ({
       ...photo,
+      collection:
+        photo.collection ?? (photo.source === "guest" ? "guest" : "wedding"),
       processIds: [...(photo.processIds ?? [])],
     }));
     this.#batches = new Map(
-      batches.map((batch) => [batch.id, { ...batch }]),
+      batches.map((batch) => [
+        batch.id,
+        { ...batch, classification: batch.classification ?? "guest" },
+      ]),
     );
   }
 
   async createUploadBatch(batch) {
     if (this.#batches.has(batch.id)) throw new Error("Duplicate batch id");
-    this.#batches.set(batch.id, { ...batch, status: batch.status ?? "open" });
+    this.#batches.set(batch.id, {
+      ...batch,
+      status: batch.status ?? "open",
+      classification: batch.classification ?? "guest",
+      classificationProcessId: batch.classificationProcessId ?? null,
+    });
     return { ...this.#batches.get(batch.id) };
   }
 
@@ -55,11 +65,14 @@ export class MemoryPhotoRepository {
     ) {
       throw duplicateError();
     }
-    this.#photos.push({
+    const stored = {
       ...photo,
+      collection:
+        photo.collection ?? (photo.source === "guest" ? "guest" : "wedding"),
       processIds: [...(photo.processIds ?? [])],
-    });
-    return { ...photo, processIds: [...(photo.processIds ?? [])] };
+    };
+    this.#photos.push(stored);
+    return { ...stored, processIds: [...stored.processIds] };
   }
 
   async listPhotosMissingThumbnails({ limit = 12 } = {}) {
@@ -106,12 +119,18 @@ export class MemoryPhotoRepository {
     limit = 24,
     processId = null,
     source = null,
+    collection = null,
   } = {}) {
     const decoded = decodePhotoCursor(cursor);
     const visible = this.#photos
       .filter((photo) => photo.visibility === "public")
       .filter((photo) => !processId || photo.processIds.includes(processId))
       .filter((photo) => !source || photo.source === source)
+      .filter((photo) => {
+        if (!collection) return true;
+        if (collection === "guest") return photo.source === "guest";
+        return photo.collection === collection;
+      })
       .sort(compareNewestFirst);
 
     const afterCursor = decoded
@@ -146,6 +165,19 @@ export class MemoryPhotoRepository {
     return photo
       ? { ...photo, processIds: [...photo.processIds] }
       : null;
+  }
+
+  async updateDriveParentByDriveFile(driveFileId, parentFolderId) {
+    const index = this.#photos.findIndex(
+      (photo) => photo.driveFileId === driveFileId,
+    );
+    if (index >= 0) {
+      this.#photos[index] = {
+        ...this.#photos[index],
+        driveParentFolderId: parentFolderId,
+        updatedAt: new Date().toISOString(),
+      };
+    }
   }
 
   async setVisibility(id, visibility) {
