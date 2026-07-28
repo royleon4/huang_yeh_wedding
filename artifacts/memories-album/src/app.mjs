@@ -102,9 +102,13 @@ async function handleStandaloneApi(request, response, url) {
     return true;
   }
 
-  if (url.pathname.startsWith(`${MEMORIES_API_PATH}/photos`)) {
+  if (
+    url.pathname.startsWith(`${MEMORIES_API_PATH}/photos`) ||
+    url.pathname.startsWith(`${MEMORIES_API_PATH}/upload-batches`)
+  ) {
     try {
       const runtime = await getMemoriesRuntime();
+      if (await runtime.uploadApi(request, response, url)) return true;
       if (await runtime.photoApi(request, response, url)) return true;
     } catch (error) {
       reportApiFailure(error);

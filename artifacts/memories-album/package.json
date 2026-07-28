@@ -1,6 +1,6 @@
 {
   "name": "@workspace/memories-album",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "private": true,
   "type": "module",
   "scripts": {
@@ -12,9 +12,11 @@
   },
   "dependencies": {
     "@replit/connectors-sdk": "^0.4.1",
+    "busboy": "1.6.0",
     "pg": "^8.20.0",
     "react": "catalog:",
-    "react-dom": "catalog:"
+    "react-dom": "catalog:",
+    "sharp": "^0.34.3"
   },
   "devDependencies": {
     "@vitejs/plugin-react": "catalog:",
