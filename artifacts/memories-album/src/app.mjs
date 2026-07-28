@@ -145,6 +145,28 @@ async function handleStandaloneApi(
         code: error?.code,
       });
       if (!response.headersSent) {
+        if (
+          request.method === "GET" &&
+          url.pathname === `${MEMORIES_API_PATH}/processes`
+        ) {
+          sendJson(response, 200, {
+            processes: [],
+            degraded: true,
+            storageError: boundedStorageError(error).code,
+          });
+          return true;
+        }
+        if (
+          request.method === "GET" &&
+          url.pathname === `${MEMORIES_API_PATH}/settings`
+        ) {
+          sendJson(response, 200, {
+            primaryNavigationVisible: false,
+            degraded: true,
+            storageError: boundedStorageError(error).code,
+          });
+          return true;
+        }
         sendJson(response, 503, boundedStorageError(error));
       } else {
         response.destroy();
