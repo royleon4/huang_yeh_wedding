@@ -42,6 +42,15 @@ async function bodyToBuffer(body) {
   throw new Error("Unsupported Google Drive response body");
 }
 
+async function discardBody(body) {
+  if (!body) return;
+  if (typeof body.cancel === "function") {
+    await body.cancel().catch(() => {});
+    return;
+  }
+  if (typeof body.destroy === "function") body.destroy();
+}
+
 async function bestEffortDelete(drive, fileId) {
   if (!fileId) return;
   try {
@@ -56,6 +65,15 @@ function isRetryableDriveError(error) {
     error?.code === "DRIVE_RETRYABLE" ||
     error?.status === 429 ||
     (Number.isInteger(error?.status) && error.status >= 500)
+  );
+}
+
+function isUnreadableDerivative(error) {
+  return (
+    error?.status === 404 ||
+    error?.code === "DRIVE_AUTHORIZATION_REQUIRED" ||
+    error?.code === "DRIVE_REQUEST_FAILED" ||
+    isRetryableDriveError(error)
   );
 }
 
@@ -75,6 +93,22 @@ async function retryDriveOperation(
       lastError = error;
       if (!isRetryableDriveError(error) || attempt === attempts) throw error;
       await delay(delayMs * attempt);
+    }
+  }
+  throw lastError;
+}
+
+async function verifyDriveFile(drive, fileId, attempts = 3) {
+  let lastError;
+  for (let attempt = 1; attempt <= attempts; attempt += 1) {
+    try {
+      const file = await drive.download(fileId);
+      await discardBody(file.body);
+      return;
+    } catch (error) {
+      lastError = error;
+      if (!isUnreadableDerivative(error) || attempt === attempts) throw error;
+      await delay(200 * attempt);
     }
   }
   throw lastError;
@@ -152,37 +186,77 @@ export class ThumbnailService {
     }
   }
 
-  async ensurePhotoThumbnail(photo) {
-    if (photo?.thumbnailDriveFileId) return photo;
+  async ensurePhotoThumbnail(photo, { ignoreFileId = null } = {}) {
+    if (photo?.thumbnailDriveFileId && photo.thumbnailDriveFileId !== ignoreFileId) {
+      return photo;
+    }
     if (!photo?.id || !photo?.driveFileId) {
       const error = new Error("Photo is missing its Drive identity");
       error.code = "PHOTO_DRIVE_ID_MISSING";
       throw error;
     }
 
-    const key = String(photo.driveFileId);
+    const key = `${photo.driveFileId}:${ignoreFileId ?? "normal"}`;
     if (this.#inFlight.has(key)) return this.#inFlight.get(key);
 
-    const operation = this.#ensurePhotoThumbnail(photo).finally(() => {
+    const operation = this.#ensurePhotoThumbnail(photo, { ignoreFileId }).finally(() => {
       this.#inFlight.delete(key);
     });
     this.#inFlight.set(key, operation);
     return operation;
   }
 
-  async #ensurePhotoThumbnail(photo) {
+  async repairPhotoThumbnail(photo) {
+    const staleFileId = photo?.thumbnailDriveFileId ?? null;
+    if (!photo?.id || !photo?.driveFileId) {
+      const error = new Error("Photo is missing its Drive identity");
+      error.code = "PHOTO_DRIVE_ID_MISSING";
+      throw error;
+    }
+    if (typeof this.repository.clearThumbnail !== "function") {
+      const error = new Error("Thumbnail repository cannot clear stale references");
+      error.code = "THUMBNAIL_REPAIR_UNSUPPORTED";
+      throw error;
+    }
+    const cleared = await this.repository.clearThumbnail(photo.id, staleFileId);
+    this.invalidateIndex();
+    return this.ensurePhotoThumbnail(cleared, { ignoreFileId: staleFileId });
+  }
+
+  async #attachExistingIfReadable({ photo, filename, index, candidate, ignoreFileId }) {
+    if (!candidate?.id || candidate.id === ignoreFileId) return null;
+    try {
+      await verifyDriveFile(this.drive, candidate.id);
+      return this.repository.attachThumbnail(photo.id, candidate.id);
+    } catch (error) {
+      if (!isUnreadableDerivative(error)) throw error;
+      // Do not keep selecting the same inaccessible entry during this request.
+      if (index.get(filename)?.id === candidate.id) index.delete(filename);
+      return null;
+    }
+  }
+
+  async #ensurePhotoThumbnail(photo, { ignoreFileId = null } = {}) {
     const filename = thumbnailFilenameForDriveFileId(photo.driveFileId);
     const index = await this.#thumbnailIndex();
-    const existing = index.get(filename);
-    if (existing?.id) {
-      return this.repository.attachThumbnail(photo.id, existing.id);
-    }
+    const attachedExisting = await this.#attachExistingIfReadable({
+      photo,
+      filename,
+      index,
+      candidate: index.get(filename),
+      ignoreFileId,
+    });
+    if (attachedExisting) return attachedExisting;
 
     return this.#withGenerationSlot(async () => {
-      const existingAfterWait = index.get(filename);
-      if (existingAfterWait?.id) {
-        return this.repository.attachThumbnail(photo.id, existingAfterWait.id);
-      }
+      const attachedAfterWait = await this.#attachExistingIfReadable({
+        photo,
+        filename,
+        index,
+        candidate: index.get(filename),
+        ignoreFileId,
+      });
+      if (attachedAfterWait) return attachedAfterWait;
 
       const original = await retryDriveOperation(
         () => this.drive.download(photo.driveFileId),
@@ -204,6 +278,10 @@ export class ThumbnailService {
           }),
         { attempts: this.retryAttempts },
       );
+
+      // Never write a thumbnail ID to PostgreSQL until Google Drive can read it
+      // back. This prevents a successful API response with a missing derivative.
+      await verifyDriveFile(this.drive, uploaded.fileId);
       index.set(filename, {
         id: uploaded.fileId,
         name: filename,

@@ -116,10 +116,14 @@ async function handleStandaloneApi(request, response, url) {
     url.pathname.startsWith(`${MEMORIES_API_PATH}/photos`) ||
     url.pathname.startsWith(`${MEMORIES_API_PATH}/upload-batches`) ||
     url.pathname.startsWith(`${MEMORIES_API_PATH}/processes`) ||
-    url.pathname.startsWith(`${MEMORIES_API_PATH}/admin/processes`)
+    url.pathname.startsWith(`${MEMORIES_API_PATH}/settings`) ||
+    url.pathname.startsWith(`${MEMORIES_API_PATH}/admin/processes`) ||
+    url.pathname.startsWith(`${MEMORIES_API_PATH}/admin/settings`) ||
+    url.pathname.startsWith(`${MEMORIES_API_PATH}/admin/session`)
   ) {
     try {
       const runtime = await getMemoriesRuntime();
+      if (await runtime.settingsApi(request, response, url)) return true;
       if (await runtime.processApi(request, response, url)) return true;
       if (await runtime.uploadApi(request, response, url)) return true;
       if (await runtime.photoApi(request, response, url)) return true;

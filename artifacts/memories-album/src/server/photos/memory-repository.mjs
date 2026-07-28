@@ -114,6 +114,34 @@ export class MemoryPhotoRepository {
     };
   }
 
+  async clearThumbnail(photoId, expectedFileId = null) {
+    const index = this.#photos.findIndex((photo) => photo.id === photoId);
+    if (index < 0) {
+      const error = new Error("Photo not found while clearing thumbnail");
+      error.code = "PHOTO_NOT_FOUND";
+      throw error;
+    }
+    const current = this.#photos[index];
+    if (
+      expectedFileId &&
+      current.thumbnailDriveFileId &&
+      current.thumbnailDriveFileId !== expectedFileId
+    ) {
+      const error = new Error("Thumbnail reference changed during repair");
+      error.code = "THUMBNAIL_REPAIR_CONFLICT";
+      throw error;
+    }
+    this.#photos[index] = {
+      ...current,
+      thumbnailDriveFileId: null,
+      updatedAt: new Date().toISOString(),
+    };
+    return {
+      ...this.#photos[index],
+      processIds: [...(this.#photos[index].processIds ?? [])],
+    };
+  }
+
   async listPublicPhotos({
     cursor = null,
     limit = 24,

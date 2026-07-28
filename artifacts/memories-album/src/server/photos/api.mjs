@@ -32,6 +32,7 @@ async function pipeBody(
   response,
   file,
   cacheControl = "public, max-age=3600, stale-while-revalidate=86400",
+  extraHeaders = {},
 ) {
   response.writeHead(200, {
     "Content-Type": file.contentType,
@@ -39,6 +40,7 @@ async function pipeBody(
     "Cache-Control": cacheControl,
     "X-Content-Type-Options": "nosniff",
     "Content-Security-Policy": "default-src 'none'",
+    ...extraHeaders,
   });
   if (Buffer.isBuffer(file.body) || file.body instanceof Uint8Array) {
     response.end(file.body);
@@ -69,6 +71,70 @@ function thumbnailFailure(response, error) {
     error: "The compressed thumbnail is not ready. Please retry shortly.",
     code,
   });
+}
+
+function shouldRepairThumbnail(error) {
+  return (
+    error?.status === 404 ||
+    error?.code === "DRIVE_AUTHORIZATION_REQUIRED" ||
+    error?.code === "DRIVE_REQUEST_FAILED" ||
+    error?.code === "DRIVE_RETRYABLE"
+  );
+}
+
+async function serveThumbnail({ response, photo, drive, thumbnailService }) {
+  let current = photo;
+  let lastError = null;
+
+  try {
+    if (!current.thumbnailDriveFileId) {
+      if (!thumbnailService) {
+        const error = new Error("Thumbnail service is unavailable");
+        error.code = "THUMBNAIL_NOT_READY";
+        throw error;
+      }
+      current = await thumbnailService.ensurePhotoThumbnail(current);
+    }
+    await pipeBody(
+      response,
+      await drive.download(current.thumbnailDriveFileId),
+      "public, max-age=31536000, immutable",
+    );
+    return true;
+  } catch (error) {
+    lastError = error;
+  }
+
+  if (thumbnailService && shouldRepairThumbnail(lastError)) {
+    try {
+      current = await thumbnailService.repairPhotoThumbnail(current);
+      await pipeBody(
+        response,
+        await drive.download(current.thumbnailDriveFileId),
+        "public, max-age=31536000, immutable",
+        { "X-Memories-Thumbnail-Repaired": "1" },
+      );
+      return true;
+    } catch (error) {
+      lastError = error;
+    }
+  }
+
+  // A broken derivative must not leave a permanent blank card. Serve the original
+  // for this request only; because it is not cached, the next request tries the
+  // repair path again and persists a real WebP thumbnail when Drive is available.
+  try {
+    await pipeBody(
+      response,
+      await drive.download(photo.driveFileId),
+      "no-store",
+      { "X-Memories-Thumbnail-Fallback": "original" },
+    );
+    return true;
+  } catch {
+    thumbnailFailure(response, lastError);
+    return true;
+  }
 }
 
 export function createMemoriesPhotoApi({
@@ -128,36 +194,20 @@ export function createMemoriesPhotoApi({
         json(response, 404, { error: "Not found" });
         return true;
       }
-      let photo = await repository.findPublicPhoto(id);
+      const photo = await repository.findPublicPhoto(id);
       if (!photo) {
         json(response, 404, { error: "Not found" });
         return true;
       }
 
-      if (variant === "thumbnail" && !photo.thumbnailDriveFileId) {
-        if (!thumbnailService) {
-          thumbnailFailure(response, { code: "THUMBNAIL_NOT_READY" });
-          return true;
-        }
-        try {
-          photo = await thumbnailService.ensurePhotoThumbnail(photo);
-        } catch (error) {
-          thumbnailFailure(response, error);
-          return true;
-        }
+      if (variant === "thumbnail") {
+        return serveThumbnail({ response, photo, drive, thumbnailService });
       }
 
-      const fileId =
-        variant === "thumbnail"
-          ? photo.thumbnailDriveFileId
-          : photo.driveFileId;
-      if (!fileId) {
+      if (!photo.driveFileId) {
         json(response, 503, {
           error: "The requested image is not ready.",
-          code:
-            variant === "thumbnail"
-              ? "THUMBNAIL_NOT_READY"
-              : "ORIGINAL_NOT_READY",
+          code: "ORIGINAL_NOT_READY",
         });
         return true;
       }
@@ -165,10 +215,8 @@ export function createMemoriesPhotoApi({
       try {
         await pipeBody(
           response,
-          await drive.download(fileId),
-          variant === "thumbnail"
-            ? "public, max-age=31536000, immutable"
-            : "public, max-age=3600, stale-while-revalidate=86400",
+          await drive.download(photo.driveFileId),
+          "public, max-age=3600, stale-while-revalidate=86400",
         );
       } catch (error) {
         if (error?.status === 404) {

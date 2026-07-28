@@ -33,17 +33,27 @@ class FakeDrive {
     this.uploads = [];
     this.downloads = [];
     this.deleted = [];
+    this.missing = new Set();
   }
 
   async listChildren() {
-    return [...this.thumbnails];
+    return this.thumbnails.filter((item) => !this.missing.has(item.id));
   }
 
   async download(fileId) {
     this.downloads.push(fileId);
+    if (this.missing.has(fileId)) {
+      const error = new Error("Not found");
+      error.status = 404;
+      throw error;
+    }
     return {
-      body: Buffer.from("original-image"),
-      contentType: "image/jpeg",
+      body: Buffer.from(
+        fileId.startsWith("generated-thumb") || fileId.includes("drive-thumb")
+          ? "compressed-webp"
+          : "original-image",
+      ),
+      contentType: fileId.includes("thumb") ? "image/webp" : "image/jpeg",
       contentLength: 14,
     };
   }
@@ -96,7 +106,7 @@ test("keeps an already linked thumbnail without Drive work", async () => {
   assert.equal(drive.uploads.length, 0);
 });
 
-test("reattaches a deterministic existing thumbnail instead of duplicating it", async () => {
+test("reattaches a verified deterministic existing thumbnail instead of duplicating it", async () => {
   const source = photo();
   const filename = thumbnailFilenameForDriveFileId(source.driveFileId);
   const repository = new MemoryPhotoRepository([source]);
@@ -113,11 +123,11 @@ test("reattaches a deterministic existing thumbnail instead of duplicating it", 
   const result = await service.ensurePhotoThumbnail(source);
 
   assert.equal(result.thumbnailDriveFileId, "existing-drive-thumb");
-  assert.equal(drive.downloads.length, 0);
+  assert.deepEqual(drive.downloads, ["existing-drive-thumb"]);
   assert.equal(drive.uploads.length, 0);
 });
 
-test("concurrent requests create only one compressed thumbnail", async () => {
+test("concurrent requests create one compressed thumbnail and verify it before DB attachment", async () => {
   const source = photo();
   const repository = new MemoryPhotoRepository([source]);
   const drive = new FakeDrive();
@@ -145,9 +155,38 @@ test("concurrent requests create only one compressed thumbnail", async () => {
   ]);
 
   assert.equal(left.thumbnailDriveFileId, right.thumbnailDriveFileId);
-  assert.equal(drive.downloads.length, 1);
+  assert.deepEqual(drive.downloads, ["original-drive-file-1", "generated-thumb-1"]);
   assert.equal(drive.uploads.length, 1);
   assert.equal(processor.calls, 1);
+});
+
+test("repairs a DB thumbnail reference whose Drive file no longer exists", async () => {
+  const stale = photo({ thumbnailDriveFileId: "deleted-thumbnail" });
+  const repository = new MemoryPhotoRepository([stale]);
+  const drive = new FakeDrive();
+  drive.missing.add("deleted-thumbnail");
+  const service = new ThumbnailService({
+    repository,
+    drive,
+    imageProcessor: {
+      async createThumbnail() {
+        return {
+          thumbnailBytes: Buffer.from("compressed-webp"),
+          thumbnailContentType: "image/webp",
+        };
+      },
+    },
+    thumbnailFolderId: "thumbnail-folder",
+  });
+
+  const repaired = await service.repairPhotoThumbnail(stale);
+
+  assert.equal(repaired.thumbnailDriveFileId, "generated-thumb-1");
+  assert.deepEqual(drive.downloads, ["original-drive-file-1", "generated-thumb-1"]);
+  assert.equal(
+    (await repository.findPublicPhoto(stale.id)).thumbnailDriveFileId,
+    "generated-thumb-1",
+  );
 });
 
 test("background backfill processes every missing thumbnail and skips existing ones", async () => {
@@ -189,6 +228,12 @@ test("background backfill processes every missing thumbnail and skips existing o
   assert.equal(result.createdOrAttached, 2);
   assert.equal(result.failures.length, 0);
   assert.equal(drive.uploads.length, 2);
+  assert.equal(drive.downloads.length, 4);
+  assert.equal(
+    (await repository.findPublicPhoto("33333333-3333-4333-8332-333333333333"))
+      ?.thumbnailDriveFileId,
+    undefined,
+  );
   assert.equal(
     (await repository.findPublicPhoto("33333333-3333-4333-8333-333333333333"))
       .thumbnailDriveFileId,
