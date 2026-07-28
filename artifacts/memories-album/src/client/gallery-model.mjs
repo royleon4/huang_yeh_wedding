@@ -26,6 +26,10 @@ export const NAV_ITEMS = [
   { id: "find", zh: "找找我", en: "Find me", enabled: false },
 ];
 
+function collectionForPhoto(photo) {
+  return photo.collection ?? (photo.source === "guest" ? "guest" : "wedding");
+}
+
 export function filterPhotos(
   photos,
   filterId = "all",
@@ -33,7 +37,7 @@ export function filterPhotos(
 ) {
   const inCollection = photos.filter((photo) => {
     if (collectionId === "guest") return photo.source === "guest";
-    return photo.collection === collectionId;
+    return collectionForPhoto(photo) === collectionId;
   });
   if (collectionId !== "wedding" || filterId === "all") return inCollection;
   return inCollection.filter((photo) => photo.processIds.includes(filterId));
