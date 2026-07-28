@@ -6,6 +6,10 @@ const adminSourceUrl = new URL(
   "../src/client/ProcessSyncAdmin.jsx",
   import.meta.url,
 );
+const enhancementsSourceUrl = new URL(
+  "../src/client/GalleryEnhancements.jsx",
+  import.meta.url,
+);
 const stylesUrl = new URL("../src/client/feature-controls.css", import.meta.url);
 const appSourceUrl = new URL("../src/client/App.jsx", import.meta.url);
 const mainSourceUrl = new URL("../src/client/main.jsx", import.meta.url);
@@ -36,7 +40,7 @@ test("admin has no visible URL or button entrance and opens after five title tap
   assert.match(appSource, /className="archive-header"/);
 });
 
-test("upload is a floating control and collection controls remain sticky", async () => {
+test("upload is floating and the sticky collection controls span the viewport", async () => {
   const [adminSource, styles] = await Promise.all([
     readFile(adminSourceUrl, "utf8"),
     readFile(stylesUrl, "utf8"),
@@ -44,6 +48,28 @@ test("upload is a floating control and collection controls remain sticky", async
   assert.match(adminSource, /className="floating-upload-button"/);
   assert.match(styles, /\.floating-upload-button\s*{[^}]*position: fixed;/s);
   assert.match(styles, /\.process-section\s*{[^}]*position: sticky;[^}]*top: 0;/s);
+  assert.match(styles, /\.process-section\s*{[^}]*width: 100vw;/s);
+  assert.match(styles, /margin-left: calc\(50% - 50vw\)/);
+});
+
+test("changing a collection or process scrolls to the first gallery item", async () => {
+  const source = await readFile(enhancementsSourceUrl, "utf8");
+  assert.match(source, /closest\("\.process-chip, \.collection-tab"\)/);
+  assert.match(source, /document\.getElementById\("archive-gallery"\)/);
+  assert.match(source, /window\.scrollTo\(\{ top: Math\.max\(0, top\), behavior: "smooth" \}\)/);
+});
+
+test("authenticated admin controls can permanently delete a photo", async () => {
+  const [source, styles, mainSource] = await Promise.all([
+    readFile(enhancementsSourceUrl, "utf8"),
+    readFile(stylesUrl, "utf8"),
+    readFile(mainSourceUrl, "utf8"),
+  ]);
+  assert.match(source, /\.process-sync-admin/);
+  assert.match(source, /\/Memories\/api\/admin\/photos\//);
+  assert.match(source, /method: "DELETE"/);
+  assert.match(styles, /\.admin-delete-photo\s*{/);
+  assert.match(mainSource, /<GalleryEnhancements \/>/);
 });
 
 test("React renders before the process API finishes", async () => {
