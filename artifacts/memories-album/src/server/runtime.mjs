@@ -3,6 +3,7 @@ import { PostgresPhotoRepository } from "./photos/postgres-repository.mjs";
 import { ThumbnailService } from "./photos/thumbnail-service.mjs";
 import { createReplitDriveStorage } from "./storage/replit-drive.mjs";
 import { createGuestUploadApi } from "./uploads/api.mjs";
+import { PostgresDurableUploadRepository } from "./uploads/durable-repository.mjs";
 import { createImageProcessor } from "./uploads/image-processor.mjs";
 import { PostgresProcessRepository } from "./processes/repository.mjs";
 import { DriveProcessSynchronizer } from "./processes/sync.mjs";
@@ -31,6 +32,7 @@ async function createRuntime(env) {
   ]);
   const pool = new Pool({ connectionString: env.DATABASE_URL, max: 5 });
   const repository = new PostgresPhotoRepository(pool);
+  const durableUploadRepository = new PostgresDurableUploadRepository(pool);
   const processRepository = new PostgresProcessRepository(pool);
   const synchronizer = new DriveProcessSynchronizer({
     drive,
@@ -96,6 +98,7 @@ async function createRuntime(env) {
   const runtime = {
     pool,
     repository,
+    durableUploadRepository,
     processRepository,
     synchronizer,
     thumbnailService,
@@ -108,6 +111,7 @@ async function createRuntime(env) {
     }),
     uploadApi: createGuestUploadApi({
       repository,
+      durableUploadRepository,
       processRepository,
       drive,
       imageProcessor,
