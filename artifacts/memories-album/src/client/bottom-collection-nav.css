@@ -7,6 +7,18 @@
   display: none !important;
 }
 
+.process-section .section-heading {
+  display: none;
+}
+
+.process-section {
+  padding-top: .65rem;
+}
+
+.process-section .collection-summary {
+  margin-top: 0;
+}
+
 .archive-shell {
   padding-bottom: calc(var(--memories-bottom-nav-height) + env(safe-area-inset-bottom));
 }
