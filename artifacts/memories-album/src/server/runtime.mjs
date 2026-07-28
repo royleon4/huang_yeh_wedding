@@ -1,5 +1,6 @@
 import { createMemoriesPhotoApi } from "./photos/api.mjs";
 import { PostgresPhotoRepository } from "./photos/postgres-repository.mjs";
+import { ThumbnailService } from "./photos/thumbnail-service.mjs";
 import { createReplitDriveStorage } from "./storage/replit-drive.mjs";
 import { createGuestUploadApi } from "./uploads/api.mjs";
 import { createImageProcessor } from "./uploads/image-processor.mjs";
@@ -39,18 +40,72 @@ async function createRuntime(env) {
   });
 
   const folders = await synchronizer.ensureStructure();
-  drive.originalFolderId = folders.get("訪客上傳")?.id ?? drive.originalFolderId;
-  drive.thumbnailFolderId = folders.get("系統縮圖")?.id ?? drive.thumbnailFolderId;
+  drive.originalFolderId =
+    folders.get("訪客上傳")?.id ?? drive.originalFolderId;
+  drive.thumbnailFolderId =
+    folders.get("系統縮圖")?.id ?? drive.thumbnailFolderId;
+
+  if (!drive.thumbnailFolderId) {
+    const error = new Error("Memories thumbnail folder is unavailable");
+    error.code = "THUMBNAIL_FOLDER_NOT_CONFIGURED";
+    throw error;
+  }
 
   const imageProcessor = createImageProcessor();
+  const thumbnailService = new ThumbnailService({
+    repository,
+    drive,
+    imageProcessor,
+    thumbnailFolderId: drive.thumbnailFolderId,
+    batchSize: Number(env.MEMORIES_THUMBNAIL_BATCH_SIZE ?? 12),
+  });
+
+  let backfillPromise = null;
+  const runThumbnailBackfill = () => {
+    if (backfillPromise) return backfillPromise;
+    thumbnailService.invalidateIndex();
+    backfillPromise = thumbnailService
+      .backfillMissing({
+        maxPhotos: Number(env.MEMORIES_THUMBNAIL_MAX_PER_RUN ?? 240),
+      })
+      .then((result) => {
+        if (result.failures.length > 0) {
+          console.warn("Memories thumbnail backfill completed with failures", {
+            attempted: result.attempted,
+            createdOrAttached: result.createdOrAttached,
+            failureCount: result.failures.length,
+            failureCodes: [
+              ...new Set(result.failures.map((failure) => failure.code)),
+            ],
+          });
+        }
+        return result;
+      })
+      .catch((error) => {
+        console.warn("Memories thumbnail backfill failed", {
+          name: error instanceof Error ? error.name : "UnknownError",
+          code: error?.code,
+        });
+      })
+      .finally(() => {
+        backfillPromise = null;
+      });
+    return backfillPromise;
+  };
+
   const runtime = {
     pool,
     repository,
     processRepository,
     synchronizer,
+    thumbnailService,
     drive,
     imageProcessor,
-    photoApi: createMemoriesPhotoApi({ repository, drive }),
+    photoApi: createMemoriesPhotoApi({
+      repository,
+      drive,
+      thumbnailService,
+    }),
     uploadApi: createGuestUploadApi({
       repository,
       drive,
@@ -64,17 +119,22 @@ async function createRuntime(env) {
   };
 
   await synchronizer.reconcileFromDrive();
+  void runThumbnailBackfill();
+
   const intervalMs = Math.max(
     60_000,
     Number(env.MEMORIES_DRIVE_SYNC_INTERVAL_MS ?? 300_000),
   );
   const timer = setInterval(() => {
-    void synchronizer.reconcileFromDrive().catch((error) => {
-      console.warn("Memories Drive synchronization failed", {
-        name: error instanceof Error ? error.name : "UnknownError",
-        code: error?.code,
+    void synchronizer
+      .reconcileFromDrive()
+      .then(() => runThumbnailBackfill())
+      .catch((error) => {
+        console.warn("Memories Drive synchronization failed", {
+          name: error instanceof Error ? error.name : "UnknownError",
+          code: error?.code,
+        });
       });
-    });
   }, intervalMs);
   timer.unref?.();
 
