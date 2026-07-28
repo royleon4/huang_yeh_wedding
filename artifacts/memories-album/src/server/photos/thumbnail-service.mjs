@@ -68,6 +68,15 @@ function isRetryableDriveError(error) {
   );
 }
 
+function isUnreadableDerivative(error) {
+  return (
+    error?.status === 404 ||
+    error?.code === "DRIVE_AUTHORIZATION_REQUIRED" ||
+    error?.code === "DRIVE_REQUEST_FAILED" ||
+    isRetryableDriveError(error)
+  );
+}
+
 function delay(milliseconds) {
   return new Promise((resolve) => setTimeout(resolve, milliseconds));
 }
@@ -98,11 +107,7 @@ async function verifyDriveFile(drive, fileId, attempts = 3) {
       return;
     } catch (error) {
       lastError = error;
-      const canRetry =
-        error?.status === 404 ||
-        error?.code === "DRIVE_AUTHORIZATION_REQUIRED" ||
-        isRetryableDriveError(error);
-      if (!canRetry || attempt === attempts) throw error;
+      if (!isUnreadableDerivative(error) || attempt === attempts) throw error;
       await delay(200 * attempt);
     }
   }
@@ -218,21 +223,40 @@ export class ThumbnailService {
     return this.ensurePhotoThumbnail(cleared, { ignoreFileId: staleFileId });
   }
 
+  async #attachExistingIfReadable({ photo, filename, index, candidate, ignoreFileId }) {
+    if (!candidate?.id || candidate.id === ignoreFileId) return null;
+    try {
+      await verifyDriveFile(this.drive, candidate.id);
+      return this.repository.attachThumbnail(photo.id, candidate.id);
+    } catch (error) {
+      if (!isUnreadableDerivative(error)) throw error;
+      // Do not keep selecting the same inaccessible entry during this request.
+      if (index.get(filename)?.id === candidate.id) index.delete(filename);
+      return null;
+    }
+  }
+
   async #ensurePhotoThumbnail(photo, { ignoreFileId = null } = {}) {
     const filename = thumbnailFilenameForDriveFileId(photo.driveFileId);
     const index = await this.#thumbnailIndex();
-    const existing = index.get(filename);
-    if (existing?.id && existing.id !== ignoreFileId) {
-      await verifyDriveFile(this.drive, existing.id);
-      return this.repository.attachThumbnail(photo.id, existing.id);
-    }
+    const attachedExisting = await this.#attachExistingIfReadable({
+      photo,
+      filename,
+      index,
+      candidate: index.get(filename),
+      ignoreFileId,
+    });
+    if (attachedExisting) return attachedExisting;
 
     return this.#withGenerationSlot(async () => {
-      const existingAfterWait = index.get(filename);
-      if (existingAfterWait?.id && existingAfterWait.id !== ignoreFileId) {
-        await verifyDriveFile(this.drive, existingAfterWait.id);
-        return this.repository.attachThumbnail(photo.id, existingAfterWait.id);
-      }
+      const attachedAfterWait = await this.#attachExistingIfReadable({
+        photo,
+        filename,
+        index,
+        candidate: index.get(filename),
+        ignoreFileId,
+      });
+      if (attachedAfterWait) return attachedAfterWait;
 
       const original = await retryDriveOperation(
         () => this.drive.download(photo.driveFileId),
