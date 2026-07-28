@@ -196,6 +196,7 @@ export class PostgresDurableUploadRepository {
   }
 
   async markFailed({ batchId, clientUploadId, code = "UPLOAD_FAILED" }) {
+    if (code === "UPLOAD_IN_PROGRESS") return;
     await this.pool.query(
       `UPDATE memories_upload_items
        SET status = CASE WHEN status = 'ready' THEN status ELSE 'failed' END,
