@@ -34,6 +34,7 @@ defaultBucketID = "replit-objstore-9709936d-1776-4923-b6e3-ed86b63197b7"
 
 [nix]
 channel = "stable-25_05"
+packages = ["u-root-cmds"]
 
 [userenv]
 
