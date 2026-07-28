@@ -6,6 +6,7 @@ import { PROCESS_DEFINITIONS } from "./gallery-model.mjs";
 import "./styles.css";
 import "./upload.css";
 import "./process-sync.css";
+import "./photo-lightbox.css";
 
 async function hydrateProcessesFromServer() {
   try {
