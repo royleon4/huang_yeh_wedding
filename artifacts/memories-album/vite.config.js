@@ -50,9 +50,13 @@ function memoriesDevelopmentRoutes() {
           return;
         }
 
-        if (url.pathname.startsWith(`${API_BASE}/photos`)) {
+        if (
+          url.pathname.startsWith(`${API_BASE}/photos`) ||
+          url.pathname.startsWith(`${API_BASE}/upload-batches`)
+        ) {
           try {
             const runtime = await getMemoriesRuntime();
+            if (await runtime.uploadApi(request, response, url)) return;
             if (await runtime.photoApi(request, response, url)) return;
           } catch (error) {
             console.warn("Memories development API unavailable", {
