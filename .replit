@@ -34,3 +34,8 @@ defaultBucketID = "replit-objstore-9709936d-1776-4923-b6e3-ed86b63197b7"
 
 [nix]
 channel = "stable-25_05"
+
+[userenv]
+
+[userenv.shared]
+MEMORIES_DRIVE_PHOTOS_FOLDER_ID = "1qYuzL9oDnhXdVqUJ20U_AhmDmeFUo31-"
