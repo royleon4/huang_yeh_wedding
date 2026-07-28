@@ -48,7 +48,11 @@ async function readJson(request, maxBytes = 8 * 1024) {
   for await (const chunk of request) {
     size += chunk.length;
     if (size > maxBytes) {
-      throw new UploadApiError(413, "Request body is too large", "BODY_TOO_LARGE");
+      throw new UploadApiError(
+        413,
+        "Request body is too large",
+        "BODY_TOO_LARGE",
+      );
     }
     chunks.push(chunk);
   }
@@ -69,9 +73,8 @@ export function parseSinglePhoto(
       parser = Busboy({
         headers: request.headers,
         limits: {
-          files: 1,
-          fields: 0,
-          parts: 1,
+          files: 2,
+          fields: 1,
           fileSize: maxFileBytes,
         },
       });
@@ -87,6 +90,7 @@ export function parseSinglePhoto(
     }
 
     let settled = false;
+    let fileSeen = false;
     let record = null;
     let problem = null;
     const fail = (error) => {
@@ -100,7 +104,7 @@ export function parseSinglePhoto(
     });
 
     parser.on("file", (fieldName, stream, info) => {
-      if (fieldName !== "photo" || record) {
+      if (fieldName !== "photo" || fileSeen) {
         problem = new UploadApiError(
           400,
           "Exactly one photo is required",
@@ -109,6 +113,7 @@ export function parseSinglePhoto(
         stream.resume();
         return;
       }
+      fileSeen = true;
       const chunks = [];
       let size = 0;
       let truncated = false;
@@ -130,6 +135,13 @@ export function parseSinglePhoto(
       });
     });
 
+    parser.on("field", () => {
+      problem = new UploadApiError(
+        400,
+        "Unexpected multipart fields",
+        "INVALID_MULTIPART",
+      );
+    });
     parser.on("filesLimit", () => {
       problem = new UploadApiError(
         400,
@@ -137,7 +149,7 @@ export function parseSinglePhoto(
         "INVALID_FILE_COUNT",
       );
     });
-    parser.on("partsLimit", () => {
+    parser.on("fieldsLimit", () => {
       problem = new UploadApiError(
         400,
         "Unexpected multipart fields",
@@ -214,7 +226,9 @@ export function createGuestUploadApi({
   createToken = () => randomBytes(32).toString("base64url"),
 }) {
   if (!repository || !drive || !imageProcessor) {
-    throw new Error("Upload repository, Drive storage, and image processor are required");
+    throw new Error(
+      "Upload repository, Drive storage, and image processor are required",
+    );
   }
 
   return async function handleGuestUploadApi(
@@ -267,14 +281,22 @@ export function createGuestUploadApi({
         const batchId = photoMatch[1];
         const token = bearerToken(request);
         if (!UUID_PATTERN.test(batchId) || !token) {
-          throw new UploadApiError(404, "Upload batch not found", "BATCH_NOT_FOUND");
+          throw new UploadApiError(
+            404,
+            "Upload batch not found",
+            "BATCH_NOT_FOUND",
+          );
         }
         const batch = await repository.findUploadBatchByToken(
           batchId,
           hash(token),
         );
         if (!batch) {
-          throw new UploadApiError(404, "Upload batch not found", "BATCH_NOT_FOUND");
+          throw new UploadApiError(
+            404,
+            "Upload batch not found",
+            "BATCH_NOT_FOUND",
+          );
         }
 
         const input = await parseSinglePhoto(request, {
@@ -337,7 +359,10 @@ export function createGuestUploadApi({
       return false;
     } catch (error) {
       if (error instanceof UploadApiError) {
-        json(response, error.status, { error: error.message, code: error.code });
+        json(response, error.status, {
+          error: error.message,
+          code: error.code,
+        });
         return true;
       }
       if (error instanceof ImageValidationError) {
@@ -353,7 +378,8 @@ export function createGuestUploadApi({
       }
       if (error?.code === "DRIVE_RETRYABLE") {
         json(response, 503, {
-          error: "Google Drive is temporarily unavailable. Please retry this photo.",
+          error:
+            "Google Drive is temporarily unavailable. Please retry this photo.",
           code: "DRIVE_RETRYABLE",
         });
         return true;
