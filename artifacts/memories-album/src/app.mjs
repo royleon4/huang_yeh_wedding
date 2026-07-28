@@ -4,6 +4,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 export const MEMORIES_BASE_PATH = "/Memories";
+export const MEMORIES_LOWERCASE_PATH = "/memories";
 export const MEMORIES_API_PATH = `${MEMORIES_BASE_PATH}/api`;
 
 const moduleDirectory = path.dirname(fileURLToPath(import.meta.url));
@@ -21,6 +22,14 @@ function sendJson(response, status, body) {
   response.end(JSON.stringify(body));
 }
 
+function redirect(response, location) {
+  response.writeHead(308, {
+    Location: location,
+    "Cache-Control": "no-store",
+  });
+  response.end();
+}
+
 async function sendIndex(response) {
   const html = await readFile(path.join(publicDirectory, "index.html"));
   response.writeHead(200, {
@@ -34,9 +43,18 @@ async function sendIndex(response) {
 export async function handleRequest(request, response) {
   const url = new URL(request.url ?? "/", "http://localhost");
 
+  if (
+    url.pathname === MEMORIES_LOWERCASE_PATH ||
+    url.pathname.startsWith(`${MEMORIES_LOWERCASE_PATH}/`)
+  ) {
+    const suffix = url.pathname.slice(MEMORIES_LOWERCASE_PATH.length);
+    const canonicalPath = `${MEMORIES_BASE_PATH}${suffix || "/"}`;
+    redirect(response, `${canonicalPath}${url.search}`);
+    return;
+  }
+
   if (url.pathname === MEMORIES_BASE_PATH) {
-    response.writeHead(308, { Location: `${MEMORIES_BASE_PATH}/` });
-    response.end();
+    redirect(response, `${MEMORIES_BASE_PATH}/${url.search}`);
     return;
   }
 
@@ -49,12 +67,18 @@ export async function handleRequest(request, response) {
     return;
   }
 
-  if (url.pathname === MEMORIES_API_PATH || url.pathname.startsWith(`${MEMORIES_API_PATH}/`)) {
+  if (
+    url.pathname === MEMORIES_API_PATH ||
+    url.pathname.startsWith(`${MEMORIES_API_PATH}/`)
+  ) {
     sendJson(response, 404, { error: "Not found" });
     return;
   }
 
-  if (url.pathname === `${MEMORIES_BASE_PATH}/` || url.pathname.startsWith(`${MEMORIES_BASE_PATH}/`)) {
+  if (
+    url.pathname === `${MEMORIES_BASE_PATH}/` ||
+    url.pathname.startsWith(`${MEMORIES_BASE_PATH}/`)
+  ) {
     await sendIndex(response);
     return;
   }
