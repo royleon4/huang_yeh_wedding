@@ -10,7 +10,15 @@ const enhancementsSourceUrl = new URL(
   "../src/client/GalleryEnhancements.jsx",
   import.meta.url,
 );
+const bottomNavSourceUrl = new URL(
+  "../src/client/BottomCollectionNav.jsx",
+  import.meta.url,
+);
 const stylesUrl = new URL("../src/client/feature-controls.css", import.meta.url);
+const bottomNavStylesUrl = new URL(
+  "../src/client/bottom-collection-nav.css",
+  import.meta.url,
+);
 const appSourceUrl = new URL("../src/client/App.jsx", import.meta.url);
 const mainSourceUrl = new URL("../src/client/main.jsx", import.meta.url);
 
@@ -40,16 +48,28 @@ test("admin has no visible URL or button entrance and opens after five title tap
   assert.match(appSource, /className="archive-header"/);
 });
 
-test("upload is floating and the sticky collection controls span the viewport", async () => {
-  const [adminSource, styles] = await Promise.all([
-    readFile(adminSourceUrl, "utf8"),
-    readFile(stylesUrl, "utf8"),
-  ]);
-  assert.match(adminSource, /className="floating-upload-button"/);
-  assert.match(styles, /\.floating-upload-button\s*{[^}]*position: fixed;/s);
+test("collection controls remain sticky and span the viewport", async () => {
+  const styles = await readFile(stylesUrl, "utf8");
   assert.match(styles, /\.process-section\s*{[^}]*position: sticky;[^}]*top: 0;/s);
   assert.match(styles, /\.process-section\s*{[^}]*width: 100vw;/s);
   assert.match(styles, /margin-left: calc\(50% - 50vw\)/);
+});
+
+test("collections and upload are separated into a fixed bottom navigation", async () => {
+  const [source, styles, mainSource] = await Promise.all([
+    readFile(bottomNavSourceUrl, "utf8"),
+    readFile(bottomNavStylesUrl, "utf8"),
+    readFile(mainSourceUrl, "utf8"),
+  ]);
+  assert.match(source, /婚禮流程/);
+  assert.match(source, /訪客上傳/);
+  assert.match(source, /生活照/);
+  assert.match(source, /className="bottom-upload-action"/);
+  assert.match(source, /document\.querySelector\("\.floating-upload-button"\)/);
+  assert.match(styles, /\.bottom-collection-nav\s*{[^}]*position: fixed;/s);
+  assert.match(styles, /\.collection-tabs,[\s\S]*\.floating-upload-button[\s\S]*display: none !important;/);
+  assert.match(styles, /\.bottom-upload-action\s*{[^}]*background: linear-gradient/s);
+  assert.match(mainSource, /<BottomCollectionNav \/>/);
 });
 
 test("changing a collection or process scrolls to the first gallery item", async () => {

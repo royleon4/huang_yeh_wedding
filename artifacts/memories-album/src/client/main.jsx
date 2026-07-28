@@ -3,6 +3,7 @@ import { createRoot } from "react-dom/client";
 import App from "./App.jsx";
 import ProcessSyncAdmin from "./ProcessSyncAdmin.jsx";
 import GalleryEnhancements from "./GalleryEnhancements.jsx";
+import BottomCollectionNav from "./BottomCollectionNav.jsx";
 import { PROCESS_DEFINITIONS } from "./gallery-model.mjs";
 import "./styles.css";
 import "./collections.css";
@@ -10,6 +11,7 @@ import "./upload.css";
 import "./process-sync.css";
 import "./photo-lightbox.css";
 import "./feature-controls.css";
+import "./bottom-collection-nav.css";
 
 const PROCESSES_UPDATED_EVENT = "memories:processes-updated";
 const PHOTO_DELETED_EVENT = "memories:photo-deleted";
@@ -79,6 +81,7 @@ function MemoriesRoot() {
       <App key={processRevision} />
       <ProcessSyncAdmin />
       <GalleryEnhancements />
+      <BottomCollectionNav />
     </>
   );
 }
