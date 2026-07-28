@@ -32,12 +32,13 @@ async function withApi({ thumbnailService = null }, run) {
   const drive = {
     async download(fileId) {
       downloads.push(fileId);
+      const body = Buffer.from(
+        fileId === "generated-thumbnail-id" ? "thumbnail" : "original",
+      );
       return {
-        body: Buffer.from(
-          fileId === "generated-thumbnail-id" ? "thumbnail" : "original",
-        ),
+        body,
         contentType: "image/webp",
-        contentLength: 9,
+        contentLength: body.length,
       };
     },
   };
