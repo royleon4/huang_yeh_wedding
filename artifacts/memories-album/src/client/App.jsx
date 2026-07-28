@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { MOCK_PHOTOS } from "./mock-data.mjs";
 import {
+  COLLECTION_DEFINITIONS,
   NAV_ITEMS,
   PROCESS_DEFINITIONS,
   filterPhotos,
@@ -16,8 +17,13 @@ const COPY = {
     subtitle: "一座安靜收藏笑聲、祝福與相遇的婚禮檔案館",
     date: "二〇二六年六月二十日",
     allProcesses: "全部流程",
+    wedding: "婚禮流程",
     guest: "訪客上傳",
-    guestNote: "訪客照片會保留在獨立分類，不會加入婚禮流程。",
+    life: "生活照",
+    categories: "照片分類",
+    weddingNote: "依照婚禮當天流程整理的正式照片與已分類訪客照片。",
+    guestNote: "所有訪客上傳都會在這裡出現，原圖固定保存在「訪客上傳」資料夾。",
+    lifeNote: "婚禮之外的日常片刻，以及訪客選擇歸入生活照的照片。",
     admin: "管理模式",
     leaveAdmin: "離開管理",
     addProcess: "新增流程",
@@ -29,9 +35,8 @@ const COPY = {
     addTo: "加入此流程",
     removeFrom: "移除此流程",
     loadMore: "載入更多回憶",
-    emptyTitle: "這個流程還在等待照片",
-    emptyBody: "婚禮當天的回憶會慢慢被收藏進來。",
-    uploadTitle: "把你的照片放進檔案館",
+    emptyTitle: "這個分類還在等待照片",
+    emptyBody: "回憶會慢慢被收藏進來。",
     understood: "我知道了",
     comingSoon: "即將推出",
     comingBody:
@@ -39,7 +44,7 @@ const COPY = {
     close: "關閉",
     previous: "上一張",
     next: "下一張",
-    photo: "婚禮照片",
+    photo: "照片",
     loading: "正在整理回憶…",
     loadingOriginal: "正在載入原圖…",
     zoomIn: "放大",
@@ -55,10 +60,8 @@ const COPY = {
     closedTitle: "檔案館目前暫停開放",
     closedBody: "管理員完成整理後會再次開放瀏覽。",
     language: "English",
-    collection: "婚禮流程",
     photosCount: "張照片",
-    adminHint:
-      "此為第一階段的管理介面雛形；正式權限與同步由管理員功能串接。",
+    adminHint: "流程資料夾會與 Google Drive 同步；生活照與訪客上傳為獨立大分類。",
   },
   en: {
     archive: "The Leon & YehYeh Wedding Archive",
@@ -66,9 +69,16 @@ const COPY = {
       "A quiet archive of laughter, blessings, and the people who shared our day",
     date: "20 June 2026",
     allProcesses: "All moments",
+    wedding: "Wedding moments",
     guest: "Guest uploads",
+    life: "Life photos",
+    categories: "Photo collections",
+    weddingNote:
+      "Official wedding photos and guest photos that were classified into a wedding moment.",
     guestNote:
-      "Guest photos stay in a separate collection and are not assigned to wedding moments.",
+      "Every guest upload appears here. Originals always remain in the Guest uploads Drive folder.",
+    lifeNote:
+      "Everyday memories outside the wedding, including guest uploads classified as life photos.",
     admin: "Admin view",
     leaveAdmin: "Leave admin",
     addProcess: "Add moment",
@@ -80,9 +90,8 @@ const COPY = {
     addTo: "Add to moment",
     removeFrom: "Remove from moment",
     loadMore: "Load more memories",
-    emptyTitle: "This moment is waiting for photos",
-    emptyBody: "Memories from the wedding day will be carefully added here.",
-    uploadTitle: "Add your photos to the archive",
+    emptyTitle: "This collection is waiting for photos",
+    emptyBody: "Memories will be carefully added here.",
     understood: "Got it",
     comingSoon: "Coming soon",
     comingBody:
@@ -90,7 +99,7 @@ const COPY = {
     close: "Close",
     previous: "Previous photo",
     next: "Next photo",
-    photo: "Wedding photo",
+    photo: "Photo",
     loading: "Arranging the memories…",
     loadingOriginal: "Loading original photo…",
     zoomIn: "Zoom in",
@@ -107,10 +116,9 @@ const COPY = {
     closedBody:
       "It will reopen after the administrators finish arranging it.",
     language: "中文",
-    collection: "Wedding moments",
     photosCount: "photos",
     adminHint:
-      "This is the Phase 1 administration presentation. Authentication and shared persistence land with the administrator ticket.",
+      "Wedding moment folders synchronize with Google Drive; Life photos and Guest uploads are separate top-level collections.",
   },
 };
 
@@ -241,6 +249,7 @@ export default function App() {
     localStorage.getItem("memories-language") === "en" ? "en" : "zh",
   );
   const [processes, setProcesses] = useState(PROCESS_DEFINITIONS);
+  const [activeCollection, setActiveCollection] = useState("wedding");
   const [activeFilter, setActiveFilter] = useState("all");
   const [adminMode, setAdminMode] = useState(false);
   const [pageSize, setPageSize] = useState(12);
@@ -276,14 +285,16 @@ export default function App() {
     () =>
       sourcePhotos.map((photo) => ({
         ...photo,
+        collection:
+          photo.collection ?? (photo.source === "guest" ? "guest" : "wedding"),
         processIds:
           photoAssignments.get(photo.id) ?? photo.processIds ?? [],
       })),
     [sourcePhotos, photoAssignments],
   );
   const filtered = useMemo(
-    () => filterPhotos(photos, activeFilter),
-    [photos, activeFilter],
+    () => filterPhotos(photos, activeFilter, activeCollection),
+    [photos, activeFilter, activeCollection],
   );
   const visible = useMemo(
     () => pagePhotos(filtered, pageSize, 0).items,
@@ -297,6 +308,15 @@ export default function App() {
     remotePhotos === null &&
     !useMockFallback &&
     !galleryError;
+  const activeCollectionDefinition =
+    COLLECTION_DEFINITIONS.find((item) => item.id === activeCollection) ??
+    COLLECTION_DEFINITIONS[0];
+  const collectionNote =
+    activeCollection === "guest"
+      ? t.guestNote
+      : activeCollection === "life"
+        ? t.lifeNote
+        : t.weddingNote;
 
   useEffect(() => {
     document.documentElement.lang = lang === "zh" ? "zh-Hant" : "en";
@@ -314,7 +334,6 @@ export default function App() {
 
   const chooseNav = (item) => {
     if (item.id === "all") {
-      setActiveFilter("all");
       document
         .getElementById("archive-gallery")
         ?.scrollIntoView({ behavior: "smooth" });
@@ -325,6 +344,13 @@ export default function App() {
       return;
     }
     setModal("coming");
+  };
+
+  const chooseCollection = (collectionId) => {
+    setActiveCollection(collectionId);
+    setActiveFilter("all");
+    setPageSize(12);
+    setSelectedPhotoId(null);
   };
 
   const handleUploaded = (photo) => {
@@ -358,11 +384,12 @@ export default function App() {
       ...items,
       { id, zh: label.trim(), en: label.trim() },
     ]);
+    setActiveCollection("wedding");
     setActiveFilter(id);
   };
 
   const toggleAssignment = (photoId) => {
-    if (["all", "guest"].includes(activeFilter)) return;
+    if (activeCollection !== "wedding" || activeFilter === "all") return;
     setPhotoAssignments((current) => {
       const next = new Map(current);
       const assignments = next.get(photoId) ?? [];
@@ -403,17 +430,22 @@ export default function App() {
       );
     }
     if (runtimeState === "offline") {
-      return (
-        <StateCard icon="⌁" title={t.offlineTitle} body={t.offlineBody} />
-      );
+      return <StateCard icon="⌁" title={t.offlineTitle} body={t.offlineBody} />;
     }
     if (runtimeState === "closed") {
-      return (
-        <StateCard icon="—" title={t.closedTitle} body={t.closedBody} />
-      );
+      return <StateCard icon="—" title={t.closedTitle} body={t.closedBody} />;
     }
     return null;
   })();
+
+  const photoCollectionLabel = (photo) => {
+    if (activeCollection === "guest") return t.guest;
+    if (activeCollection === "life") return t.life;
+    return (
+      processes.find((process) => photo.processIds.includes(process.id))?.[lang] ??
+      t.allProcesses
+    );
+  };
 
   return (
     <div className="archive-shell">
@@ -453,9 +485,7 @@ export default function App() {
           <button
             key={item.id}
             type="button"
-            className={`nav-card ${
-              item.id === "all" && activeFilter === "all" ? "active" : ""
-            }`}
+            className={`nav-card ${item.id === "all" ? "active" : ""}`}
             onClick={() => chooseNav(item)}
           >
             <Icon name={item.id} />
@@ -466,60 +496,66 @@ export default function App() {
       </nav>
 
       <main>
-        <section className="process-section" aria-labelledby="process-heading">
+        <section className="process-section" aria-labelledby="collection-heading">
           <div className="section-heading">
             <div>
-              <p className="eyebrow">ORDER OF THE DAY</p>
-              <h2 id="process-heading">{t.collection}</h2>
+              <p className="eyebrow">PHOTO COLLECTIONS</p>
+              <h2 id="collection-heading">{t.categories}</h2>
             </div>
             <p>
               {filtered.length} {t.photosCount}
             </p>
           </div>
-          <div className="process-strip" role="list" aria-label={t.collection}>
-            <button
-              type="button"
-              className={`process-chip ${
-                activeFilter === "all" ? "active" : ""
-              }`}
-              onClick={() => {
-                setActiveFilter("all");
-                setPageSize(12);
-              }}
-            >
-              {t.allProcesses}
-            </button>
-            {processes.map((process, index) => (
+
+          <div className="collection-tabs" role="list" aria-label={t.categories}>
+            {COLLECTION_DEFINITIONS.map((collection) => (
               <button
-                key={process.id}
+                key={collection.id}
                 type="button"
-                className={`process-chip ${
-                  activeFilter === process.id ? "active" : ""
+                className={`collection-tab ${
+                  activeCollection === collection.id ? "active" : ""
                 }`}
+                onClick={() => chooseCollection(collection.id)}
+              >
+                {collection[lang]}
+              </button>
+            ))}
+          </div>
+
+          <div className="collection-summary">
+            <strong>{activeCollectionDefinition[lang]}</strong>
+            <p>{collectionNote}</p>
+          </div>
+
+          {activeCollection === "wedding" && (
+            <div className="process-strip" role="list" aria-label={t.wedding}>
+              <button
+                type="button"
+                className={`process-chip ${activeFilter === "all" ? "active" : ""}`}
                 onClick={() => {
-                  setActiveFilter(process.id);
+                  setActiveFilter("all");
                   setPageSize(12);
                 }}
               >
-                <span>{String(index + 1).padStart(2, "0")}</span>
-                {process[lang]}
+                {t.allProcesses}
               </button>
-            ))}
-            <button
-              type="button"
-              className={`process-chip guest ${
-                activeFilter === "guest" ? "active" : ""
-              }`}
-              onClick={() => {
-                setActiveFilter("guest");
-                setPageSize(12);
-              }}
-            >
-              {t.guest}
-            </button>
-          </div>
-          {activeFilter === "guest" && (
-            <p className="guest-note">{t.guestNote}</p>
+              {processes.map((process, index) => (
+                <button
+                  key={process.id}
+                  type="button"
+                  className={`process-chip ${
+                    activeFilter === process.id ? "active" : ""
+                  }`}
+                  onClick={() => {
+                    setActiveFilter(process.id);
+                    setPageSize(12);
+                  }}
+                >
+                  <span>{String(index + 1).padStart(2, "0")}</span>
+                  {process[lang]}
+                </button>
+              ))}
+            </div>
           )}
         </section>
 
@@ -530,11 +566,7 @@ export default function App() {
               <h2 id="admin-heading">{t.processEditor}</h2>
               <p>{t.adminHint}</p>
             </div>
-            <button
-              className="button primary"
-              type="button"
-              onClick={addProcess}
-            >
+            <button className="button primary" type="button" onClick={addProcess}>
               ＋ {t.addProcess}
             </button>
             <div className="admin-process-list">
@@ -591,18 +623,14 @@ export default function App() {
         >
           {stateView ??
             (filtered.length === 0 || runtimeState === "empty" ? (
-              <StateCard
-                icon="✦"
-                title={t.emptyTitle}
-                body={t.emptyBody}
-              />
+              <StateCard icon="✦" title={t.emptyTitle} body={t.emptyBody} />
             ) : (
               <>
                 <div className="masonry-grid">
                   {visible.map((photo, index) => {
                     const assigned =
+                      activeCollection === "wedding" &&
                       activeFilter !== "all" &&
-                      activeFilter !== "guest" &&
                       photo.processIds.includes(activeFilter);
                     return (
                       <article className="photo-card" key={photo.id}>
@@ -628,18 +656,12 @@ export default function App() {
                           </span>
                         </button>
                         <footer>
-                          <span>
-                            {photo.source === "guest"
-                              ? t.guest
-                              : processes.find((process) =>
-                                  photo.processIds.includes(process.id),
-                                )?.[lang] ?? t.allProcesses}
-                          </span>
+                          <span>{photoCollectionLabel(photo)}</span>
                           <small>{photo.uploaderName}</small>
                         </footer>
                         {adminMode &&
-                          activeFilter !== "all" &&
-                          activeFilter !== "guest" && (
+                          activeCollection === "wedding" &&
+                          activeFilter !== "all" && (
                             <button
                               className="assignment-button"
                               type="button"
@@ -678,6 +700,7 @@ export default function App() {
       {modal === "upload" && (
         <UploadModal
           lang={lang}
+          processes={processes}
           onClose={() => setModal(null)}
           onUploaded={handleUploaded}
         />
