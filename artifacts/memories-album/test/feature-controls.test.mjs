@@ -15,6 +15,10 @@ const bottomNavSourceUrl = new URL(
   import.meta.url,
 );
 const stylesUrl = new URL("../src/client/feature-controls.css", import.meta.url);
+const bulkPhotoStylesUrl = new URL(
+  "../src/client/bulk-photo-admin.css",
+  import.meta.url,
+);
 const bottomNavStylesUrl = new URL(
   "../src/client/bottom-collection-nav.css",
   import.meta.url,
@@ -79,16 +83,23 @@ test("changing a collection or process scrolls to the first gallery item", async
   assert.match(source, /window\.scrollTo\(\{ top: Math\.max\(0, top\), behavior: "smooth" \}\)/);
 });
 
-test("authenticated admin controls can permanently delete a photo", async () => {
+test("authenticated admin can delete one or multiple selected photos", async () => {
   const [source, styles, mainSource] = await Promise.all([
     readFile(enhancementsSourceUrl, "utf8"),
-    readFile(stylesUrl, "utf8"),
+    readFile(bulkPhotoStylesUrl, "utf8"),
     readFile(mainSourceUrl, "utf8"),
   ]);
-  assert.match(source, /\.process-sync-admin/);
+  assert.match(source, /sessionStorage\.getItem\("memories-admin-token"\)/);
   assert.match(source, /\/Memories\/api\/admin\/photos\//);
   assert.match(source, /method: "DELETE"/);
-  assert.match(styles, /\.admin-delete-photo\s*{/);
+  assert.match(source, /const selectedPhotoIds = new Set\(\)/);
+  assert.match(source, /data-select-visible/);
+  assert.match(source, /data-delete-selected/);
+  assert.match(source, /刪除這張/);
+  assert.match(source, /刪除已選/);
+  assert.match(styles, /\.admin-photo-selector\s*{/);
+  assert.match(styles, /\.admin-photo-bulk-toolbar\s*{[^}]*position: fixed;/s);
+  assert.match(mainSource, /import "\.\/bulk-photo-admin\.css"/);
   assert.match(mainSource, /<GalleryEnhancements \/>/);
 });
 
