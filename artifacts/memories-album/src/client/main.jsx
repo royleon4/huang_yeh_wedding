@@ -8,6 +8,7 @@ import "./collections.css";
 import "./upload.css";
 import "./process-sync.css";
 import "./photo-lightbox.css";
+import "./feature-controls.css";
 
 async function hydrateProcessesFromServer() {
   try {
