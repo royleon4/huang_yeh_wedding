@@ -48,7 +48,7 @@ test("serves the standalone Memories shell", async () => {
     const response = await fetch(`${origin}/Memories/`);
     assert.equal(response.status, 200);
     assert.match(response.headers.get("content-type") ?? "", /^text\/html/);
-    assert.match(await response.text(), /Standalone wedding gallery/);
+    assert.match(await response.text(), /standalone wedding gallery/i);
   });
 });
 
