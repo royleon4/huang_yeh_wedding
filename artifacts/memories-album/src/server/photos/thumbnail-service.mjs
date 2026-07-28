@@ -2,6 +2,9 @@ import { createHash } from "node:crypto";
 
 const DEFAULT_BATCH_SIZE = 12;
 const DEFAULT_MAX_PHOTOS_PER_RUN = 240;
+const DEFAULT_MAX_CONCURRENT = 2;
+const DEFAULT_RETRY_ATTEMPTS = 3;
+const DEFAULT_RETRY_DELAY_MS = 180;
 
 export function thumbnailFilenameForDriveFileId(driveFileId) {
   const digest = createHash("sha256")
@@ -48,9 +51,40 @@ async function bestEffortDelete(drive, fileId) {
   }
 }
 
+function isRetryableDriveError(error) {
+  return (
+    error?.code === "DRIVE_RETRYABLE" ||
+    error?.status === 429 ||
+    (Number.isInteger(error?.status) && error.status >= 500)
+  );
+}
+
+function delay(milliseconds) {
+  return new Promise((resolve) => setTimeout(resolve, milliseconds));
+}
+
+async function retryDriveOperation(
+  operation,
+  { attempts = DEFAULT_RETRY_ATTEMPTS, delayMs = DEFAULT_RETRY_DELAY_MS } = {},
+) {
+  let lastError;
+  for (let attempt = 1; attempt <= attempts; attempt += 1) {
+    try {
+      return await operation();
+    } catch (error) {
+      lastError = error;
+      if (!isRetryableDriveError(error) || attempt === attempts) throw error;
+      await delay(delayMs * attempt);
+    }
+  }
+  throw lastError;
+}
+
 export class ThumbnailService {
   #inFlight = new Map();
   #indexPromise = null;
+  #activeGenerations = 0;
+  #generationWaiters = [];
 
   constructor({
     repository,
@@ -58,6 +92,8 @@ export class ThumbnailService {
     imageProcessor,
     thumbnailFolderId,
     batchSize = DEFAULT_BATCH_SIZE,
+    maxConcurrent = DEFAULT_MAX_CONCURRENT,
+    retryAttempts = DEFAULT_RETRY_ATTEMPTS,
   }) {
     if (!repository || !drive || !imageProcessor || !thumbnailFolderId) {
       throw new Error(
@@ -69,6 +105,14 @@ export class ThumbnailService {
     this.imageProcessor = imageProcessor;
     this.thumbnailFolderId = thumbnailFolderId;
     this.batchSize = Math.max(1, Math.min(Number(batchSize) || DEFAULT_BATCH_SIZE, 50));
+    this.maxConcurrent = Math.max(
+      1,
+      Math.min(Number(maxConcurrent) || DEFAULT_MAX_CONCURRENT, 6),
+    );
+    this.retryAttempts = Math.max(
+      1,
+      Math.min(Number(retryAttempts) || DEFAULT_RETRY_ATTEMPTS, 5),
+    );
   }
 
   invalidateIndex() {
@@ -76,8 +120,10 @@ export class ThumbnailService {
   }
 
   async #thumbnailIndex() {
-    this.#indexPromise ??= this.drive
-      .listChildren(this.thumbnailFolderId)
+    this.#indexPromise ??= retryDriveOperation(
+      () => this.drive.listChildren(this.thumbnailFolderId),
+      { attempts: this.retryAttempts },
+    )
       .then(
         (files) =>
           new Map(
@@ -91,6 +137,19 @@ export class ThumbnailService {
         throw error;
       });
     return this.#indexPromise;
+  }
+
+  async #withGenerationSlot(operation) {
+    if (this.#activeGenerations >= this.maxConcurrent) {
+      await new Promise((resolve) => this.#generationWaiters.push(resolve));
+    }
+    this.#activeGenerations += 1;
+    try {
+      return await operation();
+    } finally {
+      this.#activeGenerations -= 1;
+      this.#generationWaiters.shift()?.();
+    }
   }
 
   async ensurePhotoThumbnail(photo) {
@@ -119,47 +178,61 @@ export class ThumbnailService {
       return this.repository.attachThumbnail(photo.id, existing.id);
     }
 
-    const original = await this.drive.download(photo.driveFileId);
-    const originalBytes = await bodyToBuffer(original.body);
-    const generated = await this.imageProcessor.createThumbnail({
-      bytes: originalBytes,
-      mimeType: photo.mimeType || original.contentType,
-    });
-
-    const uploaded = await this.drive.uploadThumbnail({
-      bytes: generated.thumbnailBytes,
-      filename,
-      contentType: generated.thumbnailContentType,
-      parentId: this.thumbnailFolderId,
-    });
-    index.set(filename, {
-      id: uploaded.fileId,
-      name: filename,
-      mimeType: generated.thumbnailContentType,
-    });
-
-    try {
-      const attached = await this.repository.attachThumbnail(
-        photo.id,
-        uploaded.fileId,
-      );
-      if (
-        attached?.thumbnailDriveFileId &&
-        attached.thumbnailDriveFileId !== uploaded.fileId
-      ) {
-        await bestEffortDelete(this.drive, uploaded.fileId);
-        index.set(filename, {
-          id: attached.thumbnailDriveFileId,
-          name: filename,
-          mimeType: generated.thumbnailContentType,
-        });
+    return this.#withGenerationSlot(async () => {
+      const existingAfterWait = index.get(filename);
+      if (existingAfterWait?.id) {
+        return this.repository.attachThumbnail(photo.id, existingAfterWait.id);
       }
-      return attached;
-    } catch (error) {
-      // Keep the deterministically named file. A later run can discover and attach it
-      // without uploading a second derivative.
-      throw error;
-    }
+
+      const original = await retryDriveOperation(
+        () => this.drive.download(photo.driveFileId),
+        { attempts: this.retryAttempts },
+      );
+      const originalBytes = await bodyToBuffer(original.body);
+      const generated = await this.imageProcessor.createThumbnail({
+        bytes: originalBytes,
+        mimeType: photo.mimeType || original.contentType,
+      });
+
+      const uploaded = await retryDriveOperation(
+        () =>
+          this.drive.uploadThumbnail({
+            bytes: generated.thumbnailBytes,
+            filename,
+            contentType: generated.thumbnailContentType,
+            parentId: this.thumbnailFolderId,
+          }),
+        { attempts: this.retryAttempts },
+      );
+      index.set(filename, {
+        id: uploaded.fileId,
+        name: filename,
+        mimeType: generated.thumbnailContentType,
+      });
+
+      try {
+        const attached = await this.repository.attachThumbnail(
+          photo.id,
+          uploaded.fileId,
+        );
+        if (
+          attached?.thumbnailDriveFileId &&
+          attached.thumbnailDriveFileId !== uploaded.fileId
+        ) {
+          await bestEffortDelete(this.drive, uploaded.fileId);
+          index.set(filename, {
+            id: attached.thumbnailDriveFileId,
+            name: filename,
+            mimeType: generated.thumbnailContentType,
+          });
+        }
+        return attached;
+      } catch (error) {
+        // Keep the deterministically named file. A later run can discover and attach it
+        // without uploading a second derivative.
+        throw error;
+      }
+    });
   }
 
   async backfillMissing({ maxPhotos = DEFAULT_MAX_PHOTOS_PER_RUN } = {}) {
