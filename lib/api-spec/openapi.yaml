@@ -10,8 +10,6 @@ servers:
 tags:
   - name: health
     description: Health operations
-  - name: photos
-    description: Public wedding album operations
 paths:
   /healthz:
     get:
@@ -26,70 +24,6 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
-  /photos:
-    get:
-      operationId: listPublicPhotos
-      tags: [photos]
-      summary: List public wedding photos
-      parameters:
-        - name: cursor
-          in: query
-          description: Opaque cursor returned by the previous page
-          schema:
-            type: string
-        - name: limit
-          in: query
-          schema:
-            type: integer
-            minimum: 1
-            maximum: 100
-            default: 30
-      responses:
-        "200":
-          description: A newest-first page of public photos
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/PublicPhotoPage"
-        "400":
-          description: Invalid cursor or page size
-  /photos/{photoId}/media:
-    get:
-      operationId: getPublicPhotoMedia
-      tags: [photos]
-      summary: Stream a public photo through its opaque website ID
-      parameters:
-        - name: photoId
-          in: path
-          required: true
-          schema:
-            type: string
-            format: uuid
-      responses:
-        "200":
-          description: Photo bytes proxied from private Drive storage
-          headers:
-            X-Content-Type-Options:
-              schema:
-                type: string
-                const: nosniff
-          content:
-            image/jpeg:
-              schema:
-                type: string
-                format: binary
-            image/png:
-              schema:
-                type: string
-                format: binary
-            image/webp:
-              schema:
-                type: string
-                format: binary
-        "404":
-          description: Photo is missing or not public
-        "502":
-          description: Private storage is temporarily unavailable
 components:
   schemas:
     HealthStatus:
@@ -99,32 +33,3 @@ components:
           type: string
       required:
         - status
-    PublicPhoto:
-      type: object
-      properties:
-        id:
-          type: string
-          format: uuid
-        mediaUrl:
-          type: string
-          description: Controlled website endpoint; never a Google Drive URL
-        contentType:
-          type: string
-        width:
-          type: [integer, "null"]
-        height:
-          type: [integer, "null"]
-        createdAt:
-          type: string
-          format: date-time
-      required: [id, mediaUrl, contentType, width, height, createdAt]
-    PublicPhotoPage:
-      type: object
-      properties:
-        photos:
-          type: array
-          items:
-            $ref: "#/components/schemas/PublicPhoto"
-        nextCursor:
-          type: [string, "null"]
-      required: [photos, nextCursor]
