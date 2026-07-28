@@ -47,6 +47,22 @@ function publicProcess(process) {
   };
 }
 
+function driveItemMissing(error) {
+  return Number(error?.status) === 404;
+}
+
+async function processesAfterDeletion(repository, synchronizer) {
+  try {
+    const remaining = await synchronizer.syncProcessFoldersFromDrive();
+    if (remaining.length === 0) return [];
+    return await synchronizer.reorderProcesses(remaining.map((item) => item.id));
+  } catch {
+    // The deletion has already been committed. A temporary Drive failure must
+    // not turn a successful/idempotent delete back into a visible error.
+    return repository.listProcesses();
+  }
+}
+
 export function createProcessApi({ repository, synchronizer, adminToken }) {
   if (!repository || !synchronizer) {
     throw new Error("Process repository and synchronizer are required");
@@ -124,13 +140,17 @@ export function createProcessApi({ repository, synchronizer, adminToken }) {
       const processMatch = url.pathname.match(
         /^\/Memories\/api\/admin\/processes\/([^/]+)$/,
       );
-      if (request.method === "PATCH" && processMatch) {
+      const processId = processMatch
+        ? decodeURIComponent(processMatch[1])
+        : null;
+
+      if (request.method === "PATCH" && processId) {
         if (!adminAuthorized(request, adminToken)) {
           json(response, 401, { error: "Unauthorized", code: "UNAUTHORIZED" });
           return true;
         }
         const processes = await repository.listProcesses();
-        const process = processes.find((item) => item.id === processMatch[1]);
+        const process = processes.find((item) => item.id === processId);
         if (!process) {
           json(response, 404, { error: "Process not found", code: "NOT_FOUND" });
           return true;
@@ -150,19 +170,53 @@ export function createProcessApi({ repository, synchronizer, adminToken }) {
         return true;
       }
 
-      if (request.method === "DELETE" && processMatch) {
+      if (request.method === "DELETE" && processId) {
         if (!adminAuthorized(request, adminToken)) {
           json(response, 401, { error: "Unauthorized", code: "UNAUTHORIZED" });
           return true;
         }
-        const processes = await synchronizer.syncProcessFoldersFromDrive();
-        const process = processes.find((item) => item.id === processMatch[1]);
-        if (!process?.driveFolderId) {
-          json(response, 404, { error: "Process not found", code: "NOT_FOUND" });
+
+        const process =
+          (await repository.findProcessById?.(processId)) ??
+          (await repository.listProcesses()).find((item) => item.id === processId) ??
+          null;
+
+        // DELETE is idempotent. A record already removed by another tab or a
+        // prior sync is a successful outcome, never a blocking 404.
+        if (!process || process.isActive === false) {
+          const processes = await repository.listProcesses();
+          json(response, 200, {
+            deletedProcessId: processId,
+            alreadyDeleted: true,
+            processes: processes.map(publicProcess),
+          });
           return true;
         }
-        const children = await synchronizer.drive.listChildren(process.driveFolderId);
-        if (children.length > 0) {
+
+        // Legacy rows such as entrance/group-photo never had a Drive folder.
+        // Remove their associations and deactivate them locally without
+        // touching Drive, so this works even while Drive is unavailable.
+        if (!process.driveFolderId) {
+          await repository.deactivateProcess?.(process.id, "legacy-deleted");
+          const processes = await repository.listProcesses();
+          json(response, 200, {
+            deletedProcessId: process.id,
+            ghostCleaned: true,
+            processes: processes.map(publicProcess),
+          });
+          return true;
+        }
+
+        let children = [];
+        let folderAlreadyMissing = false;
+        try {
+          children = await synchronizer.drive.listChildren(process.driveFolderId);
+        } catch (error) {
+          if (!driveItemMissing(error)) throw error;
+          folderAlreadyMissing = true;
+        }
+
+        if (!folderAlreadyMissing && children.length > 0) {
           json(response, 409, {
             error: `此分類仍有 ${children.length} 個檔案，請先移動或刪除其中照片。`,
             code: "PROCESS_NOT_EMPTY",
@@ -170,14 +224,25 @@ export function createProcessApi({ repository, synchronizer, adminToken }) {
           });
           return true;
         }
-        await synchronizer.drive.delete(process.driveFolderId);
-        const remaining = await synchronizer.syncProcessFoldersFromDrive();
-        const reordered = remaining.length
-          ? await synchronizer.reorderProcesses(remaining.map((item) => item.id))
-          : [];
+
+        if (!folderAlreadyMissing) {
+          try {
+            await synchronizer.drive.delete(process.driveFolderId);
+          } catch (error) {
+            if (!driveItemMissing(error)) throw error;
+            folderAlreadyMissing = true;
+          }
+        }
+
+        await repository.deactivateProcess?.(
+          process.id,
+          folderAlreadyMissing ? "missing-deleted" : "deleted",
+        );
+        const processes = await processesAfterDeletion(repository, synchronizer);
         json(response, 200, {
           deletedProcessId: process.id,
-          processes: reordered.map(publicProcess),
+          alreadyDeleted: folderAlreadyMissing,
+          processes: processes.map(publicProcess),
         });
         return true;
       }
