@@ -101,6 +101,13 @@ test("reports missing admin configuration as unavailable, not a wrong password",
   );
 });
 
+test("rejects unsupported admin session methods without hanging", async () => {
+  await withServer(async (origin) => {
+    const response = await fetch(`${origin}/Memories/api/admin/session`);
+    assert.equal(response.status, 404);
+  });
+});
+
 test("keeps unknown API routes JSON-only", async () => {
   await withServer(async (origin) => {
     const response = await fetch(`${origin}/Memories/api/unknown`);

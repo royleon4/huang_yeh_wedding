@@ -20,6 +20,10 @@ function memoriesDevelopmentRoutes() {
     configureServer(server) {
       server.middlewares.use(async (request, response, next) => {
         const url = new URL(request.url ?? "/", "http://localhost");
+        const adminSessionApi = createAdminSessionApi({
+          adminToken: process.env.MEMORIES_ADMIN_TOKEN,
+        });
+        if (adminSessionApi(request, response, url)) return;
 
         if (
           url.pathname === "/memories" ||
@@ -48,13 +52,6 @@ function memoriesDevelopmentRoutes() {
             service: "memories-album",
             basePath: CANONICAL_BASE,
           });
-          return;
-        }
-
-        if (url.pathname === `${API_BASE}/admin/session`) {
-          createAdminSessionApi({
-            adminToken: process.env.MEMORIES_ADMIN_TOKEN,
-          })(request, response, url);
           return;
         }
 

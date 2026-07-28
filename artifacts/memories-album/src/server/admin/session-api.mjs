@@ -1,30 +1,4 @@
-import { timingSafeEqual } from "node:crypto";
-
-function json(response, status, body) {
-  response.writeHead(status, {
-    "Content-Type": "application/json; charset=utf-8",
-    "Cache-Control": "no-store",
-    "X-Content-Type-Options": "nosniff",
-  });
-  response.end(JSON.stringify(body));
-}
-
-function bearerToken(request) {
-  const header = request.headers.authorization;
-  if (typeof header !== "string") return "";
-  return header.match(/^Bearer\s+(.+)$/i)?.[1] ?? "";
-}
-
-function authorized(request, configuredToken) {
-  const supplied = bearerToken(request);
-  if (!configuredToken || !supplied) return false;
-  const expectedBytes = Buffer.from(configuredToken);
-  const suppliedBytes = Buffer.from(supplied);
-  return (
-    expectedBytes.length === suppliedBytes.length &&
-    timingSafeEqual(expectedBytes, suppliedBytes)
-  );
-}
+import { adminAuthorized, sendAdminJson } from "./auth.mjs";
 
 export function createAdminSessionApi({ adminToken }) {
   return function handleAdminSession(
@@ -40,19 +14,22 @@ export function createAdminSessionApi({ adminToken }) {
     }
 
     if (!adminToken) {
-      json(response, 503, {
+      sendAdminJson(response, 503, {
         error: "Administrator access is not configured",
         code: "ADMIN_TOKEN_NOT_CONFIGURED",
       });
       return true;
     }
 
-    if (!authorized(request, adminToken)) {
-      json(response, 401, { error: "Unauthorized", code: "UNAUTHORIZED" });
+    if (!adminAuthorized(request, adminToken)) {
+      sendAdminJson(response, 401, {
+        error: "Unauthorized",
+        code: "UNAUTHORIZED",
+      });
       return true;
     }
 
-    json(response, 200, { authenticated: true });
+    sendAdminJson(response, 200, { authenticated: true });
     return true;
   };
 }

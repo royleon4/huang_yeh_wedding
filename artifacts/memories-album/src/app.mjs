@@ -109,6 +109,11 @@ async function handleStandaloneApi(
   url,
   { env = process.env, getRuntime = getMemoriesRuntime } = {},
 ) {
+  const adminSessionApi = createAdminSessionApi({
+    adminToken: env.MEMORIES_ADMIN_TOKEN,
+  });
+  if (adminSessionApi(request, response, url)) return true;
+
   if (url.pathname === `${MEMORIES_API_PATH}/health`) {
     sendJson(response, 200, {
       status: "ok",
@@ -116,12 +121,6 @@ async function handleStandaloneApi(
       basePath: MEMORIES_BASE_PATH,
     });
     return true;
-  }
-
-  if (url.pathname === `${MEMORIES_API_PATH}/admin/session`) {
-    return createAdminSessionApi({
-      adminToken: env.MEMORIES_ADMIN_TOKEN,
-    })(request, response, url);
   }
 
   if (
