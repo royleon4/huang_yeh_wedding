@@ -4,6 +4,7 @@ import App from "./App.jsx";
 import ProcessSyncAdmin from "./ProcessSyncAdmin.jsx";
 import { PROCESS_DEFINITIONS } from "./gallery-model.mjs";
 import "./styles.css";
+import "./collections.css";
 import "./upload.css";
 import "./process-sync.css";
 import "./photo-lightbox.css";
