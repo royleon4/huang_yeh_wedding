@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 document.documentElement.dataset.memoriesPrimaryNav = "hidden";
 
 const PROCESSES_UPDATED_EVENT = "memories:processes-updated";
+const ADMIN_TITLE_SELECTOR = ".archive-header h1";
 
 async function api(path, { token, method = "GET", body } = {}) {
   const response = await fetch(path, {
@@ -76,16 +77,26 @@ export default function ProcessSyncAdmin() {
   }, []);
 
   useEffect(() => {
-    const title = document.querySelector(".archive-header h1");
-    if (!title) return undefined;
-    title.setAttribute(
-      "aria-label",
-      `${title.textContent || "Wedding archive"}. Administrator access is hidden.`,
-    );
-    const onTitleClick = () => {
+    const labelCurrentTitle = () => {
+      const title = document.querySelector(ADMIN_TITLE_SELECTOR);
+      if (!title) return;
+      title.setAttribute(
+        "aria-label",
+        `${title.textContent || "Wedding archive"}. Administrator access is hidden.`,
+      );
+    };
+
+    const onDocumentClick = (event) => {
+      const target = event.target instanceof Element ? event.target : null;
+      if (!target?.closest(ADMIN_TITLE_SELECTOR)) return;
+
       const now = Date.now();
-      tapsRef.current = [...tapsRef.current.filter((time) => now - time < 3500), now];
+      tapsRef.current = [
+        ...tapsRef.current.filter((time) => now - time < 3500),
+        now,
+      ];
       if (tapsRef.current.length < 5) return;
+
       tapsRef.current = [];
       setMessage("");
       setAuthenticated(false);
@@ -93,8 +104,16 @@ export default function ProcessSyncAdmin() {
       setOpen(true);
       requestAnimationFrame(() => passwordRef.current?.focus());
     };
-    title.addEventListener("click", onTitleClick);
-    return () => title.removeEventListener("click", onTitleClick);
+
+    labelCurrentTitle();
+    document.addEventListener("click", onDocumentClick);
+    const observer = new MutationObserver(labelCurrentTitle);
+    observer.observe(document.body, { childList: true, subtree: true });
+
+    return () => {
+      document.removeEventListener("click", onDocumentClick);
+      observer.disconnect();
+    };
   }, []);
 
   const run = async (work, success) => {
