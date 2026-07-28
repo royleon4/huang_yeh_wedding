@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from "react";
-import { Link } from "wouter";
 
 export const SECTIONS = [
   {
@@ -143,11 +142,13 @@ export function FloatingNav({ scrollContainerRef, onNavClick, labels, navAriaLab
     <div
       ref={navWrapperRef}
       className="fixed top-0 left-0 right-0 z-50 flex justify-center pt-[0.75em] px-[1em] pointer-events-none"
-      style={{ fontSize: "16px" }}
+      style={{ fontSize: '16px' }}
       role="navigation"
       aria-label={navAriaLabel ?? "快速導覽"}
     >
       <div className="flex flex-row items-center gap-[0.4em] pointer-events-auto">
+
+        {/* Left pill: prev button or invisible spacer */}
         {!isFirst ? (
           <button
             onClick={() => scrollTo(activeIndex - 1)}
@@ -169,6 +170,7 @@ export function FloatingNav({ scrollContainerRef, onNavClick, labels, navAriaLab
           <div className="invisible" style={{ minWidth: "2.8em" }} aria-hidden="true" />
         )}
 
+        {/* Center pill: icon row */}
         <div className={`${pillBase} flex flex-row items-center justify-center gap-[0.15em] px-[0.5em] py-[0.4em]`}>
           {SECTIONS.map((section, i) => (
             <button
@@ -189,21 +191,9 @@ export function FloatingNav({ scrollContainerRef, onNavClick, labels, navAriaLab
               {section.icon}
             </button>
           ))}
-          <Link
-            href="/Memories"
-            onClick={() => localStorage.setItem("weddingLang", isEn ? "en" : "zh")}
-            title={labels?.memories ?? "婚禮相簿"}
-            aria-label={labels?.memories ?? "婚禮相簿"}
-            className="relative flex items-center justify-center w-[2em] h-[2em] rounded-full text-green-700/60 transition-all duration-300 hover:bg-green-100 hover:text-green-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green-700"
-          >
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="w-[1em] h-[1em]">
-              <rect x="3" y="3" width="18" height="18" rx="2" />
-              <circle cx="8.5" cy="8.5" r="1.5" />
-              <path d="m21 15-5-5L5 21" />
-            </svg>
-          </Link>
         </div>
 
+        {/* Right pill: next button or invisible spacer */}
         {!isLast ? (
           <button
             onClick={() => scrollTo(activeIndex + 1)}
@@ -224,6 +214,7 @@ export function FloatingNav({ scrollContainerRef, onNavClick, labels, navAriaLab
         ) : (
           <div className="invisible" style={{ minWidth: "2.8em" }} aria-hidden="true" />
         )}
+
       </div>
     </div>
   );
