@@ -1,5 +1,5 @@
 const DRIVE_UPLOAD_PATH =
-  "/upload/drive/v3/files?uploadType=multipart&fields=id,name,mimeType,size,parents&supportsAllDrives=true";
+  "/upload/drive/v3/files?uploadType=multipart&fields=id,name,mimeType,size&supportsAllDrives=true";
 const FOLDER_MIME = "application/vnd.google-apps.folder";
 
 export class DriveConnectorError extends Error {
@@ -147,7 +147,6 @@ export class GoogleDriveStorage {
       fileId: data.id,
       name: data.name ?? filename,
       size: Number(data.size ?? bytes.length),
-      parents: data.parents ?? [folderId],
     };
   }
 
