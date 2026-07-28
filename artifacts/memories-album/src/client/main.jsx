@@ -1,9 +1,11 @@
 import React from "react";
 import { createRoot } from "react-dom/client";
 import App from "./App.jsx";
+import ProcessSyncAdmin from "./ProcessSyncAdmin.jsx";
 import { PROCESS_DEFINITIONS } from "./gallery-model.mjs";
 import "./styles.css";
 import "./upload.css";
+import "./process-sync.css";
 
 async function hydrateProcessesFromServer() {
   try {
@@ -23,7 +25,7 @@ async function hydrateProcessesFromServer() {
       })),
     );
   } catch {
-    // The static approved process list remains a safe fallback while Drive is unavailable.
+    // The approved static process list remains a safe fallback while Drive is unavailable.
   }
 }
 
@@ -32,5 +34,6 @@ await hydrateProcessesFromServer();
 createRoot(document.getElementById("root")).render(
   <React.StrictMode>
     <App />
+    <ProcessSyncAdmin />
   </React.StrictMode>,
 );
