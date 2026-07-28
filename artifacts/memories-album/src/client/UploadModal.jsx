@@ -4,12 +4,18 @@ import { uploadQueue } from "./upload-client.mjs";
 const COPY = {
   zh: {
     title: "把你的照片放進檔案館",
-    intro: "請留下姓名並選擇照片。每張照片會獨立上傳；其中一張失敗時，其餘照片仍會繼續。",
+    intro:
+      "請留下姓名、選擇照片，並可替這批照片選擇網站分類。每張照片會獨立上傳。",
     name: "你的姓名（必填）",
     namePlaceholder: "例如：小安",
+    classification: "顯示分類（選填）",
+    guestOnly: "不分類，只顯示在訪客上傳",
+    life: "生活照",
+    weddingGroup: "婚禮流程",
     files: "選擇照片",
     choose: "選擇最多 30 張照片",
-    hint: "支援 JPEG、PNG、WebP、HEIC／HEIF；每張上限 25 MB。訪客照片只會出現在「訪客上傳」。",
+    hint:
+      "支援 JPEG、PNG、WebP、HEIC／HEIF；每張上限 25 MB。無論選擇哪個分類，原圖都只會存放在 Google Drive 的「訪客上傳」資料夾。",
     start: "開始上傳",
     cancel: "取消上傳",
     close: "關閉",
@@ -28,12 +34,18 @@ const COPY = {
   },
   en: {
     title: "Add your photos to the archive",
-    intro: "Enter your name and choose photos. Every file uploads independently, so one failure will not stop the rest.",
+    intro:
+      "Enter your name, choose photos, and optionally select where they should appear on the website. Each file uploads independently.",
     name: "Your name (required)",
     namePlaceholder: "For example: An",
+    classification: "Display category (optional)",
+    guestOnly: "No category — Guest uploads only",
+    life: "Life photos",
+    weddingGroup: "Wedding moments",
     files: "Choose photos",
     choose: "Choose up to 30 photos",
-    hint: "JPEG, PNG, WebP, HEIC and HEIF are accepted, up to 25 MB each. Guest photos appear only in Guest uploads.",
+    hint:
+      "JPEG, PNG, WebP, HEIC and HEIF are accepted, up to 25 MB each. Originals always remain in the Google Drive Guest uploads folder, regardless of display category.",
     start: "Start upload",
     cancel: "Cancel upload",
     close: "Close",
@@ -56,9 +68,15 @@ function statusLabel(copy, status) {
   return copy[status] ?? status;
 }
 
-export default function UploadModal({ lang, onClose, onUploaded }) {
+export default function UploadModal({
+  lang,
+  processes = [],
+  onClose,
+  onUploaded,
+}) {
   const t = COPY[lang] ?? COPY.zh;
   const [uploaderName, setUploaderName] = useState("");
+  const [classificationChoice, setClassificationChoice] = useState("guest");
   const [files, setFiles] = useState([]);
   const [items, setItems] = useState([]);
   const [phase, setPhase] = useState("idle");
@@ -102,10 +120,15 @@ export default function UploadModal({ lang, onClose, onUploaded }) {
     const controller = new AbortController();
     controllerRef.current = controller;
     const uploadedIds = new Set();
+    const [classification, processId] = classificationChoice.startsWith("wedding:")
+      ? ["wedding", classificationChoice.slice("wedding:".length)]
+      : [classificationChoice, null];
     try {
       const result = await uploadQueue({
         uploaderName,
         files,
+        classification,
+        processId,
         signal: controller.signal,
         onUpdate(update) {
           if (update.type === "batch") setBatch(update.batch);
@@ -181,6 +204,24 @@ export default function UploadModal({ lang, onClose, onUploaded }) {
               autoComplete="name"
             />
           </label>
+          <label>
+            <span>{t.classification}</span>
+            <select
+              value={classificationChoice}
+              onChange={(event) => setClassificationChoice(event.target.value)}
+              disabled={phase === "uploading"}
+            >
+              <option value="guest">{t.guestOnly}</option>
+              <option value="life">{t.life}</option>
+              <optgroup label={t.weddingGroup}>
+                {processes.map((process, index) => (
+                  <option key={process.id} value={`wedding:${process.id}`}>
+                    {String(index + 1).padStart(2, "0")} · {process[lang]}
+                  </option>
+                ))}
+              </optgroup>
+            </select>
+          </label>
           <label className="file-picker">
             <span>{t.files}</span>
             <strong>{t.choose}</strong>
@@ -219,7 +260,11 @@ export default function UploadModal({ lang, onClose, onUploaded }) {
             </div>
           )}
 
-          {error && <p className="upload-error" role="alert">{error}</p>}
+          {error && (
+            <p className="upload-error" role="alert">
+              {error}
+            </p>
+          )}
 
           {phase === "done" && summary && (
             <section className="upload-result">
