@@ -1,0 +1,21 @@
+name: Memories legacy boundary
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, labeled, unlabeled]
+
+permissions:
+  contents: read
+
+jobs:
+  protect-legacy-wedding-site:
+    if: ${{ !contains(github.event.pull_request.labels.*.name, 'owner-approved-legacy-change') }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out full history
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Protect legacy wedding paths
+        run: node scripts/check-memories-legacy-boundary.mjs "origin/${{ github.base_ref }}" "${{ github.event.pull_request.head.sha }}"
