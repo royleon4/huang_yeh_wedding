@@ -89,6 +89,8 @@ function boundedStorageError(error) {
       "Production is missing the Memories Google Drive root-folder setting.",
     THUMBNAIL_FOLDER_NOT_CONFIGURED:
       "The Memories thumbnail folder is not configured.",
+    DRIVE_AUTHORIZATION_REQUIRED:
+      "Google Drive authorization is required. Reconnect the Replit Google Drive integration.",
     DRIVE_RETRYABLE:
       "Google Drive is temporarily unavailable. Please retry shortly.",
     DRIVE_REQUEST_FAILED:

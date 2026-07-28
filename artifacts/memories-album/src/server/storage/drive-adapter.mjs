@@ -9,7 +9,9 @@ export class DriveConnectorError extends Error {
     this.status = status;
     this.code =
       code ??
-      (status === 429 || status >= 500
+      (status === 401 || status === 403
+        ? "DRIVE_AUTHORIZATION_REQUIRED"
+        : status === 429 || status >= 500
         ? "DRIVE_RETRYABLE"
         : "DRIVE_REQUEST_FAILED");
   }

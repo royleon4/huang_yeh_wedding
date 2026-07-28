@@ -131,3 +131,18 @@ test("connector errors are sanitized and never include response bodies", async (
       !error.message.includes("must-not-leak"),
   );
 });
+
+test("401 and 403 responses map to DRIVE_AUTHORIZATION_REQUIRED", async () => {
+  for (const status of [401, 403]) {
+    const storage = new GoogleDriveStorage({
+      originalFolderId: "private-originals-folder-id",
+      proxy: async () => response({ ok: false, status }),
+    });
+    await assert.rejects(
+      storage.listChildren("some-folder"),
+      (error) =>
+        error instanceof DriveConnectorError &&
+        error.code === "DRIVE_AUTHORIZATION_REQUIRED",
+    );
+  }
+});

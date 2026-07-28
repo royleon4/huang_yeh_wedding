@@ -376,6 +376,14 @@ export function createGuestUploadApi({
         });
         return true;
       }
+      if (error?.code === "DRIVE_AUTHORIZATION_REQUIRED") {
+        json(response, 503, {
+          error:
+            "Google Drive authorization is required. Please reconnect the integration.",
+          code: "DRIVE_AUTHORIZATION_REQUIRED",
+        });
+        return true;
+      }
       if (error?.code === "DRIVE_RETRYABLE") {
         json(response, 503, {
           error:

@@ -8,6 +8,7 @@
     "build": "vite build --config vite.config.js && node scripts/build.mjs",
     "start": "node dist/server.mjs",
     "test": "node --test",
+    "test:drive-live": "node scripts/test-drive-live.mjs",
     "db:migrate": "node scripts/migrate.mjs"
   },
   "dependencies": {
