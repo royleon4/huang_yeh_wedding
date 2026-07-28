@@ -16,6 +16,11 @@ export class PostgresProcessRepository {
   }
 
   async upsertDriveProcess(process) {
+    const existing = await this.pool.query(
+      `SELECT id FROM memories_processes WHERE drive_folder_id = $1 LIMIT 1`,
+      [process.driveFolderId],
+    );
+    const effectiveId = existing.rows[0]?.id ?? process.id;
     const result = await this.pool.query(
       `INSERT INTO memories_processes (
         id, label_zh, label_en, display_order, is_active,
@@ -34,7 +39,7 @@ export class PostgresProcessRepository {
         updated_at = now()
       RETURNING *`,
       [
-        process.id,
+        effectiveId,
         process.labelZh,
         process.labelEn ?? process.labelZh,
         process.displayOrder,
@@ -54,37 +59,6 @@ export class PostgresProcessRepository {
          AND NOT (drive_folder_id = ANY($1::text[]))`,
       [ids],
     );
-  }
-
-  async replacePhotoProcessByDriveFile(driveFileId, processId, parentFolderId) {
-    await this.pool.query("BEGIN");
-    try {
-      const photoResult = await this.pool.query(
-        `UPDATE memories_photos
-         SET drive_parent_folder_id = $2, updated_at = now()
-         WHERE drive_file_id = $1
-         RETURNING id`,
-        [driveFileId, parentFolderId],
-      );
-      if (photoResult.rows[0]) {
-        const photoId = photoResult.rows[0].id;
-        await this.pool.query(
-          `DELETE FROM memories_photo_processes WHERE photo_id = $1`,
-          [photoId],
-        );
-        if (processId) {
-          await this.pool.query(
-            `INSERT INTO memories_photo_processes (photo_id, process_id)
-             VALUES ($1,$2) ON CONFLICT DO NOTHING`,
-            [photoId, processId],
-          );
-        }
-      }
-      await this.pool.query("COMMIT");
-    } catch (error) {
-      await this.pool.query("ROLLBACK");
-      throw error;
-    }
   }
 }
 
