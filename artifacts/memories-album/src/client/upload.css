@@ -4,10 +4,15 @@
   overflow-y: auto;
 }
 
+.upload-modal > h2 + p,
+.upload-hint {
+  display: none;
+}
+
 .upload-form {
   display: grid;
   gap: 1rem;
-  margin-top: 1.35rem;
+  margin-top: .85rem;
 }
 
 .upload-form label {
@@ -49,11 +54,6 @@
   width: 100%;
   color: var(--muted);
   font-size: .72rem;
-}
-
-.upload-hint {
-  color: var(--muted);
-  line-height: 1.7;
 }
 
 .upload-queue {
