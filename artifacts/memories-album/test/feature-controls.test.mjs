@@ -8,6 +8,7 @@ const adminSourceUrl = new URL(
 );
 const stylesUrl = new URL("../src/client/feature-controls.css", import.meta.url);
 const appSourceUrl = new URL("../src/client/App.jsx", import.meta.url);
+const mainSourceUrl = new URL("../src/client/main.jsx", import.meta.url);
 
 test("feature navigation is hidden by default and only changed through admin API", async () => {
   const [adminSource, styles] = await Promise.all([
@@ -43,4 +44,12 @@ test("upload is a floating control and collection controls remain sticky", async
   assert.match(adminSource, /className="floating-upload-button"/);
   assert.match(styles, /\.floating-upload-button\s*{[^}]*position: fixed;/s);
   assert.match(styles, /\.process-section\s*{[^}]*position: sticky;[^}]*top: 0;/s);
+});
+
+test("React renders before the process API finishes", async () => {
+  const source = await readFile(mainSourceUrl, "utf8");
+  assert.doesNotMatch(source, /^await hydrateProcessesFromServer\(\);/m);
+  assert.match(source, /useEffect\(\(\) => \{/);
+  assert.match(source, /void hydrateProcessesFromServer\(\)\.then/);
+  assert.match(source, /createRoot\(document\.getElementById\("root"\)\)\.render/);
 });
