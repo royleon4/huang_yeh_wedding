@@ -5,6 +5,10 @@ export class PostgresProcessRepository {
   }
 
   async listProcesses() {
+    // Old bundled process rows never had a Drive folder id. Drive is now the
+    // canonical source, so hide those legacy rows immediately even when Drive
+    // is temporarily unavailable. This prevents duplicate/ghost categories.
+    await this.deactivateLegacyProcesses();
     const result = await this.pool.query(
       `SELECT id, label_zh, label_en, display_order, drive_folder_id,
               drive_folder_name, sync_state, last_synced_at
@@ -13,6 +17,18 @@ export class PostgresProcessRepository {
        ORDER BY display_order ASC, id ASC`,
     );
     return result.rows.map(mapRow);
+  }
+
+  async findProcessById(id) {
+    const result = await this.pool.query(
+      `SELECT id, label_zh, label_en, display_order, drive_folder_id,
+              drive_folder_name, sync_state, last_synced_at, is_active
+       FROM memories_processes
+       WHERE id = $1
+       LIMIT 1`,
+      [id],
+    );
+    return result.rows[0] ? mapRow(result.rows[0]) : null;
   }
 
   async upsertDriveProcess(process) {
@@ -50,15 +66,65 @@ export class PostgresProcessRepository {
     return mapRow(result.rows[0]);
   }
 
+  async deactivateLegacyProcesses() {
+    return this.#deactivateMatching(
+      `is_active = true AND drive_folder_id IS NULL`,
+      [],
+      "legacy",
+    );
+  }
+
+  async deactivateProcess(id, syncState = "deleted") {
+    const deactivated = await this.#deactivateMatching(
+      `id = $1`,
+      [id],
+      syncState,
+    );
+    return deactivated[0] ?? null;
+  }
+
   async deactivateMissingDriveProcesses(activeFolderIds) {
     const ids = Array.from(activeFolderIds ?? []);
-    await this.pool.query(
-      `UPDATE memories_processes
-       SET is_active = false, sync_state = 'missing', updated_at = now()
-       WHERE drive_folder_id IS NOT NULL
-         AND NOT (drive_folder_id = ANY($1::text[]))`,
+    return this.#deactivateMatching(
+      `is_active = true
+       AND (drive_folder_id IS NULL OR NOT (drive_folder_id = ANY($1::text[])))`,
       [ids],
+      "missing",
     );
+  }
+
+  async #deactivateMatching(condition, values, syncState) {
+    const client =
+      typeof this.pool.connect === "function" ? await this.pool.connect() : this.pool;
+    try {
+      await client.query("BEGIN");
+      const stateParameter = values.length + 1;
+      const result = await client.query(
+        `UPDATE memories_processes
+         SET is_active = false,
+             sync_state = $${stateParameter},
+             updated_at = now()
+         WHERE ${condition}
+         RETURNING id, label_zh, label_en, display_order, drive_folder_id,
+                   drive_folder_name, sync_state, last_synced_at, is_active`,
+        [...values, syncState],
+      );
+      const processIds = result.rows.map((row) => row.id);
+      if (processIds.length > 0) {
+        await client.query(
+          `DELETE FROM memories_photo_processes
+           WHERE process_id = ANY($1::text[])`,
+          [processIds],
+        );
+      }
+      await client.query("COMMIT");
+      return result.rows.map(mapRow);
+    } catch (error) {
+      await client.query("ROLLBACK");
+      throw error;
+    } finally {
+      client.release?.();
+    }
   }
 }
 
@@ -71,6 +137,7 @@ function mapRow(row) {
     driveFolderId: row.drive_folder_id,
     driveFolderName: row.drive_folder_name,
     syncState: row.sync_state,
+    isActive: row.is_active !== false,
     lastSyncedAt: row.last_synced_at
       ? new Date(row.last_synced_at).toISOString()
       : null,
