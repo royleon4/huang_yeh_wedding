@@ -21,6 +21,7 @@ The standalone Memories root folder contains numbered wedding-process folders pl
 11 退場
 12 分組照相
 訪客上傳
+生活照
 系統縮圖
 ```
 
@@ -52,13 +53,7 @@ Override the interval with `MEMORIES_DRIVE_SYNC_INTERVAL_MS`, with a minimum of 
 
 ## Website administration
 
-Open:
-
-```text
-/Memories/?admin=1
-```
-
-The temporary Phase 1 admin panel requires the production secret `MEMORIES_ADMIN_TOKEN`. The entered token remains only in the current browser tab's `sessionStorage`; it is not built into the frontend or committed to the repository.
+Tap the archive title five times within 3.5 seconds to open the temporary Phase 1 administrator login. The panel requires the production secret `MEMORIES_ADMIN_TOKEN`. The entered token remains only in the current browser tab's `sessionStorage`; it is not built into the frontend or committed to the repository.
 
 The final identity provider remains ticket #6.
 
