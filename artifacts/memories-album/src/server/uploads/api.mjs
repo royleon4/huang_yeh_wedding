@@ -5,24 +5,28 @@ import { ImageValidationError } from "./image-processor.mjs";
 
 const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const CLIENT_UPLOAD_ID_PATTERN = /^[A-Za-z0-9_-]{16,128}$/;
 const DEFAULT_MAX_FILE_BYTES = 25 * 1024 * 1024;
 const MAX_NAME_CHARACTERS = 80;
 const ALLOWED_CLASSIFICATIONS = new Set(["guest", "wedding", "life"]);
+const DRIVE_RETRY_ATTEMPTS = 4;
 
 export class UploadApiError extends Error {
-  constructor(status, message, code) {
+  constructor(status, message, code, details = {}) {
     super(message);
     this.name = "UploadApiError";
     this.status = status;
     this.code = code;
+    this.details = details;
   }
 }
 
-function json(response, status, body) {
+function json(response, status, body, headers = {}) {
   response.writeHead(status, {
     "Content-Type": "application/json; charset=utf-8",
     "Cache-Control": "no-store",
     "X-Content-Type-Options": "nosniff",
+    ...headers,
   });
   response.end(JSON.stringify(body));
 }
@@ -41,6 +45,14 @@ function bearerToken(request) {
   if (typeof header !== "string") return null;
   const match = header.match(/^Bearer\s+(.+)$/i);
   return match?.[1] ?? null;
+}
+
+function requestedClientUploadId(request, contentHash) {
+  const supplied = request.headers["x-memories-upload-id"];
+  if (typeof supplied === "string" && CLIENT_UPLOAD_ID_PATTERN.test(supplied)) {
+    return supplied;
+  }
+  return `legacy_${contentHash.slice(0, 48)}`;
 }
 
 async function readJson(request, maxBytes = 8 * 1024) {
@@ -168,23 +180,18 @@ export function parseSinglePhoto(
     });
     parser.on("finish", () => {
       if (settled) return;
-      if (problem) {
-        fail(problem);
-        return;
-      }
+      if (problem) return fail(problem);
       if (!record) {
-        fail(new UploadApiError(400, "A photo is required", "PHOTO_REQUIRED"));
-        return;
+        return fail(new UploadApiError(400, "A photo is required", "PHOTO_REQUIRED"));
       }
       if (record.truncated) {
-        fail(
+        return fail(
           new UploadApiError(
             413,
             "The selected photo is too large",
             "PHOTO_TOO_LARGE",
           ),
         );
-        return;
       }
       settled = true;
       resolve(record);
@@ -204,17 +211,78 @@ function safeFilenamePart(filename) {
   return base || "photo";
 }
 
-function timestamp(value) {
-  return new Date(value).toISOString().replace(/\D/g, "").slice(0, 14);
+function wait(milliseconds) {
+  return new Promise((resolve) => setTimeout(resolve, milliseconds));
 }
 
-async function safeDelete(drive, fileId) {
-  if (!fileId) return;
-  try {
-    await drive.delete(fileId);
-  } catch {
-    // Compensation cleanup is best-effort and never hides the primary failure.
+function retryableDriveError(error) {
+  return (
+    error?.code === "DRIVE_RETRYABLE" ||
+    error?.status === 429 ||
+    (Number.isInteger(error?.status) && error.status >= 500)
+  );
+}
+
+async function withDriveRetry(operation) {
+  let lastError;
+  for (let attempt = 1; attempt <= DRIVE_RETRY_ATTEMPTS; attempt += 1) {
+    try {
+      return await operation();
+    } catch (error) {
+      lastError = error;
+      if (!retryableDriveError(error) || attempt === DRIVE_RETRY_ATTEMPTS) {
+        throw error;
+      }
+      await wait(250 * 2 ** (attempt - 1));
+    }
   }
+  throw lastError;
+}
+
+function createMemoryDurableRepository() {
+  const items = new Map();
+  return {
+    async claim(input) {
+      const key = `${input.batchId}:${input.clientUploadId}`;
+      const current = items.get(key);
+      if (current?.status === "ready") {
+        return { state: "ready", photoId: current.photoId };
+      }
+      if (current?.status === "processing") {
+        return { state: "busy", retryAfterMs: 500 };
+      }
+      const item = {
+        ...current,
+        ...input,
+        status: "processing",
+        originalDriveFileId: current?.originalDriveFileId ?? null,
+        thumbnailDriveFileId: current?.thumbnailDriveFileId ?? null,
+      };
+      items.set(key, item);
+      return { state: "claimed", item };
+    },
+    async recordFiles(input) {
+      const key = `${input.batchId}:${input.clientUploadId}`;
+      const current = items.get(key) ?? {};
+      const next = {
+        ...current,
+        originalDriveFileId:
+          input.originalDriveFileId ?? current.originalDriveFileId ?? null,
+        thumbnailDriveFileId:
+          input.thumbnailDriveFileId ?? current.thumbnailDriveFileId ?? null,
+      };
+      items.set(key, next);
+      return next;
+    },
+    async markReady(input) {
+      const key = `${input.batchId}:${input.clientUploadId}`;
+      items.set(key, { ...(items.get(key) ?? {}), ...input, status: "ready" });
+    },
+    async markFailed(input) {
+      const key = `${input.batchId}:${input.clientUploadId}`;
+      items.set(key, { ...(items.get(key) ?? {}), status: "failed" });
+    },
+  };
 }
 
 async function validateClassification(body, processRepository) {
@@ -252,6 +320,7 @@ async function validateClassification(body, processRepository) {
 
 export function createGuestUploadApi({
   repository,
+  durableUploadRepository = createMemoryDurableRepository(),
   processRepository = null,
   drive,
   imageProcessor,
@@ -260,9 +329,9 @@ export function createGuestUploadApi({
   createId = randomUUID,
   createToken = () => randomBytes(32).toString("base64url"),
 }) {
-  if (!repository || !drive || !imageProcessor) {
+  if (!repository || !drive || !imageProcessor || !durableUploadRepository) {
     throw new Error(
-      "Upload repository, Drive storage, and image processor are required",
+      "Upload repository, durable state, Drive storage, and image processor are required",
     );
   }
 
@@ -271,6 +340,7 @@ export function createGuestUploadApi({
     response,
     url = new URL(request.url ?? "/", "http://localhost"),
   ) {
+    let activeUpload = null;
     try {
       if (
         request.method === "POST" &&
@@ -344,73 +414,159 @@ export function createGuestUploadApi({
           maxFileBytes: limits.maxFileBytes ?? DEFAULT_MAX_FILE_BYTES,
         });
         const processed = await imageProcessor.process(input);
-        const photoId = createId();
-        const createdAt = now().toISOString();
-        const namePrefix = `${timestamp(createdAt)}-${photoId}-${safeFilenamePart(input.filename)}`;
-        const originalFilename = `${namePrefix}.${processed.originalExtension}`;
-        const thumbnailFilename = `${namePrefix}.webp`;
         const contentHash = hash(input.bytes);
+        const clientUploadId = requestedClientUploadId(request, contentHash);
+        const proposedPhotoId = createId();
+        const claimed = await durableUploadRepository.claim({
+          batchId,
+          clientUploadId,
+          contentHash,
+          originalFilename: input.filename,
+          photoId: proposedPhotoId,
+          now: now(),
+        });
+        activeUpload = { batchId, clientUploadId };
 
-        let originalFileId = null;
-        let thumbnailFileId = null;
-        try {
-          // drive.originalFolderId is always the reserved 訪客上傳 folder.
-          const original = await drive.uploadOriginal({
-            bytes: processed.originalBytes,
-            filename: originalFilename,
-            contentType: processed.originalContentType,
-          });
-          originalFileId = original.fileId;
-
-          const thumbnail = await drive.uploadThumbnail({
-            bytes: processed.thumbnailBytes,
-            filename: thumbnailFilename,
-            contentType: processed.thumbnailContentType,
-          });
-          thumbnailFileId = thumbnail.fileId;
-
-          const processIds =
-            batch.classification === "wedding" &&
-            batch.classificationProcessId
-              ? [batch.classificationProcessId]
-              : [];
-          const photo = await repository.insertPhoto({
-            id: photoId,
-            batchId,
-            driveFileId: originalFileId,
-            thumbnailDriveFileId: thumbnailFileId,
-            originalFilename,
-            mimeType: processed.originalContentType,
-            byteSize: processed.originalBytes.length,
-            width: processed.width,
-            height: processed.height,
-            contentHash,
-            contentVersion: 1,
-            source: "guest",
-            uploaderName: batch.uploaderName,
-            collection: batch.classification ?? "guest",
-            visibility: "public",
-            processingState: "ready",
-            processIds,
-            createdAt,
-            updatedAt: createdAt,
-          });
-          json(response, 201, { photo: toPublicPhoto(photo) });
+        if (claimed.state === "ready") {
+          const existing = await repository.findPublicPhoto(claimed.photoId);
+          if (!existing) {
+            throw new UploadApiError(
+              409,
+              "The upload is being finalized. Please retry shortly.",
+              "UPLOAD_IN_PROGRESS",
+              { retryAfterMs: 1000 },
+            );
+          }
+          json(response, 200, { photo: toPublicPhoto(existing), reused: true });
           return true;
-        } catch (error) {
-          await safeDelete(drive, thumbnailFileId);
-          await safeDelete(drive, originalFileId);
-          throw error;
         }
+        if (claimed.state === "busy") {
+          throw new UploadApiError(
+            409,
+            "This photo is already being uploaded. Please retry shortly.",
+            "UPLOAD_IN_PROGRESS",
+            { retryAfterMs: claimed.retryAfterMs ?? 1000 },
+          );
+        }
+
+        const item = claimed.item;
+        const photoId = item.photoId ?? proposedPhotoId;
+        const stableKey = hash(`${batchId}:${clientUploadId}`).slice(0, 32);
+        const originalFilename = `guest-${stableKey}-${safeFilenamePart(input.filename)}.${processed.originalExtension}`;
+        const thumbnailFilename = `guest-${stableKey}.webp`;
+        const appProperties = {
+          batchId,
+          uploadId: clientUploadId.slice(0, 120),
+        };
+
+        let originalFileId = item.originalDriveFileId ?? null;
+        if (!originalFileId && drive.findChildByName) {
+          const existingOriginal = await withDriveRetry(() =>
+            drive.findChildByName(drive.originalFolderId, originalFilename),
+          );
+          originalFileId = existingOriginal?.id ?? null;
+        }
+        if (!originalFileId) {
+          const original = await withDriveRetry(() =>
+            drive.uploadOriginal({
+              bytes: processed.originalBytes,
+              filename: originalFilename,
+              contentType: processed.originalContentType,
+              appProperties,
+            }),
+          );
+          originalFileId = original.fileId;
+        }
+        await durableUploadRepository.recordFiles({
+          batchId,
+          clientUploadId,
+          originalDriveFileId: originalFileId,
+        });
+
+        let thumbnailFileId = item.thumbnailDriveFileId ?? null;
+        if (!thumbnailFileId && drive.findChildByName) {
+          const existingThumbnail = await withDriveRetry(() =>
+            drive.findChildByName(drive.thumbnailFolderId, thumbnailFilename),
+          );
+          thumbnailFileId = existingThumbnail?.id ?? null;
+        }
+        if (!thumbnailFileId) {
+          const thumbnail = await withDriveRetry(() =>
+            drive.uploadThumbnail({
+              bytes: processed.thumbnailBytes,
+              filename: thumbnailFilename,
+              contentType: processed.thumbnailContentType,
+              appProperties,
+            }),
+          );
+          thumbnailFileId = thumbnail.fileId;
+        }
+        await durableUploadRepository.recordFiles({
+          batchId,
+          clientUploadId,
+          thumbnailDriveFileId: thumbnailFileId,
+        });
+
+        const processIds =
+          batch.classification === "wedding" && batch.classificationProcessId
+            ? [batch.classificationProcessId]
+            : [];
+        const photo = await repository.insertPhoto({
+          id: photoId,
+          batchId,
+          clientUploadId,
+          driveFileId: originalFileId,
+          thumbnailDriveFileId: thumbnailFileId,
+          originalFilename,
+          mimeType: processed.originalContentType,
+          byteSize: processed.originalBytes.length,
+          width: processed.width,
+          height: processed.height,
+          contentHash,
+          contentVersion: 1,
+          source: "guest",
+          uploaderName: batch.uploaderName,
+          collection: batch.classification ?? "guest",
+          visibility: "public",
+          processingState: "ready",
+          processIds,
+          createdAt: now().toISOString(),
+          updatedAt: now().toISOString(),
+        });
+        await durableUploadRepository.markReady({
+          batchId,
+          clientUploadId,
+          photoId: photo.id,
+        });
+        activeUpload = null;
+        json(response, 201, { photo: toPublicPhoto(photo), reused: false });
+        return true;
       }
 
       return false;
     } catch (error) {
+      if (activeUpload) {
+        await durableUploadRepository
+          .markFailed({
+            ...activeUpload,
+            code: error?.code ?? error?.name ?? "UPLOAD_FAILED",
+          })
+          .catch(() => {});
+      }
       if (error instanceof UploadApiError) {
-        json(response, error.status, {
-          error: error.message,
-          code: error.code,
-        });
+        const retryAfterMs = Number(error.details?.retryAfterMs ?? 0);
+        json(
+          response,
+          error.status,
+          {
+            error: error.message,
+            code: error.code,
+            ...(retryAfterMs ? { retryAfterMs } : {}),
+          },
+          retryAfterMs
+            ? { "Retry-After": String(Math.max(1, Math.ceil(retryAfterMs / 1000))) }
+            : {},
+        );
         return true;
       }
       if (error instanceof ImageValidationError) {
@@ -435,8 +591,15 @@ export function createGuestUploadApi({
       if (error?.code === "DRIVE_RETRYABLE") {
         json(response, 503, {
           error:
-            "Google Drive is temporarily unavailable. Please retry this photo.",
+            "Google Drive is temporarily unavailable. This photo will retry safely.",
           code: "DRIVE_RETRYABLE",
+        });
+        return true;
+      }
+      if (error?.code === "DRIVE_REQUEST_FAILED") {
+        json(response, 502, {
+          error: "Google Drive rejected the upload request.",
+          code: "DRIVE_REQUEST_FAILED",
         });
         return true;
       }
