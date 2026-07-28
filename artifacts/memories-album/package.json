@@ -1,0 +1,12 @@
+{
+  "name": "@workspace/memories-album",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node --watch src/server.mjs",
+    "build": "node scripts/build.mjs",
+    "start": "node dist/server.mjs",
+    "test": "node --test"
+  }
+}

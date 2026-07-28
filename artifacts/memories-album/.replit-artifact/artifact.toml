@@ -1,0 +1,31 @@
+kind = "web"
+previewPath = "/Memories/"
+title = "婚禮相簿 Memories"
+version = "0.1.0"
+id = "artifacts/memories-album"
+router = "path"
+
+[[services]]
+name = "memories"
+paths = [ "/Memories" ]
+localPort = 19316
+
+[services.development]
+run = "pnpm --filter @workspace/memories-album run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/memories-album", "run", "build" ]
+
+[services.production.run]
+args = [ "node", "artifacts/memories-album/dist/server.mjs" ]
+
+[services.production.run.env]
+PORT = "19316"
+NODE_ENV = "production"
+
+[services.production.health.startup]
+path = "/Memories/api/health"
+
+[services.env]
+PORT = "19316"
+MEMORIES_BASE_PATH = "/Memories"
