@@ -1,4 +1,5 @@
-import { readFile } from "node:fs/promises";
+import { createReadStream } from "node:fs";
+import { readFile, stat } from "node:fs/promises";
 import { createServer as createNodeServer } from "node:http";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -8,10 +9,19 @@ export const MEMORIES_LOWERCASE_PATH = "/memories";
 export const MEMORIES_API_PATH = `${MEMORIES_BASE_PATH}/api`;
 
 const moduleDirectory = path.dirname(fileURLToPath(import.meta.url));
-const publicDirectory =
-  path.basename(moduleDirectory) === "dist"
-    ? path.resolve(moduleDirectory, "public")
-    : path.resolve(moduleDirectory, "../public");
+const isProductionBuild = path.basename(moduleDirectory) === "dist";
+const publicDirectory = isProductionBuild ? path.resolve(moduleDirectory, "public") : path.resolve(moduleDirectory, "..");
+const MIME_TYPES = new Map([
+  [".html", "text/html; charset=utf-8"],
+  [".js", "text/javascript; charset=utf-8"],
+  [".css", "text/css; charset=utf-8"],
+  [".svg", "image/svg+xml"],
+  [".png", "image/png"],
+  [".jpg", "image/jpeg"],
+  [".jpeg", "image/jpeg"],
+  [".webp", "image/webp"],
+  [".ico", "image/x-icon"],
+]);
 
 function sendJson(response, status, body) {
   response.writeHead(status, {
@@ -23,33 +33,47 @@ function sendJson(response, status, body) {
 }
 
 function redirect(response, location) {
-  response.writeHead(308, {
-    Location: location,
-    "Cache-Control": "no-store",
-  });
+  response.writeHead(308, { Location: location, "Cache-Control": "no-store" });
   response.end();
 }
 
+async function sendFile(response, filePath, cacheControl = "public, max-age=31536000, immutable") {
+  const metadata = await stat(filePath);
+  if (!metadata.isFile()) throw new Error("Not a file");
+  response.writeHead(200, {
+    "Content-Type": MIME_TYPES.get(path.extname(filePath).toLowerCase()) ?? "application/octet-stream",
+    "Content-Length": metadata.size,
+    "Cache-Control": cacheControl,
+    "X-Content-Type-Options": "nosniff",
+  });
+  createReadStream(filePath).pipe(response);
+}
+
 async function sendIndex(response) {
-  const html = await readFile(path.join(publicDirectory, "index.html"));
+  const filePath = path.join(publicDirectory, "index.html");
+  const html = await readFile(filePath);
   response.writeHead(200, {
     "Content-Type": "text/html; charset=utf-8",
     "Cache-Control": "no-cache",
     "X-Content-Type-Options": "nosniff",
+    "Content-Length": html.length,
   });
   response.end(html);
+}
+
+function safeAssetPath(pathname) {
+  const relative = decodeURIComponent(pathname.slice(`${MEMORIES_BASE_PATH}/`.length));
+  if (!relative || relative.includes("\0")) return null;
+  const resolved = path.resolve(publicDirectory, relative);
+  return resolved.startsWith(`${publicDirectory}${path.sep}`) ? resolved : null;
 }
 
 export async function handleRequest(request, response) {
   const url = new URL(request.url ?? "/", "http://localhost");
 
-  if (
-    url.pathname === MEMORIES_LOWERCASE_PATH ||
-    url.pathname.startsWith(`${MEMORIES_LOWERCASE_PATH}/`)
-  ) {
+  if (url.pathname === MEMORIES_LOWERCASE_PATH || url.pathname.startsWith(`${MEMORIES_LOWERCASE_PATH}/`)) {
     const suffix = url.pathname.slice(MEMORIES_LOWERCASE_PATH.length);
-    const canonicalPath = `${MEMORIES_BASE_PATH}${suffix || "/"}`;
-    redirect(response, `${canonicalPath}${url.search}`);
+    redirect(response, `${MEMORIES_BASE_PATH}${suffix || "/"}${url.search}`);
     return;
   }
 
@@ -59,26 +83,30 @@ export async function handleRequest(request, response) {
   }
 
   if (url.pathname === `${MEMORIES_API_PATH}/health`) {
-    sendJson(response, 200, {
-      status: "ok",
-      service: "memories-album",
-      basePath: MEMORIES_BASE_PATH,
-    });
+    sendJson(response, 200, { status: "ok", service: "memories-album", basePath: MEMORIES_BASE_PATH });
     return;
   }
 
-  if (
-    url.pathname === MEMORIES_API_PATH ||
-    url.pathname.startsWith(`${MEMORIES_API_PATH}/`)
-  ) {
+  if (url.pathname === MEMORIES_API_PATH || url.pathname.startsWith(`${MEMORIES_API_PATH}/`)) {
     sendJson(response, 404, { error: "Not found" });
     return;
   }
 
-  if (
-    url.pathname === `${MEMORIES_BASE_PATH}/` ||
-    url.pathname.startsWith(`${MEMORIES_BASE_PATH}/`)
-  ) {
+  if (url.pathname.startsWith(`${MEMORIES_BASE_PATH}/`) && path.extname(url.pathname)) {
+    const filePath = safeAssetPath(url.pathname);
+    if (!filePath) {
+      sendJson(response, 400, { error: "Invalid asset path" });
+      return;
+    }
+    try {
+      await sendFile(response, filePath);
+    } catch {
+      sendJson(response, 404, { error: "Not found" });
+    }
+    return;
+  }
+
+  if (url.pathname === `${MEMORIES_BASE_PATH}/` || url.pathname.startsWith(`${MEMORIES_BASE_PATH}/`)) {
     await sendIndex(response);
     return;
   }
@@ -89,12 +117,9 @@ export async function handleRequest(request, response) {
 export function createServer() {
   return createNodeServer((request, response) => {
     void handleRequest(request, response).catch((error) => {
-      console.error("Memories request failed", error);
-      if (!response.headersSent) {
-        sendJson(response, 500, { error: "Internal server error" });
-      } else {
-        response.destroy(error);
-      }
+      console.error("Memories request failed", error instanceof Error ? error.message : "Unknown error");
+      if (!response.headersSent) sendJson(response, 500, { error: "Internal server error" });
+      else response.destroy();
     });
   });
 }
