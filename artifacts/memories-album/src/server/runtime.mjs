@@ -33,7 +33,8 @@ async function createRuntime(env) {
   const processRepository = new PostgresProcessRepository(pool);
   const synchronizer = new DriveProcessSynchronizer({
     drive,
-    repository: processRepository,
+    processRepository,
+    photoRepository: repository,
     rootFolderId: env.MEMORIES_DRIVE_PHOTOS_FOLDER_ID,
   });
 
