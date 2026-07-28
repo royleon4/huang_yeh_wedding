@@ -26,11 +26,15 @@ export function toPublicPhoto(photo) {
   };
 }
 
-async function pipeBody(response, file) {
+async function pipeBody(
+  response,
+  file,
+  cacheControl = "public, max-age=3600, stale-while-revalidate=86400",
+) {
   response.writeHead(200, {
     "Content-Type": file.contentType,
     ...(file.contentLength ? { "Content-Length": file.contentLength } : {}),
-    "Cache-Control": "public, max-age=3600, stale-while-revalidate=86400",
+    "Cache-Control": cacheControl,
     "X-Content-Type-Options": "nosniff",
     "Content-Security-Policy": "default-src 'none'",
   });
@@ -49,7 +53,27 @@ async function pipeBody(response, file) {
   throw new Error("Unsupported file body");
 }
 
-export function createMemoriesPhotoApi({ repository, drive }) {
+function thumbnailFailure(response, error) {
+  const retryableCodes = new Set([
+    "DRIVE_AUTHORIZATION_REQUIRED",
+    "DRIVE_RETRYABLE",
+    "DRIVE_REQUEST_FAILED",
+    "THUMBNAIL_FOLDER_NOT_CONFIGURED",
+  ]);
+  const code = retryableCodes.has(error?.code)
+    ? error.code
+    : "THUMBNAIL_NOT_READY";
+  json(response, 503, {
+    error: "The compressed thumbnail is not ready. Please retry shortly.",
+    code,
+  });
+}
+
+export function createMemoriesPhotoApi({
+  repository,
+  drive,
+  thumbnailService = null,
+}) {
   if (!repository || !drive) {
     throw new Error("Photo repository and Drive storage are required");
   }
@@ -90,17 +114,48 @@ export function createMemoriesPhotoApi({ repository, drive }) {
         json(response, 404, { error: "Not found" });
         return true;
       }
-      const photo = await repository.findPublicPhoto(id);
+      let photo = await repository.findPublicPhoto(id);
       if (!photo) {
         json(response, 404, { error: "Not found" });
         return true;
       }
+
+      if (variant === "thumbnail" && !photo.thumbnailDriveFileId) {
+        if (!thumbnailService) {
+          thumbnailFailure(response, { code: "THUMBNAIL_NOT_READY" });
+          return true;
+        }
+        try {
+          photo = await thumbnailService.ensurePhotoThumbnail(photo);
+        } catch (error) {
+          thumbnailFailure(response, error);
+          return true;
+        }
+      }
+
       const fileId =
         variant === "thumbnail"
-          ? photo.thumbnailDriveFileId || photo.driveFileId
+          ? photo.thumbnailDriveFileId
           : photo.driveFileId;
+      if (!fileId) {
+        json(response, 503, {
+          error: "The requested image is not ready.",
+          code:
+            variant === "thumbnail"
+              ? "THUMBNAIL_NOT_READY"
+              : "ORIGINAL_NOT_READY",
+        });
+        return true;
+      }
+
       try {
-        await pipeBody(response, await drive.download(fileId));
+        await pipeBody(
+          response,
+          await drive.download(fileId),
+          variant === "thumbnail"
+            ? "public, max-age=31536000, immutable"
+            : "public, max-age=3600, stale-while-revalidate=86400",
+        );
       } catch (error) {
         if (error?.status === 404) {
           json(response, 404, { error: "Not found" });
