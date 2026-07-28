@@ -6,7 +6,7 @@ import { MemoryPhotoRepository } from "../src/server/photos/memory-repository.mj
 
 const photoId = "11111111-1111-4111-8111-111111111111";
 
-function sourcePhoto() {
+function sourcePhoto(overrides = {}) {
   return {
     id: photoId,
     driveFileId: "private-original-id",
@@ -23,21 +23,26 @@ function sourcePhoto() {
     processIds: [],
     createdAt: "2026-06-20T01:00:00.000Z",
     updatedAt: "2026-06-20T01:00:00.000Z",
+    ...overrides,
   };
 }
 
-async function withApi({ thumbnailService = null }, run) {
-  const repository = new MemoryPhotoRepository([sourcePhoto()]);
+async function withApi(
+  { thumbnailService = null, photo = sourcePhoto(), download = null },
+  run,
+) {
+  const repository = new MemoryPhotoRepository([photo]);
   const downloads = [];
   const drive = {
     async download(fileId) {
       downloads.push(fileId);
+      if (download) return download(fileId);
       const body = Buffer.from(
         fileId === "generated-thumbnail-id" ? "thumbnail" : "original",
       );
       return {
         body,
-        contentType: "image/webp",
+        contentType: fileId.includes("thumbnail") ? "image/webp" : "image/jpeg",
         contentLength: body.length,
       };
     },
@@ -86,14 +91,64 @@ test("thumbnail requests generate or attach a thumbnail before streaming", async
   });
 });
 
-test("thumbnail requests never silently stream the original as a fallback", async () => {
+test("a stale Drive thumbnail id is cleared, rebuilt, and persisted", async () => {
+  let repository;
+  let repaired = 0;
+  const thumbnailService = {
+    async repairPhotoThumbnail(photo) {
+      repaired += 1;
+      await repository.clearThumbnail(photo.id, photo.thumbnailDriveFileId);
+      return repository.attachThumbnail(photo.id, "generated-thumbnail-id");
+    },
+  };
+  await withApi(
+    {
+      photo: sourcePhoto({ thumbnailDriveFileId: "missing-thumbnail-id" }),
+      thumbnailService,
+      download: async (fileId) => {
+        if (fileId === "missing-thumbnail-id") {
+          const error = new Error("missing");
+          error.status = 404;
+          throw error;
+        }
+        const body = Buffer.from("repaired-thumbnail");
+        return { body, contentType: "image/webp", contentLength: body.length };
+      },
+    },
+    async (origin, context) => {
+      repository = context.repository;
+      const response = await fetch(
+        `${origin}/Memories/api/photos/${photoId}/thumbnail`,
+      );
+      assert.equal(response.status, 200);
+      assert.equal(await response.text(), "repaired-thumbnail");
+      assert.equal(response.headers.get("x-memories-thumbnail-repaired"), "1");
+      assert.equal(repaired, 1);
+      assert.deepEqual(context.downloads, [
+        "missing-thumbnail-id",
+        "generated-thumbnail-id",
+      ]);
+      assert.equal(
+        (await repository.findPublicPhoto(photoId)).thumbnailDriveFileId,
+        "generated-thumbnail-id",
+      );
+    },
+  );
+});
+
+test("a broken thumbnail temporarily serves the original instead of a blank card", async () => {
   await withApi({}, async (origin, context) => {
     const response = await fetch(
       `${origin}/Memories/api/photos/${photoId}/thumbnail`,
     );
-    assert.equal(response.status, 503);
-    assert.equal((await response.json()).code, "THUMBNAIL_NOT_READY");
-    assert.deepEqual(context.downloads, []);
+    assert.equal(response.status, 200);
+    assert.equal(await response.text(), "original");
+    assert.equal(response.headers.get("cache-control"), "no-store");
+    assert.equal(
+      response.headers.get("x-memories-thumbnail-fallback"),
+      "original",
+    );
+    assert.deepEqual(context.downloads, ["private-original-id"]);
   });
 });
 
