@@ -12,7 +12,6 @@ if (!Number.isInteger(port) || port <= 0 || port > 65535) {
 }
 
 if (shouldRunProductionMigrations()) {
-  console.log("Checking Memories production database schema before startup...");
   await runMemoriesMigrations();
 }
 

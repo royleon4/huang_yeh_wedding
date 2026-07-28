@@ -10,25 +10,45 @@ import {
 
 class FakeMigrationClient {
   constructor() {
+    this.tableExists = false;
     this.applied = new Map();
     this.executedMigrations = [];
+    this.lockAcquires = 0;
+    this.createTableCount = 0;
     this.released = false;
   }
 
   async query(sql, params = []) {
     const normalized = String(sql).replace(/\s+/g, " ").trim();
 
-    if (normalized.startsWith("SELECT pg_advisory_")) {
+    if (normalized.startsWith("SELECT to_regclass")) {
+      return {
+        rows: [{ table_name: this.tableExists ? "memories_schema_migrations" : null }],
+      };
+    }
+
+    if (normalized === "SELECT filename, checksum FROM memories_schema_migrations") {
+      return {
+        rows: [...this.applied.entries()].map(([filename, migrationChecksum]) => ({
+          filename,
+          checksum: migrationChecksum,
+        })),
+      };
+    }
+
+    if (normalized.startsWith("SELECT pg_advisory_lock")) {
+      this.lockAcquires += 1;
       return { rows: [] };
     }
 
-    if (normalized.startsWith("CREATE TABLE IF NOT EXISTS memories_schema_migrations")) {
+    if (normalized.startsWith("SELECT pg_advisory_unlock")) {
       return { rows: [] };
     }
 
-    if (normalized.startsWith("SELECT checksum FROM memories_schema_migrations")) {
-      const checksum = this.applied.get(params[0]);
-      return { rows: checksum ? [{ checksum }] : [] };
+    if (normalized.startsWith("CREATE TABLE memories_schema_migrations")) {
+      this.tableExists = true;
+      this.createTableCount += 1;
+      return { rows: [] };
     }
 
     if (normalized.startsWith("INSERT INTO memories_schema_migrations")) {
@@ -71,7 +91,7 @@ test("only production or a published Replit instance enables startup migrations"
   assert.equal(shouldRunProductionMigrations({ REPLIT_DEPLOYMENT: "1" }), true);
 });
 
-test("applies each migration once and records its checksum", async () => {
+test("creates migration history and applies migrations only on first use", async () => {
   await withMigrationDirectory(async (migrationDirectory) => {
     const client = new FakeMigrationClient();
     const logs = [];
@@ -82,16 +102,43 @@ test("applies each migration once and records its checksum", async () => {
       logger: { log: (message) => logs.push(message) },
     };
 
-    await runMemoriesMigrations(options);
-    await runMemoriesMigrations(options);
+    const first = await runMemoriesMigrations(options);
+    const second = await runMemoriesMigrations(options);
 
+    assert.equal(first.applied, 2);
+    assert.equal(second.applied, 0);
     assert.deepEqual(client.executedMigrations, ["SELECT 1;", "SELECT 2;"]);
     assert.deepEqual([...client.applied.keys()], [
       "001_first.sql",
       "002_second.sql",
     ]);
-    assert.ok(logs.includes("Memories migration already applied: 001_first.sql"));
+    assert.equal(client.createTableCount, 1);
+    assert.equal(client.lockAcquires, 1);
+    assert.ok(
+      logs.includes("Memories database schema is current; no migration needed."),
+    );
     assert.equal(client.released, true);
+  });
+});
+
+test("acquires the lock and applies only newly added migrations", async () => {
+  await withMigrationDirectory(async (migrationDirectory) => {
+    const client = new FakeMigrationClient();
+    const options = {
+      databaseUrl: "postgres://production.example/memories",
+      migrationDirectory,
+      createPool: async () => fakePool(client),
+      logger: { log() {} },
+    };
+
+    await runMemoriesMigrations(options);
+    await writeFile(path.join(migrationDirectory, "003_third.sql"), "SELECT 3;\n");
+    const result = await runMemoriesMigrations(options);
+
+    assert.equal(result.applied, 1);
+    assert.deepEqual(client.executedMigrations, ["SELECT 1;", "SELECT 2;", "SELECT 3;"]);
+    assert.equal(client.createTableCount, 1);
+    assert.equal(client.lockAcquires, 2);
   });
 });
 
@@ -112,6 +159,7 @@ test("fails safely when an already-applied migration file changes", async () => 
       runMemoriesMigrations(options),
       /migration 001_first\.sql changed after it was applied/,
     );
+    assert.equal(client.lockAcquires, 1);
   });
 });
 
