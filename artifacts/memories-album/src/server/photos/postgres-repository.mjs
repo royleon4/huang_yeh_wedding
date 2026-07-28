@@ -75,8 +75,12 @@ export class PostgresPhotoRepository {
     }
   }
 
-  async upsertDrivePhotoMetadata(file, { source = "official", parentFolderId = null } = {}) {
-    const createdAt = file.createdTime || file.modifiedTime || new Date().toISOString();
+  async upsertDrivePhotoMetadata(
+    file,
+    { source = "official", parentFolderId = null } = {},
+  ) {
+    const createdAt =
+      file.createdTime || file.modifiedTime || new Date().toISOString();
     const result = await this.pool.query(
       `INSERT INTO memories_photos (
         id, drive_file_id, original_filename, mime_type, byte_size,
@@ -104,6 +108,39 @@ export class PostgresPhotoRepository {
         new Date(createdAt).toISOString(),
       ],
     );
+    return mapPhotoRow(result.rows[0], []);
+  }
+
+  async listPhotosMissingThumbnails({ limit = 12 } = {}) {
+    const boundedLimit = Math.max(1, Math.min(Number(limit) || 12, 50));
+    const result = await this.pool.query(
+      `SELECT p.*
+       FROM memories_photos p
+       WHERE p.thumbnail_drive_file_id IS NULL
+         AND p.drive_file_id IS NOT NULL
+         AND p.processing_state = 'ready'
+         AND p.visibility <> 'trashed'
+       ORDER BY p.created_at ASC, p.id ASC
+       LIMIT $1`,
+      [boundedLimit],
+    );
+    return result.rows.map((row) => mapPhotoRow(row, []));
+  }
+
+  async attachThumbnail(photoId, thumbnailDriveFileId) {
+    const result = await this.pool.query(
+      `UPDATE memories_photos
+       SET thumbnail_drive_file_id = COALESCE(thumbnail_drive_file_id, $2),
+           updated_at = now()
+       WHERE id = $1
+       RETURNING *`,
+      [photoId, thumbnailDriveFileId],
+    );
+    if (!result.rows[0]) {
+      const error = new Error("Photo not found while attaching thumbnail");
+      error.code = "PHOTO_NOT_FOUND";
+      throw error;
+    }
     return mapPhotoRow(result.rows[0], []);
   }
 
@@ -174,8 +211,15 @@ export class PostgresPhotoRepository {
       : null;
   }
 
-  async replacePhotoProcessByDriveFile(driveFileId, processId, parentFolderId) {
-    const client = typeof this.pool.connect === "function" ? await this.pool.connect() : this.pool;
+  async replacePhotoProcessByDriveFile(
+    driveFileId,
+    processId,
+    parentFolderId,
+  ) {
+    const client =
+      typeof this.pool.connect === "function"
+        ? await this.pool.connect()
+        : this.pool;
     try {
       await client.query("BEGIN");
       const photoResult = await client.query(
