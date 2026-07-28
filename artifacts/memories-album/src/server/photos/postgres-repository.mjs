@@ -11,17 +11,26 @@ export class PostgresPhotoRepository {
     const result = await this.pool.query(
       `INSERT INTO memories_upload_batches (
         id, uploader_type, uploader_name, management_token_hash,
-        status, created_at, updated_at
-      ) VALUES ($1, 'guest', $2, $3, 'open', $4, $4)
-      RETURNING id, uploader_type, uploader_name, status, created_at, updated_at`,
-      [batch.id, batch.uploaderName, batch.tokenHash, batch.createdAt],
+        status, classification, classification_process_id, created_at, updated_at
+      ) VALUES ($1, 'guest', $2, $3, 'open', $4, $5, $6, $6)
+      RETURNING id, uploader_type, uploader_name, status, classification,
+                classification_process_id, created_at, updated_at`,
+      [
+        batch.id,
+        batch.uploaderName,
+        batch.tokenHash,
+        batch.classification ?? "guest",
+        batch.classificationProcessId ?? null,
+        batch.createdAt,
+      ],
     );
     return mapBatchRow(result.rows[0]);
   }
 
   async findUploadBatchByToken(id, tokenHash) {
     const result = await this.pool.query(
-      `SELECT id, uploader_type, uploader_name, status, created_at, updated_at
+      `SELECT id, uploader_type, uploader_name, status, classification,
+              classification_process_id, created_at, updated_at
        FROM memories_upload_batches
        WHERE id = $1
          AND management_token_hash = $2
@@ -33,16 +42,19 @@ export class PostgresPhotoRepository {
   }
 
   async insertPhoto(photo) {
+    const client =
+      typeof this.pool.connect === "function" ? await this.pool.connect() : this.pool;
     try {
-      const result = await this.pool.query(
+      await client.query("BEGIN");
+      const result = await client.query(
         `INSERT INTO memories_photos (
           id, batch_id, drive_file_id, thumbnail_drive_file_id,
           original_filename, mime_type, byte_size, width, height,
           content_hash, content_version, uploader_type, uploader_name,
-          visibility, processing_state, drive_parent_folder_id,
+          visibility, processing_state, drive_parent_folder_id, collection,
           created_at, updated_at
         ) VALUES (
-          $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$17
+          $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$18
         ) RETURNING *`,
         [
           photo.id,
@@ -61,23 +73,41 @@ export class PostgresPhotoRepository {
           photo.visibility ?? "public",
           photo.processingState ?? "ready",
           photo.driveParentFolderId ?? null,
+          photo.collection ?? (photo.source === "guest" ? "guest" : "wedding"),
           photo.createdAt ?? new Date().toISOString(),
         ],
       );
-      return mapPhotoRow(result.rows[0], photo.processIds ?? []);
+      const processIds = [...new Set(photo.processIds ?? [])].filter(Boolean);
+      for (const processId of processIds) {
+        await client.query(
+          `INSERT INTO memories_photo_processes (photo_id, process_id)
+           VALUES ($1,$2) ON CONFLICT DO NOTHING`,
+          [photo.id, processId],
+        );
+      }
+      await client.query("COMMIT");
+      return mapPhotoRow(result.rows[0], processIds);
     } catch (error) {
+      await client.query("ROLLBACK");
       if (error?.code === "23505") {
         const duplicate = new Error("Duplicate photo");
         duplicate.code = "DUPLICATE_PHOTO";
         throw duplicate;
       }
       throw error;
+    } finally {
+      client.release?.();
     }
   }
 
   async upsertDrivePhotoMetadata(
     file,
-    { source = "official", parentFolderId = null } = {},
+    {
+      source = "official",
+      parentFolderId = null,
+      collection = source === "guest" ? "guest" : "wedding",
+      preserveLogicalClassification = false,
+    } = {},
   ) {
     const createdAt =
       file.createdTime || file.modifiedTime || new Date().toISOString();
@@ -85,14 +115,18 @@ export class PostgresPhotoRepository {
       `INSERT INTO memories_photos (
         id, drive_file_id, original_filename, mime_type, byte_size,
         content_hash, content_version, uploader_type, uploader_name,
-        visibility, processing_state, drive_parent_folder_id,
+        visibility, processing_state, drive_parent_folder_id, collection,
         created_at, updated_at
-      ) VALUES ($1,$2,$3,$4,$5,$6,1,$7,$8,'public','ready',$9,$10,$10)
+      ) VALUES ($1,$2,$3,$4,$5,$6,1,$7,$8,'public','ready',$9,$10,$11,$11)
       ON CONFLICT (drive_file_id) DO UPDATE SET
         original_filename = EXCLUDED.original_filename,
         mime_type = EXCLUDED.mime_type,
         byte_size = EXCLUDED.byte_size,
         drive_parent_folder_id = EXCLUDED.drive_parent_folder_id,
+        collection = CASE
+          WHEN $12::boolean THEN memories_photos.collection
+          ELSE EXCLUDED.collection
+        END,
         updated_at = now()
       RETURNING *`,
       [
@@ -105,7 +139,9 @@ export class PostgresPhotoRepository {
         source,
         source === "guest" ? "Google Drive guest" : "婚禮攝影",
         parentFolderId,
+        collection,
         new Date(createdAt).toISOString(),
+        preserveLogicalClassification,
       ],
     );
     return mapPhotoRow(result.rows[0], []);
@@ -149,6 +185,7 @@ export class PostgresPhotoRepository {
     limit = 24,
     processId = null,
     source = null,
+    collection = null,
   } = {}) {
     const decoded = decodePhotoCursor(cursor);
     const boundedLimit = Math.max(1, Math.min(Number(limit) || 24, 100));
@@ -164,6 +201,12 @@ export class PostgresPhotoRepository {
     if (source) {
       values.push(source);
       conditions.push(`p.uploader_type = $${values.length}`);
+    }
+    if (collection === "guest") {
+      conditions.push("p.uploader_type = 'guest'");
+    } else if (collection === "wedding" || collection === "life") {
+      values.push(collection);
+      conditions.push(`p.collection = $${values.length}`);
     }
     if (processId) {
       values.push(processId);
@@ -211,10 +254,20 @@ export class PostgresPhotoRepository {
       : null;
   }
 
+  async updateDriveParentByDriveFile(driveFileId, parentFolderId) {
+    await this.pool.query(
+      `UPDATE memories_photos
+       SET drive_parent_folder_id = $2, updated_at = now()
+       WHERE drive_file_id = $1`,
+      [driveFileId, parentFolderId],
+    );
+  }
+
   async replacePhotoProcessByDriveFile(
     driveFileId,
     processId,
     parentFolderId,
+    collection = "wedding",
   ) {
     const client =
       typeof this.pool.connect === "function"
@@ -224,10 +277,10 @@ export class PostgresPhotoRepository {
       await client.query("BEGIN");
       const photoResult = await client.query(
         `UPDATE memories_photos
-         SET drive_parent_folder_id = $2, updated_at = now()
+         SET drive_parent_folder_id = $2, collection = $3, updated_at = now()
          WHERE drive_file_id = $1
          RETURNING id`,
-        [driveFileId, parentFolderId],
+        [driveFileId, parentFolderId, collection],
       );
       if (photoResult.rows[0]) {
         const photoId = photoResult.rows[0].id;
@@ -259,6 +312,8 @@ function mapBatchRow(row) {
     uploaderType: row.uploader_type,
     uploaderName: row.uploader_name,
     status: row.status,
+    classification: row.classification ?? "guest",
+    classificationProcessId: row.classification_process_id ?? null,
     createdAt: new Date(row.created_at).toISOString(),
     updatedAt: new Date(row.updated_at).toISOString(),
   };
@@ -280,6 +335,7 @@ function mapPhotoRow(row, processIds = []) {
     contentVersion: row.content_version,
     source: row.uploader_type,
     uploaderName: row.uploader_name,
+    collection: row.collection ?? (row.uploader_type === "guest" ? "guest" : "wedding"),
     visibility: row.visibility,
     processingState: row.processing_state,
     processIds: [...processIds],
