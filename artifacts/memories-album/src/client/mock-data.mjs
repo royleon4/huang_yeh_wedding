@@ -1,4 +1,8 @@
-import { PROCESS_DEFINITIONS } from "./gallery-model.mjs";
+const DEMO_PROCESSES = [
+  { id: "demo-01", zh: "示範流程 01" },
+  { id: "demo-02", zh: "示範流程 02" },
+  { id: "demo-03", zh: "示範流程 03" },
+];
 
 const PALETTES = [
   ["#173f34", "#d5dfc8", "#f1c66a"],
@@ -31,8 +35,8 @@ function svgDataUri({ title, subtitle, palette, tall, seed }) {
 }
 
 export const MOCK_PHOTOS = Array.from({ length: 30 }, (_, index) => {
-  const process = PROCESS_DEFINITIONS[index % PROCESS_DEFINITIONS.length];
-  const extra = PROCESS_DEFINITIONS[(index + 3) % PROCESS_DEFINITIONS.length];
+  const process = DEMO_PROCESSES[index % DEMO_PROCESSES.length];
+  const extra = DEMO_PROCESSES[(index + 1) % DEMO_PROCESSES.length];
   const source = index % 7 === 0 ? "guest" : "official";
   const tall = index % 3 !== 1;
   return {

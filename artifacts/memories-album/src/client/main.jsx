@@ -10,6 +10,27 @@ import "./process-sync.css";
 import "./photo-lightbox.css";
 import "./feature-controls.css";
 
+const PROCESSES_UPDATED_EVENT = "memories:processes-updated";
+
+function applyServerProcesses(processes) {
+  const normalized = Array.isArray(processes)
+    ? processes
+        .map((process) => ({
+          id: process.id,
+          zh: process.labelZh,
+          en: process.labelEn || process.labelZh,
+          displayOrder: Number(process.displayOrder) || 0,
+        }))
+        .filter((process) => process.id && process.zh)
+        .sort(
+          (left, right) =>
+            left.displayOrder - right.displayOrder ||
+            left.id.localeCompare(right.id),
+        )
+    : [];
+  PROCESS_DEFINITIONS.splice(0, PROCESS_DEFINITIONS.length, ...normalized);
+}
+
 async function hydrateProcessesFromServer() {
   try {
     const response = await fetch("/Memories/api/processes", {
@@ -17,19 +38,11 @@ async function hydrateProcessesFromServer() {
     });
     if (!response.ok) return false;
     const body = await response.json();
-    if (!Array.isArray(body.processes) || body.processes.length === 0) return false;
-    PROCESS_DEFINITIONS.splice(
-      0,
-      PROCESS_DEFINITIONS.length,
-      ...body.processes.map((process) => ({
-        id: process.id,
-        zh: process.labelZh,
-        en: process.labelEn || process.labelZh,
-      })),
-    );
+    if (!Array.isArray(body.processes)) return false;
+    applyServerProcesses(body.processes);
     return true;
   } catch {
-    // The approved static process list remains a safe fallback while Drive is unavailable.
+    // Keep the process list empty rather than falling back to bundled categories.
     return false;
   }
 }
@@ -40,10 +53,17 @@ function MemoriesRoot() {
   useEffect(() => {
     let cancelled = false;
     void hydrateProcessesFromServer().then((changed) => {
-      if (!cancelled && changed) setProcessRevision(1);
+      if (!cancelled && changed) setProcessRevision((value) => value + 1);
     });
+
+    const onProcessesUpdated = (event) => {
+      applyServerProcesses(event.detail?.processes);
+      setProcessRevision((value) => value + 1);
+    };
+    window.addEventListener(PROCESSES_UPDATED_EVENT, onProcessesUpdated);
     return () => {
       cancelled = true;
+      window.removeEventListener(PROCESSES_UPDATED_EVENT, onProcessesUpdated);
     };
   }, []);
 

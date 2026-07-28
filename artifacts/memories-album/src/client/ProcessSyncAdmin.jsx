@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from "react";
 
 document.documentElement.dataset.memoriesPrimaryNav = "hidden";
 
+const PROCESSES_UPDATED_EVENT = "memories:processes-updated";
+
 async function api(path, { token, method = "GET", body } = {}) {
   const response = await fetch(path, {
     method,
@@ -25,6 +27,14 @@ function applyNavigationVisibility(visible) {
   document.documentElement.dataset.memoriesPrimaryNav = visible
     ? "visible"
     : "hidden";
+}
+
+function publishProcesses(processes) {
+  window.dispatchEvent(
+    new CustomEvent(PROCESSES_UPDATED_EVENT, {
+      detail: { processes: Array.isArray(processes) ? processes : [] },
+    }),
+  );
 }
 
 export default function ProcessSyncAdmin() {
@@ -51,7 +61,9 @@ export default function ProcessSyncAdmin() {
       api("/Memories/api/processes"),
       api("/Memories/api/settings"),
     ]);
-    setProcesses(processPayload.processes || []);
+    const nextProcesses = processPayload.processes || [];
+    setProcesses(nextProcesses);
+    publishProcesses(nextProcesses);
     const visible = settingsPayload.primaryNavigationVisible === true;
     setPrimaryNavigationVisible(visible);
     applyNavigationVisibility(visible);
@@ -146,7 +158,7 @@ export default function ProcessSyncAdmin() {
           method: "POST",
           body: { labelZh: labelZh.trim() },
         }),
-      "已在網站與 Google Drive 建立流程。",
+      "已在 Google Drive 建立流程，網站與上傳選項已更新。",
     );
   };
 
@@ -160,7 +172,7 @@ export default function ProcessSyncAdmin() {
           method: "PATCH",
           body: { labelZh: labelZh.trim() },
         }),
-      "網站與 Google Drive 資料夾已同步改名。",
+      "Google Drive 資料夾已改名，網站與上傳選項已更新。",
     );
   };
 
@@ -176,7 +188,7 @@ export default function ProcessSyncAdmin() {
           method: "PUT",
           body: { processIds: next.map((item) => item.id) },
         }),
-      "網站順序與 Google Drive 資料夾編號已同步。",
+      "Google Drive 資料夾編號已重新排序，網站與上傳選項已更新。",
     );
   };
 
@@ -277,6 +289,9 @@ export default function ProcessSyncAdmin() {
             <button type="button" disabled={busy} onClick={sync}>立即同步 Drive</button>
             <button type="button" disabled={busy} onClick={add}>新增流程</button>
           </div>
+          <p className="process-sync-source-note">
+            Google Drive 流程資料夾是唯一來源；此處的建立、改名與排序會先寫入 Drive，再更新網站與訪客上傳選項。
+          </p>
           <ol>
             {processes.map((process, index) => (
               <li key={process.id}>

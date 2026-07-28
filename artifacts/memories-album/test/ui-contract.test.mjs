@@ -10,26 +10,8 @@ import {
 } from "../src/client/gallery-model.mjs";
 import { MOCK_PHOTOS } from "../src/client/mock-data.mjs";
 
-const expectedProcesses = [
-  "進場",
-  "祈禱",
-  "讚美",
-  "聖經",
-  "勉勵",
-  "證婚",
-  "謝親恩",
-  "祝福",
-  "答禮",
-  "影片",
-  "退場",
-  "分組照相",
-];
-
-test("keeps the twelve approved wedding moments in order", () => {
-  assert.deepEqual(
-    PROCESS_DEFINITIONS.map((item) => item.zh),
-    expectedProcesses,
-  );
+test("does not bundle production wedding process categories", () => {
+  assert.deepEqual(PROCESS_DEFINITIONS, []);
 });
 
 test("keeps three separate top-level photo collections", () => {
@@ -60,7 +42,7 @@ test("a classified guest photo may also appear in a logical collection", () => {
       id: "guest-wedding",
       source: "guest",
       collection: "wedding",
-      processIds: ["entrance"],
+      processIds: ["drive-process-1"],
     },
     {
       id: "guest-life",
@@ -70,7 +52,7 @@ test("a classified guest photo may also appear in a logical collection", () => {
     },
   ];
   assert.deepEqual(
-    filterPhotos(photos, "entrance", "wedding").map((photo) => photo.id),
+    filterPhotos(photos, "drive-process-1", "wedding").map((photo) => photo.id),
     ["guest-wedding"],
   );
   assert.deepEqual(
@@ -91,9 +73,13 @@ test("cursor paging is stable and finite", () => {
   assert.equal(first.items.at(-1).id !== second.items.at(0).id, true);
 });
 
-test("process reordering does not mutate the source array", () => {
-  const original = PROCESS_DEFINITIONS.slice(0, 3);
+test("process reordering does not mutate a database-sourced array", () => {
+  const original = [
+    { id: "drive-a", zh: "A" },
+    { id: "drive-b", zh: "B" },
+    { id: "drive-c", zh: "C" },
+  ];
   const moved = moveItem(original, 1, -1);
-  assert.equal(original[0].id, "entrance");
-  assert.equal(moved[0].id, "prayer");
+  assert.equal(original[0].id, "drive-a");
+  assert.equal(moved[0].id, "drive-b");
 });

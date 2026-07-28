@@ -5,21 +5,6 @@ export const RESERVED_FOLDER_NAMES = new Set([
   "00 未分類",
 ]);
 
-const DEFAULT_PROCESSES = new Map([
-  ["進場", { id: "entrance", en: "Entrance" }],
-  ["祈禱", { id: "prayer", en: "Prayer" }],
-  ["讚美", { id: "praise", en: "Praise" }],
-  ["聖經", { id: "scripture", en: "Scripture" }],
-  ["勉勵", { id: "message", en: "Message" }],
-  ["證婚", { id: "vows", en: "Vows" }],
-  ["謝親恩", { id: "parents", en: "Honouring Parents" }],
-  ["祝福", { id: "blessing", en: "Blessing" }],
-  ["答禮", { id: "response", en: "Response" }],
-  ["影片", { id: "video", en: "Film" }],
-  ["退場", { id: "recessional", en: "Recessional" }],
-  ["分組照相", { id: "group-photo", en: "Group Photos" }],
-]);
-
 export function parseManagedProcessFolder(name) {
   const value = String(name ?? "").normalize("NFKC").trim();
   const match = value.match(/^(\d{2})\s+(.+)$/);
@@ -50,6 +35,6 @@ export function slugFromFolderId(folderId) {
 }
 
 export function identityForDriveProcess(folderId, labelZh) {
-  const known = DEFAULT_PROCESSES.get(labelZh);
-  return known ?? { id: slugFromFolderId(folderId), en: labelZh };
+  const label = String(labelZh ?? "").normalize("NFKC").trim();
+  return { id: slugFromFolderId(folderId), en: label };
 }

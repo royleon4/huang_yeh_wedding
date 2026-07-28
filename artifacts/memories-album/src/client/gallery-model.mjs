@@ -1,17 +1,7 @@
-export const PROCESS_DEFINITIONS = [
-  { id: "entrance", zh: "進場", en: "Entrance" },
-  { id: "prayer", zh: "祈禱", en: "Prayer" },
-  { id: "praise", zh: "讚美", en: "Praise" },
-  { id: "scripture", zh: "聖經", en: "Scripture" },
-  { id: "message", zh: "勉勵", en: "Message" },
-  { id: "vows", zh: "證婚", en: "Vows" },
-  { id: "parents", zh: "謝親恩", en: "Honouring Parents" },
-  { id: "blessing", zh: "祝福", en: "Blessing" },
-  { id: "response", zh: "答禮", en: "Response" },
-  { id: "video", zh: "影片", en: "Film" },
-  { id: "recessional", zh: "退場", en: "Recessional" },
-  { id: "group-photo", zh: "分組照相", en: "Group Photos" },
-];
+// Wedding process categories are populated from PostgreSQL, which is synchronized
+// from Google Drive. Keep this mutable array empty at build time so a deployment
+// can never overwrite the owner's Drive folder names with bundled defaults.
+export const PROCESS_DEFINITIONS = [];
 
 export const COLLECTION_DEFINITIONS = [
   { id: "wedding", zh: "婚禮流程", en: "Wedding moments" },
