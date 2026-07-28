@@ -8,6 +8,7 @@ import {
 export const DRIVE_RESERVED_FOLDERS = {
   unclassified: "00 未分類",
   guest: "訪客上傳",
+  life: "生活照",
   thumbnails: "系統縮圖",
 };
 
@@ -42,19 +43,34 @@ export class DriveProcessSynchronizer {
     return byName;
   }
 
-  async #importFolderPhotos(folder, { source, processId = null }) {
+  async #importFolderPhotos(
+    folder,
+    {
+      source,
+      processId = null,
+      collection = source === "guest" ? "guest" : "wedding",
+      preserveLogicalClassification = false,
+    },
+  ) {
     const files = await this.drive.listChildren(folder.id);
     for (const file of files) {
       if (!file.mimeType?.startsWith("image/")) continue;
       await this.photoRepository.upsertDrivePhotoMetadata(file, {
         source,
         parentFolderId: folder.id,
+        collection,
+        preserveLogicalClassification,
       });
-      await this.photoRepository.replacePhotoProcessByDriveFile(
-        file.id,
-        processId,
-        folder.id,
-      );
+      if (preserveLogicalClassification) {
+        await this.photoRepository.updateDriveParentByDriveFile?.(file.id, folder.id);
+      } else {
+        await this.photoRepository.replacePhotoProcessByDriveFile(
+          file.id,
+          processId,
+          folder.id,
+          collection,
+        );
+      }
     }
   }
 
@@ -90,6 +106,7 @@ export class DriveProcessSynchronizer {
       await this.#importFolderPhotos(folder, {
         source: "official",
         processId: process.id,
+        collection: "wedding",
       });
     }
 
@@ -98,11 +115,13 @@ export class DriveProcessSynchronizer {
       await this.photoRepository.upsertDrivePhotoMetadata(file, {
         source: "official",
         parentFolderId: this.rootFolderId,
+        collection: "wedding",
       });
       await this.photoRepository.replacePhotoProcessByDriveFile(
         file.id,
         null,
         this.rootFolderId,
+        "wedding",
       );
     }
 
@@ -111,6 +130,16 @@ export class DriveProcessSynchronizer {
       await this.#importFolderPhotos(unclassified, {
         source: "official",
         processId: null,
+        collection: "wedding",
+      });
+    }
+
+    const life = reservedFolders.get(DRIVE_RESERVED_FOLDERS.life);
+    if (life) {
+      await this.#importFolderPhotos(life, {
+        source: "official",
+        processId: null,
+        collection: "life",
       });
     }
 
@@ -119,6 +148,8 @@ export class DriveProcessSynchronizer {
       await this.#importFolderPhotos(guest, {
         source: "guest",
         processId: null,
+        collection: "guest",
+        preserveLogicalClassification: true,
       });
     }
 
@@ -196,6 +227,7 @@ export class DriveProcessSynchronizer {
       driveFileId,
       process?.id ?? null,
       destinationId,
+      "wedding",
     );
   }
 }

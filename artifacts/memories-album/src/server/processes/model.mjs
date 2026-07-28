@@ -1,6 +1,7 @@
 export const RESERVED_FOLDER_NAMES = new Set([
   "系統縮圖",
   "訪客上傳",
+  "生活照",
   "00 未分類",
 ]);
 

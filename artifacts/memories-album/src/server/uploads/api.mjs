@@ -7,6 +7,7 @@ const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const DEFAULT_MAX_FILE_BYTES = 25 * 1024 * 1024;
 const MAX_NAME_CHARACTERS = 80;
+const ALLOWED_CLASSIFICATIONS = new Set(["guest", "wedding", "life"]);
 
 export class UploadApiError extends Error {
   constructor(status, message, code) {
@@ -216,8 +217,42 @@ async function safeDelete(drive, fileId) {
   }
 }
 
+async function validateClassification(body, processRepository) {
+  const classification = String(body.classification ?? "guest").trim();
+  if (!ALLOWED_CLASSIFICATIONS.has(classification)) {
+    throw new UploadApiError(
+      422,
+      "Invalid photo classification",
+      "INVALID_CLASSIFICATION",
+    );
+  }
+
+  if (classification !== "wedding") {
+    return { classification, classificationProcessId: null };
+  }
+
+  const processId = String(body.processId ?? "").trim();
+  if (!processId || !processRepository?.listProcesses) {
+    throw new UploadApiError(
+      422,
+      "A wedding process is required",
+      "INVALID_PROCESS_CLASSIFICATION",
+    );
+  }
+  const processes = await processRepository.listProcesses();
+  if (!processes.some((process) => process.id === processId)) {
+    throw new UploadApiError(
+      422,
+      "The selected wedding process does not exist",
+      "INVALID_PROCESS_CLASSIFICATION",
+    );
+  }
+  return { classification, classificationProcessId: processId };
+}
+
 export function createGuestUploadApi({
   repository,
+  processRepository = null,
   drive,
   imageProcessor,
   limits = {},
@@ -253,6 +288,10 @@ export function createGuestUploadApi({
             "INVALID_UPLOADER_NAME",
           );
         }
+        const classification = await validateClassification(
+          body,
+          processRepository,
+        );
 
         const id = createId();
         const managementToken = createToken();
@@ -263,6 +302,8 @@ export function createGuestUploadApi({
           uploaderName,
           tokenHash: hash(managementToken),
           status: "open",
+          classification: classification.classification,
+          classificationProcessId: classification.classificationProcessId,
           createdAt,
           updatedAt: createdAt,
         });
@@ -313,6 +354,7 @@ export function createGuestUploadApi({
         let originalFileId = null;
         let thumbnailFileId = null;
         try {
+          // drive.originalFolderId is always the reserved 訪客上傳 folder.
           const original = await drive.uploadOriginal({
             bytes: processed.originalBytes,
             filename: originalFilename,
@@ -327,6 +369,11 @@ export function createGuestUploadApi({
           });
           thumbnailFileId = thumbnail.fileId;
 
+          const processIds =
+            batch.classification === "wedding" &&
+            batch.classificationProcessId
+              ? [batch.classificationProcessId]
+              : [];
           const photo = await repository.insertPhoto({
             id: photoId,
             batchId,
@@ -341,9 +388,10 @@ export function createGuestUploadApi({
             contentVersion: 1,
             source: "guest",
             uploaderName: batch.uploaderName,
+            collection: batch.classification ?? "guest",
             visibility: "public",
             processingState: "ready",
-            processIds: [],
+            processIds,
             createdAt,
             updatedAt: createdAt,
           });

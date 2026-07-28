@@ -108,6 +108,7 @@ async function createRuntime(env) {
     }),
     uploadApi: createGuestUploadApi({
       repository,
+      processRepository,
       drive,
       imageProcessor,
     }),

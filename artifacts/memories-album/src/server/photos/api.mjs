@@ -20,6 +20,8 @@ export function toPublicPhoto(photo) {
     width: photo.width ?? null,
     height: photo.height ?? null,
     source: photo.source,
+    collection:
+      photo.collection ?? (photo.source === "guest" ? "guest" : "wedding"),
     uploaderName: photo.uploaderName ?? null,
     processIds: photo.processIds ?? [],
     createdAt: photo.createdAt,
@@ -85,11 +87,23 @@ export function createMemoriesPhotoApi({
   ) {
     if (request.method === "GET" && url.pathname === "/Memories/api/photos") {
       try {
+        const collection = url.searchParams.get("collection");
+        if (
+          collection &&
+          !new Set(["wedding", "guest", "life"]).has(collection)
+        ) {
+          json(response, 400, {
+            error: "Invalid collection",
+            code: "INVALID_COLLECTION",
+          });
+          return true;
+        }
         const page = await repository.listPublicPhotos({
           cursor: url.searchParams.get("cursor"),
           limit: Number(url.searchParams.get("limit") ?? 24),
           processId: url.searchParams.get("process"),
           source: url.searchParams.get("source"),
+          collection,
         });
         json(response, 200, {
           photos: page.items.map(toPublicPhoto),

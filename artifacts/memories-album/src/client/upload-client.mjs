@@ -26,7 +26,11 @@ async function readResponse(response) {
 
 export async function createGuestBatch(
   uploaderName,
-  { fetchImpl = fetch } = {},
+  {
+    classification = "guest",
+    processId = null,
+    fetchImpl = fetch,
+  } = {},
 ) {
   const normalized = String(uploaderName ?? "").replace(/\s+/g, " ").trim();
   if (!normalized) {
@@ -38,7 +42,11 @@ export async function createGuestBatch(
   const response = await fetchImpl("/Memories/api/upload-batches", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ uploaderName: normalized }),
+    body: JSON.stringify({
+      uploaderName: normalized,
+      classification,
+      ...(classification === "wedding" && processId ? { processId } : {}),
+    }),
   });
   return readResponse(response);
 }
@@ -129,6 +137,8 @@ export function summarizeUploadResults(results) {
 export async function uploadQueue({
   uploaderName,
   files,
+  classification = "guest",
+  processId = null,
   signal,
   onUpdate = () => {},
   createBatchFn = createGuestBatch,
@@ -148,7 +158,10 @@ export async function uploadQueue({
     });
   }
 
-  const batch = await createBatchFn(uploaderName);
+  const batch = await createBatchFn(uploaderName, {
+    classification,
+    processId,
+  });
   onUpdate({ type: "batch", batch });
   const results = selected.map((file) => ({
     file,

@@ -29,7 +29,9 @@ class FakeDrive {
         const updated = { ...children[index], name };
         this.items.set(
           parentId,
-          children.map((item, itemIndex) => itemIndex === index ? updated : item),
+          children.map((item, itemIndex) =>
+            itemIndex === index ? updated : item,
+          ),
         );
         return updated;
       }
@@ -89,12 +91,21 @@ class FakePhotoRepository {
   constructor() {
     this.imported = [];
     this.assignments = [];
+    this.parentUpdates = [];
   }
   async upsertDrivePhotoMetadata(file, options) {
     this.imported.push({ fileId: file.id, ...options });
   }
-  async replacePhotoProcessByDriveFile(fileId, processId, parentFolderId) {
-    this.assignments.push({ fileId, processId, parentFolderId });
+  async replacePhotoProcessByDriveFile(
+    fileId,
+    processId,
+    parentFolderId,
+    collection,
+  ) {
+    this.assignments.push({ fileId, processId, parentFolderId, collection });
+  }
+  async updateDriveParentByDriveFile(fileId, parentFolderId) {
+    this.parentUpdates.push({ fileId, parentFolderId });
   }
 }
 
@@ -115,6 +126,7 @@ test("parses numbered process folders and rejects reserved folders", () => {
   });
   assert.equal(parseManagedProcessFolder("系統縮圖"), null);
   assert.equal(parseManagedProcessFolder("訪客上傳"), null);
+  assert.equal(parseManagedProcessFolder("生活照"), null);
   assert.equal(parseManagedProcessFolder("not numbered"), null);
 });
 
@@ -128,10 +140,13 @@ test("initializes reserved folders idempotently", async () => {
   await sync.ensureStructure();
   await sync.ensureStructure();
   const names = (await drive.listChildren("root")).map((item) => item.name);
-  assert.deepEqual(names.sort(), ["00 未分類", "系統縮圖", "訪客上傳"].sort());
+  assert.deepEqual(
+    names.sort(),
+    ["00 未分類", "生活照", "系統縮圖", "訪客上傳"].sort(),
+  );
 });
 
-test("Drive-created folders and contained images become website classifications", async () => {
+test("Drive-created process folders become wedding classifications", async () => {
   const drive = new FakeDrive();
   const processRepository = new FakeProcessRepository();
   const photoRepository = new FakePhotoRepository();
@@ -141,29 +156,97 @@ test("Drive-created folders and contained images become website classifications"
   const processes = await sync.reconcileFromDrive();
   assert.equal(processes.length, 1);
   assert.equal(processes[0].labelZh, "進場");
-  assert.deepEqual(photoRepository.imported, [{
-    fileId: "drive-photo-1",
-    source: "official",
-    parentFolderId: entrance.id,
-  }]);
+  assert.deepEqual(photoRepository.imported, [
+    {
+      fileId: "drive-photo-1",
+      source: "official",
+      parentFolderId: entrance.id,
+      collection: "wedding",
+      preserveLogicalClassification: false,
+    },
+  ]);
   assert.deepEqual(photoRepository.assignments.at(-1), {
     fileId: "drive-photo-1",
     processId: processes[0].id,
     parentFolderId: entrance.id,
+    collection: "wedding",
   });
 });
 
-test("root images remain visible as unclassified compatibility content", async () => {
+test("life folder photos become the separate life collection", async () => {
+  const drive = new FakeDrive();
+  const processRepository = new FakeProcessRepository();
+  const photoRepository = new FakePhotoRepository();
+  const sync = createSync(drive, processRepository, photoRepository);
+  const folders = await sync.ensureStructure();
+  const life = folders.get("生活照");
+  drive.addImage(life.id, "life-photo-1");
+  await sync.reconcileFromDrive();
+  assert.ok(
+    photoRepository.imported.some(
+      (item) =>
+        item.fileId === "life-photo-1" &&
+        item.collection === "life" &&
+        item.source === "official",
+    ),
+  );
+  assert.ok(
+    photoRepository.assignments.some(
+      (item) =>
+        item.fileId === "life-photo-1" &&
+        item.processId === null &&
+        item.collection === "life",
+    ),
+  );
+});
+
+test("guest folder sync preserves website classification", async () => {
+  const drive = new FakeDrive();
+  const processRepository = new FakeProcessRepository();
+  const photoRepository = new FakePhotoRepository();
+  const sync = createSync(drive, processRepository, photoRepository);
+  const folders = await sync.ensureStructure();
+  const guest = folders.get("訪客上傳");
+  drive.addImage(guest.id, "guest-photo-1");
+  await sync.reconcileFromDrive();
+  assert.ok(
+    photoRepository.imported.some(
+      (item) =>
+        item.fileId === "guest-photo-1" &&
+        item.collection === "guest" &&
+        item.preserveLogicalClassification === true,
+    ),
+  );
+  assert.deepEqual(photoRepository.parentUpdates, [
+    { fileId: "guest-photo-1", parentFolderId: guest.id },
+  ]);
+  assert.equal(
+    photoRepository.assignments.some((item) => item.fileId === "guest-photo-1"),
+    false,
+  );
+});
+
+test("root images remain visible as unclassified wedding content", async () => {
   const drive = new FakeDrive();
   const processRepository = new FakeProcessRepository();
   const photoRepository = new FakePhotoRepository();
   drive.addImage("root", "legacy-root-photo");
   const sync = createSync(drive, processRepository, photoRepository);
   await sync.reconcileFromDrive();
-  assert.ok(photoRepository.imported.some((item) => item.fileId === "legacy-root-photo"));
-  assert.ok(photoRepository.assignments.some((item) =>
-    item.fileId === "legacy-root-photo" && item.processId === null,
-  ));
+  assert.ok(
+    photoRepository.imported.some(
+      (item) =>
+        item.fileId === "legacy-root-photo" && item.collection === "wedding",
+    ),
+  );
+  assert.ok(
+    photoRepository.assignments.some(
+      (item) =>
+        item.fileId === "legacy-root-photo" &&
+        item.processId === null &&
+        item.collection === "wedding",
+    ),
+  );
 });
 
 test("website create, rename, and reorder mutate Drive folders", async () => {
@@ -181,7 +264,7 @@ test("website create, rename, and reorder mutate Drive folders", async () => {
   assert.ok(names.includes("02 新人進場"));
 });
 
-test("website photo reclassification moves the original instead of copying it", async () => {
+test("website photo reclassification moves an official original instead of copying it", async () => {
   const drive = new FakeDrive();
   const processRepository = new FakeProcessRepository();
   const photoRepository = new FakePhotoRepository();
@@ -197,5 +280,10 @@ test("website photo reclassification moves the original instead of copying it", 
     processId: targetProcess.id,
   });
   assert.equal((await drive.listChildren(source.id)).length, 0);
-  assert.equal((await drive.listChildren(target.id)).filter((item) => item.id === "photo-to-move").length, 1);
+  assert.equal(
+    (await drive.listChildren(target.id)).filter(
+      (item) => item.id === "photo-to-move",
+    ).length,
+    1,
+  );
 });

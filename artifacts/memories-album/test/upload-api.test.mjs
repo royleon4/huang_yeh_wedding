@@ -39,6 +39,7 @@ async function withApi(run, options = {}) {
   const ids = [batchId, ...photoIds];
   const api = createGuestUploadApi({
     repository,
+    processRepository: options.processRepository ?? null,
     drive,
     imageProcessor: options.imageProcessor ?? fakeProcessor(),
     limits: options.limits,
@@ -64,11 +65,11 @@ async function withApi(run, options = {}) {
   }
 }
 
-async function createBatch(origin, uploaderName = "小安") {
+async function createBatch(origin, uploaderName = "小安", classification = {}) {
   const response = await fetch(`${origin}/Memories/api/upload-batches`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ uploaderName }),
+    body: JSON.stringify({ uploaderName, ...classification }),
   });
   return { response, body: await response.json() };
 }
@@ -95,7 +96,7 @@ test("requires a non-empty uploader name", async () => {
   });
 });
 
-test("creates a private batch token and publishes a valid guest photo", async () => {
+test("creates a private batch token and publishes an unclassified guest photo", async () => {
   await withApi(async (origin, { repository, drive }) => {
     const batch = await createBatch(origin, "  小安  ");
     assert.equal(batch.response.status, 201);
@@ -109,11 +110,12 @@ test("creates a private batch token and publishes a valid guest photo", async ()
     );
     assert.equal(uploaded.response.status, 201);
     assert.equal(uploaded.body.photo.source, "guest");
+    assert.equal(uploaded.body.photo.collection, "guest");
     assert.equal(uploaded.body.photo.uploaderName, "小安");
     assert.deepEqual(uploaded.body.photo.processIds, []);
     assert.equal(JSON.stringify(uploaded.body).includes("drive-"), false);
 
-    const page = await repository.listPublicPhotos({ source: "guest" });
+    const page = await repository.listPublicPhotos({ collection: "guest" });
     assert.equal(page.items.length, 1);
     assert.equal(page.items[0].batchId, batchId);
     assert.equal(drive.files.size, 2);
@@ -127,6 +129,89 @@ test("creates a private batch token and publishes a valid guest photo", async ()
       null,
     );
   });
+});
+
+test("classifies a guest upload into a wedding process without changing its guest source", async () => {
+  const processRepository = {
+    async listProcesses() {
+      return [{ id: "entrance", labelZh: "進場" }];
+    },
+  };
+  await withApi(
+    async (origin, { repository }) => {
+      const batch = await createBatch(origin, "小安", {
+        classification: "wedding",
+        processId: "entrance",
+      });
+      assert.equal(batch.response.status, 201);
+      const uploaded = await uploadPhoto(
+        origin,
+        batch.body.managementToken,
+        Buffer.from("wedding-photo"),
+      );
+      assert.equal(uploaded.response.status, 201);
+      assert.equal(uploaded.body.photo.source, "guest");
+      assert.equal(uploaded.body.photo.collection, "wedding");
+      assert.deepEqual(uploaded.body.photo.processIds, ["entrance"]);
+      assert.equal(
+        (await repository.listPublicPhotos({ collection: "guest" })).items.length,
+        1,
+      );
+      assert.equal(
+        (
+          await repository.listPublicPhotos({
+            collection: "wedding",
+            processId: "entrance",
+          })
+        ).items.length,
+        1,
+      );
+    },
+    { processRepository },
+  );
+});
+
+test("classifies a guest upload into Life photos while keeping it in Guest uploads", async () => {
+  await withApi(async (origin, { repository }) => {
+    const batch = await createBatch(origin, "小安", {
+      classification: "life",
+    });
+    const uploaded = await uploadPhoto(
+      origin,
+      batch.body.managementToken,
+      Buffer.from("life-photo"),
+    );
+    assert.equal(uploaded.response.status, 201);
+    assert.equal(uploaded.body.photo.source, "guest");
+    assert.equal(uploaded.body.photo.collection, "life");
+    assert.equal(
+      (await repository.listPublicPhotos({ collection: "guest" })).items.length,
+      1,
+    );
+    assert.equal(
+      (await repository.listPublicPhotos({ collection: "life" })).items.length,
+      1,
+    );
+  });
+});
+
+test("rejects an unknown wedding process classification", async () => {
+  const processRepository = {
+    async listProcesses() {
+      return [{ id: "entrance" }];
+    },
+  };
+  await withApi(
+    async (origin) => {
+      const batch = await createBatch(origin, "小安", {
+        classification: "wedding",
+        processId: "missing",
+      });
+      assert.equal(batch.response.status, 422);
+      assert.equal(batch.body.code, "INVALID_PROCESS_CLASSIFICATION");
+    },
+    { processRepository },
+  );
 });
 
 test("rejects malformed images without writing Drive files", async () => {
