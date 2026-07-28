@@ -1,33 +1,84 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
+import { getMemoriesRuntime } from "./src/server/runtime.mjs";
 
 const CANONICAL_BASE = "/Memories";
+const API_BASE = `${CANONICAL_BASE}/api`;
+
+function sendJson(response, status, body) {
+  response.statusCode = status;
+  response.setHeader("Content-Type", "application/json; charset=utf-8");
+  response.setHeader("Cache-Control", "no-store");
+  response.setHeader("X-Content-Type-Options", "nosniff");
+  response.end(JSON.stringify(body));
+}
 
 function memoriesDevelopmentRoutes() {
   return {
     name: "memories-development-routes",
     configureServer(server) {
-      server.middlewares.use((request, response, next) => {
+      server.middlewares.use(async (request, response, next) => {
         const url = new URL(request.url ?? "/", "http://localhost");
-        if (url.pathname === "/memories" || url.pathname.startsWith("/memories/")) {
+
+        if (
+          url.pathname === "/memories" ||
+          url.pathname.startsWith("/memories/")
+        ) {
           const suffix = url.pathname.slice("/memories".length) || "/";
           response.statusCode = 308;
-          response.setHeader("Location", `${CANONICAL_BASE}${suffix}${url.search}`);
+          response.setHeader(
+            "Location",
+            `${CANONICAL_BASE}${suffix}${url.search}`,
+          );
           response.end();
           return;
         }
+
         if (url.pathname === CANONICAL_BASE) {
           response.statusCode = 308;
           response.setHeader("Location", `${CANONICAL_BASE}/${url.search}`);
           response.end();
           return;
         }
-        if (url.pathname === `${CANONICAL_BASE}/api/health`) {
-          response.statusCode = 200;
-          response.setHeader("Content-Type", "application/json; charset=utf-8");
-          response.end(JSON.stringify({ status: "ok", service: "memories-album", basePath: CANONICAL_BASE }));
+
+        if (url.pathname === `${API_BASE}/health`) {
+          sendJson(response, 200, {
+            status: "ok",
+            service: "memories-album",
+            basePath: CANONICAL_BASE,
+          });
           return;
         }
+
+        if (url.pathname.startsWith(`${API_BASE}/photos`)) {
+          try {
+            const runtime = await getMemoriesRuntime();
+            if (await runtime.photoApi(request, response, url)) return;
+          } catch (error) {
+            console.warn("Memories development API unavailable", {
+              name: error instanceof Error ? error.name : "UnknownError",
+              code:
+                typeof error === "object" &&
+                error !== null &&
+                "code" in error
+                  ? String(error.code)
+                  : undefined,
+            });
+            sendJson(response, 503, {
+              error: "Memories storage is temporarily unavailable",
+            });
+            return;
+          }
+        }
+
+        if (
+          url.pathname === API_BASE ||
+          url.pathname.startsWith(`${API_BASE}/`)
+        ) {
+          sendJson(response, 404, { error: "Not found" });
+          return;
+        }
+
         next();
       });
     },

@@ -1,15 +1,18 @@
 {
   "name": "@workspace/memories-album",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "private": true,
   "type": "module",
   "scripts": {
     "dev": "vite --config vite.config.js --host 0.0.0.0",
     "build": "vite build --config vite.config.js && node scripts/build.mjs",
     "start": "node dist/server.mjs",
-    "test": "node --test"
+    "test": "node --test",
+    "db:migrate": "node scripts/migrate.mjs"
   },
   "dependencies": {
+    "@replit/connectors-sdk": "^0.4.1",
+    "pg": "^8.20.0",
     "react": "catalog:",
     "react-dom": "catalog:"
   },
