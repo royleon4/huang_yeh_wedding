@@ -8,6 +8,8 @@ import { createImageProcessor } from "./uploads/image-processor.mjs";
 import { PostgresProcessRepository } from "./processes/repository.mjs";
 import { DriveProcessSynchronizer } from "./processes/sync.mjs";
 import { createProcessApi } from "./processes/api.mjs";
+import { PostgresSettingsRepository } from "./settings/repository.mjs";
+import { createSettingsApi } from "./settings/api.mjs";
 
 let runtimePromise;
 
@@ -17,6 +19,7 @@ export function getMemoriesRuntime(env = process.env) {
 }
 
 async function createRuntime(env) {
+  const startedAt = Date.now();
   if (!env.DATABASE_URL) {
     throw new Error("DATABASE_URL is required for Memories");
   }
@@ -34,6 +37,7 @@ async function createRuntime(env) {
   const repository = new PostgresPhotoRepository(pool);
   const durableUploadRepository = new PostgresDurableUploadRepository(pool);
   const processRepository = new PostgresProcessRepository(pool);
+  const settingsRepository = new PostgresSettingsRepository(pool);
   const synchronizer = new DriveProcessSynchronizer({
     drive,
     processRepository,
@@ -41,6 +45,8 @@ async function createRuntime(env) {
     rootFolderId: env.MEMORIES_DRIVE_PHOTOS_FOLDER_ID,
   });
 
+  // Only the small root-folder lookup is required before serving requests. The
+  // expensive scan of every process folder and photo runs after the API is ready.
   const folders = await synchronizer.ensureStructure();
   drive.originalFolderId =
     folders.get("訪客上傳")?.id ?? drive.originalFolderId;
@@ -100,6 +106,7 @@ async function createRuntime(env) {
     repository,
     durableUploadRepository,
     processRepository,
+    settingsRepository,
     synchronizer,
     thumbnailService,
     drive,
@@ -121,25 +128,49 @@ async function createRuntime(env) {
       synchronizer,
       adminToken: env.MEMORIES_ADMIN_TOKEN,
     }),
+    settingsApi: createSettingsApi({
+      repository: settingsRepository,
+      adminToken: env.MEMORIES_ADMIN_TOKEN,
+    }),
   };
 
-  await synchronizer.reconcileFromDrive();
-  void runThumbnailBackfill();
+  let synchronizationPromise = null;
+  const runBackgroundSynchronization = () => {
+    if (synchronizationPromise) return synchronizationPromise;
+    const syncStartedAt = Date.now();
+    synchronizationPromise = synchronizer
+      .reconcileFromDrive()
+      .then(() => runThumbnailBackfill())
+      .then(() => {
+        console.log("Memories background synchronization completed", {
+          durationMs: Date.now() - syncStartedAt,
+        });
+      })
+      .catch((error) => {
+        console.warn("Memories Drive synchronization failed", {
+          name: error instanceof Error ? error.name : "UnknownError",
+          code: error?.code,
+          durationMs: Date.now() - syncStartedAt,
+        });
+      })
+      .finally(() => {
+        synchronizationPromise = null;
+      });
+    return synchronizationPromise;
+  };
+
+  console.log("Memories runtime ready", {
+    durationMs: Date.now() - startedAt,
+    backgroundDriveSync: true,
+  });
+  setImmediate(() => void runBackgroundSynchronization());
 
   const intervalMs = Math.max(
     60_000,
     Number(env.MEMORIES_DRIVE_SYNC_INTERVAL_MS ?? 300_000),
   );
   const timer = setInterval(() => {
-    void synchronizer
-      .reconcileFromDrive()
-      .then(() => runThumbnailBackfill())
-      .catch((error) => {
-        console.warn("Memories Drive synchronization failed", {
-          name: error instanceof Error ? error.name : "UnknownError",
-          code: error?.code,
-        });
-      });
+    void runBackgroundSynchronization();
   }, intervalMs);
   timer.unref?.();
 
