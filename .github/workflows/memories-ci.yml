@@ -1,0 +1,62 @@
+name: Standalone Memories CI
+
+on:
+  pull_request:
+    paths:
+      - "artifacts/memories-album/**"
+      - "pnpm-workspace.yaml"
+      - "pnpm-lock.yaml"
+      - ".github/workflows/memories-ci.yml"
+  push:
+    branches: [main]
+    paths:
+      - "artifacts/memories-album/**"
+      - "pnpm-workspace.yaml"
+      - "pnpm-lock.yaml"
+      - ".github/workflows/memories-ci.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  test-and-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.15.1
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install workspace dependencies
+        run: pnpm install --no-frozen-lockfile
+
+      - name: Test standalone Memories
+        run: pnpm --filter @workspace/memories-album run test
+
+      - name: Build standalone Memories
+        run: pnpm --filter @workspace/memories-album run build
+
+      - name: Smoke-test production server
+        run: |
+          PORT=19316 pnpm --filter @workspace/memories-album run start &
+          server_pid=$!
+          trap 'kill $server_pid' EXIT
+          for attempt in $(seq 1 20); do
+            if curl --fail --silent http://127.0.0.1:19316/Memories/api/health >/tmp/memories-health.json; then
+              cat /tmp/memories-health.json
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "Memories production server did not become healthy" >&2
+          exit 1
