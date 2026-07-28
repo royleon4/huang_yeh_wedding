@@ -24,11 +24,26 @@ html[data-memories-primary-nav="hidden"] .primary-nav {
   position: sticky;
   top: 0;
   z-index: 35;
+  width: 100vw;
+  margin-left: calc(50% - 50vw);
+  margin-right: calc(50% - 50vw);
   max-height: min(48vh, 24rem);
   overflow-y: auto;
   overscroll-behavior: contain;
+  border-left: 0;
+  border-right: 0;
+  border-radius: 0;
   backdrop-filter: blur(18px);
   box-shadow: 0 16px 45px rgba(42, 61, 51, .14);
+}
+
+.process-section .section-heading,
+.process-section .collection-tabs,
+.process-section .collection-summary,
+.process-section .process-strip {
+  width: min(1280px, calc(100% - 1.5rem));
+  margin-left: auto;
+  margin-right: auto;
 }
 
 .process-section .section-heading {
@@ -44,6 +59,7 @@ html[data-memories-primary-nav="hidden"] .primary-nav {
 }
 
 .process-section .collection-summary {
+  margin-top: 0;
   margin-bottom: .45rem;
 }
 
@@ -91,6 +107,35 @@ html[data-memories-primary-nav="hidden"] .primary-nav {
 .floating-upload-button:hover {
   transform: translateY(-2px);
   box-shadow: 0 20px 50px rgba(31, 58, 47, .38);
+}
+
+.photo-card[data-admin-delete-ready="true"] {
+  position: relative;
+  outline: 2px solid rgba(185, 110, 93, .38);
+  outline-offset: -2px;
+}
+
+.admin-delete-photo {
+  width: calc(100% - 1rem);
+  margin: 0 .5rem .55rem;
+  border: 1px solid rgba(145, 65, 53, .48);
+  border-radius: .65rem;
+  background: rgba(185, 110, 93, .1);
+  padding: .52rem .7rem;
+  color: #843f35;
+  cursor: pointer;
+  font-size: .72rem;
+  font-weight: 600;
+}
+
+.admin-delete-photo:hover {
+  background: #9c4d41;
+  color: #fffaf1;
+}
+
+.admin-delete-photo:disabled {
+  opacity: .55;
+  cursor: wait;
 }
 
 .admin-gate-backdrop {
@@ -214,11 +259,20 @@ html[data-memories-primary-nav="hidden"] .primary-nav {
 @media (max-width: 620px) {
   .process-section {
     max-height: 52vh;
-    border-radius: 0 0 1rem 1rem;
+    border-radius: 0;
+  }
+
+  .process-section .section-heading,
+  .process-section .collection-tabs,
+  .process-section .collection-summary,
+  .process-section .process-strip {
+    width: calc(100% - 1rem);
+    margin-left: auto !important;
+    margin-right: auto !important;
   }
 
   .process-section .section-heading {
-    padding: .65rem .8rem .4rem;
+    padding: .65rem .3rem .4rem;
   }
 
   .process-section .section-heading .eyebrow {
@@ -232,7 +286,7 @@ html[data-memories-primary-nav="hidden"] .primary-nav {
   .collection-tabs {
     grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
     gap: .35rem !important;
-    padding: 0 .75rem .45rem !important;
+    padding: 0 .25rem .45rem !important;
   }
 
   .collection-tab {
@@ -242,7 +296,8 @@ html[data-memories-primary-nav="hidden"] .primary-nav {
   }
 
   .collection-summary {
-    margin: 0 .8rem .35rem !important;
+    margin-top: 0 !important;
+    margin-bottom: .35rem !important;
     padding-left: .65rem !important;
   }
 
@@ -252,7 +307,7 @@ html[data-memories-primary-nav="hidden"] .primary-nav {
   }
 
   .process-strip {
-    padding: .2rem .75rem .45rem !important;
+    padding: .2rem .25rem .45rem !important;
   }
 
   .process-chip {
