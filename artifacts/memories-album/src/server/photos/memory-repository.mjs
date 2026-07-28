@@ -62,6 +62,45 @@ export class MemoryPhotoRepository {
     return { ...photo, processIds: [...(photo.processIds ?? [])] };
   }
 
+  async listPhotosMissingThumbnails({ limit = 12 } = {}) {
+    const boundedLimit = Math.max(1, Math.min(Number(limit) || 12, 50));
+    return this.#photos
+      .filter(
+        (photo) =>
+          !photo.thumbnailDriveFileId &&
+          photo.driveFileId &&
+          photo.processingState === "ready" &&
+          photo.visibility !== "trashed",
+      )
+      .sort((left, right) =>
+        String(left.createdAt).localeCompare(String(right.createdAt)),
+      )
+      .slice(0, boundedLimit)
+      .map((photo) => ({
+        ...photo,
+        processIds: [...(photo.processIds ?? [])],
+      }));
+  }
+
+  async attachThumbnail(photoId, thumbnailDriveFileId) {
+    const index = this.#photos.findIndex((photo) => photo.id === photoId);
+    if (index < 0) {
+      const error = new Error("Photo not found while attaching thumbnail");
+      error.code = "PHOTO_NOT_FOUND";
+      throw error;
+    }
+    this.#photos[index] = {
+      ...this.#photos[index],
+      thumbnailDriveFileId:
+        this.#photos[index].thumbnailDriveFileId ?? thumbnailDriveFileId,
+      updatedAt: new Date().toISOString(),
+    };
+    return {
+      ...this.#photos[index],
+      processIds: [...(this.#photos[index].processIds ?? [])],
+    };
+  }
+
   async listPublicPhotos({
     cursor = null,
     limit = 24,
