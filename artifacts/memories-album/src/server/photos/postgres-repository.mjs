@@ -110,7 +110,10 @@ export class PostgresPhotoRepository {
     } = {},
   ) {
     const createdAt =
-      file.createdTime || file.modifiedTime || new Date().toISOString();
+      file.imageMediaMetadata?.time ||
+      file.createdTime ||
+      file.modifiedTime ||
+      new Date().toISOString();
     const result = await this.pool.query(
       `INSERT INTO memories_photos (
         id, drive_file_id, original_filename, mime_type, byte_size,
@@ -123,6 +126,7 @@ export class PostgresPhotoRepository {
         mime_type = EXCLUDED.mime_type,
         byte_size = EXCLUDED.byte_size,
         drive_parent_folder_id = EXCLUDED.drive_parent_folder_id,
+        created_at = EXCLUDED.created_at,
         collection = CASE
           WHEN $12::boolean THEN memories_photos.collection
           ELSE EXCLUDED.collection
@@ -195,7 +199,7 @@ export class PostgresPhotoRepository {
     if (decoded) {
       values.push(decoded.createdAt, decoded.id);
       conditions.push(
-        `(p.created_at, p.id) < ($${values.length - 1}::timestamptz, $${values.length}::uuid)`,
+        `(p.created_at, p.id) > ($${values.length - 1}::timestamptz, $${values.length}::uuid)`,
       );
     }
     if (source) {
@@ -224,7 +228,7 @@ export class PostgresPhotoRepository {
        LEFT JOIN memories_photo_processes mpp ON mpp.photo_id = p.id
        WHERE ${conditions.join(" AND ")}
        GROUP BY p.id
-       ORDER BY p.created_at DESC, p.id DESC
+       ORDER BY p.created_at ASC, p.id ASC
        LIMIT $${values.length}`,
       values,
     );
