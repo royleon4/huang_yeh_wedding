@@ -13,6 +13,7 @@ import "./process-sync.css";
 import "./photo-lightbox.css";
 import "./feature-controls.css";
 import "./bottom-collection-nav.css";
+import "./bulk-photo-admin.css";
 
 const PROCESSES_UPDATED_EVENT = "memories:processes-updated";
 const PHOTO_DELETED_EVENT = "memories:photo-deleted";
