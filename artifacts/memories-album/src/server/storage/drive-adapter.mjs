@@ -158,6 +158,16 @@ export class GoogleDriveStorage {
     description,
     appProperties = {},
   }) {
+    const existing = await this.findChildByName(folderId, filename);
+    if (existing?.id) {
+      return {
+        fileId: existing.id,
+        name: existing.name ?? filename,
+        size: Number(existing.size ?? bytes.length),
+        reused: true,
+      };
+    }
+
     const boundary = `memories_${Date.now()}_${Math.random().toString(36).slice(2)}`;
     const metadata = JSON.stringify({
       name: filename,
@@ -175,20 +185,41 @@ export class GoogleDriveStorage {
       Buffer.from(bytes),
       Buffer.from(`\r\n--${boundary}--`),
     ]);
-    const response = await this.#request(DRIVE_UPLOAD_PATH, {
-      method: "POST",
-      headers: {
-        "Content-Type": `multipart/related; boundary=${boundary}`,
-      },
-      body,
-    });
-    const data = await response.json();
-    if (!data?.id) throw new Error("Google Drive upload did not return a file id");
-    return {
-      fileId: data.id,
-      name: data.name ?? filename,
-      size: Number(data.size ?? bytes.length),
-    };
+
+    try {
+      const response = await this.#request(DRIVE_UPLOAD_PATH, {
+        method: "POST",
+        headers: {
+          "Content-Type": `multipart/related; boundary=${boundary}`,
+        },
+        body,
+      });
+      const data = await response.json();
+      if (!data?.id) throw new Error("Google Drive upload did not return a file id");
+      return {
+        fileId: data.id,
+        name: data.name ?? filename,
+        size: Number(data.size ?? bytes.length),
+        reused: false,
+      };
+    } catch (error) {
+      if (error?.code === "DRIVE_RETRYABLE") {
+        try {
+          const recovered = await this.findChildByName(folderId, filename);
+          if (recovered?.id) {
+            return {
+              fileId: recovered.id,
+              name: recovered.name ?? filename,
+              size: Number(recovered.size ?? bytes.length),
+              reused: true,
+            };
+          }
+        } catch {
+          // The outer retry performs the same deterministic lookup again.
+        }
+      }
+      throw error;
+    }
   }
 
   async download(fileId) {
