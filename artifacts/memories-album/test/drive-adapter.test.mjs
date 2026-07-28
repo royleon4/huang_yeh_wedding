@@ -41,6 +41,9 @@ test("uploads originals into the approved folder without returning it", async ()
   const storage = new GoogleDriveStorage({
     originalFolderId: "private-originals-folder-id",
     proxy: async (connector, path, options) => {
+      if (path.startsWith("/drive/v3/files?q=")) {
+        return response({ json: { files: [] } });
+      }
       request = { connector, path, options };
       return response({
         json: {
@@ -62,12 +65,41 @@ test("uploads originals into the approved folder without returning it", async ()
     fileId: "private-file-id",
     name: "photo.jpg",
     size: 3,
+    reused: false,
   });
   assert.equal(request.connector, "google-drive");
   assert.match(
     request.options.body.toString(),
     /private-originals-folder-id/,
   );
+});
+
+test("reuses an existing deterministic Drive filename without uploading again", async () => {
+  let uploadRequests = 0;
+  const storage = new GoogleDriveStorage({
+    originalFolderId: "private-originals-folder-id",
+    proxy: async (_connector, path) => {
+      if (path.startsWith("/drive/v3/files?q=")) {
+        return response({
+          json: {
+            files: [{ id: "existing-id", name: "photo.jpg", size: "3" }],
+          },
+        });
+      }
+      uploadRequests += 1;
+      return response();
+    },
+  });
+
+  const result = await storage.uploadOriginal({
+    bytes: Buffer.from("abc"),
+    filename: "photo.jpg",
+    contentType: "image/jpeg",
+  });
+
+  assert.equal(result.fileId, "existing-id");
+  assert.equal(result.reused, true);
+  assert.equal(uploadRequests, 0);
 });
 
 test("does not place technical thumbnails beside originals without approval", async () => {
@@ -91,6 +123,9 @@ test("uses a separately configured technical thumbnail folder", async () => {
     originalFolderId: "private-originals-folder-id",
     thumbnailFolderId: "private-thumbnails-folder-id",
     proxy: async (connector, path, options) => {
+      if (path.startsWith("/drive/v3/files?q=")) {
+        return response({ json: { files: [] } });
+      }
       request = { connector, path, options };
       return response({
         json: {
@@ -110,6 +145,39 @@ test("uses a separately configured technical thumbnail folder", async () => {
   const body = request.options.body.toString();
   assert.match(body, /private-thumbnails-folder-id/);
   assert.doesNotMatch(body, /private-originals-folder-id/);
+});
+
+test("recovers a file created before an ambiguous retryable response", async () => {
+  let lookupCount = 0;
+  let uploadCount = 0;
+  const storage = new GoogleDriveStorage({
+    originalFolderId: "private-originals-folder-id",
+    proxy: async (_connector, path) => {
+      if (path.startsWith("/drive/v3/files?q=")) {
+        lookupCount += 1;
+        return response({
+          json: {
+            files:
+              lookupCount > 1
+                ? [{ id: "recovered-id", name: "photo.jpg", size: "3" }]
+                : [],
+          },
+        });
+      }
+      uploadCount += 1;
+      return response({ ok: false, status: 503 });
+    },
+  });
+
+  const result = await storage.uploadOriginal({
+    bytes: Buffer.from("abc"),
+    filename: "photo.jpg",
+    contentType: "image/jpeg",
+  });
+
+  assert.equal(result.fileId, "recovered-id");
+  assert.equal(result.reused, true);
+  assert.equal(uploadCount, 1);
 });
 
 test("connector errors are sanitized and never include response bodies", async () => {

@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   UploadClientError,
+  retryFailedUploads,
   summarizeUploadResults,
   uploadQueue,
 } from "../src/client/upload-client.mjs";
@@ -20,20 +21,23 @@ function createBatch() {
   });
 }
 
-test("continues after an individual file fails", async () => {
-  const attempted = [];
+test("automatically retries a transient file failure and continues the queue", async () => {
+  const attempts = new Map();
   const updates = [];
   const result = await uploadQueue({
     uploaderName: "小安",
     files,
     createBatchFn: createBatch,
-    uploadFileFn: async ({ file, onProgress }) => {
-      attempted.push(file.name);
+    uploadFileFn: async ({ file, clientUploadId, onProgress }) => {
+      assert.ok(clientUploadId);
+      const attempt = (attempts.get(file.name) ?? 0) + 1;
+      attempts.set(file.name, attempt);
       onProgress(50);
-      if (file.name === "two.jpg") {
+      if (file.name === "two.jpg" && attempt === 1) {
         throw new UploadClientError("temporary failure", {
           code: "DRIVE_RETRYABLE",
           status: 503,
+          retryAfterMs: 1,
         });
       }
       return { id: file.name, source: "guest", processIds: [] };
@@ -41,10 +45,64 @@ test("continues after an individual file fails", async () => {
     onUpdate: (update) => updates.push(update),
   });
 
+  assert.equal(attempts.get("one.jpg"), 1);
+  assert.equal(attempts.get("two.jpg"), 2);
+  assert.equal(attempts.get("three.jpg"), 1);
+  assert.deepEqual(result.summary, { success: 3, failed: 0, cancelled: 0 });
+  assert.ok(
+    updates.some(
+      (update) => update.type === "file" && update.item.status === "retrying",
+    ),
+  );
+});
+
+test("a permanent individual failure does not stop later photos", async () => {
+  const attempted = [];
+  const result = await uploadQueue({
+    uploaderName: "小安",
+    files,
+    createBatchFn: createBatch,
+    uploadFileFn: async ({ file }) => {
+      attempted.push(file.name);
+      if (file.name === "two.jpg") {
+        throw new UploadClientError("invalid photo", {
+          code: "INVALID_IMAGE",
+          status: 422,
+        });
+      }
+      return { id: file.name, source: "guest", processIds: [] };
+    },
+  });
+
   assert.deepEqual(attempted, ["one.jpg", "two.jpg", "three.jpg"]);
   assert.deepEqual(result.summary, { success: 2, failed: 1, cancelled: 0 });
-  assert.equal(result.results[1].retryable, true);
-  assert.ok(updates.some((update) => update.type === "file" && update.item.progress === 50));
+});
+
+test("manual retry keeps the same batch and per-file upload identifier", async () => {
+  const first = await uploadQueue({
+    uploaderName: "小安",
+    files: [files[0]],
+    createBatchFn: createBatch,
+    uploadFileFn: async () => {
+      throw new UploadClientError("invalid photo", {
+        code: "INVALID_IMAGE",
+        status: 422,
+      });
+    },
+  });
+  const uploadId = first.results[0].clientUploadId;
+  const seen = [];
+  const retried = await retryFailedUploads({
+    batch: first.batch,
+    results: first.results,
+    uploadFileFn: async ({ batchId, clientUploadId }) => {
+      seen.push({ batchId, clientUploadId });
+      return { id: "restored", source: "guest", processIds: [] };
+    },
+  });
+
+  assert.deepEqual(seen, [{ batchId: "batch", clientUploadId: uploadId }]);
+  assert.deepEqual(retried.summary, { success: 1, failed: 0, cancelled: 0 });
 });
 
 test("cancellation stops the remaining queue", async () => {
@@ -58,8 +116,7 @@ test("cancellation stops the remaining queue", async () => {
     uploadFileFn: async ({ file }) => {
       attempted.push(file.name);
       controller.abort();
-      const error = new UploadClientError("cancelled", { code: "CANCELLED" });
-      throw error;
+      throw new UploadClientError("cancelled", { code: "CANCELLED" });
     },
   });
 

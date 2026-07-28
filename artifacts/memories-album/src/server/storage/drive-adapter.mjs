@@ -2,6 +2,10 @@ const DRIVE_UPLOAD_PATH =
   "/upload/drive/v3/files?uploadType=multipart&fields=id,name,mimeType,size&supportsAllDrives=true";
 const FOLDER_MIME = "application/vnd.google-apps.folder";
 
+function driveQueryValue(value) {
+  return String(value).replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+}
+
 export class DriveConnectorError extends Error {
   constructor(status, code = null) {
     super(`Google Drive request failed with status ${status}`);
@@ -12,8 +16,8 @@ export class DriveConnectorError extends Error {
       (status === 401 || status === 403
         ? "DRIVE_AUTHORIZATION_REQUIRED"
         : status === 429 || status >= 500
-        ? "DRIVE_RETRYABLE"
-        : "DRIVE_REQUEST_FAILED");
+          ? "DRIVE_RETRYABLE"
+          : "DRIVE_REQUEST_FAILED");
   }
 }
 
@@ -45,6 +49,17 @@ export class GoogleDriveStorage {
     );
     const data = await response.json();
     return Array.isArray(data?.files) ? data.files : [];
+  }
+
+  async findChildByName(parentId, name) {
+    const q = encodeURIComponent(
+      `'${driveQueryValue(parentId)}' in parents and name = '${driveQueryValue(name)}' and trashed = false`,
+    );
+    const response = await this.#request(
+      `/drive/v3/files?q=${q}&fields=files(id,name,mimeType,size,parents,modifiedTime)&pageSize=10&orderBy=createdTime&supportsAllDrives=true&includeItemsFromAllDrives=true`,
+    );
+    const data = await response.json();
+    return Array.isArray(data?.files) ? (data.files[0] ?? null) : null;
   }
 
   async createFolder({ parentId, name }) {
@@ -93,17 +108,30 @@ export class GoogleDriveStorage {
     return existing ?? this.createFolder({ parentId, name });
   }
 
-  async uploadOriginal({ bytes, filename, contentType, parentId = null }) {
+  async uploadOriginal({
+    bytes,
+    filename,
+    contentType,
+    parentId = null,
+    appProperties = {},
+  }) {
     return this.#upload({
       bytes,
       filename,
       contentType,
       folderId: parentId ?? this.originalFolderId,
       description: "Memories original",
+      appProperties,
     });
   }
 
-  async uploadThumbnail({ bytes, filename, contentType = "image/webp", parentId = null }) {
+  async uploadThumbnail({
+    bytes,
+    filename,
+    contentType = "image/webp",
+    parentId = null,
+    appProperties = {},
+  }) {
     const folderId = parentId ?? this.thumbnailFolderId;
     if (!folderId) {
       const error = new Error(
@@ -118,16 +146,37 @@ export class GoogleDriveStorage {
       contentType,
       folderId,
       description: "Memories web thumbnail",
+      appProperties,
     });
   }
 
-  async #upload({ bytes, filename, contentType, folderId, description }) {
+  async #upload({
+    bytes,
+    filename,
+    contentType,
+    folderId,
+    description,
+    appProperties = {},
+  }) {
+    const existing = await this.findChildByName(folderId, filename);
+    if (existing?.id) {
+      return {
+        fileId: existing.id,
+        name: existing.name ?? filename,
+        size: Number(existing.size ?? bytes.length),
+        reused: true,
+      };
+    }
+
     const boundary = `memories_${Date.now()}_${Math.random().toString(36).slice(2)}`;
     const metadata = JSON.stringify({
       name: filename,
       parents: [folderId],
       description,
-      appProperties: { application: "huang-yeh-memories" },
+      appProperties: {
+        application: "huang-yeh-memories",
+        ...appProperties,
+      },
     });
     const body = Buffer.concat([
       Buffer.from(
@@ -136,20 +185,41 @@ export class GoogleDriveStorage {
       Buffer.from(bytes),
       Buffer.from(`\r\n--${boundary}--`),
     ]);
-    const response = await this.#request(DRIVE_UPLOAD_PATH, {
-      method: "POST",
-      headers: {
-        "Content-Type": `multipart/related; boundary=${boundary}`,
-      },
-      body,
-    });
-    const data = await response.json();
-    if (!data?.id) throw new Error("Google Drive upload did not return a file id");
-    return {
-      fileId: data.id,
-      name: data.name ?? filename,
-      size: Number(data.size ?? bytes.length),
-    };
+
+    try {
+      const response = await this.#request(DRIVE_UPLOAD_PATH, {
+        method: "POST",
+        headers: {
+          "Content-Type": `multipart/related; boundary=${boundary}`,
+        },
+        body,
+      });
+      const data = await response.json();
+      if (!data?.id) throw new Error("Google Drive upload did not return a file id");
+      return {
+        fileId: data.id,
+        name: data.name ?? filename,
+        size: Number(data.size ?? bytes.length),
+        reused: false,
+      };
+    } catch (error) {
+      if (error?.code === "DRIVE_RETRYABLE") {
+        try {
+          const recovered = await this.findChildByName(folderId, filename);
+          if (recovered?.id) {
+            return {
+              fileId: recovered.id,
+              name: recovered.name ?? filename,
+              size: Number(recovered.size ?? bytes.length),
+              reused: true,
+            };
+          }
+        } catch {
+          // The outer retry performs the same deterministic lookup again.
+        }
+      }
+      throw error;
+    }
   }
 
   async download(fileId) {

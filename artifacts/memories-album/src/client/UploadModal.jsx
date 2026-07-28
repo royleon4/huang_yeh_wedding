@@ -1,11 +1,11 @@
 import { useMemo, useRef, useState } from "react";
-import { uploadQueue } from "./upload-client.mjs";
+import { retryFailedUploads, uploadQueue } from "./upload-client.mjs";
 
 const COPY = {
   zh: {
     title: "把你的照片放進檔案館",
     intro:
-      "請留下姓名、選擇照片，並可替這批照片選擇網站分類。每張照片會獨立上傳。",
+      "請留下姓名、選擇照片，並可替這批照片選擇網站分類。系統會逐張安全上傳，暫時性失敗會自動重試。",
     name: "你的姓名（必填）",
     namePlaceholder: "例如：小安",
     classification: "顯示分類（選填）",
@@ -15,27 +15,30 @@ const COPY = {
     files: "選擇照片",
     choose: "選擇最多 30 張照片",
     hint:
-      "支援 JPEG、PNG、WebP、HEIC／HEIF；每張上限 25 MB。無論選擇哪個分類，原圖都只會存放在 Google Drive 的「訪客上傳」資料夾。",
+      "支援 JPEG、PNG、WebP、HEIC／HEIF；每張上限 25 MB。照片逐張傳送並使用固定識別碼，重新嘗試不會重複建立 Drive 檔案。",
     start: "開始上傳",
-    cancel: "取消上傳",
+    retryFailed: "繼續未完成照片",
+    cancel: "暫停上傳",
     close: "關閉",
     queued: "等待中",
     uploading: "上傳中",
+    retrying: "連線不穩，正在自動重試",
     success: "已收藏",
-    failed: "失敗",
-    cancelled: "已取消",
+    failed: "尚未完成",
+    cancelled: "已暫停",
     overall: "整體進度",
     required: "請填寫姓名並至少選擇一張照片。",
     completed: "上傳完成",
-    partial: "部分照片已成功收藏",
+    partial: "部分照片尚未完成",
     management: "請保存這個私人管理連結。之後可用它查看或撤回這批照片。",
     openManagement: "開啟私人管理連結",
-    retryNote: "可關閉視窗後重新選擇失敗的照片上傳。",
+    retryNote:
+      "已完成的照片不會重傳；按下「繼續未完成照片」會沿用同一批次與同一 Drive 檔案安全續傳。",
   },
   en: {
     title: "Add your photos to the archive",
     intro:
-      "Enter your name, choose photos, and optionally select where they should appear on the website. Each file uploads independently.",
+      "Enter your name, choose photos, and optionally select where they appear. Files upload one at a time and temporary failures retry automatically.",
     name: "Your name (required)",
     namePlaceholder: "For example: An",
     classification: "Display category (optional)",
@@ -45,22 +48,25 @@ const COPY = {
     files: "Choose photos",
     choose: "Choose up to 30 photos",
     hint:
-      "JPEG, PNG, WebP, HEIC and HEIF are accepted, up to 25 MB each. Originals always remain in the Google Drive Guest uploads folder, regardless of display category.",
+      "JPEG, PNG, WebP, HEIC and HEIF are accepted, up to 25 MB each. Stable upload IDs prevent duplicate Drive files when a request is retried.",
     start: "Start upload",
-    cancel: "Cancel upload",
+    retryFailed: "Continue unfinished photos",
+    cancel: "Pause upload",
     close: "Close",
     queued: "Queued",
     uploading: "Uploading",
+    retrying: "Connection interrupted — retrying automatically",
     success: "Collected",
-    failed: "Failed",
-    cancelled: "Cancelled",
+    failed: "Not finished",
+    cancelled: "Paused",
     overall: "Overall progress",
     required: "Enter your name and select at least one photo.",
     completed: "Upload complete",
-    partial: "Some photos were collected",
+    partial: "Some photos are not finished",
     management: "Save this private management link. It will let you view or withdraw this batch later.",
     openManagement: "Open private management link",
-    retryNote: "Close this window and select failed photos again to retry them.",
+    retryNote:
+      "Completed photos are never resent. Continue unfinished photos safely resumes the same batch and Drive files.",
   },
 };
 
@@ -84,6 +90,7 @@ export default function UploadModal({
   const [batch, setBatch] = useState(null);
   const [summary, setSummary] = useState(null);
   const controllerRef = useRef(null);
+  const uploadedIdsRef = useRef(new Set());
 
   const overallProgress = useMemo(() => {
     if (items.length === 0) return 0;
@@ -107,6 +114,46 @@ export default function UploadModal({
     setError("");
     setSummary(null);
     setBatch(null);
+    uploadedIdsRef.current.clear();
+  };
+
+  const handleUpdate = (update) => {
+    if (update.type === "batch") setBatch(update.batch);
+    if (update.type === "queue") setItems(update.results);
+    if (update.type === "file") {
+      setItems((current) => {
+        const next = [...current];
+        next[update.index] = update.item;
+        return next;
+      });
+      if (
+        update.item.status === "success" &&
+        update.item.photo &&
+        !uploadedIdsRef.current.has(update.item.photo.id)
+      ) {
+        uploadedIdsRef.current.add(update.item.photo.id);
+        onUploaded(update.item.photo);
+      }
+    }
+  };
+
+  const runUpload = async (operation) => {
+    setError("");
+    setPhase("uploading");
+    const controller = new AbortController();
+    controllerRef.current = controller;
+    try {
+      const result = await operation(controller.signal);
+      setBatch(result.batch);
+      setItems(result.results);
+      setSummary(result.summary);
+      setPhase("done");
+    } catch (uploadError) {
+      setError(uploadError instanceof Error ? uploadError.message : "Upload failed");
+      setPhase("done");
+    } finally {
+      controllerRef.current = null;
+    }
   };
 
   const startUpload = async (event) => {
@@ -115,51 +162,30 @@ export default function UploadModal({
       setError(t.required);
       return;
     }
-    setError("");
-    setPhase("uploading");
-    const controller = new AbortController();
-    controllerRef.current = controller;
-    const uploadedIds = new Set();
     const [classification, processId] = classificationChoice.startsWith("wedding:")
       ? ["wedding", classificationChoice.slice("wedding:".length)]
       : [classificationChoice, null];
-    try {
-      const result = await uploadQueue({
+    await runUpload((signal) =>
+      uploadQueue({
         uploaderName,
         files,
         classification,
         processId,
-        signal: controller.signal,
-        onUpdate(update) {
-          if (update.type === "batch") setBatch(update.batch);
-          if (update.type === "queue") setItems(update.results);
-          if (update.type === "file") {
-            setItems((current) => {
-              const next = [...current];
-              next[update.index] = update.item;
-              return next;
-            });
-            if (
-              update.item.status === "success" &&
-              update.item.photo &&
-              !uploadedIds.has(update.item.photo.id)
-            ) {
-              uploadedIds.add(update.item.photo.id);
-              onUploaded(update.item.photo);
-            }
-          }
-        },
-      });
-      setBatch(result.batch);
-      setSummary(result.summary);
-      setPhase("done");
-    } catch (uploadError) {
-      setError(uploadError instanceof Error ? uploadError.message : "Upload failed");
-      setPhase("idle");
-    } finally {
-      controllerRef.current = null;
-    }
+        signal,
+        onUpdate: handleUpdate,
+      }),
+    );
   };
+
+  const retryUnfinished = () =>
+    runUpload((signal) =>
+      retryFailedUploads({
+        batch,
+        results: items,
+        signal,
+        onUpdate: handleUpdate,
+      }),
+    );
 
   const cancelUpload = () => controllerRef.current?.abort();
   const close = () => {
@@ -167,8 +193,8 @@ export default function UploadModal({
     onClose();
   };
 
-  const completedTitle =
-    summary?.failed || summary?.cancelled ? t.partial : t.completed;
+  const hasUnfinished = Boolean(summary?.failed || summary?.cancelled);
+  const completedTitle = hasUnfinished ? t.partial : t.completed;
 
   return (
     <div className="modal-backdrop" role="presentation">
@@ -200,7 +226,7 @@ export default function UploadModal({
               placeholder={t.namePlaceholder}
               maxLength={80}
               required
-              disabled={phase === "uploading"}
+              disabled={phase === "uploading" || Boolean(batch)}
               autoComplete="name"
             />
           </label>
@@ -209,7 +235,7 @@ export default function UploadModal({
             <select
               value={classificationChoice}
               onChange={(event) => setClassificationChoice(event.target.value)}
-              disabled={phase === "uploading"}
+              disabled={phase === "uploading" || Boolean(batch)}
             >
               <option value="guest">{t.guestOnly}</option>
               <option value="life">{t.life}</option>
@@ -230,7 +256,7 @@ export default function UploadModal({
               accept="image/jpeg,image/png,image/webp,image/heic,image/heif"
               multiple
               onChange={handleFiles}
-              disabled={phase === "uploading"}
+              disabled={phase === "uploading" || Boolean(batch)}
             />
           </label>
           <small className="upload-hint">{t.hint}</small>
@@ -249,6 +275,7 @@ export default function UploadModal({
                       <strong>{item.file.name}</strong>
                       <small>
                         {statusLabel(t, item.status)}
+                        {item.attempts > 1 ? ` · ${item.attempts}` : ""}
                         {item.error ? ` · ${item.error}` : ""}
                       </small>
                     </div>
@@ -280,14 +307,12 @@ export default function UploadModal({
                   </a>
                 </>
               )}
-              {(summary.failed > 0 || summary.cancelled > 0) && (
-                <small>{t.retryNote}</small>
-              )}
+              {hasUnfinished && <small>{t.retryNote}</small>}
             </section>
           )}
 
           <div className="upload-actions">
-            {phase !== "uploading" && phase !== "done" && (
+            {phase !== "uploading" && !batch && (
               <button className="button primary" type="submit">
                 {t.start}
               </button>
@@ -295,6 +320,15 @@ export default function UploadModal({
             {phase === "uploading" && (
               <button className="button secondary" type="button" onClick={cancelUpload}>
                 {t.cancel}
+              </button>
+            )}
+            {phase === "done" && hasUnfinished && (
+              <button
+                className="button primary"
+                type="button"
+                onClick={retryUnfinished}
+              >
+                {t.retryFailed}
               </button>
             )}
             {phase === "done" && (

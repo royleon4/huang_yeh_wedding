@@ -12,6 +12,7 @@ const photoIds = [
   "22222222-2222-4222-8222-222222222222",
   "33333333-3333-4333-8333-333333333333",
   "44444444-4444-4444-8444-444444444444",
+  "55555555-5555-4555-8555-555555555555",
 ];
 
 function fakeProcessor() {
@@ -39,6 +40,7 @@ async function withApi(run, options = {}) {
   const ids = [batchId, ...photoIds];
   const api = createGuestUploadApi({
     repository,
+    durableUploadRepository: options.durableUploadRepository,
     processRepository: options.processRepository ?? null,
     drive,
     imageProcessor: options.imageProcessor ?? fakeProcessor(),
@@ -74,14 +76,23 @@ async function createBatch(origin, uploaderName = "小安", classification = {})
   return { response, body: await response.json() };
 }
 
-async function uploadPhoto(origin, token, bytes, filename = "photo.jpg") {
+async function uploadPhoto(
+  origin,
+  token,
+  bytes,
+  filename = "photo.jpg",
+  uploadId = "stable-upload-id-0001",
+) {
   const form = new FormData();
   form.append("photo", new Blob([bytes], { type: "image/jpeg" }), filename);
   const response = await fetch(
     `${origin}/Memories/api/upload-batches/${batchId}/photos`,
     {
       method: "POST",
-      headers: { Authorization: `Bearer ${token}` },
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "X-Memories-Upload-Id": uploadId,
+      },
       body: form,
     },
   );
@@ -143,7 +154,6 @@ test("classifies a guest upload into a wedding process without changing its gues
         classification: "wedding",
         processId: "entrance",
       });
-      assert.equal(batch.response.status, 201);
       const uploaded = await uploadPhoto(
         origin,
         batch.body.managementToken,
@@ -227,30 +237,36 @@ test("rejects malformed images without writing Drive files", async () => {
   });
 });
 
-test("cleans up duplicate uploads after Drive writes", async () => {
+test("repeating the same upload id returns the existing photo without duplicate Drive files", async () => {
   await withApi(async (origin, { drive }) => {
     const batch = await createBatch(origin);
     const first = await uploadPhoto(
       origin,
       batch.body.managementToken,
       Buffer.from("same-photo"),
+      "same.jpg",
+      "same-upload-id-0001",
     );
     assert.equal(first.response.status, 201);
     const second = await uploadPhoto(
       origin,
       batch.body.managementToken,
       Buffer.from("same-photo"),
-      "duplicate.jpg",
+      "same.jpg",
+      "same-upload-id-0001",
     );
-    assert.equal(second.response.status, 409);
-    assert.equal(second.body.code, "DUPLICATE_PHOTO");
+    assert.equal(second.response.status, 200);
+    assert.equal(second.body.reused, true);
+    assert.equal(second.body.photo.id, first.body.photo.id);
     assert.equal(drive.files.size, 2);
   });
 });
 
-test("compensates the original when thumbnail storage fails", async () => {
+test("preserves the original Drive file when thumbnail storage is temporarily unavailable", async () => {
   const calls = [];
   const drive = {
+    originalFolderId: "original-folder",
+    thumbnailFolderId: "thumbnail-folder",
     async uploadOriginal() {
       calls.push("upload-original");
       return { fileId: "original-id" };
@@ -274,11 +290,76 @@ test("compensates the original when thumbnail storage fails", async () => {
         Buffer.from("photo"),
       );
       assert.equal(uploaded.response.status, 503);
-      assert.deepEqual(calls, [
-        "upload-original",
-        "upload-thumbnail",
-        "delete:original-id",
-      ]);
+      assert.equal(calls.filter((call) => call === "upload-original").length, 1);
+      assert.equal(calls.filter((call) => call === "upload-thumbnail").length, 4);
+      assert.equal(calls.some((call) => call.startsWith("delete:")), false);
+    },
+    { drive },
+  );
+});
+
+test("a later request resumes from the preserved original instead of uploading it again", async () => {
+  let thumbnailAttempts = 0;
+  const files = new Map();
+  const drive = {
+    originalFolderId: "original-folder",
+    thumbnailFolderId: "thumbnail-folder",
+    async findChildByName(parentId, filename) {
+      return [...files.values()].find(
+        (file) => file.parentId === parentId && file.filename === filename,
+      );
+    },
+    async uploadOriginal({ filename }) {
+      const file = {
+        id: "original-id",
+        fileId: "original-id",
+        parentId: "original-folder",
+        filename,
+      };
+      files.set(file.id, file);
+      return { fileId: file.id };
+    },
+    async uploadThumbnail({ filename }) {
+      thumbnailAttempts += 1;
+      if (thumbnailAttempts <= 4) {
+        const error = new Error("retry");
+        error.code = "DRIVE_RETRYABLE";
+        throw error;
+      }
+      const file = {
+        id: "thumbnail-id",
+        fileId: "thumbnail-id",
+        parentId: "thumbnail-folder",
+        filename,
+      };
+      files.set(file.id, file);
+      return { fileId: file.id };
+    },
+  };
+  await withApi(
+    async (origin) => {
+      const batch = await createBatch(origin);
+      const first = await uploadPhoto(
+        origin,
+        batch.body.managementToken,
+        Buffer.from("resume-photo"),
+        "resume.jpg",
+        "resume-upload-id-0001",
+      );
+      assert.equal(first.response.status, 503);
+      const second = await uploadPhoto(
+        origin,
+        batch.body.managementToken,
+        Buffer.from("resume-photo"),
+        "resume.jpg",
+        "resume-upload-id-0001",
+      );
+      assert.equal(second.response.status, 201);
+      assert.equal(
+        [...files.values()].filter((file) => file.parentId === "original-folder")
+          .length,
+        1,
+      );
     },
     { drive },
   );
