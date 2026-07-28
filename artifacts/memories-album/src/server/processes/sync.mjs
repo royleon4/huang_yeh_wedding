@@ -1,5 +1,6 @@
 import {
   formatManagedProcessFolder,
+  identityForDriveProcess,
   parseManagedProcessFolder,
   slugFromFolderId,
 } from "./model.mjs";
@@ -76,10 +77,11 @@ export class DriveProcessSynchronizer {
     const processes = [];
     for (const { folder, parsed } of processFolders) {
       activeFolderIds.add(folder.id);
+      const identity = identityForDriveProcess(folder.id, parsed.labelZh);
       const process = await this.processRepository.upsertDriveProcess({
-        id: slugFromFolderId(folder.id),
+        id: identity.id,
         labelZh: parsed.labelZh,
-        labelEn: parsed.labelZh,
+        labelEn: identity.en,
         displayOrder: parsed.order,
         driveFolderId: folder.id,
         driveFolderName: folder.name,
