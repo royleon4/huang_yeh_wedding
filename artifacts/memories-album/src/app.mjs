@@ -7,7 +7,10 @@ export const MEMORIES_BASE_PATH = "/Memories";
 export const MEMORIES_API_PATH = `${MEMORIES_BASE_PATH}/api`;
 
 const moduleDirectory = path.dirname(fileURLToPath(import.meta.url));
-const publicDirectory = path.resolve(moduleDirectory, "../public");
+const publicDirectory =
+  path.basename(moduleDirectory) === "dist"
+    ? path.resolve(moduleDirectory, "public")
+    : path.resolve(moduleDirectory, "../public");
 
 function sendJson(response, status, body) {
   response.writeHead(status, {
@@ -43,6 +46,11 @@ export async function handleRequest(request, response) {
       service: "memories-album",
       basePath: MEMORIES_BASE_PATH,
     });
+    return;
+  }
+
+  if (url.pathname === MEMORIES_API_PATH || url.pathname.startsWith(`${MEMORIES_API_PATH}/`)) {
+    sendJson(response, 404, { error: "Not found" });
     return;
   }
 
