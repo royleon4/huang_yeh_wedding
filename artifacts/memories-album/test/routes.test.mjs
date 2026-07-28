@@ -10,7 +10,9 @@ async function withServer(run) {
   try {
     await run(`http://127.0.0.1:${address.port}`);
   } finally {
-    await new Promise((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
+    await new Promise((resolve, reject) =>
+      server.close((error) => (error ? reject(error) : resolve())),
+    );
   }
 }
 
@@ -19,6 +21,25 @@ test("redirects the canonical path to a trailing slash", async () => {
     const response = await fetch(`${origin}/Memories`, { redirect: "manual" });
     assert.equal(response.status, 308);
     assert.equal(response.headers.get("location"), "/Memories/");
+  });
+});
+
+test("redirects lowercase paths to the canonical Memories path", async () => {
+  await withServer(async (origin) => {
+    const withoutSlash = await fetch(`${origin}/memories`, {
+      redirect: "manual",
+    });
+    assert.equal(withoutSlash.status, 308);
+    assert.equal(withoutSlash.headers.get("location"), "/Memories/");
+
+    const withSlash = await fetch(`${origin}/memories/?from=guest`, {
+      redirect: "manual",
+    });
+    assert.equal(withSlash.status, 308);
+    assert.equal(
+      withSlash.headers.get("location"),
+      "/Memories/?from=guest",
+    );
   });
 });
 
@@ -40,6 +61,19 @@ test("serves an isolated health endpoint", async () => {
       service: "memories-album",
       basePath: "/Memories",
     });
+  });
+});
+
+test("redirects lowercase API requests before handling them", async () => {
+  await withServer(async (origin) => {
+    const response = await fetch(`${origin}/memories/api/health`, {
+      redirect: "manual",
+    });
+    assert.equal(response.status, 308);
+    assert.equal(
+      response.headers.get("location"),
+      "/Memories/api/health",
+    );
   });
 });
 
