@@ -41,7 +41,19 @@ jobs:
         run: pnpm install --no-frozen-lockfile
 
       - name: Test standalone Memories
-        run: pnpm --filter @workspace/memories-album run test
+        shell: bash
+        run: |
+          set -o pipefail
+          pnpm --filter @workspace/memories-album run test 2>&1 | tee memories-test-output.txt
+
+      - name: Preserve test output
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: memories-test-output
+          path: memories-test-output.txt
+          if-no-files-found: ignore
+          retention-days: 7
 
       - name: Build standalone Memories
         run: pnpm --filter @workspace/memories-album run build
