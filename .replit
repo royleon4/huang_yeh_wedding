@@ -6,6 +6,9 @@ id = "artifacts/api-server"
 [[artifacts]]
 id = "artifacts/mockup-sandbox"
 
+[[artifacts]]
+id = "artifacts/memories-album"
+
 [deployment]
 router = "application"
 deploymentTarget = "autoscale"
