@@ -1,4 +1,5 @@
 import { createMemoriesPhotoApi } from "./photos/api.mjs";
+import { createAdminPhotoApi } from "./photos/admin-api.mjs";
 import { PostgresPhotoRepository } from "./photos/postgres-repository.mjs";
 import { ThumbnailService } from "./photos/thumbnail-service.mjs";
 import { createReplitDriveStorage } from "./storage/replit-drive.mjs";
@@ -53,6 +54,44 @@ async function createRuntime(env) {
     }
     return repository.findPublicPhoto(photoId);
   };
+  repository.findPhotoForAdmin = async (photoId) => {
+    const result = await pool.query(
+      `SELECT id, drive_file_id, thumbnail_drive_file_id
+       FROM memories_photos
+       WHERE id = $1
+       LIMIT 1`,
+      [photoId],
+    );
+    const row = result.rows[0];
+    return row
+      ? {
+          id: row.id,
+          driveFileId: row.drive_file_id,
+          thumbnailDriveFileId: row.thumbnail_drive_file_id,
+        }
+      : null;
+  };
+  repository.deletePhotoRecord = async (photoId) => {
+    const result = await pool.query(
+      `DELETE FROM memories_photos WHERE id = $1 RETURNING id`,
+      [photoId],
+    );
+    if (!result.rows[0]) {
+      const error = new Error("Photo not found while deleting");
+      error.code = "PHOTO_NOT_FOUND";
+      throw error;
+    }
+    return result.rows[0].id;
+  };
+  repository.trashPhoto = async (photoId) => {
+    await pool.query(
+      `UPDATE memories_photos
+       SET visibility = 'trashed', trashed_at = now(), updated_at = now()
+       WHERE id = $1`,
+      [photoId],
+    );
+  };
+
   const durableUploadRepository = new PostgresDurableUploadRepository(pool);
   const processRepository = new PostgresProcessRepository(pool);
   const settingsRepository = new PostgresSettingsRepository(pool);
@@ -133,6 +172,11 @@ async function createRuntime(env) {
       repository,
       drive,
       thumbnailService,
+    }),
+    adminPhotoApi: createAdminPhotoApi({
+      repository,
+      drive,
+      adminToken: env.MEMORIES_ADMIN_TOKEN,
     }),
     uploadApi: createGuestUploadApi({
       repository,
