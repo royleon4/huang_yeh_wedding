@@ -2,7 +2,6 @@ import {
   formatManagedProcessFolder,
   identityForDriveProcess,
   parseManagedProcessFolder,
-  slugFromFolderId,
 } from "./model.mjs";
 
 export const DRIVE_RESERVED_FOLDERS = {
@@ -13,6 +12,13 @@ export const DRIVE_RESERVED_FOLDERS = {
 };
 
 const FOLDER_MIME = "application/vnd.google-apps.folder";
+
+function processOrder(left, right) {
+  return (
+    left.displayOrder - right.displayOrder ||
+    left.driveFolderId.localeCompare(right.driveFolderId)
+  );
+}
 
 export class DriveProcessSynchronizer {
   constructor({ drive, processRepository, photoRepository, rootFolderId }) {
@@ -41,6 +47,52 @@ export class DriveProcessSynchronizer {
       }
     }
     return byName;
+  }
+
+  #processFolders(children) {
+    return children
+      .filter((item) => item.mimeType === FOLDER_MIME)
+      .map((folder) => ({
+        folder,
+        parsed: parseManagedProcessFolder(folder.name),
+      }))
+      .filter((item) => item.parsed)
+      .sort(
+        (a, b) =>
+          a.parsed.order - b.parsed.order ||
+          a.folder.id.localeCompare(b.folder.id),
+      );
+  }
+
+  async #upsertProcessFolder(folder, parsed = parseManagedProcessFolder(folder?.name)) {
+    if (!folder?.id || !parsed) {
+      const error = new Error("Google Drive process folder is invalid");
+      error.status = 409;
+      error.code = "INVALID_DRIVE_PROCESS_FOLDER";
+      throw error;
+    }
+    const identity = identityForDriveProcess(folder.id, parsed.labelZh);
+    return this.processRepository.upsertDriveProcess({
+      id: identity.id,
+      labelZh: parsed.labelZh,
+      labelEn: identity.en,
+      displayOrder: parsed.order,
+      driveFolderId: folder.id,
+      driveFolderName: folder.name,
+    });
+  }
+
+  async syncProcessFoldersFromDrive() {
+    const children = await this.drive.listChildren(this.rootFolderId);
+    const processFolders = this.#processFolders(children);
+    const activeFolderIds = new Set();
+    const processes = [];
+    for (const { folder, parsed } of processFolders) {
+      activeFolderIds.add(folder.id);
+      processes.push(await this.#upsertProcessFolder(folder, parsed));
+    }
+    await this.processRepository.deactivateMissingDriveProcesses(activeFolderIds);
+    return processes.sort(processOrder);
   }
 
   async #importFolderPhotos(
@@ -77,31 +129,13 @@ export class DriveProcessSynchronizer {
   async reconcileFromDrive() {
     const reservedFolders = await this.ensureStructure();
     const children = await this.drive.listChildren(this.rootFolderId);
-    const processFolders = children
-      .filter((item) => item.mimeType === FOLDER_MIME)
-      .map((folder) => ({
-        folder,
-        parsed: parseManagedProcessFolder(folder.name),
-      }))
-      .filter((item) => item.parsed)
-      .sort(
-        (a, b) =>
-          a.parsed.order - b.parsed.order || a.folder.id.localeCompare(b.folder.id),
-      );
+    const processFolders = this.#processFolders(children);
 
     const activeFolderIds = new Set();
     const processes = [];
     for (const { folder, parsed } of processFolders) {
       activeFolderIds.add(folder.id);
-      const identity = identityForDriveProcess(folder.id, parsed.labelZh);
-      const process = await this.processRepository.upsertDriveProcess({
-        id: identity.id,
-        labelZh: parsed.labelZh,
-        labelEn: identity.en,
-        displayOrder: parsed.order,
-        driveFolderId: folder.id,
-        driveFolderName: folder.name,
-      });
+      const process = await this.#upsertProcessFolder(folder, parsed);
       processes.push(process);
       await this.#importFolderPhotos(folder, {
         source: "official",
@@ -154,59 +188,77 @@ export class DriveProcessSynchronizer {
     }
 
     await this.processRepository.deactivateMissingDriveProcesses(activeFolderIds);
-    return processes;
+    return processes.sort(processOrder);
   }
 
-  async createProcess({ labelZh, labelEn = null }) {
-    const current = await this.processRepository.listProcesses();
-    const displayOrder = current.length + 1;
-    const folderName = formatManagedProcessFolder(displayOrder, labelZh);
+  async createProcess({ labelZh }) {
+    const children = await this.drive.listChildren(this.rootFolderId);
+    const currentFolders = this.#processFolders(children);
+    const displayOrder =
+      currentFolders.reduce(
+        (maximum, item) => Math.max(maximum, item.parsed.order),
+        0,
+      ) + 1;
+    if (displayOrder > 99) {
+      const error = new Error("No more numbered process folders are available");
+      error.status = 409;
+      error.code = "PROCESS_LIMIT_REACHED";
+      throw error;
+    }
     const folder = await this.drive.createFolder({
       parentId: this.rootFolderId,
-      name: folderName,
+      name: formatManagedProcessFolder(displayOrder, labelZh),
     });
-    return this.processRepository.upsertDriveProcess({
-      id: slugFromFolderId(folder.id),
-      labelZh,
-      labelEn: labelEn || labelZh,
-      displayOrder,
-      driveFolderId: folder.id,
-      driveFolderName: folderName,
-    });
+    return this.#upsertProcessFolder(folder);
   }
 
-  async renameProcess(process, labelZh, labelEn = null) {
-    const folderName = formatManagedProcessFolder(process.displayOrder, labelZh);
-    await this.drive.rename(process.driveFolderId, folderName);
-    return this.processRepository.upsertDriveProcess({
-      ...process,
-      labelZh,
-      labelEn: labelEn || labelZh,
-      driveFolderName: folderName,
-    });
+  async renameProcess(process, labelZh) {
+    const current = (await this.syncProcessFoldersFromDrive()).find(
+      (item) => item.id === process.id,
+    );
+    if (!current?.driveFolderId) {
+      const error = new Error("Process folder no longer exists in Google Drive");
+      error.status = 404;
+      error.code = "PROCESS_FOLDER_NOT_FOUND";
+      throw error;
+    }
+    const renamed = await this.drive.rename(
+      current.driveFolderId,
+      formatManagedProcessFolder(current.displayOrder, labelZh),
+    );
+    return this.#upsertProcessFolder(renamed);
   }
 
   async reorderProcesses(processIds) {
-    const current = await this.processRepository.listProcesses();
+    const current = await this.syncProcessFoldersFromDrive();
     const byId = new Map(current.map((process) => [process.id, process]));
-    const ordered = processIds.map((id) => byId.get(id)).filter(Boolean);
-    for (let index = 0; index < ordered.length; index += 1) {
-      const process = ordered[index];
-      const displayOrder = index + 1;
-      const folderName = formatManagedProcessFolder(
-        displayOrder,
-        process.labelZh,
+    const requested = [...new Set(processIds)].map((id) => byId.get(id));
+    if (
+      requested.length !== current.length ||
+      requested.some((process) => !process)
+    ) {
+      const error = new Error(
+        "Process order is stale; synchronize Google Drive and try again",
       );
-      if (folderName !== process.driveFolderName) {
-        await this.drive.rename(process.driveFolderId, folderName);
-      }
-      await this.processRepository.upsertDriveProcess({
-        ...process,
-        displayOrder,
-        driveFolderName: folderName,
-      });
+      error.status = 409;
+      error.code = "STALE_PROCESS_ORDER";
+      throw error;
     }
-    return this.processRepository.listProcesses();
+
+    for (let index = 0; index < requested.length; index += 1) {
+      const process = requested[index];
+      const folderName = formatManagedProcessFolder(index + 1, process.labelZh);
+      const renamed =
+        folderName === process.driveFolderName
+          ? {
+              id: process.driveFolderId,
+              name: process.driveFolderName,
+              mimeType: FOLDER_MIME,
+            }
+          : await this.drive.rename(process.driveFolderId, folderName);
+      await this.#upsertProcessFolder(renamed);
+    }
+    return this.syncProcessFoldersFromDrive();
   }
 
   async movePhotoToProcess({ driveFileId, fromParentId, processId = null }) {
