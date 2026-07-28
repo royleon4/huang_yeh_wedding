@@ -3,6 +3,7 @@ import { readFile, stat } from "node:fs/promises";
 import { createServer as createNodeServer } from "node:http";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { createAdminSessionApi } from "./server/admin/session-api.mjs";
 import { getMemoriesRuntime } from "./server/runtime.mjs";
 
 export const MEMORIES_BASE_PATH = "/Memories";
@@ -102,7 +103,17 @@ function boundedStorageError(error) {
   };
 }
 
-async function handleStandaloneApi(request, response, url) {
+async function handleStandaloneApi(
+  request,
+  response,
+  url,
+  { env = process.env, getRuntime = getMemoriesRuntime } = {},
+) {
+  const adminSessionApi = createAdminSessionApi({
+    adminToken: env.MEMORIES_ADMIN_TOKEN,
+  });
+  if (adminSessionApi(request, response, url)) return true;
+
   if (url.pathname === `${MEMORIES_API_PATH}/health`) {
     sendJson(response, 200, {
       status: "ok",
@@ -119,11 +130,10 @@ async function handleStandaloneApi(request, response, url) {
     url.pathname.startsWith(`${MEMORIES_API_PATH}/settings`) ||
     url.pathname.startsWith(`${MEMORIES_API_PATH}/admin/photos`) ||
     url.pathname.startsWith(`${MEMORIES_API_PATH}/admin/processes`) ||
-    url.pathname.startsWith(`${MEMORIES_API_PATH}/admin/settings`) ||
-    url.pathname.startsWith(`${MEMORIES_API_PATH}/admin/session`)
+    url.pathname.startsWith(`${MEMORIES_API_PATH}/admin/settings`)
   ) {
     try {
-      const runtime = await getMemoriesRuntime();
+      const runtime = await getRuntime(env);
       if (await runtime.settingsApi(request, response, url)) return true;
       if (await runtime.processApi(request, response, url)) return true;
       if (await runtime.adminPhotoApi(request, response, url)) return true;
@@ -146,7 +156,7 @@ async function handleStandaloneApi(request, response, url) {
   return false;
 }
 
-export async function handleRequest(request, response) {
+export async function handleRequest(request, response, options) {
   const url = new URL(request.url ?? "/", "http://localhost");
 
   if (
@@ -167,7 +177,7 @@ export async function handleRequest(request, response) {
     url.pathname === MEMORIES_API_PATH ||
     url.pathname.startsWith(`${MEMORIES_API_PATH}/`)
   ) {
-    if (await handleStandaloneApi(request, response, url)) return;
+    if (await handleStandaloneApi(request, response, url, options)) return;
     sendJson(response, 404, { error: "Not found" });
     return;
   }
@@ -200,9 +210,9 @@ export async function handleRequest(request, response) {
   sendJson(response, 404, { error: "Not found" });
 }
 
-export function createServer() {
+export function createServer(options) {
   return createNodeServer((request, response) => {
-    void handleRequest(request, response).catch((error) => {
+    void handleRequest(request, response, options).catch((error) => {
       console.error("Memories request failed", {
         name: error instanceof Error ? error.name : "UnknownError",
         code: error?.code,

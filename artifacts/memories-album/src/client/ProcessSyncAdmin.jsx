@@ -1,28 +1,10 @@
 import { useEffect, useRef, useState } from "react";
+import { adminApi as api, adminLoginMessage } from "./admin-api.mjs";
 
 document.documentElement.dataset.memoriesPrimaryNav = "hidden";
 
 const PROCESSES_UPDATED_EVENT = "memories:processes-updated";
 const ADMIN_TITLE_SELECTOR = ".archive-header h1";
-
-async function api(path, { token, method = "GET", body } = {}) {
-  const response = await fetch(path, {
-    method,
-    headers: {
-      Accept: "application/json",
-      ...(body ? { "Content-Type": "application/json" } : {}),
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    },
-    ...(body ? { body: JSON.stringify(body) } : {}),
-  });
-  const payload = await response.json().catch(() => ({}));
-  if (!response.ok) {
-    const error = new Error(payload.error || `Request failed (${response.status})`);
-    error.code = payload.code;
-    throw error;
-  }
-  return payload;
-}
 
 function applyNavigationVisibility(visible) {
   document.documentElement.dataset.memoriesPrimaryNav = visible
@@ -43,7 +25,8 @@ export default function ProcessSyncAdmin() {
   const [authenticated, setAuthenticated] = useState(false);
   const [token, setToken] = useState("");
   const [processes, setProcesses] = useState([]);
-  const [primaryNavigationVisible, setPrimaryNavigationVisible] = useState(false);
+  const [primaryNavigationVisible, setPrimaryNavigationVisible] =
+    useState(false);
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
   const tapsRef = useRef([]);
@@ -140,9 +123,9 @@ export default function ProcessSyncAdmin() {
       sessionStorage.setItem("memories-admin-token", token);
       setAuthenticated(true);
       await refresh();
-    } catch {
+    } catch (error) {
       sessionStorage.removeItem("memories-admin-token");
-      setMessage("管理密碼錯誤");
+      setMessage(adminLoginMessage(error));
       setAuthenticated(false);
     } finally {
       setBusy(false);
@@ -163,7 +146,8 @@ export default function ProcessSyncAdmin() {
 
   const sync = () =>
     run(
-      () => api("/Memories/api/admin/processes/sync", { token, method: "POST" }),
+      () =>
+        api("/Memories/api/admin/processes/sync", { token, method: "POST" }),
       "已從 Google Drive 同步流程與照片分類。",
     );
 
@@ -266,7 +250,11 @@ export default function ProcessSyncAdmin() {
                 required
               />
             </label>
-            {message && <p role="alert" className="process-sync-message">{message}</p>}
+            {message && (
+              <p role="alert" className="process-sync-message">
+                {message}
+              </p>
+            )}
             <button type="submit" disabled={busy || !token}>
               {busy ? "驗證中…" : "進入管理"}
             </button>
@@ -275,13 +263,20 @@ export default function ProcessSyncAdmin() {
       )}
 
       {open && authenticated && (
-        <aside className="process-sync-admin" aria-label="Google Drive 流程同步管理">
+        <aside
+          className="process-sync-admin"
+          aria-label="Google Drive 流程同步管理"
+        >
           <div className="process-sync-heading">
             <div>
               <p className="eyebrow">ARCHIVE DESK</p>
               <h2>相簿管理</h2>
             </div>
-            <button type="button" className="process-sync-close" onClick={close}>
+            <button
+              type="button"
+              className="process-sync-close"
+              onClick={close}
+            >
               關閉
             </button>
           </div>
@@ -289,7 +284,9 @@ export default function ProcessSyncAdmin() {
           <section className="admin-setting-card">
             <div>
               <strong>顯示功能導覽列</strong>
-              <p>控制「相簿分類、人物、上傳、找找我」整組是否對一般訪客顯示。</p>
+              <p>
+                控制「相簿分類、人物、上傳、找找我」整組是否對一般訪客顯示。
+              </p>
             </div>
             <label className="switch-control">
               <input
@@ -305,26 +302,60 @@ export default function ProcessSyncAdmin() {
           </section>
 
           <div className="process-sync-actions">
-            <button type="button" disabled={busy} onClick={sync}>立即同步 Drive</button>
-            <button type="button" disabled={busy} onClick={add}>新增流程</button>
+            <button type="button" disabled={busy} onClick={sync}>
+              立即同步 Drive
+            </button>
+            <button type="button" disabled={busy} onClick={add}>
+              新增流程
+            </button>
           </div>
           <p className="process-sync-source-note">
-            Google Drive 流程資料夾是唯一來源；此處的建立、改名與排序會先寫入 Drive，再更新網站與訪客上傳選項。
+            Google Drive 流程資料夾是唯一來源；此處的建立、改名與排序會先寫入
+            Drive，再更新網站與訪客上傳選項。
           </p>
           <ol>
             {processes.map((process, index) => (
               <li key={process.id}>
-                <span>{String(process.displayOrder).padStart(2, "0")} {process.labelZh}</span>
+                <span>
+                  {String(process.displayOrder).padStart(2, "0")}{" "}
+                  {process.labelZh}
+                </span>
                 <div>
-                  <button type="button" disabled={busy || index === 0} onClick={() => move(index, -1)}>↑</button>
-                  <button type="button" disabled={busy || index === processes.length - 1} onClick={() => move(index, 1)}>↓</button>
-                  <button type="button" disabled={busy} onClick={() => rename(process)}>改名</button>
+                  <button
+                    type="button"
+                    disabled={busy || index === 0}
+                    onClick={() => move(index, -1)}
+                  >
+                    ↑
+                  </button>
+                  <button
+                    type="button"
+                    disabled={busy || index === processes.length - 1}
+                    onClick={() => move(index, 1)}
+                  >
+                    ↓
+                  </button>
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => rename(process)}
+                  >
+                    改名
+                  </button>
                 </div>
               </li>
             ))}
           </ol>
-          {message && <p role="status" className="process-sync-message">{message}</p>}
-          <button type="button" className="process-sync-signout" onClick={signOut}>
+          {message && (
+            <p role="status" className="process-sync-message">
+              {message}
+            </p>
+          )}
+          <button
+            type="button"
+            className="process-sync-signout"
+            onClick={signOut}
+          >
             登出管理員
           </button>
         </aside>

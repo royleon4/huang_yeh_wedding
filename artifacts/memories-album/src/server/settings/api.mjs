@@ -1,4 +1,4 @@
-import { timingSafeEqual } from "node:crypto";
+import { adminAuthorized } from "../admin/auth.mjs";
 
 function json(response, status, body) {
   response.writeHead(status, {
@@ -7,23 +7,6 @@ function json(response, status, body) {
     "X-Content-Type-Options": "nosniff",
   });
   response.end(JSON.stringify(body));
-}
-
-function bearerToken(request) {
-  const header = request.headers.authorization;
-  if (typeof header !== "string") return "";
-  return header.match(/^Bearer\s+(.+)$/i)?.[1] ?? "";
-}
-
-function authorized(request, configuredToken) {
-  const supplied = bearerToken(request);
-  if (!configuredToken || !supplied) return false;
-  const expectedBytes = Buffer.from(configuredToken);
-  const suppliedBytes = Buffer.from(supplied);
-  return (
-    expectedBytes.length === suppliedBytes.length &&
-    timingSafeEqual(expectedBytes, suppliedBytes)
-  );
 }
 
 async function readJson(request, maxBytes = 8 * 1024) {
@@ -58,20 +41,11 @@ export function createSettingsApi({ repository, adminToken }) {
     url = new URL(request.url ?? "/", "http://localhost"),
   ) {
     try {
-      if (request.method === "GET" && url.pathname === "/Memories/api/settings") {
-        json(response, 200, await repository.getPublicSettings());
-        return true;
-      }
-
       if (
-        request.method === "POST" &&
-        url.pathname === "/Memories/api/admin/session"
+        request.method === "GET" &&
+        url.pathname === "/Memories/api/settings"
       ) {
-        if (!authorized(request, adminToken)) {
-          json(response, 401, { error: "Unauthorized", code: "UNAUTHORIZED" });
-          return true;
-        }
-        json(response, 200, { authenticated: true });
+        json(response, 200, await repository.getPublicSettings());
         return true;
       }
 
@@ -79,7 +53,7 @@ export function createSettingsApi({ repository, adminToken }) {
         request.method === "PATCH" &&
         url.pathname === "/Memories/api/admin/settings"
       ) {
-        if (!authorized(request, adminToken)) {
+        if (!adminAuthorized(request, adminToken)) {
           json(response, 401, { error: "Unauthorized", code: "UNAUTHORIZED" });
           return true;
         }
@@ -104,7 +78,10 @@ export function createSettingsApi({ repository, adminToken }) {
       return false;
     } catch (error) {
       if (error?.status && error?.code) {
-        json(response, error.status, { error: error.message, code: error.code });
+        json(response, error.status, {
+          error: error.message,
+          code: error.code,
+        });
         return true;
       }
       throw error;
