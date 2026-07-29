@@ -13,16 +13,20 @@ function json(response, status, body) {
 }
 
 export function toPublicPhoto(photo) {
+  const version = encodeURIComponent(photo.contentVersion ?? 1);
+  const thumbnailBase = `/Memories/api/photos/${photo.id}/thumbnail?v=${version}`;
   return {
     id: photo.id,
-    thumbnailUrl: `/Memories/api/photos/${photo.id}/thumbnail`,
-    mediaUrl: `/Memories/api/photos/${photo.id}/media`,
+    thumbnailUrl: `${thumbnailBase}&width=960`,
+    thumbnailSrcSet: `${thumbnailBase}&width=480 480w, ${thumbnailBase}&width=960 960w`,
+    mediaUrl: `/Memories/api/photos/${photo.id}/media?v=${version}`,
     width: photo.width ?? null,
     height: photo.height ?? null,
     source: photo.source,
     collection:
       photo.collection ?? (photo.source === "guest" ? "guest" : "wedding"),
-    uploaderName: photo.uploaderName ?? null,
+    uploaderName:
+      photo.source === "guest" ? null : (photo.uploaderName ?? null),
     processIds: photo.processIds ?? [],
     createdAt: photo.createdAt,
   };
@@ -31,7 +35,7 @@ export function toPublicPhoto(photo) {
 async function pipeBody(
   response,
   file,
-  cacheControl = "public, max-age=3600, stale-while-revalidate=86400",
+  cacheControl = "private, no-store",
   extraHeaders = {},
 ) {
   response.writeHead(200, {
@@ -82,7 +86,14 @@ function shouldRepairThumbnail(error) {
   );
 }
 
-async function serveThumbnail({ response, photo, drive, thumbnailService }) {
+async function serveThumbnail({
+  response,
+  photo,
+  drive,
+  thumbnailService,
+  publicMediaService,
+  width = null,
+}) {
   let current = photo;
   let lastError = null;
 
@@ -95,10 +106,18 @@ async function serveThumbnail({ response, photo, drive, thumbnailService }) {
       }
       current = await thumbnailService.ensurePhotoThumbnail(current);
     }
+    if (width && thumbnailService?.createResponsiveVariant) {
+      await pipeBody(
+        response,
+        await thumbnailService.createResponsiveVariant(current, width),
+        "private, no-store",
+      );
+      return true;
+    }
     await pipeBody(
       response,
       await drive.download(current.thumbnailDriveFileId),
-      "public, max-age=31536000, immutable",
+      "private, no-store",
     );
     return true;
   } catch (error) {
@@ -111,7 +130,7 @@ async function serveThumbnail({ response, photo, drive, thumbnailService }) {
       await pipeBody(
         response,
         await drive.download(current.thumbnailDriveFileId),
-        "public, max-age=31536000, immutable",
+        "private, no-store",
         { "X-Memories-Thumbnail-Repaired": "1" },
       );
       return true;
@@ -126,7 +145,9 @@ async function serveThumbnail({ response, photo, drive, thumbnailService }) {
   try {
     await pipeBody(
       response,
-      await drive.download(photo.driveFileId),
+      publicMediaService
+        ? await publicMediaService.getSanitizedMedia(photo)
+        : await drive.download(photo.driveFileId),
       "no-store",
       { "X-Memories-Thumbnail-Fallback": "original" },
     );
@@ -141,6 +162,7 @@ export function createMemoriesPhotoApi({
   repository,
   drive,
   thumbnailService = null,
+  publicMediaService = null,
 }) {
   if (!repository || !drive) {
     throw new Error("Photo repository and Drive storage are required");
@@ -201,7 +223,23 @@ export function createMemoriesPhotoApi({
       }
 
       if (variant === "thumbnail") {
-        return serveThumbnail({ response, photo, drive, thumbnailService });
+        const widthParameter = url.searchParams.get("width");
+        const width = widthParameter ? Number(widthParameter) : null;
+        if (widthParameter && !new Set([480, 960]).has(width)) {
+          json(response, 400, {
+            error: "Invalid thumbnail width",
+            code: "INVALID_THUMBNAIL_WIDTH",
+          });
+          return true;
+        }
+        return serveThumbnail({
+          response,
+          photo,
+          drive,
+          thumbnailService,
+          publicMediaService,
+          width,
+        });
       }
 
       if (!photo.driveFileId) {
@@ -213,10 +251,18 @@ export function createMemoriesPhotoApi({
       }
 
       try {
+        if (publicMediaService) {
+          await pipeBody(
+            response,
+            await publicMediaService.getSanitizedMedia(photo),
+            "private, no-store",
+          );
+          return true;
+        }
         await pipeBody(
           response,
           await drive.download(photo.driveFileId),
-          "public, max-age=3600, stale-while-revalidate=86400",
+          "private, no-store",
         );
       } catch (error) {
         if (error?.status === 404) {

@@ -8,6 +8,30 @@ export function clampZoom(value) {
   return Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, numeric));
 }
 
+export function clampPanOffset({
+  offset,
+  zoom,
+  imageWidth,
+  imageHeight,
+  stageWidth,
+  stageHeight,
+}) {
+  const boundedZoom = clampZoom(zoom);
+  if (boundedZoom === MIN_ZOOM) return { x: 0, y: 0 };
+  const maxX = Math.max(
+    0,
+    (Number(imageWidth) * boundedZoom - Number(stageWidth)) / 2,
+  );
+  const maxY = Math.max(
+    0,
+    (Number(imageHeight) * boundedZoom - Number(stageHeight)) / 2,
+  );
+  return {
+    x: Math.min(maxX, Math.max(-maxX, Number(offset?.x) || 0)),
+    y: Math.min(maxY, Math.max(-maxY, Number(offset?.y) || 0)),
+  };
+}
+
 export function adjacentPhotoIndex(currentIndex, photoCount, direction) {
   if (!Number.isInteger(currentIndex) || photoCount <= 0) return -1;
   const next = currentIndex + Math.sign(direction || 0);

@@ -30,12 +30,6 @@ async function readJson(request, maxBytes = 32 * 1024) {
   }
 }
 
-function adminAuthorized(request, token) {
-  if (!token) return false;
-  const header = request.headers.authorization;
-  return typeof header === "string" && header === `Bearer ${token}`;
-}
-
 function publicProcess(process) {
   return {
     id: process.id,
@@ -55,7 +49,9 @@ async function processesAfterDeletion(repository, synchronizer) {
   try {
     const remaining = await synchronizer.syncProcessFoldersFromDrive();
     if (remaining.length === 0) return [];
-    return await synchronizer.reorderProcesses(remaining.map((item) => item.id));
+    return await synchronizer.reorderProcesses(
+      remaining.map((item) => item.id),
+    );
   } catch {
     // The deletion has already been committed. A temporary Drive failure must
     // not turn a successful/idempotent delete back into a visible error.
@@ -63,10 +59,46 @@ async function processesAfterDeletion(repository, synchronizer) {
   }
 }
 
-export function createProcessApi({ repository, synchronizer, adminToken }) {
+export function createProcessApi({
+  repository,
+  synchronizer,
+  adminToken,
+  auditRepository = null,
+  now = () => new Date(),
+  rateLimiter = createFixedWindowRateLimiter({
+    limit: 60,
+    windowMs: 60_000,
+  }),
+}) {
   if (!repository || !synchronizer) {
     throw new Error("Process repository and synchronizer are required");
   }
+
+  const authorize = (request, response) => {
+    if (!adminAuthorized(request, adminToken)) {
+      json(response, 401, { error: "Unauthorized", code: "UNAUTHORIZED" });
+      return false;
+    }
+    const rate = rateLimiter.consume(request);
+    if (!rate.allowed) {
+      json(response, 429, {
+        error: "Too many administrator requests",
+        code: "RATE_LIMITED",
+      });
+      return false;
+    }
+    return true;
+  };
+  const audit = (action, targetType, targetId, before, after) =>
+    auditRepository?.record({
+      actor: "shared-secret-admin",
+      action,
+      targetType,
+      targetId,
+      before,
+      after,
+      createdAt: now().toISOString(),
+    });
 
   return async function handleProcessApi(
     request,
@@ -74,7 +106,10 @@ export function createProcessApi({ repository, synchronizer, adminToken }) {
     url = new URL(request.url ?? "/", "http://localhost"),
   ) {
     try {
-      if (request.method === "GET" && url.pathname === "/Memories/api/processes") {
+      if (
+        request.method === "GET" &&
+        url.pathname === "/Memories/api/processes"
+      ) {
         const processes = await repository.listProcesses();
         json(response, 200, { processes: processes.map(publicProcess) });
         return true;
@@ -84,11 +119,16 @@ export function createProcessApi({ repository, synchronizer, adminToken }) {
         request.method === "POST" &&
         url.pathname === "/Memories/api/admin/processes/sync"
       ) {
-        if (!adminAuthorized(request, adminToken)) {
-          json(response, 401, { error: "Unauthorized", code: "UNAUTHORIZED" });
-          return true;
-        }
+        if (!authorize(request, response)) return true;
+        const before = (await repository.listProcesses()).map(publicProcess);
         const processes = await synchronizer.reconcileFromDrive();
+        await audit(
+          "processes.sync",
+          "album",
+          "memories",
+          before,
+          processes.map(publicProcess),
+        );
         json(response, 200, { processes: processes.map(publicProcess) });
         return true;
       }
@@ -97,21 +137,30 @@ export function createProcessApi({ repository, synchronizer, adminToken }) {
         request.method === "POST" &&
         url.pathname === "/Memories/api/admin/processes"
       ) {
-        if (!adminAuthorized(request, adminToken)) {
-          json(response, 401, { error: "Unauthorized", code: "UNAUTHORIZED" });
-          return true;
-        }
+        if (!authorize(request, response)) return true;
         const body = await readJson(request);
-        const labelZh = String(body.labelZh ?? "").normalize("NFKC").trim();
-        const labelEn = String(body.labelEn ?? "").normalize("NFKC").trim();
+        const labelZh = String(body.labelZh ?? "")
+          .normalize("NFKC")
+          .trim();
+        const labelEn = String(body.labelEn ?? "")
+          .normalize("NFKC")
+          .trim();
         if (!labelZh || labelZh.length > 80) {
           json(response, 422, {
-            error: "Process name is required and must be 80 characters or fewer",
+            error:
+              "Process name is required and must be 80 characters or fewer",
             code: "INVALID_PROCESS_NAME",
           });
           return true;
         }
         const process = await synchronizer.createProcess({ labelZh, labelEn });
+        await audit(
+          "process.create",
+          "process",
+          process.id,
+          null,
+          publicProcess(process),
+        );
         json(response, 201, { process: publicProcess(process) });
         return true;
       }
@@ -120,10 +169,7 @@ export function createProcessApi({ repository, synchronizer, adminToken }) {
         request.method === "PUT" &&
         url.pathname === "/Memories/api/admin/processes/order"
       ) {
-        if (!adminAuthorized(request, adminToken)) {
-          json(response, 401, { error: "Unauthorized", code: "UNAUTHORIZED" });
-          return true;
-        }
+        if (!authorize(request, response)) return true;
         const body = await readJson(request);
         if (!Array.isArray(body.processIds)) {
           json(response, 422, {
@@ -132,7 +178,15 @@ export function createProcessApi({ repository, synchronizer, adminToken }) {
           });
           return true;
         }
+        const before = (await repository.listProcesses()).map(publicProcess);
         const processes = await synchronizer.reorderProcesses(body.processIds);
+        await audit(
+          "processes.reorder",
+          "album",
+          "memories",
+          before,
+          processes.map(publicProcess),
+        );
         json(response, 200, { processes: processes.map(publicProcess) });
         return true;
       }
@@ -145,46 +199,69 @@ export function createProcessApi({ repository, synchronizer, adminToken }) {
         : null;
 
       if (request.method === "PATCH" && processId) {
-        if (!adminAuthorized(request, adminToken)) {
-          json(response, 401, { error: "Unauthorized", code: "UNAUTHORIZED" });
-          return true;
-        }
+        if (!authorize(request, response)) return true;
         const processes = await repository.listProcesses();
         const process = processes.find((item) => item.id === processId);
         if (!process) {
-          json(response, 404, { error: "Process not found", code: "NOT_FOUND" });
+          json(response, 404, {
+            error: "Process not found",
+            code: "NOT_FOUND",
+          });
           return true;
         }
         const body = await readJson(request);
-        const labelZh = String(body.labelZh ?? "").normalize("NFKC").trim();
-        const labelEn = String(body.labelEn ?? "").normalize("NFKC").trim();
+        const labelZh = String(body.labelZh ?? "")
+          .normalize("NFKC")
+          .trim();
+        const labelEn = String(body.labelEn ?? "")
+          .normalize("NFKC")
+          .trim();
         if (!labelZh || labelZh.length > 80) {
           json(response, 422, {
-            error: "Process name is required and must be 80 characters or fewer",
+            error:
+              "Process name is required and must be 80 characters or fewer",
             code: "INVALID_PROCESS_NAME",
           });
           return true;
         }
-        const updated = await synchronizer.renameProcess(process, labelZh, labelEn);
+        const before = publicProcess(process);
+        const updated = await synchronizer.renameProcess(
+          process,
+          labelZh,
+          labelEn,
+        );
+        await audit(
+          "process.rename",
+          "process",
+          process.id,
+          before,
+          publicProcess(updated),
+        );
         json(response, 200, { process: publicProcess(updated) });
         return true;
       }
 
       if (request.method === "DELETE" && processId) {
-        if (!adminAuthorized(request, adminToken)) {
-          json(response, 401, { error: "Unauthorized", code: "UNAUTHORIZED" });
-          return true;
-        }
+        if (!authorize(request, response)) return true;
 
         const process =
           (await repository.findProcessById?.(processId)) ??
-          (await repository.listProcesses()).find((item) => item.id === processId) ??
+          (await repository.listProcesses()).find(
+            (item) => item.id === processId,
+          ) ??
           null;
 
         // DELETE is idempotent. A record already removed by another tab or a
         // prior sync is a successful outcome, never a blocking 404.
         if (!process || process.isActive === false) {
           const processes = await repository.listProcesses();
+          await audit(
+            "process.delete",
+            "process",
+            processId,
+            process ? publicProcess(process) : null,
+            { deleted: true, alreadyDeleted: true },
+          );
           json(response, 200, {
             deletedProcessId: processId,
             alreadyDeleted: true,
@@ -199,6 +276,13 @@ export function createProcessApi({ repository, synchronizer, adminToken }) {
         if (!process.driveFolderId) {
           await repository.deactivateProcess?.(process.id, "legacy-deleted");
           const processes = await repository.listProcesses();
+          await audit(
+            "process.delete",
+            "process",
+            process.id,
+            publicProcess(process),
+            { deleted: true, ghostCleaned: true },
+          );
           json(response, 200, {
             deletedProcessId: process.id,
             ghostCleaned: true,
@@ -210,7 +294,9 @@ export function createProcessApi({ repository, synchronizer, adminToken }) {
         let children = [];
         let folderAlreadyMissing = false;
         try {
-          children = await synchronizer.drive.listChildren(process.driveFolderId);
+          children = await synchronizer.drive.listChildren(
+            process.driveFolderId,
+          );
         } catch (error) {
           if (!driveItemMissing(error)) throw error;
           folderAlreadyMissing = true;
@@ -238,7 +324,17 @@ export function createProcessApi({ repository, synchronizer, adminToken }) {
           process.id,
           folderAlreadyMissing ? "missing-deleted" : "deleted",
         );
-        const processes = await processesAfterDeletion(repository, synchronizer);
+        const processes = await processesAfterDeletion(
+          repository,
+          synchronizer,
+        );
+        await audit(
+          "process.delete",
+          "process",
+          process.id,
+          publicProcess(process),
+          { deleted: true, alreadyDeleted: folderAlreadyMissing },
+        );
         json(response, 200, {
           deletedProcessId: process.id,
           alreadyDeleted: folderAlreadyMissing,
@@ -250,10 +346,15 @@ export function createProcessApi({ repository, synchronizer, adminToken }) {
       return false;
     } catch (error) {
       if (error?.status && error?.code) {
-        json(response, error.status, { error: error.message, code: error.code });
+        json(response, error.status, {
+          error: error.message,
+          code: error.code,
+        });
         return true;
       }
       throw error;
     }
   };
 }
+import { adminAuthorized } from "../admin/auth.mjs";
+import { createFixedWindowRateLimiter } from "../admin/rate-limit.mjs";

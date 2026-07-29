@@ -117,6 +117,7 @@ async function verifyDriveFile(drive, fileId, attempts = 3) {
 export class ThumbnailService {
   #inFlight = new Map();
   #indexPromise = null;
+  #variantCache = new Map();
   #activeGenerations = 0;
   #generationWaiters = [];
 
@@ -138,7 +139,10 @@ export class ThumbnailService {
     this.drive = drive;
     this.imageProcessor = imageProcessor;
     this.thumbnailFolderId = thumbnailFolderId;
-    this.batchSize = Math.max(1, Math.min(Number(batchSize) || DEFAULT_BATCH_SIZE, 50));
+    this.batchSize = Math.max(
+      1,
+      Math.min(Number(batchSize) || DEFAULT_BATCH_SIZE, 50),
+    );
     this.maxConcurrent = Math.max(
       1,
       Math.min(Number(maxConcurrent) || DEFAULT_MAX_CONCURRENT, 6),
@@ -151,6 +155,34 @@ export class ThumbnailService {
 
   invalidateIndex() {
     this.#indexPromise = null;
+  }
+
+  async createResponsiveVariant(photo, width) {
+    const current = await this.ensurePhotoThumbnail(photo);
+    const key = `${current.thumbnailDriveFileId}:${width}`;
+    if (this.#variantCache.has(key)) return this.#variantCache.get(key);
+
+    const variant = this.#withGenerationSlot(async () => {
+      const file = await this.drive.download(current.thumbnailDriveFileId);
+      const bytes = await bodyToBuffer(file.body);
+      const resized = await this.imageProcessor.createDisplayVariant({
+        bytes,
+        width,
+      });
+      return {
+        body: resized.bytes,
+        contentType: resized.contentType,
+        contentLength: resized.bytes.length,
+      };
+    }).catch((error) => {
+      this.#variantCache.delete(key);
+      throw error;
+    });
+    this.#variantCache.set(key, variant);
+    if (this.#variantCache.size > 100) {
+      this.#variantCache.delete(this.#variantCache.keys().next().value);
+    }
+    return variant;
   }
 
   async #thumbnailIndex() {
@@ -187,7 +219,10 @@ export class ThumbnailService {
   }
 
   async ensurePhotoThumbnail(photo, { ignoreFileId = null } = {}) {
-    if (photo?.thumbnailDriveFileId && photo.thumbnailDriveFileId !== ignoreFileId) {
+    if (
+      photo?.thumbnailDriveFileId &&
+      photo.thumbnailDriveFileId !== ignoreFileId
+    ) {
       return photo;
     }
     if (!photo?.id || !photo?.driveFileId) {
@@ -199,7 +234,9 @@ export class ThumbnailService {
     const key = `${photo.driveFileId}:${ignoreFileId ?? "normal"}`;
     if (this.#inFlight.has(key)) return this.#inFlight.get(key);
 
-    const operation = this.#ensurePhotoThumbnail(photo, { ignoreFileId }).finally(() => {
+    const operation = this.#ensurePhotoThumbnail(photo, {
+      ignoreFileId,
+    }).finally(() => {
       this.#inFlight.delete(key);
     });
     this.#inFlight.set(key, operation);
@@ -214,7 +251,9 @@ export class ThumbnailService {
       throw error;
     }
     if (typeof this.repository.clearThumbnail !== "function") {
-      const error = new Error("Thumbnail repository cannot clear stale references");
+      const error = new Error(
+        "Thumbnail repository cannot clear stale references",
+      );
       error.code = "THUMBNAIL_REPAIR_UNSUPPORTED";
       throw error;
     }
@@ -223,7 +262,13 @@ export class ThumbnailService {
     return this.ensurePhotoThumbnail(cleared, { ignoreFileId: staleFileId });
   }
 
-  async #attachExistingIfReadable({ photo, filename, index, candidate, ignoreFileId }) {
+  async #attachExistingIfReadable({
+    photo,
+    filename,
+    index,
+    candidate,
+    ignoreFileId,
+  }) {
     if (!candidate?.id || candidate.id === ignoreFileId) return null;
     try {
       await verifyDriveFile(this.drive, candidate.id);

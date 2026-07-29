@@ -55,7 +55,9 @@ class CanonicalProcessRepository {
       lastSyncedAt: "2026-07-29T00:00:00.000Z",
     };
     this.records = [
-      ...this.records.filter((item) => item.driveFolderId !== process.driveFolderId),
+      ...this.records.filter(
+        (item) => item.driveFolderId !== process.driveFolderId,
+      ),
       record,
     ];
     return record;
@@ -122,17 +124,35 @@ test("website process changes write to Drive before database refresh", async () 
 });
 
 test("client process and guest-upload options are database hydrated, not bundled", async () => {
-  const [galleryModel, mainSource, adminSource, uploadSource] = await Promise.all([
-    readFile(new URL("../src/client/gallery-model.mjs", import.meta.url), "utf8"),
-    readFile(new URL("../src/client/main.jsx", import.meta.url), "utf8"),
-    readFile(new URL("../src/client/ProcessSyncAdmin.jsx", import.meta.url), "utf8"),
-    readFile(new URL("../src/client/UploadModal.jsx", import.meta.url), "utf8"),
-  ]);
+  const [galleryModel, mainSource, stateSource, adminSource, uploadSource] =
+    await Promise.all([
+      readFile(
+        new URL("../src/client/gallery-model.mjs", import.meta.url),
+        "utf8",
+      ),
+      readFile(new URL("../src/client/main.jsx", import.meta.url), "utf8"),
+      readFile(
+        new URL("../src/client/MemoriesState.jsx", import.meta.url),
+        "utf8",
+      ),
+      readFile(
+        new URL("../src/client/ProcessSyncAdmin.jsx", import.meta.url),
+        "utf8",
+      ),
+      readFile(
+        new URL("../src/client/UploadModal.jsx", import.meta.url),
+        "utf8",
+      ),
+    ]);
 
   assert.match(galleryModel, /export const PROCESS_DEFINITIONS = \[\];/);
   assert.doesNotMatch(galleryModel, /進場|祈禱|證婚|分組照相/);
-  assert.match(mainSource, /fetch\("\/Memories\/api\/processes"/);
-  assert.match(mainSource, /PROCESS_DEFINITIONS\.splice/);
-  assert.match(adminSource, /memories:processes-updated/);
+  assert.match(mainSource, /<MemoriesStateProvider>/);
+  assert.match(stateSource, /request\("\/Memories\/api\/processes"\)/);
+  assert.match(adminSource, /setServerProcesses\(nextProcesses\)/);
+  assert.doesNotMatch(
+    `${mainSource}\n${adminSource}`,
+    /PROCESS_DEFINITIONS\.splice|memories:processes-updated/,
+  );
   assert.match(uploadSource, /processes\.map/);
 });

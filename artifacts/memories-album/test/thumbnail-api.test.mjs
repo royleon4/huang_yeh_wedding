@@ -84,10 +84,7 @@ test("thumbnail requests generate or attach a thumbnail before streaming", async
     assert.equal(response.status, 200);
     assert.equal(await response.text(), "thumbnail");
     assert.deepEqual(context.downloads, ["generated-thumbnail-id"]);
-    assert.equal(
-      response.headers.get("cache-control"),
-      "public, max-age=31536000, immutable",
-    );
+    assert.equal(response.headers.get("cache-control"), "private, no-store");
   });
 });
 

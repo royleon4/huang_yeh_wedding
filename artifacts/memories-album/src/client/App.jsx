@@ -3,13 +3,14 @@ import { MOCK_PHOTOS } from "./mock-data.mjs";
 import {
   COLLECTION_DEFINITIONS,
   NAV_ITEMS,
-  PROCESS_DEFINITIONS,
   filterPhotos,
-  moveItem,
-  pagePhotos,
 } from "./gallery-model.mjs";
 import UploadModal from "./UploadModal.jsx";
 import PhotoLightbox from "./PhotoLightbox.jsx";
+import { useAccessibleDialog } from "./useAccessibleDialog.js";
+import { fetchPhotoPage, mergeChronologicalPhotos } from "./photo-client.mjs";
+import { adminApi } from "./admin-api.mjs";
+import { useMemoriesState } from "./MemoriesState.jsx";
 
 const COPY = {
   zh: {
@@ -52,6 +53,7 @@ const COPY = {
     resetZoom: "重設縮放",
     zoomControls: "照片縮放控制",
     zoomHint: "滾輪、雙擊或雙指縮放",
+    photoErrorTitle: "原圖載入失敗",
     retry: "重新載入",
     errorTitle: "檔案館暫時無法開啟",
     errorBody: "請稍後再試，已收藏的照片不會受到影響。",
@@ -61,7 +63,8 @@ const COPY = {
     closedBody: "管理員完成整理後會再次開放瀏覽。",
     language: "English",
     photosCount: "張照片",
-    adminHint: "流程資料夾會與 Google Drive 同步；生活照與訪客上傳為獨立大分類。",
+    adminHint:
+      "流程資料夾會與 Google Drive 同步；生活照與訪客上傳為獨立大分類。",
   },
   en: {
     archive: "The Leon & YehYeh Wedding Archive",
@@ -107,37 +110,20 @@ const COPY = {
     resetZoom: "Reset zoom",
     zoomControls: "Photo zoom controls",
     zoomHint: "Use the wheel, double-click, or pinch to zoom",
+    photoErrorTitle: "The full photo could not be loaded",
     retry: "Try again",
     errorTitle: "The archive is temporarily unavailable",
     errorBody: "Please try again later. Stored photos are not affected.",
     offlineTitle: "You are offline",
     offlineBody: "The archive will continue loading after you reconnect.",
     closedTitle: "The archive is temporarily closed",
-    closedBody:
-      "It will reopen after the administrators finish arranging it.",
+    closedBody: "It will reopen after the administrators finish arranging it.",
     language: "中文",
     photosCount: "photos",
     adminHint:
       "Wedding moment folders synchronize with Google Drive; Life photos and Guest uploads are separate top-level collections.",
   },
 };
-
-async function fetchAllPhotos() {
-  const photos = [];
-  let cursor = null;
-  let pages = 0;
-  do {
-    const query = new URLSearchParams({ limit: "100" });
-    if (cursor) query.set("cursor", cursor);
-    const response = await fetch(`/Memories/api/photos?${query}`);
-    if (!response.ok) throw new Error("Photo listing failed");
-    const page = await response.json();
-    photos.push(...(page.photos ?? []));
-    cursor = page.nextCursor ?? null;
-    pages += 1;
-  } while (cursor && pages < 20);
-  return photos;
-}
 
 function Icon({ name }) {
   const paths = {
@@ -191,25 +177,25 @@ function Icon({ name }) {
 
 function Modal({ title, children, closeLabel, onClose }) {
   const closeRef = useRef(null);
-  useEffect(() => {
-    closeRef.current?.focus();
-    const onKey = (event) => event.key === "Escape" && onClose();
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [onClose]);
+  const dialogRef = useRef(null);
+  useAccessibleDialog({
+    containerRef: dialogRef,
+    initialFocusRef: closeRef,
+    onClose,
+  });
   return (
     <div
       className="modal-backdrop"
       role="presentation"
-      onMouseDown={(event) =>
-        event.target === event.currentTarget && onClose()
-      }
+      onMouseDown={(event) => event.target === event.currentTarget && onClose()}
     >
       <section
+        ref={dialogRef}
         className="paper-modal"
         role="dialog"
         aria-modal="true"
         aria-labelledby="dialog-title"
+        tabIndex="-1"
       >
         <button
           ref={closeRef}
@@ -242,43 +228,118 @@ function StateCard({ icon, title, body, action }) {
 }
 
 export default function App() {
+  const {
+    activeCollection,
+    adminAuthenticated,
+    albumOpen,
+    lang,
+    markPhotosChanged,
+    modal,
+    openUpload,
+    photoRevision,
+    primaryNavigationVisible,
+    processes,
+    recordArchiveTitleTap,
+    selectCollection,
+    setAdminAuthenticated,
+    setAlbumOpen,
+    setLanguage,
+    setModal,
+  } = useMemoriesState();
   const params = new URLSearchParams(window.location.search);
   const runtimeState = params.get("state") ?? "ready";
   const useMockFallback = import.meta.env.DEV || params.get("demo") === "1";
-  const [lang, setLang] = useState(() =>
-    localStorage.getItem("memories-language") === "en" ? "en" : "zh",
-  );
-  const [processes, setProcesses] = useState(PROCESS_DEFINITIONS);
-  const [activeCollection, setActiveCollection] = useState("wedding");
   const [activeFilter, setActiveFilter] = useState("all");
-  const [adminMode, setAdminMode] = useState(false);
-  const [pageSize, setPageSize] = useState(12);
   const [selectedPhotoId, setSelectedPhotoId] = useState(null);
-  const [modal, setModal] = useState(null);
   const [remotePhotos, setRemotePhotos] = useState(null);
+  const [nextCursor, setNextCursor] = useState(null);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [galleryError, setGalleryError] = useState(false);
-  const [photoAssignments, setPhotoAssignments] = useState(
-    () => new Map(MOCK_PHOTOS.map((photo) => [photo.id, photo.processIds])),
+  const [isOnline, setIsOnline] = useState(() => navigator.onLine !== false);
+  const [connectionRevision, setConnectionRevision] = useState(0);
+  const [deletingPhotoId, setDeletingPhotoId] = useState(null);
+  const [selectedAdminPhotoIds, setSelectedAdminPhotoIds] = useState(
+    () => new Set(),
   );
+  const [bulkTrashBusy, setBulkTrashBusy] = useState(false);
   const openerRef = useRef(null);
+  const galleryRef = useRef(null);
+  const processSectionRef = useRef(null);
+  const previousCollectionRef = useRef(activeCollection);
+  const photoRequestGenerationRef = useRef(0);
+  const loadMoreControllerRef = useRef(null);
   const t = COPY[lang];
 
   useEffect(() => {
+    const generation = photoRequestGenerationRef.current + 1;
+    photoRequestGenerationRef.current = generation;
+    loadMoreControllerRef.current?.abort();
+    loadMoreControllerRef.current = null;
+    setLoadingMore(false);
     if (runtimeState !== "ready") return undefined;
-    let cancelled = false;
-    fetchAllPhotos()
-      .then((photos) => {
-        if (cancelled) return;
-        if (photos.length > 0 || !useMockFallback) setRemotePhotos(photos);
+    const controller = new AbortController();
+    setRemotePhotos(null);
+    setNextCursor(null);
+    setGalleryError(false);
+    const processId =
+      activeCollection === "wedding" && activeFilter !== "all"
+        ? activeFilter
+        : null;
+    fetchPhotoPage(
+      { collection: activeCollection, processId, limit: 12 },
+      { signal: controller.signal },
+    )
+      .then((page) => {
+        if (
+          controller.signal.aborted ||
+          generation !== photoRequestGenerationRef.current
+        ) {
+          return;
+        }
+        if (page.photos.length > 0 || !useMockFallback) {
+          setRemotePhotos(mergeChronologicalPhotos(page.photos));
+        }
+        setNextCursor(page.nextCursor);
         setGalleryError(false);
       })
-      .catch(() => {
-        if (!cancelled && !useMockFallback) setGalleryError(true);
+      .catch((error) => {
+        if (
+          controller.signal.aborted ||
+          generation !== photoRequestGenerationRef.current
+        ) {
+          return;
+        }
+        if (error?.code === "ALBUM_CLOSED") {
+          setAlbumOpen(false);
+          setGalleryError(false);
+        } else if (!useMockFallback) {
+          setGalleryError(true);
+        }
       });
-    return () => {
-      cancelled = true;
+    return () => controller.abort();
+  }, [
+    activeCollection,
+    activeFilter,
+    runtimeState,
+    useMockFallback,
+    connectionRevision,
+    photoRevision,
+    adminAuthenticated,
+  ]);
+
+  useEffect(() => {
+    const online = () => {
+      setIsOnline(true);
+      setConnectionRevision((value) => value + 1);
     };
-  }, [runtimeState, useMockFallback]);
+    const offline = () => setIsOnline(false);
+    window.addEventListener("online", online);
+    window.addEventListener("offline", offline);
+    return () => {
+      window.removeEventListener("online", online);
+      window.removeEventListener("offline", offline);
+    };
+  }, []);
 
   const sourcePhotos = remotePhotos ?? (useMockFallback ? MOCK_PHOTOS : []);
   const photos = useMemo(
@@ -287,19 +348,15 @@ export default function App() {
         ...photo,
         collection:
           photo.collection ?? (photo.source === "guest" ? "guest" : "wedding"),
-        processIds:
-          photoAssignments.get(photo.id) ?? photo.processIds ?? [],
+        processIds: photo.processIds ?? [],
       })),
-    [sourcePhotos, photoAssignments],
+    [sourcePhotos],
   );
   const filtered = useMemo(
     () => filterPhotos(photos, activeFilter, activeCollection),
     [photos, activeFilter, activeCollection],
   );
-  const visible = useMemo(
-    () => pagePhotos(filtered, pageSize, 0).items,
-    [filtered, pageSize],
-  );
+  const visible = filtered;
   const selectedIndex = selectedPhotoId
     ? filtered.findIndex((photo) => photo.id === selectedPhotoId)
     : -1;
@@ -326,13 +383,59 @@ export default function App() {
         : "The Leon & YehYeh Wedding Archive";
   }, [lang]);
 
+  const queueGalleryScroll = () => {
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        const gallery = galleryRef.current;
+        if (!gallery) return;
+        const stickyHeight =
+          processSectionRef.current?.getBoundingClientRect().height ?? 0;
+        const top =
+          window.scrollY +
+          gallery.getBoundingClientRect().top -
+          stickyHeight -
+          10;
+        window.scrollTo({ top: Math.max(0, top), behavior: "smooth" });
+      });
+    });
+  };
+
+  useEffect(() => {
+    if (previousCollectionRef.current === activeCollection) return;
+    previousCollectionRef.current = activeCollection;
+    setActiveFilter("all");
+    setSelectedPhotoId(null);
+    queueGalleryScroll();
+  }, [activeCollection]);
+
+  useEffect(() => {
+    if (
+      activeFilter !== "all" &&
+      !processes.some((process) => process.id === activeFilter)
+    ) {
+      setActiveFilter("all");
+    }
+  }, [activeFilter, processes]);
+
+  useEffect(() => {
+    setSelectedAdminPhotoIds((current) => {
+      const visibleIds = new Set(
+        adminAuthenticated ? visible.map((photo) => photo.id) : [],
+      );
+      const next = new Set(
+        [...current].filter((photoId) => visibleIds.has(photoId)),
+      );
+      return next.size === current.size ? current : next;
+    });
+  }, [adminAuthenticated, visible]);
+
   const switchLanguage = () => {
     const next = lang === "zh" ? "en" : "zh";
-    setLang(next);
-    localStorage.setItem("memories-language", next);
+    setLanguage(next);
   };
 
   const chooseNav = (item) => {
+    if (!albumOpen && item.id === "upload") return;
     if (item.id === "all") {
       document
         .getElementById("archive-gallery")
@@ -340,67 +443,151 @@ export default function App() {
       return;
     }
     if (item.id === "upload") {
-      setModal("upload");
+      openUpload();
       return;
     }
     setModal("coming");
   };
 
   const chooseCollection = (collectionId) => {
-    setActiveCollection(collectionId);
-    setActiveFilter("all");
-    setPageSize(12);
-    setSelectedPhotoId(null);
+    selectCollection(collectionId);
+  };
+
+  const loadMorePhotos = async () => {
+    if (!nextCursor || loadingMore) return;
+    const generation = photoRequestGenerationRef.current;
+    const controller = new AbortController();
+    loadMoreControllerRef.current?.abort();
+    loadMoreControllerRef.current = controller;
+    setLoadingMore(true);
+    setGalleryError(false);
+    const processId =
+      activeCollection === "wedding" && activeFilter !== "all"
+        ? activeFilter
+        : null;
+    try {
+      const page = await fetchPhotoPage(
+        {
+          collection: activeCollection,
+          processId,
+          limit: 12,
+          cursor: nextCursor,
+        },
+        { signal: controller.signal },
+      );
+      if (
+        controller.signal.aborted ||
+        generation !== photoRequestGenerationRef.current
+      ) {
+        return;
+      }
+      setRemotePhotos((current) => {
+        const existing = current ?? [];
+        return mergeChronologicalPhotos(existing, page.photos);
+      });
+      setNextCursor(page.nextCursor);
+    } catch (error) {
+      if (
+        controller.signal.aborted ||
+        generation !== photoRequestGenerationRef.current
+      ) {
+        return;
+      }
+      if (error?.code === "ALBUM_CLOSED") setAlbumOpen(false);
+      else setGalleryError(true);
+    } finally {
+      if (loadMoreControllerRef.current === controller) {
+        loadMoreControllerRef.current = null;
+        setLoadingMore(false);
+      }
+    }
   };
 
   const handleUploaded = (photo) => {
     setRemotePhotos((current) => {
       const base = current ?? (useMockFallback ? MOCK_PHOTOS : []);
-      return [photo, ...base.filter((item) => item.id !== photo.id)];
+      return mergeChronologicalPhotos(base, [photo]);
     });
   };
 
-  const renameProcess = (index) => {
-    const current = processes[index];
-    const nextName = window.prompt(
-      lang === "zh" ? "新的流程名稱" : "New moment name",
-      current[lang],
-    );
-    if (!nextName?.trim()) return;
-    setProcesses((items) =>
-      items.map((item, itemIndex) =>
-        itemIndex === index ? { ...item, [lang]: nextName.trim() } : item,
-      ),
-    );
+  const trashPhotos = async (photoIds, confirmation) => {
+    const ids = [...new Set(photoIds)].filter(Boolean);
+    if (ids.length === 0 || !window.confirm(confirmation)) return;
+
+    if (ids.length === 1) setDeletingPhotoId(ids[0]);
+    else setBulkTrashBusy(true);
+    const trashed = [];
+    const failures = [];
+    try {
+      for (const photoId of ids) {
+        try {
+          await adminApi(
+            `/Memories/api/admin/photos/${encodeURIComponent(photoId)}`,
+            { method: "DELETE" },
+          );
+          trashed.push(photoId);
+        } catch (error) {
+          failures.push(error);
+          if (error?.code === "UNAUTHORIZED" || error?.status === 401) {
+            setAdminAuthenticated(false);
+            break;
+          }
+        }
+      }
+
+      if (trashed.length > 0) {
+        const trashedIds = new Set(trashed);
+        setRemotePhotos(
+          (current) =>
+            current?.filter((photo) => !trashedIds.has(photo.id)) ?? current,
+        );
+        setSelectedAdminPhotoIds((current) => {
+          const next = new Set(current);
+          trashed.forEach((photoId) => next.delete(photoId));
+          return next;
+        });
+        markPhotosChanged();
+      }
+
+      if (failures.length > 0) {
+        const firstMessage =
+          failures[0] instanceof Error ? failures[0].message : "移至垃圾桶失敗";
+        window.alert(
+          `已移至垃圾桶 ${trashed.length} 張，${failures.length} 張失敗。\n${firstMessage}`,
+        );
+      } else if (ids.length > 1) {
+        window.alert(`已將 ${trashed.length} 張照片移至七天垃圾桶。`);
+      }
+    } finally {
+      setDeletingPhotoId(null);
+      setBulkTrashBusy(false);
+    }
   };
 
-  const addProcess = () => {
-    const label = window.prompt(
-      lang === "zh" ? "新增流程名稱" : "New moment name",
+  const trashPhoto = (photoId) =>
+    trashPhotos(
+      [photoId],
+      "確定將這張照片移至垃圾桶？照片會立即從相簿隱藏，七天內可由管理員還原。",
     );
-    if (!label?.trim()) return;
-    const id = `custom-${Date.now()}`;
-    setProcesses((items) => [
-      ...items,
-      { id, zh: label.trim(), en: label.trim() },
-    ]);
-    setActiveCollection("wedding");
-    setActiveFilter(id);
-  };
 
-  const toggleAssignment = (photoId) => {
-    if (activeCollection !== "wedding" || activeFilter === "all") return;
-    setPhotoAssignments((current) => {
-      const next = new Map(current);
-      const assignments = next.get(photoId) ?? [];
-      next.set(
-        photoId,
-        assignments.includes(activeFilter)
-          ? assignments.filter((id) => id !== activeFilter)
-          : [...assignments, activeFilter],
-      );
+  const toggleAdminPhoto = (photoId, selected) => {
+    setSelectedAdminPhotoIds((current) => {
+      const next = new Set(current);
+      if (selected) next.add(photoId);
+      else next.delete(photoId);
       return next;
     });
+  };
+
+  const finishPhotoManagement = async () => {
+    try {
+      await adminApi("/Memories/api/admin/session", { method: "DELETE" });
+    } catch {
+      // Local state still exits management when the network is unavailable.
+    } finally {
+      setSelectedAdminPhotoIds(new Set());
+      setAdminAuthenticated(false);
+    }
   };
 
   const closeLightbox = () => {
@@ -409,6 +596,9 @@ export default function App() {
   };
 
   const stateView = (() => {
+    if (runtimeState === "offline" || !isOnline) {
+      return <StateCard icon="⌁" title={t.offlineTitle} body={t.offlineBody} />;
+    }
     if (runtimeState === "loading" || galleryLoading) {
       return <StateCard icon="◌" title={t.loading} body={t.subtitle} />;
     }
@@ -429,10 +619,7 @@ export default function App() {
         />
       );
     }
-    if (runtimeState === "offline") {
-      return <StateCard icon="⌁" title={t.offlineTitle} body={t.offlineBody} />;
-    }
-    if (runtimeState === "closed") {
+    if (runtimeState === "closed" || (!albumOpen && !adminAuthenticated)) {
       return <StateCard icon="—" title={t.closedTitle} body={t.closedBody} />;
     }
     return null;
@@ -442,8 +629,9 @@ export default function App() {
     if (activeCollection === "guest") return t.guest;
     if (activeCollection === "life") return t.life;
     return (
-      processes.find((process) => photo.processIds.includes(process.id))?.[lang] ??
-      t.allProcesses
+      processes.find((process) => photo.processIds.includes(process.id))?.[
+        lang
+      ] ?? t.allProcesses
     );
   };
 
@@ -455,13 +643,6 @@ export default function App() {
           <button
             className="quiet-button"
             type="button"
-            onClick={() => setAdminMode((value) => !value)}
-          >
-            {adminMode ? t.leaveAdmin : t.admin}
-          </button>
-          <button
-            className="quiet-button"
-            type="button"
             onClick={switchLanguage}
             aria-label={t.language}
           >
@@ -469,7 +650,12 @@ export default function App() {
           </button>
         </div>
         <p className="eyebrow">LEON & YEHY · WEDDING ARCHIVE</p>
-        <h1>{t.archive}</h1>
+        <h1
+          onClick={recordArchiveTitleTap}
+          aria-label={`${t.archive}. Administrator access is hidden.`}
+        >
+          {t.archive}
+        </h1>
         <p className="archive-date">{t.date}</p>
         <p className="archive-subtitle">{t.subtitle}</p>
         <div className="botanical-rule" aria-hidden="true">
@@ -478,7 +664,7 @@ export default function App() {
       </header>
 
       <nav
-        className="primary-nav"
+        className={`primary-nav ${primaryNavigationVisible ? "" : "is-hidden"}`}
         aria-label={lang === "zh" ? "相簿導覽" : "Archive navigation"}
       >
         {NAV_ITEMS.map((item) => (
@@ -496,7 +682,11 @@ export default function App() {
       </nav>
 
       <main>
-        <section className="process-section" aria-labelledby="collection-heading">
+        <section
+          ref={processSectionRef}
+          className="process-section"
+          aria-labelledby="collection-heading"
+        >
           <div className="section-heading">
             <div>
               <p className="eyebrow">PHOTO COLLECTIONS</p>
@@ -507,7 +697,11 @@ export default function App() {
             </p>
           </div>
 
-          <div className="collection-tabs" role="list" aria-label={t.categories}>
+          <div
+            className="collection-tabs"
+            role="list"
+            aria-label={t.categories}
+          >
             {COLLECTION_DEFINITIONS.map((collection) => (
               <button
                 key={collection.id}
@@ -534,7 +728,7 @@ export default function App() {
                 className={`process-chip ${activeFilter === "all" ? "active" : ""}`}
                 onClick={() => {
                   setActiveFilter("all");
-                  setPageSize(12);
+                  queueGalleryScroll();
                 }}
               >
                 {t.allProcesses}
@@ -548,7 +742,7 @@ export default function App() {
                   }`}
                   onClick={() => {
                     setActiveFilter(process.id);
-                    setPageSize(12);
+                    queueGalleryScroll();
                   }}
                 >
                   <span>{String(index + 1).padStart(2, "0")}</span>
@@ -559,64 +753,8 @@ export default function App() {
           )}
         </section>
 
-        {adminMode && (
-          <section className="admin-panel" aria-labelledby="admin-heading">
-            <div>
-              <p className="eyebrow">ARCHIVE DESK</p>
-              <h2 id="admin-heading">{t.processEditor}</h2>
-              <p>{t.adminHint}</p>
-            </div>
-            <button className="button primary" type="button" onClick={addProcess}>
-              ＋ {t.addProcess}
-            </button>
-            <div className="admin-process-list">
-              {processes.map((process, index) => (
-                <article key={process.id} className="admin-process-row">
-                  <span>{String(index + 1).padStart(2, "0")}</span>
-                  <strong>{process[lang]}</strong>
-                  <div>
-                    <button
-                      type="button"
-                      disabled={index === 0}
-                      onClick={() =>
-                        setProcesses((items) => moveItem(items, index, -1))
-                      }
-                      aria-label={t.moveLeft}
-                    >
-                      ←
-                    </button>
-                    <button
-                      type="button"
-                      disabled={index === processes.length - 1}
-                      onClick={() =>
-                        setProcesses((items) => moveItem(items, index, 1))
-                      }
-                      aria-label={t.moveRight}
-                    >
-                      →
-                    </button>
-                    <button type="button" onClick={() => renameProcess(index)}>
-                      {t.rename}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setProcesses((items) =>
-                          items.filter((_, itemIndex) => itemIndex !== index),
-                        );
-                        if (activeFilter === process.id) setActiveFilter("all");
-                      }}
-                    >
-                      {t.remove}
-                    </button>
-                  </div>
-                </article>
-              ))}
-            </div>
-          </section>
-        )}
-
         <section
+          ref={galleryRef}
           id="archive-gallery"
           className="gallery-section"
           aria-live="polite"
@@ -628,12 +766,36 @@ export default function App() {
               <>
                 <div className="masonry-grid">
                   {visible.map((photo, index) => {
-                    const assigned =
-                      activeCollection === "wedding" &&
-                      activeFilter !== "all" &&
-                      photo.processIds.includes(activeFilter);
                     return (
-                      <article className="photo-card" key={photo.id}>
+                      <article
+                        className={`photo-card ${
+                          adminAuthenticated ? "admin-photo-manage" : ""
+                        }`}
+                        data-admin-selected={
+                          selectedAdminPhotoIds.has(photo.id)
+                            ? "true"
+                            : undefined
+                        }
+                        key={photo.id}
+                      >
+                        {adminAuthenticated && (
+                          <label
+                            className={`admin-photo-selector ${
+                              bulkTrashBusy ? "is-disabled" : ""
+                            }`}
+                            aria-label="選取這張照片進行批次管理"
+                          >
+                            <input
+                              type="checkbox"
+                              checked={selectedAdminPhotoIds.has(photo.id)}
+                              disabled={bulkTrashBusy}
+                              onChange={(event) =>
+                                toggleAdminPhoto(photo.id, event.target.checked)
+                              }
+                            />
+                            <span aria-hidden="true">✓</span>
+                          </label>
+                        )}
                         <button
                           type="button"
                           className="photo-open"
@@ -645,8 +807,11 @@ export default function App() {
                         >
                           <img
                             src={photo.thumbnailUrl}
+                            srcSet={photo.thumbnailSrcSet}
+                            sizes="(max-width: 560px) 50vw, (max-width: 900px) 33vw, 25vw"
                             alt={`${t.photo} ${index + 1}`}
-                            loading="lazy"
+                            loading={index < 4 ? "eager" : "lazy"}
+                            fetchPriority={index === 0 ? "high" : "auto"}
                             decoding="async"
                             width={photo.width}
                             height={photo.height}
@@ -659,32 +824,90 @@ export default function App() {
                           <span>{photoCollectionLabel(photo)}</span>
                           <small>{photo.uploaderName}</small>
                         </footer>
-                        {adminMode &&
-                          activeCollection === "wedding" &&
-                          activeFilter !== "all" && (
-                            <button
-                              className="assignment-button"
-                              type="button"
-                              onClick={() => toggleAssignment(photo.id)}
-                            >
-                              {assigned
-                                ? `− ${t.removeFrom}`
-                                : `＋ ${t.addTo}`}
-                            </button>
-                          )}
+                        {adminAuthenticated && (
+                          <button
+                            className="admin-delete-photo"
+                            type="button"
+                            disabled={deletingPhotoId === photo.id}
+                            onClick={() => void trashPhoto(photo.id)}
+                            aria-label="將這張照片移至七天垃圾桶"
+                          >
+                            {deletingPhotoId === photo.id
+                              ? "移動中…"
+                              : "移至垃圾桶"}
+                          </button>
+                        )}
                       </article>
                     );
                   })}
                 </div>
-                {visible.length < filtered.length && (
+                {nextCursor && (
                   <button
                     className="load-more"
                     type="button"
-                    onClick={() => setPageSize((size) => size + 12)}
+                    disabled={loadingMore}
+                    onClick={() => void loadMorePhotos()}
                   >
-                    {t.loadMore}
+                    {loadingMore ? t.loading : t.loadMore}
                     <span>↓</span>
                   </button>
+                )}
+                {adminAuthenticated && visible.length > 0 && (
+                  <aside
+                    className="admin-photo-bulk-toolbar"
+                    aria-label="管理員照片批次操作"
+                  >
+                    <strong aria-live="polite">
+                      已選取 {selectedAdminPhotoIds.size} 張
+                    </strong>
+                    <button
+                      type="button"
+                      disabled={
+                        bulkTrashBusy ||
+                        selectedAdminPhotoIds.size === visible.length
+                      }
+                      onClick={() =>
+                        setSelectedAdminPhotoIds(
+                          new Set(visible.map((photo) => photo.id)),
+                        )
+                      }
+                    >
+                      全選已載入照片
+                    </button>
+                    <button
+                      type="button"
+                      disabled={
+                        bulkTrashBusy || selectedAdminPhotoIds.size === 0
+                      }
+                      onClick={() => setSelectedAdminPhotoIds(new Set())}
+                    >
+                      取消選取
+                    </button>
+                    <button
+                      className="danger"
+                      type="button"
+                      disabled={
+                        bulkTrashBusy || selectedAdminPhotoIds.size === 0
+                      }
+                      onClick={() =>
+                        void trashPhotos(
+                          [...selectedAdminPhotoIds],
+                          `確定將選取的 ${selectedAdminPhotoIds.size} 張照片移至垃圾桶？照片會立即隱藏，七天內可由管理員還原。`,
+                        )
+                      }
+                    >
+                      {bulkTrashBusy
+                        ? "移動中…"
+                        : `移至垃圾桶（${selectedAdminPhotoIds.size}）`}
+                    </button>
+                    <button
+                      type="button"
+                      disabled={bulkTrashBusy}
+                      onClick={() => void finishPhotoManagement()}
+                    >
+                      結束照片管理
+                    </button>
+                  </aside>
                 )}
               </>
             ))}
@@ -742,6 +965,8 @@ export default function App() {
             resetZoom: t.resetZoom,
             zoomControls: t.zoomControls,
             zoomHint: t.zoomHint,
+            errorTitle: t.photoErrorTitle,
+            retry: t.retry,
           }}
         />
       )}

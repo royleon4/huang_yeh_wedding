@@ -53,9 +53,17 @@ Override the interval with `MEMORIES_DRIVE_SYNC_INTERVAL_MS`, with a minimum of 
 
 ## Website administration
 
-Tap the archive title five times within 3.5 seconds to open the temporary Phase 1 administrator login. The panel requires the production secret `MEMORIES_ADMIN_TOKEN`. The entered token remains only in the current browser tab's `sessionStorage`; it is not built into the frontend or committed to the repository.
+Tap the archive title five times within 3.5 seconds to open the administrator
+login. The password is read from the production secret
+`MEMORIES_ADMIN_TOKEN` and is exchanged only at the session endpoint for a
+30-minute `HttpOnly`, `Secure`, `SameSite=Strict` cookie. The raw password is
+not retained in `sessionStorage`, `localStorage`, the frontend bundle, or the
+repository.
 
-The final identity provider remains ticket #6.
+The authenticated panel can synchronize and edit processes, manage guest
+batches, close or reopen the album, move one or several photos to the
+recoverable seven-day trash, and restore photos before the retention boundary.
+Administrator actions are rate-limited and written to the audit log.
 
 ## Production settings
 

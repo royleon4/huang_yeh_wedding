@@ -35,6 +35,20 @@ test("serves the React archive entry document", async () => {
     const response = await fetch(`${origin}/Memories/`);
     assert.equal(response.status, 200);
     assert.match(response.headers.get("content-type") ?? "", /^text\/html/);
+    assert.match(
+      response.headers.get("content-security-policy") ?? "",
+      /default-src 'self'/,
+    );
+    assert.match(
+      response.headers.get("content-security-policy") ?? "",
+      /frame-ancestors 'none'/,
+    );
+    assert.equal(response.headers.get("referrer-policy"), "no-referrer");
+    assert.match(
+      response.headers.get("permissions-policy") ?? "",
+      /camera=\(\)/,
+    );
+    assert.equal(response.headers.get("x-frame-options"), "DENY");
     const html = await response.text();
     assert.match(html, /詠葉婚禮照片檔案館/);
     assert.match(html, /id="root"/);
@@ -45,6 +59,7 @@ test("serves an isolated health endpoint", async () => {
   await withServer(async (origin) => {
     const response = await fetch(`${origin}/Memories/api/health`);
     assert.equal(response.status, 200);
+    assert.equal(response.headers.get("referrer-policy"), "no-referrer");
     assert.deepEqual(await response.json(), {
       status: "ok",
       service: "memories-album",
@@ -62,7 +77,10 @@ test("validates an admin session without initializing Drive or the database", as
         headers: { Authorization: "Bearer correct-password" },
       });
       assert.equal(accepted.status, 200);
-      assert.deepEqual(await accepted.json(), { authenticated: true });
+      assert.deepEqual(await accepted.json(), {
+        authenticated: true,
+        expiresInSeconds: 1800,
+      });
 
       const rejected = await fetch(`${origin}/Memories/api/admin/session`, {
         method: "POST",
@@ -103,7 +121,9 @@ test("reports missing admin configuration as unavailable, not a wrong password",
 
 test("rejects unsupported admin session methods without hanging", async () => {
   await withServer(async (origin) => {
-    const response = await fetch(`${origin}/Memories/api/admin/session`);
+    const response = await fetch(`${origin}/Memories/api/admin/session`, {
+      method: "OPTIONS",
+    });
     assert.equal(response.status, 404);
   });
 });

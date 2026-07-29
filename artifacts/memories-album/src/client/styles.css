@@ -1,9 +1,7 @@
-@import url('https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@400;500;600&family=Playfair+Display:ital,wght@0,500;0,600;1,500&display=swap');
-
 :root {
   color: #233c32;
   background: #f3eee2;
-  font-family: "Noto Serif TC", "Songti TC", Georgia, serif;
+  font-family: "Songti TC", "Noto Serif CJK TC", Georgia, serif;
   font-synthesis: none;
   --paper: #f3eee2;
   --paper-deep: #e9e0d0;
@@ -96,12 +94,12 @@ main { width: min(1280px, calc(100% - 1.5rem)); margin: 0 auto; }
 .archive-footer p { margin: .45rem 0 0; }
 .archive-footer small { font-family: Arial, sans-serif; font-size: .62rem; letter-spacing: .15em; text-transform: uppercase; }
 
-.modal-backdrop, .lightbox { position: fixed; inset: 0; z-index: 100; display: grid; place-items: center; padding: 1rem; background: rgba(20,35,29,.78); backdrop-filter: blur(9px); }
-.paper-modal { position: relative; width: min(520px, 100%); border: 1px solid rgba(255,255,255,.45); border-radius: 1.4rem; background: #f6f1e7; padding: 2rem; box-shadow: 0 30px 100px rgba(0,0,0,.28); }
+.modal-backdrop, .lightbox { position: fixed; inset: 0; z-index: 200; display: grid; place-items: center; width: 100%; height: 100dvh; overflow: hidden; padding: max(1rem, env(safe-area-inset-top)) max(1rem, env(safe-area-inset-right)) max(1rem, env(safe-area-inset-bottom)) max(1rem, env(safe-area-inset-left)); background: rgba(20,35,29,.78); backdrop-filter: blur(9px); }
+.paper-modal { position: relative; width: min(520px, 100%); max-height: calc(100dvh - max(2rem, env(safe-area-inset-top) + env(safe-area-inset-bottom))); overflow: auto; overscroll-behavior: contain; border: 1px solid rgba(255,255,255,.45); border-radius: 1.4rem; background: #f6f1e7; padding: 2rem; box-shadow: 0 30px 100px rgba(0,0,0,.28); }
 .paper-modal h2 { margin: 0; font-size: 2rem; }
 .paper-modal p:not(.eyebrow) { color: var(--muted); line-height: 1.9; }
 .icon-button, .modal-close { border: 0; background: transparent; cursor: pointer; }
-.modal-close { position: absolute; right: .8rem; top: .6rem; font-size: 1.8rem; }
+.modal-close { position: absolute; right: .6rem; top: .45rem; min-width: 2.75rem; min-height: 2.75rem; font-size: 1.8rem; }
 .lightbox { grid-template-columns: auto minmax(0,1fr) auto; background: rgba(14,27,22,.94); color: #fff; }
 .lightbox figure { max-width: min(1080px, 82vw); max-height: 91vh; margin: 0; display: grid; gap: .6rem; }
 .lightbox img { display: block; max-width: 100%; max-height: 82vh; margin: auto; border-radius: .45rem; box-shadow: 0 30px 90px #000; }

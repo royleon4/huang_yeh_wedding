@@ -4,6 +4,7 @@ import {
   MAX_ZOOM,
   MIN_ZOOM,
   adjacentPhotoIndex,
+  clampPanOffset,
   clampZoom,
   isHorizontalSwipe,
 } from "../src/client/lightbox-model.mjs";
@@ -13,6 +14,31 @@ test("clamps photo zoom between the supported bounds", () => {
   assert.equal(clampZoom(2.5), 2.5);
   assert.equal(clampZoom(99), MAX_ZOOM);
   assert.equal(clampZoom(Number.NaN), MIN_ZOOM);
+});
+
+test("keeps a zoomed photo within the visible stage", () => {
+  assert.deepEqual(
+    clampPanOffset({
+      offset: { x: 500, y: -500 },
+      zoom: 2,
+      imageWidth: 280,
+      imageHeight: 400,
+      stageWidth: 300,
+      stageHeight: 500,
+    }),
+    { x: 130, y: -150 },
+  );
+  assert.deepEqual(
+    clampPanOffset({
+      offset: { x: 20, y: 30 },
+      zoom: 1,
+      imageWidth: 280,
+      imageHeight: 400,
+      stageWidth: 300,
+      stageHeight: 500,
+    }),
+    { x: 0, y: 0 },
+  );
 });
 
 test("keeps left and right navigation inside the photo collection", () => {

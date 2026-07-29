@@ -2,6 +2,8 @@ import Busboy from "busboy";
 import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { toPublicPhoto } from "../photos/api.mjs";
 import { ImageValidationError } from "./image-processor.mjs";
+import { authorizeGuestBatch, hashManagementToken } from "./management-api.mjs";
+import { createFixedWindowRateLimiter } from "../admin/rate-limit.mjs";
 
 const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -182,7 +184,9 @@ export function parseSinglePhoto(
       if (settled) return;
       if (problem) return fail(problem);
       if (!record) {
-        return fail(new UploadApiError(400, "A photo is required", "PHOTO_REQUIRED"));
+        return fail(
+          new UploadApiError(400, "A photo is required", "PHOTO_REQUIRED"),
+        );
       }
       if (record.truncated) {
         return fail(
@@ -328,6 +332,14 @@ export function createGuestUploadApi({
   now = () => new Date(),
   createId = randomUUID,
   createToken = () => randomBytes(32).toString("base64url"),
+  batchRateLimiter = createFixedWindowRateLimiter({
+    limit: 20,
+    windowMs: 10 * 60_000,
+  }),
+  photoRateLimiter = createFixedWindowRateLimiter({
+    limit: 120,
+    windowMs: 60 * 60_000,
+  }),
 }) {
   if (!repository || !drive || !imageProcessor || !durableUploadRepository) {
     throw new Error(
@@ -346,6 +358,21 @@ export function createGuestUploadApi({
         request.method === "POST" &&
         url.pathname === "/Memories/api/upload-batches"
       ) {
+        const rate = batchRateLimiter.consume(request);
+        if (!rate.allowed) {
+          const retryAfterMs = rate.retryAfterSeconds * 1_000;
+          json(
+            response,
+            429,
+            {
+              error: "Too many upload batches",
+              code: "RATE_LIMITED",
+              retryAfterMs,
+            },
+            { "Retry-After": String(rate.retryAfterSeconds) },
+          );
+          return true;
+        }
         const body = await readJson(request);
         const uploaderName = normalizeUploaderName(body.uploaderName);
         if (
@@ -370,7 +397,7 @@ export function createGuestUploadApi({
           id,
           uploaderType: "guest",
           uploaderName,
-          tokenHash: hash(managementToken),
+          tokenHash: hashManagementToken(managementToken),
           status: "open",
           classification: classification.classification,
           classificationProcessId: classification.classificationProcessId,
@@ -389,6 +416,21 @@ export function createGuestUploadApi({
         /^\/Memories\/api\/upload-batches\/([^/]+)\/photos$/,
       );
       if (request.method === "POST" && photoMatch) {
+        const rate = photoRateLimiter.consume(request);
+        if (!rate.allowed) {
+          const retryAfterMs = rate.retryAfterSeconds * 1_000;
+          json(
+            response,
+            429,
+            {
+              error: "Too many photo uploads",
+              code: "RATE_LIMITED",
+              retryAfterMs,
+            },
+            { "Retry-After": String(rate.retryAfterSeconds) },
+          );
+          return true;
+        }
         const batchId = photoMatch[1];
         const token = bearerToken(request);
         if (!UUID_PATTERN.test(batchId) || !token) {
@@ -398,10 +440,7 @@ export function createGuestUploadApi({
             "BATCH_NOT_FOUND",
           );
         }
-        const batch = await repository.findUploadBatchByToken(
-          batchId,
-          hash(token),
-        );
+        const batch = await authorizeGuestBatch(request, repository, batchId);
         if (!batch) {
           throw new UploadApiError(
             404,
@@ -564,7 +603,11 @@ export function createGuestUploadApi({
             ...(retryAfterMs ? { retryAfterMs } : {}),
           },
           retryAfterMs
-            ? { "Retry-After": String(Math.max(1, Math.ceil(retryAfterMs / 1000))) }
+            ? {
+                "Retry-After": String(
+                  Math.max(1, Math.ceil(retryAfterMs / 1000)),
+                ),
+              }
             : {},
         );
         return true;

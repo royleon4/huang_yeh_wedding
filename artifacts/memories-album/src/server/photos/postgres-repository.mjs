@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { decodePhotoCursor, encodePhotoCursor } from "./cursor.mjs";
+import { trashRestoreDeadline } from "./trash-cleanup-service.mjs";
 
 export class PostgresPhotoRepository {
   constructor(pool) {
@@ -41,9 +42,353 @@ export class PostgresPhotoRepository {
     return result.rows[0] ? mapBatchRow(result.rows[0]) : null;
   }
 
+  async findUploadBatchForManagement(id) {
+    const result = await this.pool.query(
+      `SELECT id, uploader_type, uploader_name, management_token_hash, status,
+              classification, classification_process_id, created_at, updated_at
+       FROM memories_upload_batches
+       WHERE id = $1 AND uploader_type = 'guest'
+       LIMIT 1`,
+      [id],
+    );
+    return result.rows[0]
+      ? {
+          ...mapBatchRow(result.rows[0]),
+          tokenHash: result.rows[0].management_token_hash,
+        }
+      : null;
+  }
+
+  async rotateUploadBatchToken({
+    id,
+    expectedTokenHash,
+    tokenHash,
+    updatedAt,
+  }) {
+    const result = await this.pool.query(
+      `UPDATE memories_upload_batches
+       SET management_token_hash = $3, updated_at = $4
+       WHERE id = $1
+         AND management_token_hash = $2
+         AND uploader_type = 'guest'
+         AND status = 'open'
+       RETURNING id, uploader_type, uploader_name, status, classification,
+                 classification_process_id, created_at, updated_at`,
+      [id, expectedTokenHash, tokenHash, updatedAt],
+    );
+    return result.rows[0] ? mapBatchRow(result.rows[0]) : null;
+  }
+
+  async listAdminUploadBatches({ limit = 50 } = {}) {
+    const boundedLimit = Math.max(1, Math.min(Number(limit) || 50, 100));
+    const result = await this.pool.query(
+      `SELECT b.id, b.uploader_type, b.uploader_name, b.status,
+              b.classification, b.classification_process_id,
+              b.created_at, b.updated_at,
+              COUNT(p.id)::integer AS photo_count,
+              COUNT(p.id) FILTER (WHERE p.visibility = 'public')::integer
+                AS visible_photo_count,
+              COALESCE((
+                SELECT jsonb_object_agg(status, item_count)
+                FROM (
+                  SELECT status, COUNT(*)::integer AS item_count
+                  FROM memories_upload_items
+                  WHERE batch_id = b.id
+                  GROUP BY status
+                ) upload_states
+              ), '{}'::jsonb) AS upload_status_counts
+       FROM memories_upload_batches b
+       LEFT JOIN memories_photos p ON p.batch_id = b.id
+       GROUP BY b.id
+       ORDER BY b.created_at DESC, b.id DESC
+       LIMIT $1`,
+      [boundedLimit],
+    );
+    return result.rows.map((row) => ({
+      ...mapBatchRow(row),
+      photoCount: Number(row.photo_count),
+      visiblePhotoCount: Number(row.visible_photo_count),
+      uploadStatusCounts: row.upload_status_counts ?? {},
+    }));
+  }
+
+  async setUploadBatchStatus({ id, status, updatedAt }) {
+    const result = await this.pool.query(
+      `UPDATE memories_upload_batches
+       SET status = $2, updated_at = $3
+       WHERE id = $1 AND uploader_type = 'guest'
+       RETURNING id, uploader_type, uploader_name, status, classification,
+                 classification_process_id, created_at, updated_at`,
+      [id, status, updatedAt],
+    );
+    return result.rows[0] ? mapBatchRow(result.rows[0]) : null;
+  }
+
+  async regenerateUploadBatchToken({ id, tokenHash, updatedAt }) {
+    const result = await this.pool.query(
+      `UPDATE memories_upload_batches
+       SET management_token_hash = $2, status = 'open', updated_at = $3
+       WHERE id = $1 AND uploader_type = 'guest'
+       RETURNING id, uploader_type, uploader_name, status, classification,
+                 classification_process_id, created_at, updated_at`,
+      [id, tokenHash, updatedAt],
+    );
+    return result.rows[0] ? mapBatchRow(result.rows[0]) : null;
+  }
+
+  async listBatchPhotos(batchId) {
+    const result = await this.pool.query(
+      `SELECT p.*,
+        COALESCE(array_agg(mpp.process_id) FILTER (WHERE mpp.process_id IS NOT NULL), '{}') AS process_ids
+       FROM memories_photos p
+       LEFT JOIN memories_photo_processes mpp ON mpp.photo_id = p.id
+       WHERE p.batch_id = $1 AND p.visibility = 'public'
+       GROUP BY p.id
+       ORDER BY p.created_at ASC, p.id ASC`,
+      [batchId],
+    );
+    return result.rows.map((row) => mapPhotoRow(row, row.process_ids));
+  }
+
+  async trashBatchPhoto({ batchId, photoId, trashedAt }) {
+    return this.#trashPhotoForRetention({ batchId, photoId, trashedAt });
+  }
+
+  async trashPhotoForRetention({ photoId, trashedAt }) {
+    return this.#trashPhotoForRetention({ photoId, trashedAt });
+  }
+
+  async #trashPhotoForRetention({ batchId = null, photoId, trashedAt }) {
+    const client =
+      typeof this.pool.connect === "function"
+        ? await this.pool.connect()
+        : this.pool;
+    const restoreUntil = trashRestoreDeadline(trashedAt);
+    try {
+      await client.query("BEGIN");
+      const values = batchId
+        ? [photoId, trashedAt, batchId]
+        : [photoId, trashedAt];
+      const batchCondition = batchId ? "AND batch_id = $3" : "";
+      const result = await client.query(
+        `UPDATE memories_photos
+         SET visibility = 'trashed', trashed_at = $2, updated_at = $2
+         WHERE id = $1 AND visibility <> 'trashed' ${batchCondition}
+         RETURNING *`,
+        values,
+      );
+      if (!result.rows[0]) {
+        await client.query("ROLLBACK");
+        return null;
+      }
+      await client.query(
+        `INSERT INTO memories_trash_cleanup_jobs (
+           photo_id, eligible_at, status, attempt_count, lease_expires_at,
+           last_error_code, created_at, updated_at
+         ) VALUES ($1, $2, 'pending', 0, NULL, NULL, $3, $3)
+         ON CONFLICT (photo_id) DO UPDATE SET
+           eligible_at = EXCLUDED.eligible_at,
+           status = 'pending',
+           attempt_count = 0,
+           lease_expires_at = NULL,
+           last_error_code = NULL,
+           updated_at = EXCLUDED.updated_at`,
+        [photoId, restoreUntil, trashedAt],
+      );
+      await client.query("COMMIT");
+      return {
+        photo: mapPhotoRow(result.rows[0], []),
+        restoreUntil,
+      };
+    } catch (error) {
+      await client.query("ROLLBACK");
+      throw error;
+    } finally {
+      client.release?.();
+    }
+  }
+
+  async listTrashedPhotos({ limit = 100 } = {}) {
+    const boundedLimit = Math.max(1, Math.min(Number(limit) || 100, 100));
+    const result = await this.pool.query(
+      `SELECT p.*, j.eligible_at, j.status AS cleanup_status,
+              j.attempt_count AS cleanup_attempt_count,
+              COALESCE(
+                array_agg(mpp.process_id)
+                  FILTER (WHERE mpp.process_id IS NOT NULL),
+                '{}'
+              ) AS process_ids
+       FROM memories_photos p
+       JOIN memories_trash_cleanup_jobs j ON j.photo_id = p.id
+       LEFT JOIN memories_photo_processes mpp ON mpp.photo_id = p.id
+       WHERE p.visibility = 'trashed'
+       GROUP BY p.id, j.photo_id
+       ORDER BY p.trashed_at DESC, p.id DESC
+       LIMIT $1`,
+      [boundedLimit],
+    );
+    return result.rows.map((row) => ({
+      ...mapPhotoRow(row, row.process_ids),
+      trashedAt: new Date(row.trashed_at).toISOString(),
+      restoreUntil: new Date(row.eligible_at).toISOString(),
+      cleanupStatus: row.cleanup_status,
+      cleanupAttemptCount: Number(row.cleanup_attempt_count),
+    }));
+  }
+
+  async findTrashedPhotoForAdmin(photoId) {
+    const result = await this.pool.query(
+      `SELECT p.*, j.eligible_at, j.status AS cleanup_status,
+              j.attempt_count AS cleanup_attempt_count,
+              COALESCE(
+                array_agg(mpp.process_id)
+                  FILTER (WHERE mpp.process_id IS NOT NULL),
+                '{}'
+              ) AS process_ids
+       FROM memories_photos p
+       JOIN memories_trash_cleanup_jobs j ON j.photo_id = p.id
+       LEFT JOIN memories_photo_processes mpp ON mpp.photo_id = p.id
+       WHERE p.id = $1 AND p.visibility = 'trashed'
+       GROUP BY p.id, j.photo_id`,
+      [photoId],
+    );
+    const row = result.rows[0];
+    return row
+      ? {
+          ...mapPhotoRow(row, row.process_ids),
+          trashedAt: new Date(row.trashed_at).toISOString(),
+          restoreUntil: new Date(row.eligible_at).toISOString(),
+          cleanupStatus: row.cleanup_status,
+          cleanupAttemptCount: Number(row.cleanup_attempt_count),
+        }
+      : null;
+  }
+
+  async restoreTrashedPhoto({ photoId, now }) {
+    const client =
+      typeof this.pool.connect === "function"
+        ? await this.pool.connect()
+        : this.pool;
+    try {
+      await client.query("BEGIN");
+      const result = await client.query(
+        `UPDATE memories_photos p
+         SET visibility = 'public', trashed_at = NULL, updated_at = $2
+         FROM memories_trash_cleanup_jobs j
+         WHERE p.id = $1
+           AND p.visibility = 'trashed'
+           AND j.photo_id = p.id
+           AND j.eligible_at > $2
+         RETURNING p.*`,
+        [photoId, now],
+      );
+      if (!result.rows[0]) {
+        await client.query("ROLLBACK");
+        return null;
+      }
+      await client.query(
+        "DELETE FROM memories_trash_cleanup_jobs WHERE photo_id = $1",
+        [photoId],
+      );
+      const processes = await client.query(
+        "SELECT process_id FROM memories_photo_processes WHERE photo_id = $1",
+        [photoId],
+      );
+      await client.query("COMMIT");
+      return mapPhotoRow(
+        result.rows[0],
+        processes.rows.map((row) => row.process_id),
+      );
+    } catch (error) {
+      await client.query("ROLLBACK");
+      throw error;
+    } finally {
+      client.release?.();
+    }
+  }
+
+  async claimExpiredTrash({
+    now,
+    limit = 20,
+    leaseExpiresAt = new Date(new Date(now).getTime() + 300_000).toISOString(),
+  }) {
+    const boundedLimit = Math.max(1, Math.min(Number(limit) || 20, 100));
+    const result = await this.pool.query(
+      `WITH eligible AS (
+         SELECT j.photo_id
+         FROM memories_trash_cleanup_jobs j
+         JOIN memories_photos p ON p.id = j.photo_id
+         WHERE p.visibility = 'trashed'
+           AND j.eligible_at <= $1
+           AND (
+             j.status IN ('pending', 'retry')
+             OR (j.status = 'processing' AND j.lease_expires_at <= $1)
+           )
+         ORDER BY j.eligible_at ASC, j.photo_id ASC
+         FOR UPDATE OF j SKIP LOCKED
+         LIMIT $2
+       )
+       UPDATE memories_trash_cleanup_jobs j
+       SET status = 'processing',
+           attempt_count = j.attempt_count + 1,
+           lease_expires_at = $3,
+           updated_at = $1
+       FROM eligible e, memories_photos p
+       WHERE j.photo_id = e.photo_id AND p.id = j.photo_id
+       RETURNING p.*, j.eligible_at`,
+      [now, boundedLimit, leaseExpiresAt],
+    );
+    return result.rows.map((row) => ({
+      ...mapPhotoRow(row, []),
+      trashedAt: new Date(row.trashed_at).toISOString(),
+      restoreUntil: new Date(row.eligible_at).toISOString(),
+    }));
+  }
+
+  async retryTrashCleanup({ photoId, errorCode, updatedAt }) {
+    const result = await this.pool.query(
+      `UPDATE memories_trash_cleanup_jobs
+       SET status = 'retry', lease_expires_at = NULL,
+           last_error_code = $2, updated_at = $3
+       WHERE photo_id = $1
+       RETURNING photo_id`,
+      [photoId, errorCode, updatedAt],
+    );
+    return result.rows[0] ?? null;
+  }
+
+  async completeTrashCleanup(photoId) {
+    const client =
+      typeof this.pool.connect === "function"
+        ? await this.pool.connect()
+        : this.pool;
+    try {
+      await client.query("BEGIN");
+      await client.query(
+        "DELETE FROM memories_upload_items WHERE photo_id = $1",
+        [photoId],
+      );
+      const result = await client.query(
+        `DELETE FROM memories_photos
+         WHERE id = $1 AND visibility = 'trashed'
+         RETURNING id`,
+        [photoId],
+      );
+      await client.query("COMMIT");
+      return Boolean(result.rows[0]);
+    } catch (error) {
+      await client.query("ROLLBACK");
+      throw error;
+    } finally {
+      client.release?.();
+    }
+  }
+
   async insertPhoto(photo) {
     const client =
-      typeof this.pool.connect === "function" ? await this.pool.connect() : this.pool;
+      typeof this.pool.connect === "function"
+        ? await this.pool.connect()
+        : this.pool;
     try {
       await client.query("BEGIN");
       const result = await client.query(
@@ -339,7 +684,8 @@ function mapPhotoRow(row, processIds = []) {
     contentVersion: row.content_version,
     source: row.uploader_type,
     uploaderName: row.uploader_name,
-    collection: row.collection ?? (row.uploader_type === "guest" ? "guest" : "wedding"),
+    collection:
+      row.collection ?? (row.uploader_type === "guest" ? "guest" : "wedding"),
     visibility: row.visibility,
     processingState: row.processing_state,
     processIds: [...processIds],

@@ -3,15 +3,21 @@ import test from "node:test";
 import {
   UploadClientError,
   retryFailedUploads,
+  selectUploadFiles,
   summarizeUploadResults,
   uploadQueue,
 } from "../src/client/upload-client.mjs";
 
-const files = [
-  { name: "one.jpg" },
-  { name: "two.jpg" },
-  { name: "three.jpg" },
-];
+const files = [{ name: "one.jpg" }, { name: "two.jpg" }, { name: "three.jpg" }];
+
+test("reports photos ignored beyond the selection limit", () => {
+  const selection = selectUploadFiles(
+    Array.from({ length: 32 }, (_, index) => ({ name: `${index}.jpg` })),
+  );
+  assert.equal(selection.accepted.length, 30);
+  assert.equal(selection.ignored.length, 2);
+  assert.equal(selection.ignored[0].name, "30.jpg");
+});
 
 function createBatch() {
   return Promise.resolve({
@@ -127,7 +133,8 @@ test("cancellation stops the remaining queue", async () => {
 test("requires a name and at least one selected photo", async () => {
   await assert.rejects(
     uploadQueue({ uploaderName: "", files: [], createBatchFn: createBatch }),
-    (error) => error.code === "PHOTO_REQUIRED" || error.code === "INVALID_UPLOADER_NAME",
+    (error) =>
+      error.code === "PHOTO_REQUIRED" || error.code === "INVALID_UPLOADER_NAME",
   );
 });
 

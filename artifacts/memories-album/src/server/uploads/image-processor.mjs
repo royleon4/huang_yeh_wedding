@@ -83,6 +83,70 @@ async function createThumbnailBuffer(bytes) {
 
 export function createImageProcessor() {
   return {
+    async sanitizePublicMedia({ bytes, mimeType }) {
+      assertSupportedMimeType(mimeType);
+      const metadata = await readMetadata(bytes);
+      const image = sharp(bytes, {
+        failOn: "error",
+        limitInputPixels: MAX_PIXELS,
+        sequentialRead: true,
+      }).rotate();
+      let pipeline;
+      let contentType;
+      if (metadata.format === "png") {
+        pipeline = image.png({ compressionLevel: 9, adaptiveFiltering: true });
+        contentType = "image/png";
+      } else if (metadata.format === "webp") {
+        pipeline = image.webp({ quality: 92, effort: 4 });
+        contentType = "image/webp";
+      } else {
+        pipeline = image.jpeg({ quality: 92, mozjpeg: true });
+        contentType = "image/jpeg";
+      }
+      try {
+        const result = await pipeline.toBuffer({ resolveWithObject: true });
+        return {
+          bytes: result.data,
+          contentType,
+          width: result.info.width,
+          height: result.info.height,
+        };
+      } catch {
+        throw new ImageValidationError(
+          "The public image could not be sanitized",
+        );
+      }
+    },
+
+    async createDisplayVariant({ bytes, width }) {
+      const boundedWidth = Math.max(160, Math.min(Number(width) || 960, 960));
+      try {
+        const result = await sharp(bytes, {
+          failOn: "error",
+          limitInputPixels: MAX_PIXELS,
+          sequentialRead: true,
+        })
+          .rotate()
+          .resize({
+            width: boundedWidth,
+            fit: "inside",
+            withoutEnlargement: true,
+          })
+          .webp({ quality: 78, effort: 4 })
+          .toBuffer({ resolveWithObject: true });
+        return {
+          bytes: result.data,
+          contentType: "image/webp",
+          width: result.info.width,
+          height: result.info.height,
+        };
+      } catch {
+        throw new ImageValidationError(
+          "The responsive thumbnail could not be generated",
+        );
+      }
+    },
+
     async createThumbnail({ bytes, mimeType }) {
       assertSupportedMimeType(mimeType);
       const metadata = await readMetadata(bytes);
@@ -130,7 +194,9 @@ export function createImageProcessor() {
 
       let normalized;
       try {
-        normalized = await originalPipeline.toBuffer({ resolveWithObject: true });
+        normalized = await originalPipeline.toBuffer({
+          resolveWithObject: true,
+        });
       } catch {
         throw new ImageValidationError("The image could not be normalized");
       }

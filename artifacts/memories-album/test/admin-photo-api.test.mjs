@@ -1,14 +1,24 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { createAdminSessionCookie } from "../src/server/admin/auth.mjs";
 import { createAdminPhotoApi } from "../src/server/photos/admin-api.mjs";
+import { MemoryPhotoRepository } from "../src/server/photos/memory-repository.mjs";
+import { TRASH_RETENTION_MS } from "../src/server/photos/trash-cleanup-service.mjs";
 
 const PHOTO_ID = "11111111-1111-4111-8111-111111111111";
+const NOW = new Date("2026-07-01T12:00:00.000Z");
 
-function request(token = null) {
+function request(method, path, authenticated = false) {
   return {
-    method: "DELETE",
-    url: `/Memories/api/admin/photos/${PHOTO_ID}`,
-    headers: token ? { authorization: `Bearer ${token}` } : {},
+    method,
+    url: path,
+    headers: authenticated
+      ? {
+          cookie: createAdminSessionCookie({
+            configuredToken: "correct-password",
+          }).header.split(";", 1)[0],
+        }
+      : { authorization: "Bearer correct-password" },
   };
 }
 
@@ -27,126 +37,121 @@ function responseRecorder() {
   };
 }
 
-function photo() {
-  return {
-    id: PHOTO_ID,
-    driveFileId: "original-drive-file",
-    thumbnailDriveFileId: "thumbnail-drive-file",
-  };
+function repository() {
+  return new MemoryPhotoRepository([
+    {
+      id: PHOTO_ID,
+      driveFileId: "original-drive-file",
+      thumbnailDriveFileId: "thumbnail-drive-file",
+      originalFilename: "wedding.jpg",
+      mimeType: "image/jpeg",
+      byteSize: 1024,
+      source: "official",
+      visibility: "public",
+      processingState: "ready",
+      processIds: [],
+      createdAt: "2026-06-01T12:00:00.000Z",
+      updatedAt: "2026-06-01T12:00:00.000Z",
+    },
+  ]);
 }
 
-test("admin photo deletion requires the server-side password", async () => {
-  let lookedUp = false;
+test("admin photo actions require an administrator session", async () => {
+  let called = false;
   const api = createAdminPhotoApi({
     repository: {
-      async findPhotoForAdmin() {
-        lookedUp = true;
-        return photo();
+      async trashPhotoForRetention() {
+        called = true;
       },
     },
-    drive: { async delete() {} },
     adminToken: "correct-password",
   });
   const response = responseRecorder();
 
-  assert.equal(await api(request("wrong-password"), response), true);
+  assert.equal(
+    await api(
+      request("DELETE", `/Memories/api/admin/photos/${PHOTO_ID}`, false),
+      response,
+    ),
+    true,
+  );
   assert.equal(response.status, 401);
   assert.equal(response.body.code, "UNAUTHORIZED");
-  assert.equal(lookedUp, false);
+  assert.equal(called, false);
 });
 
-test("admin deletion removes thumbnail, original, then database record", async () => {
-  const deletedDriveFiles = [];
-  const deletedRecords = [];
+test("admin deletion moves a photo to seven-day trash without touching Drive", async () => {
+  const photos = repository();
   const api = createAdminPhotoApi({
-    repository: {
-      async findPhotoForAdmin() {
-        return photo();
-      },
-      async clearThumbnail() {
-        throw new Error("clearThumbnail should not be called");
-      },
-      async deletePhotoRecord(photoId) {
-        deletedRecords.push(photoId);
-      },
-      async trashPhoto() {
-        throw new Error("trashPhoto should not be called");
-      },
-    },
-    drive: {
-      async delete(fileId) {
-        deletedDriveFiles.push(fileId);
-      },
-    },
+    repository: photos,
     adminToken: "correct-password",
+    now: () => NOW,
   });
   const response = responseRecorder();
 
-  assert.equal(await api(request("correct-password"), response), true);
+  assert.equal(
+    await api(
+      request("DELETE", `/Memories/api/admin/photos/${PHOTO_ID}`, true),
+      response,
+    ),
+    true,
+  );
   assert.equal(response.status, 200);
-  assert.deepEqual(deletedDriveFiles, [
-    "thumbnail-drive-file",
-    "original-drive-file",
-  ]);
-  assert.deepEqual(deletedRecords, [PHOTO_ID]);
-  assert.deepEqual(response.body, { deleted: true, photoId: PHOTO_ID });
+  assert.deepEqual(response.body, {
+    trashed: true,
+    photoId: PHOTO_ID,
+    restoreUntil: new Date(NOW.getTime() + TRASH_RETENTION_MS).toISOString(),
+  });
+  assert.deepEqual((await photos.listPublicPhotos()).items, []);
 });
 
-test("a failed original deletion clears the already removed thumbnail reference", async () => {
-  const cleared = [];
-  const driveError = new Error("Drive unavailable");
-  driveError.code = "DRIVE_RETRYABLE";
+test("admin can list trash and restore before the boundary", async () => {
+  const photos = repository();
+  let current = NOW;
   const api = createAdminPhotoApi({
-    repository: {
-      async findPhotoForAdmin() {
-        return photo();
-      },
-      async clearThumbnail(photoId, fileId) {
-        cleared.push([photoId, fileId]);
-      },
-      async deletePhotoRecord() {
-        throw new Error("database record must remain");
-      },
-      async trashPhoto() {},
-    },
-    drive: {
-      async delete(fileId) {
-        if (fileId === "original-drive-file") throw driveError;
-      },
-    },
+    repository: photos,
     adminToken: "correct-password",
+    now: () => current,
   });
-
-  await assert.rejects(
-    api(request("correct-password"), responseRecorder()),
-    (error) => error === driveError,
+  await api(
+    request("DELETE", `/Memories/api/admin/photos/${PHOTO_ID}`, true),
+    responseRecorder(),
   );
-  assert.deepEqual(cleared, [[PHOTO_ID, "thumbnail-drive-file"]]);
+
+  const list = responseRecorder();
+  await api(request("GET", "/Memories/api/admin/trash", true), list);
+  assert.equal(list.status, 200);
+  assert.equal(list.body.photos[0].id, PHOTO_ID);
+
+  current = new Date(NOW.getTime() + TRASH_RETENTION_MS - 1);
+  const restore = responseRecorder();
+  await api(
+    request("POST", `/Memories/api/admin/photos/${PHOTO_ID}/restore`, true),
+    restore,
+  );
+  assert.deepEqual(restore.body, { restored: true, photoId: PHOTO_ID });
+  assert.equal((await photos.listPublicPhotos()).items.length, 1);
 });
 
-test("a database failure after Drive deletion hides the broken record", async () => {
-  const trashed = [];
-  const databaseError = new Error("database unavailable");
+test("restore is rejected at the exact retention boundary", async () => {
+  const photos = repository();
+  let current = NOW;
   const api = createAdminPhotoApi({
-    repository: {
-      async findPhotoForAdmin() {
-        return photo();
-      },
-      async clearThumbnail() {},
-      async deletePhotoRecord() {
-        throw databaseError;
-      },
-      async trashPhoto(photoId) {
-        trashed.push(photoId);
-      },
-    },
-    drive: { async delete() {} },
+    repository: photos,
     adminToken: "correct-password",
+    now: () => current,
   });
-
-  await assert.rejects(
-    api(request("correct-password"), responseRecorder()),
-    (error) => error === databaseError,
+  await api(
+    request("DELETE", `/Memories/api/admin/photos/${PHOTO_ID}`, true),
+    responseRecorder(),
   );
-  assert.deepEqual(trashed, [PHOTO_ID]);
+  current = new Date(NOW.getTime() + TRASH_RETENTION_MS);
+
+  const response = responseRecorder();
+  await api(
+    request("POST", `/Memories/api/admin/photos/${PHOTO_ID}/restore`, true),
+    response,
+  );
+  assert.equal(response.status, 409);
+  assert.equal(response.body.code, "TRASH_RETENTION_EXPIRED");
 });

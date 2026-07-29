@@ -3,8 +3,12 @@ import { readFile, stat } from "node:fs/promises";
 import { createServer as createNodeServer } from "node:http";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { adminAuthorized } from "./server/admin/auth.mjs";
 import { createAdminSessionApi } from "./server/admin/session-api.mjs";
-import { getMemoriesRuntime } from "./server/runtime.mjs";
+import {
+  boundedRuntimeErrorCode,
+  getMemoriesRuntime,
+} from "./server/runtime.mjs";
 
 export const MEMORIES_BASE_PATH = "/Memories";
 export const MEMORIES_LOWERCASE_PATH = "/memories";
@@ -26,6 +30,36 @@ const MIME_TYPES = new Map([
   [".webp", "image/webp"],
   [".ico", "image/x-icon"],
 ]);
+
+const SECURITY_HEADERS = {
+  "Content-Security-Policy": [
+    "default-src 'self'",
+    "base-uri 'none'",
+    "connect-src 'self'",
+    "font-src 'self'",
+    "form-action 'self'",
+    "frame-ancestors 'none'",
+    "img-src 'self' data: blob:",
+    "media-src 'self'",
+    "object-src 'none'",
+    "script-src 'self'",
+    "style-src 'self' 'unsafe-inline'",
+  ].join("; "),
+  "Cross-Origin-Opener-Policy": "same-origin",
+  "Cross-Origin-Resource-Policy": "same-origin",
+  "Permissions-Policy":
+    "camera=(), microphone=(), geolocation=(), payment=(), usb=()",
+  "Referrer-Policy": "no-referrer",
+  "Strict-Transport-Security": "max-age=31536000; includeSubDomains",
+  "X-Content-Type-Options": "nosniff",
+  "X-Frame-Options": "DENY",
+};
+
+function applySecurityHeaders(response) {
+  for (const [name, value] of Object.entries(SECURITY_HEADERS)) {
+    response.setHeader(name, value);
+  }
+}
 
 function sendJson(response, status, body) {
   response.writeHead(status, {
@@ -84,8 +118,17 @@ function safeAssetPath(pathname) {
 }
 
 function boundedStorageError(error) {
-  const code = error?.code ?? "MEMORIES_STORAGE_UNAVAILABLE";
+  const code = boundedRuntimeErrorCode(error);
   const messages = {
+    DATABASE_CONNECTION_FAILED:
+      "The Memories database is temporarily unavailable. Please retry shortly.",
+    DATABASE_URL_REQUIRED:
+      "Production is missing the Memories database setting.",
+    ECONNREFUSED:
+      "The Memories database is temporarily unavailable. Please retry shortly.",
+    ENOTFOUND:
+      "A Memories dependency is temporarily unavailable. Please retry shortly.",
+    ETIMEDOUT: "A Memories dependency timed out. Please retry shortly.",
     MEMORIES_ROOT_FOLDER_MISSING:
       "Production is missing the Memories Google Drive root-folder setting.",
     THUMBNAIL_FOLDER_NOT_CONFIGURED:
@@ -96,6 +139,8 @@ function boundedStorageError(error) {
       "Google Drive is temporarily unavailable. Please retry shortly.",
     DRIVE_REQUEST_FAILED:
       "Google Drive rejected the request. Reconnect the Replit Google Drive integration.",
+    MEMORIES_RUNTIME_INITIALIZATION_FAILED:
+      "Memories dependencies are temporarily unavailable. Please retry shortly.",
   };
   return {
     error: messages[code] ?? "Memories storage is temporarily unavailable",
@@ -123,20 +168,63 @@ async function handleStandaloneApi(
     return true;
   }
 
+  if (url.pathname === `${MEMORIES_API_PATH}/ready`) {
+    try {
+      await getRuntime(env);
+      sendJson(response, 200, {
+        status: "ready",
+        service: "memories-album",
+      });
+    } catch (error) {
+      const bounded = boundedStorageError(error);
+      console.warn("Memories readiness unavailable", {
+        code: bounded.code,
+      });
+      sendJson(response, 503, {
+        status: "not-ready",
+        ...bounded,
+      });
+    }
+    return true;
+  }
+
   if (
     url.pathname.startsWith(`${MEMORIES_API_PATH}/photos`) ||
     url.pathname.startsWith(`${MEMORIES_API_PATH}/upload-batches`) ||
     url.pathname.startsWith(`${MEMORIES_API_PATH}/processes`) ||
     url.pathname.startsWith(`${MEMORIES_API_PATH}/settings`) ||
+    url.pathname.startsWith(`${MEMORIES_API_PATH}/admin/trash`) ||
     url.pathname.startsWith(`${MEMORIES_API_PATH}/admin/photos`) ||
     url.pathname.startsWith(`${MEMORIES_API_PATH}/admin/processes`) ||
-    url.pathname.startsWith(`${MEMORIES_API_PATH}/admin/settings`)
+    url.pathname.startsWith(`${MEMORIES_API_PATH}/admin/settings`) ||
+    url.pathname.startsWith(`${MEMORIES_API_PATH}/admin/upload-batches`)
   ) {
     try {
       const runtime = await getRuntime(env);
+      const albumProtectedPath =
+        url.pathname.startsWith(`${MEMORIES_API_PATH}/photos`) ||
+        url.pathname.startsWith(`${MEMORIES_API_PATH}/upload-batches`) ||
+        url.pathname.startsWith(`${MEMORIES_API_PATH}/selfie`);
+      if (
+        albumProtectedPath &&
+        !url.pathname.startsWith(`${MEMORIES_API_PATH}/admin/`) &&
+        !adminAuthorized(request, env.MEMORIES_ADMIN_TOKEN)
+      ) {
+        const settings =
+          await runtime.settingsRepository?.getPublicSettings?.();
+        if (settings?.albumOpen === false) {
+          sendJson(response, 423, {
+            error: "The Memories album is currently closed",
+            code: "ALBUM_CLOSED",
+          });
+          return true;
+        }
+      }
       if (await runtime.settingsApi(request, response, url)) return true;
       if (await runtime.processApi(request, response, url)) return true;
       if (await runtime.adminPhotoApi(request, response, url)) return true;
+      if (await runtime.adminBatchApi(request, response, url)) return true;
+      if (await runtime.managementApi(request, response, url)) return true;
       if (await runtime.uploadApi(request, response, url)) return true;
       if (await runtime.photoApi(request, response, url)) return true;
     } catch (error) {
@@ -179,6 +267,7 @@ async function handleStandaloneApi(
 }
 
 export async function handleRequest(request, response, options) {
+  applySecurityHeaders(response);
   const url = new URL(request.url ?? "/", "http://localhost");
 
   if (

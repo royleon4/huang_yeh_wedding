@@ -1,5 +1,15 @@
 const DEFAULT_MAX_ATTEMPTS = 7;
 const MAX_BACKOFF_MS = 10_000;
+const DEFAULT_MAX_FILES = 30;
+
+export function selectUploadFiles(files, maxFiles = DEFAULT_MAX_FILES) {
+  const all = Array.from(files ?? []);
+  const limit = Math.max(1, Number(maxFiles) || DEFAULT_MAX_FILES);
+  return {
+    accepted: all.slice(0, limit),
+    ignored: all.slice(limit),
+  };
+}
 
 export class UploadClientError extends Error {
   constructor(
@@ -32,14 +42,11 @@ async function readResponse(response) {
     body = {};
   }
   if (!response.ok) {
-    throw new UploadClientError(
-      body.error || "The upload request failed",
-      {
-        code: body.code,
-        status: response.status,
-        retryAfterMs: body.retryAfterMs,
-      },
-    );
+    throw new UploadClientError(body.error || "The upload request failed", {
+      code: body.code,
+      status: response.status,
+      retryAfterMs: body.retryAfterMs,
+    });
   }
   return body;
 }
@@ -49,7 +56,9 @@ function createUploadId() {
   const bytes = new Uint8Array(24);
   globalThis.crypto?.getRandomValues?.(bytes);
   if (bytes.some(Boolean)) {
-    return Array.from(bytes, (value) => value.toString(16).padStart(2, "0")).join("");
+    return Array.from(bytes, (value) =>
+      value.toString(16).padStart(2, "0"),
+    ).join("");
   }
   return `upload_${Date.now()}_${Math.random().toString(36).slice(2)}_${Math.random()
     .toString(36)
@@ -96,13 +105,11 @@ async function waitUntilOnline(signal) {
 
 export async function createGuestBatch(
   uploaderName,
-  {
-    classification = "guest",
-    processId = null,
-    fetchImpl = fetch,
-  } = {},
+  { classification = "guest", processId = null, fetchImpl = fetch } = {},
 ) {
-  const normalized = String(uploaderName ?? "").replace(/\s+/g, " ").trim();
+  const normalized = String(uploaderName ?? "")
+    .replace(/\s+/g, " ")
+    .trim();
   if (!normalized) {
     throw new UploadClientError("Uploader name is required", {
       code: "INVALID_UPLOADER_NAME",
@@ -245,12 +252,19 @@ async function uploadWithRetry({
       });
     } catch (error) {
       lastError = error;
-      if (error?.code === "CANCELLED" || !error?.retryable || attempt === maxAttempts) {
+      if (
+        error?.code === "CANCELLED" ||
+        !error?.retryable ||
+        attempt === maxAttempts
+      ) {
         throw error;
       }
       const exponential = Math.min(MAX_BACKOFF_MS, 500 * 2 ** (attempt - 1));
       const jitter = Math.floor(Math.random() * 250);
-      await wait(Math.max(error.retryAfterMs || 0, exponential + jitter), signal);
+      await wait(
+        Math.max(error.retryAfterMs || 0, exponential + jitter),
+        signal,
+      );
     }
   }
   throw lastError;

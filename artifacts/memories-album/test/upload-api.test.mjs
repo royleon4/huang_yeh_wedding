@@ -19,7 +19,9 @@ function fakeProcessor() {
   return {
     async process({ bytes }) {
       if (bytes.toString() === "bad") {
-        throw new ImageValidationError("The selected file is not a valid image");
+        throw new ImageValidationError(
+          "The selected file is not a valid image",
+        );
       }
       return {
         originalBytes: Buffer.concat([Buffer.from("normalized:"), bytes]),
@@ -107,6 +109,41 @@ test("requires a non-empty uploader name", async () => {
   });
 });
 
+test("rate limits batch creation before parsing the request body", async () => {
+  const repository = new MemoryPhotoRepository();
+  const api = createGuestUploadApi({
+    repository,
+    drive: new FakeDriveStorage(),
+    imageProcessor: fakeProcessor(),
+    batchRateLimiter: {
+      consume() {
+        return { allowed: false, retryAfterSeconds: 30 };
+      },
+    },
+  });
+  const server = createServer(async (request, response) => {
+    if (!(await api(request, response))) {
+      response.statusCode = 404;
+      response.end();
+    }
+  });
+  await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
+  const address = server.address();
+  try {
+    const response = await fetch(
+      `http://127.0.0.1:${address.port}/Memories/api/upload-batches`,
+      { method: "POST", body: "not-json" },
+    );
+    assert.equal(response.status, 429);
+    assert.equal(response.headers.get("retry-after"), "30");
+    assert.equal((await response.json()).code, "RATE_LIMITED");
+  } finally {
+    await new Promise((resolve, reject) =>
+      server.close((error) => (error ? reject(error) : resolve())),
+    );
+  }
+});
+
 test("creates a private batch token and publishes an unclassified guest photo", async () => {
   await withApi(async (origin, { repository, drive }) => {
     const batch = await createBatch(origin, "  小安  ");
@@ -122,7 +159,7 @@ test("creates a private batch token and publishes an unclassified guest photo", 
     assert.equal(uploaded.response.status, 201);
     assert.equal(uploaded.body.photo.source, "guest");
     assert.equal(uploaded.body.photo.collection, "guest");
-    assert.equal(uploaded.body.photo.uploaderName, "小安");
+    assert.equal(uploaded.body.photo.uploaderName, null);
     assert.deepEqual(uploaded.body.photo.processIds, []);
     assert.equal(JSON.stringify(uploaded.body).includes("drive-"), false);
 
@@ -136,7 +173,10 @@ test("creates a private batch token and publishes an unclassified guest photo", 
       .digest("hex");
     assert.ok(await repository.findUploadBatchByToken(batchId, tokenHash));
     assert.equal(
-      await repository.findUploadBatchByToken(batchId, batch.body.managementToken),
+      await repository.findUploadBatchByToken(
+        batchId,
+        batch.body.managementToken,
+      ),
       null,
     );
   });
@@ -164,7 +204,8 @@ test("classifies a guest upload into a wedding process without changing its gues
       assert.equal(uploaded.body.photo.collection, "wedding");
       assert.deepEqual(uploaded.body.photo.processIds, ["entrance"]);
       assert.equal(
-        (await repository.listPublicPhotos({ collection: "guest" })).items.length,
+        (await repository.listPublicPhotos({ collection: "guest" })).items
+          .length,
         1,
       );
       assert.equal(
@@ -290,9 +331,18 @@ test("preserves the original Drive file when thumbnail storage is temporarily un
         Buffer.from("photo"),
       );
       assert.equal(uploaded.response.status, 503);
-      assert.equal(calls.filter((call) => call === "upload-original").length, 1);
-      assert.equal(calls.filter((call) => call === "upload-thumbnail").length, 4);
-      assert.equal(calls.some((call) => call.startsWith("delete:")), false);
+      assert.equal(
+        calls.filter((call) => call === "upload-original").length,
+        1,
+      );
+      assert.equal(
+        calls.filter((call) => call === "upload-thumbnail").length,
+        4,
+      );
+      assert.equal(
+        calls.some((call) => call.startsWith("delete:")),
+        false,
+      );
     },
     { drive },
   );
@@ -356,8 +406,9 @@ test("a later request resumes from the preserved original instead of uploading i
       );
       assert.equal(second.response.status, 201);
       assert.equal(
-        [...files.values()].filter((file) => file.parentId === "original-folder")
-          .length,
+        [...files.values()].filter(
+          (file) => file.parentId === "original-folder",
+        ).length,
         1,
       );
     },

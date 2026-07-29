@@ -2,16 +2,15 @@
 
 This artifact owns the independent wedding archive at `/Memories/` and the isolated API namespace at `/Memories/api/*`.
 
-## Current stack
+## Stack and ownership
 
-- React + Vite frontend
+- React + Vite frontend with shared React state
 - Node HTTP server
-- PostgreSQL index and durable upload state
-- Google Drive originals and WebP thumbnails
-- Replit Google Drive Integration through `@replit/connectors-sdk`
-- Node test runner and a dedicated GitHub Actions workflow
+- PostgreSQL query index, audit log, durable upload state and cleanup jobs
+- Google Drive originals and derivatives through Replit Google Drive Integration
+- Node test runner and dedicated GitHub Actions workflow
 
-Google Drive is the storage source of truth for Memories media. PostgreSQL is the query source of truth for public visibility, ordering, collections, process relationships, upload batches, durable upload state and settings. Browser responses use opaque Memories IDs and controlled media URLs only.
+Google Drive is the storage source of truth for Memories media. PostgreSQL is the query source of truth for public visibility, ordering, collections, process relationships, upload batches, durable upload state, settings and seven-day retention. Browser responses use opaque Memories IDs and controlled media URLs only.
 
 ## Hard boundary
 
@@ -23,30 +22,29 @@ This artifact must not import from or modify:
 
 The CI boundary workflow must pass for every Memories change.
 
-## Implemented
+## Implemented Phase 1 behavior
 
-- Responsive waterfall gallery with thumbnail delivery
-- Full-screen original viewer with keyboard, swipe, wheel, double-click and pinch controls
+- Responsive waterfall gallery with true 12-item opaque cursor pages
+- 480/960 WebP responsive thumbnails and prioritized above-the-fold images
+- Full-screen viewer with bounded pan/zoom, keyboard, swipe, pinch, retry and safe-area layout
 - Wedding, guest-upload and life-photo collections
 - Google Drive-derived wedding process names and ordering
-- Required-name multi-photo upload with per-file progress, stable upload IDs and bounded retry
-- EXIF orientation normalization and metadata-stripped guest uploads
-- Capture-created chronological ordering
-- Production migration preflight and background Drive reconciliation
-- Shared-secret admin session validation, process management, UI setting and photo deletion
+- Required but non-public guest name; 30-photo preview/removal, progress, stable IDs and bounded retry
+- Private batch management, withdrawal and token rotation
+- Recoverable runtime initialization and separate liveness/readiness endpoints
+- 30-minute HttpOnly/Secure/SameSite admin session, album closure, single/bulk photo management, audit and rate limits
+- Recoverable seven-day trash with restore, leases, idempotent Drive cleanup and persistent retry
+- Accessible dialogs with focus trapping, background inert state, Escape and focus restoration
+- React shared state without document-wide observers, hidden DOM clicks or App remounts
+- CSP, browser security headers, upload throttling and metadata-sanitized public media
+- Traditional Chinese and English UI
 
-## Known incomplete Phase 1 work
-
-- `/Memories/manage/:batchId` does not yet provide the private management/withdrawal UI or API (#5).
-- Album closure and the final admin/audit/session model are incomplete (#6).
-- Current admin photo deletion is immediate; seven-day trash/restore/cleanup is not implemented (#7).
-- Mobile dialog/lightbox safe-area and focus work remains (#48).
-- A rejected first runtime initialization remains cached until restart (#49).
-- The client currently fetches all cursor pages before client-side paging (#50).
-- Several frontend surfaces still communicate through document-wide observers and hidden DOM clicks (#51).
-- Production mobile/visual acceptance remains under #13 and #26.
-
-Face processing, People and Find-me are deferred to Phase 2 (#24).
+The code and Node-test implementation for #5, #6, #7, #49 and #51 is
+complete on this branch. #48 and #50 have their core implementation, but still
+need the required browser-level viewport, offline, accessibility and performance
+evidence plus iOS/Android device checks under #48, #50 and #13. Legacy-site
+regression evidence remains #19, and visual comparison remains #26. Face
+processing, People and Find-me remain Phase 2 (#24).
 
 ## Commands
 
@@ -79,11 +77,22 @@ MEMORIES_ADMIN_TOKEN
 Optional tuning:
 
 ```text
+MEMORIES_RUNTIME_RETRY_DELAY_MS
 MEMORIES_DRIVE_SYNC_INTERVAL_MS
 MEMORIES_THUMBNAIL_BATCH_SIZE
 MEMORIES_THUMBNAIL_MAX_PER_RUN
+MEMORIES_TRASH_CLEANUP_INTERVAL_MS
+MEMORIES_TRASH_CLEANUP_BATCH_SIZE
+MEMORIES_TRASH_CLEANUP_LEASE_MS
 ```
 
 The runtime discovers or creates `訪客上傳`, `生活照`, `系統縮圖` and `00 未分類` below the configured root. Do not add separate provider folder IDs to source code or `.replit`.
 
 Do not add service-account JSON, `GOOGLE_APPLICATION_CREDENTIALS`, OAuth client secrets, refresh tokens, raw guest-management tokens or the real administrator password to the repository.
+
+## Runbooks
+
+- [`../../docs/memories/launch-readiness.md`](../../docs/memories/launch-readiness.md)
+- [`../../docs/memories/mobile-acceptance.md`](../../docs/memories/mobile-acceptance.md)
+- [`../../docs/memories/admin-security.md`](../../docs/memories/admin-security.md)
+- [`../../docs/memories/trash-retention.md`](../../docs/memories/trash-retention.md)

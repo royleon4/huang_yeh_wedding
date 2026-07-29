@@ -29,7 +29,10 @@ test("admin login succeeds even when Drive runtime is unavailable", async () => 
       headers: { Authorization: "Bearer correct-password" },
     });
     assert.equal(login.status, 200);
-    assert.deepEqual(await login.json(), { authenticated: true });
+    assert.deepEqual(await login.json(), {
+      authenticated: true,
+      expiresInSeconds: 1800,
+    });
 
     const processes = await fetch(`${origin}/Memories/api/processes`);
     assert.equal(processes.status, 200);

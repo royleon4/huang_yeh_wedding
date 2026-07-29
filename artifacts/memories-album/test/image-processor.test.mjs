@@ -45,3 +45,56 @@ test("rejects malformed input with a bounded validation error", async () => {
     (error) => error instanceof ImageValidationError,
   );
 });
+
+test("creates bounded responsive WebP variants for mobile cards", async () => {
+  const source = await sharp({
+    create: {
+      width: 1200,
+      height: 800,
+      channels: 3,
+      background: { r: 20, g: 90, b: 60 },
+    },
+  })
+    .webp()
+    .toBuffer();
+
+  const result = await createImageProcessor().createDisplayVariant({
+    bytes: source,
+    width: 480,
+  });
+  const metadata = await sharp(result.bytes).metadata();
+  assert.equal(result.contentType, "image/webp");
+  assert.equal(metadata.width, 480);
+  assert.equal(metadata.height, 320);
+});
+
+test("sanitizes public media without retaining EXIF metadata", async () => {
+  const source = await sharp({
+    create: {
+      width: 200,
+      height: 120,
+      channels: 3,
+      background: { r: 20, g: 90, b: 60 },
+    },
+  })
+    .jpeg()
+    .withMetadata({
+      orientation: 6,
+      exif: {
+        IFD0: { Artist: "Private photographer" },
+        IFD3: { GPSLatitudeRef: "N" },
+      },
+    })
+    .toBuffer();
+
+  const result = await createImageProcessor().sanitizePublicMedia({
+    bytes: source,
+    mimeType: "image/jpeg",
+  });
+  const metadata = await sharp(result.bytes).metadata();
+  assert.equal(result.contentType, "image/jpeg");
+  assert.equal(metadata.orientation, undefined);
+  assert.equal(metadata.exif, undefined);
+  assert.equal(metadata.width, 120);
+  assert.equal(metadata.height, 200);
+});

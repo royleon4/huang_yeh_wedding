@@ -1,28 +1,121 @@
 import { createMemoriesPhotoApi } from "./photos/api.mjs";
 import { createAdminPhotoApi } from "./photos/admin-api.mjs";
+import { PostgresAuditRepository } from "./admin/audit-repository.mjs";
 import { PostgresPhotoRepository } from "./photos/postgres-repository.mjs";
 import { ThumbnailService } from "./photos/thumbnail-service.mjs";
+import { TrashCleanupService } from "./photos/trash-cleanup-service.mjs";
+import { PublicMediaService } from "./photos/public-media-service.mjs";
 import { createReplitDriveStorage } from "./storage/replit-drive.mjs";
 import { createGuestUploadApi } from "./uploads/api.mjs";
+import { createAdminBatchApi } from "./uploads/admin-api.mjs";
 import { PostgresDurableUploadRepository } from "./uploads/durable-repository.mjs";
 import { createImageProcessor } from "./uploads/image-processor.mjs";
+import { createGuestBatchManagementApi } from "./uploads/management-api.mjs";
 import { PostgresProcessRepository } from "./processes/repository.mjs";
 import { DriveProcessSynchronizer } from "./processes/sync.mjs";
 import { createProcessApi } from "./processes/api.mjs";
 import { PostgresSettingsRepository } from "./settings/repository.mjs";
 import { createSettingsApi } from "./settings/api.mjs";
 
-let runtimePromise;
+const SAFE_RUNTIME_ERROR_CODES = new Set([
+  "DATABASE_CONNECTION_FAILED",
+  "DATABASE_URL_REQUIRED",
+  "DRIVE_AUTHORIZATION_REQUIRED",
+  "DRIVE_REQUEST_FAILED",
+  "DRIVE_RETRYABLE",
+  "ECONNREFUSED",
+  "ENOTFOUND",
+  "ETIMEDOUT",
+  "MEMORIES_ROOT_FOLDER_MISSING",
+  "THUMBNAIL_FOLDER_NOT_CONFIGURED",
+]);
+
+export function boundedRuntimeErrorCode(error) {
+  const code = String(error?.code ?? "");
+  return SAFE_RUNTIME_ERROR_CODES.has(code)
+    ? code
+    : "MEMORIES_RUNTIME_INITIALIZATION_FAILED";
+}
+
+function configuredRetryDelay(env) {
+  const requested = Number(env.MEMORIES_RUNTIME_RETRY_DELAY_MS ?? 1_000);
+  if (!Number.isFinite(requested)) return 1_000;
+  return Math.min(60_000, Math.max(250, requested));
+}
+
+export function createMemoriesRuntimeManager({
+  create = createRuntime,
+  now = Date.now,
+  logger = console,
+  retryDelayMs = configuredRetryDelay,
+} = {}) {
+  let runtime;
+  let inFlight;
+  let lastFailure;
+  let retryNotBefore = 0;
+  let attempt = 0;
+
+  return {
+    getRuntime(env = process.env) {
+      if (runtime) return Promise.resolve(runtime);
+      if (inFlight) return inFlight;
+      if (lastFailure && now() < retryNotBefore) {
+        return Promise.reject(lastFailure);
+      }
+
+      attempt += 1;
+      const currentAttempt = attempt;
+      const startedAt = now();
+      logger.info("Memories runtime initialization started", {
+        attempt: currentAttempt,
+      });
+
+      inFlight = Promise.resolve()
+        .then(() => create(env))
+        .then(
+          (createdRuntime) => {
+            runtime = createdRuntime;
+            lastFailure = undefined;
+            retryNotBefore = 0;
+            logger.info("Memories runtime initialization completed", {
+              attempt: currentAttempt,
+              durationMs: now() - startedAt,
+            });
+            return createdRuntime;
+          },
+          (error) => {
+            const delay = retryDelayMs(env);
+            lastFailure = error;
+            retryNotBefore = now() + delay;
+            logger.warn("Memories runtime initialization failed", {
+              attempt: currentAttempt,
+              durationMs: now() - startedAt,
+              code: boundedRuntimeErrorCode(error),
+              retryAfterMs: delay,
+            });
+            throw error;
+          },
+        )
+        .finally(() => {
+          inFlight = undefined;
+        });
+
+      return inFlight;
+    },
+  };
+}
+
+const runtimeManager = createMemoriesRuntimeManager();
 
 export function getMemoriesRuntime(env = process.env) {
-  runtimePromise ??= createRuntime(env);
-  return runtimePromise;
+  return runtimeManager.getRuntime(env);
 }
 
 async function createRuntime(env) {
-  const startedAt = Date.now();
   if (!env.DATABASE_URL) {
-    throw new Error("DATABASE_URL is required for Memories");
+    const error = new Error("DATABASE_URL is required for Memories");
+    error.code = "DATABASE_URL_REQUIRED";
+    throw error;
   }
   if (!env.MEMORIES_DRIVE_PHOTOS_FOLDER_ID) {
     const error = new Error("MEMORIES_DRIVE_PHOTOS_FOLDER_ID is required");
@@ -30,211 +123,227 @@ async function createRuntime(env) {
     throw error;
   }
 
-  const [{ Pool }, drive] = await Promise.all([
-    import("pg"),
-    createReplitDriveStorage(env),
-  ]);
-  const pool = new Pool({ connectionString: env.DATABASE_URL, max: 5 });
-  const repository = new PostgresPhotoRepository(pool);
-  repository.clearThumbnail = async (photoId, expectedFileId = null) => {
-    const result = await pool.query(
-      `UPDATE memories_photos
-       SET thumbnail_drive_file_id = NULL, updated_at = now()
-       WHERE id = $1
-         AND ($2::text IS NULL OR thumbnail_drive_file_id = $2)
-       RETURNING id`,
-      [photoId, expectedFileId],
-    );
-    if (!result.rows[0]) {
-      const current = await repository.findPublicPhoto(photoId);
-      if (current && !current.thumbnailDriveFileId) return current;
-      const error = new Error("Thumbnail reference changed during repair");
-      error.code = "THUMBNAIL_REPAIR_CONFLICT";
+  let pool;
+  try {
+    const [{ Pool }, drive] = await Promise.all([
+      import("pg"),
+      createReplitDriveStorage(env),
+    ]);
+    pool = new Pool({ connectionString: env.DATABASE_URL, max: 5 });
+    const repository = new PostgresPhotoRepository(pool);
+    const durableUploadRepository = new PostgresDurableUploadRepository(pool);
+    const processRepository = new PostgresProcessRepository(pool);
+    const settingsRepository = new PostgresSettingsRepository(pool);
+    const auditRepository = new PostgresAuditRepository(pool);
+    const synchronizer = new DriveProcessSynchronizer({
+      drive,
+      processRepository,
+      photoRepository: repository,
+      rootFolderId: env.MEMORIES_DRIVE_PHOTOS_FOLDER_ID,
+    });
+
+    // Only the small root-folder lookup is required before serving requests. The
+    // expensive scan of every process folder and photo runs after the API is ready.
+    const folders = await synchronizer.ensureStructure();
+    drive.originalFolderId =
+      folders.get("訪客上傳")?.id ?? drive.originalFolderId;
+    drive.thumbnailFolderId =
+      folders.get("系統縮圖")?.id ?? drive.thumbnailFolderId;
+
+    if (!drive.thumbnailFolderId) {
+      const error = new Error("Memories thumbnail folder is unavailable");
+      error.code = "THUMBNAIL_FOLDER_NOT_CONFIGURED";
       throw error;
     }
-    return repository.findPublicPhoto(photoId);
-  };
-  repository.findPhotoForAdmin = async (photoId) => {
-    const result = await pool.query(
-      `SELECT id, drive_file_id, thumbnail_drive_file_id
-       FROM memories_photos
-       WHERE id = $1
-       LIMIT 1`,
-      [photoId],
-    );
-    const row = result.rows[0];
-    return row
-      ? {
-          id: row.id,
-          driveFileId: row.drive_file_id,
-          thumbnailDriveFileId: row.thumbnail_drive_file_id,
-        }
-      : null;
-  };
-  repository.deletePhotoRecord = async (photoId) => {
-    const result = await pool.query(
-      `DELETE FROM memories_photos WHERE id = $1 RETURNING id`,
-      [photoId],
-    );
-    if (!result.rows[0]) {
-      const error = new Error("Photo not found while deleting");
-      error.code = "PHOTO_NOT_FOUND";
-      throw error;
-    }
-    return result.rows[0].id;
-  };
-  repository.trashPhoto = async (photoId) => {
-    await pool.query(
-      `UPDATE memories_photos
-       SET visibility = 'trashed', trashed_at = now(), updated_at = now()
-       WHERE id = $1`,
-      [photoId],
-    );
-  };
 
-  const durableUploadRepository = new PostgresDurableUploadRepository(pool);
-  const processRepository = new PostgresProcessRepository(pool);
-  const settingsRepository = new PostgresSettingsRepository(pool);
-  const synchronizer = new DriveProcessSynchronizer({
-    drive,
-    processRepository,
-    photoRepository: repository,
-    rootFolderId: env.MEMORIES_DRIVE_PHOTOS_FOLDER_ID,
-  });
+    const imageProcessor = createImageProcessor();
+    const thumbnailService = new ThumbnailService({
+      repository,
+      drive,
+      imageProcessor,
+      thumbnailFolderId: drive.thumbnailFolderId,
+      batchSize: Number(env.MEMORIES_THUMBNAIL_BATCH_SIZE ?? 12),
+    });
+    const trashCleanupService = new TrashCleanupService({
+      repository,
+      drive,
+      batchSize: Number(env.MEMORIES_TRASH_CLEANUP_BATCH_SIZE ?? 20),
+      leaseMs: Number(env.MEMORIES_TRASH_CLEANUP_LEASE_MS ?? 300_000),
+    });
+    const publicMediaService = new PublicMediaService({
+      drive,
+      imageProcessor,
+    });
 
-  // Only the small root-folder lookup is required before serving requests. The
-  // expensive scan of every process folder and photo runs after the API is ready.
-  const folders = await synchronizer.ensureStructure();
-  drive.originalFolderId =
-    folders.get("訪客上傳")?.id ?? drive.originalFolderId;
-  drive.thumbnailFolderId =
-    folders.get("系統縮圖")?.id ?? drive.thumbnailFolderId;
-
-  if (!drive.thumbnailFolderId) {
-    const error = new Error("Memories thumbnail folder is unavailable");
-    error.code = "THUMBNAIL_FOLDER_NOT_CONFIGURED";
-    throw error;
-  }
-
-  const imageProcessor = createImageProcessor();
-  const thumbnailService = new ThumbnailService({
-    repository,
-    drive,
-    imageProcessor,
-    thumbnailFolderId: drive.thumbnailFolderId,
-    batchSize: Number(env.MEMORIES_THUMBNAIL_BATCH_SIZE ?? 12),
-  });
-
-  let backfillPromise = null;
-  const runThumbnailBackfill = () => {
-    if (backfillPromise) return backfillPromise;
-    thumbnailService.invalidateIndex();
-    backfillPromise = thumbnailService
-      .backfillMissing({
-        maxPhotos: Number(env.MEMORIES_THUMBNAIL_MAX_PER_RUN ?? 240),
-      })
-      .then((result) => {
-        if (result.failures.length > 0) {
-          console.warn("Memories thumbnail backfill completed with failures", {
-            attempted: result.attempted,
-            createdOrAttached: result.createdOrAttached,
-            failureCount: result.failures.length,
-            failureCodes: [
-              ...new Set(result.failures.map((failure) => failure.code)),
-            ],
+    let backfillPromise = null;
+    const runThumbnailBackfill = () => {
+      if (backfillPromise) return backfillPromise;
+      thumbnailService.invalidateIndex();
+      backfillPromise = thumbnailService
+        .backfillMissing({
+          maxPhotos: Number(env.MEMORIES_THUMBNAIL_MAX_PER_RUN ?? 240),
+        })
+        .then((result) => {
+          if (result.failures.length > 0) {
+            console.warn(
+              "Memories thumbnail backfill completed with failures",
+              {
+                attempted: result.attempted,
+                createdOrAttached: result.createdOrAttached,
+                failureCount: result.failures.length,
+                failureCodes: [
+                  ...new Set(result.failures.map((failure) => failure.code)),
+                ],
+              },
+            );
+          }
+          return result;
+        })
+        .catch((error) => {
+          console.warn("Memories thumbnail backfill failed", {
+            name: error instanceof Error ? error.name : "UnknownError",
+            code: error?.code,
           });
-        }
-        return result;
-      })
-      .catch((error) => {
-        console.warn("Memories thumbnail backfill failed", {
-          name: error instanceof Error ? error.name : "UnknownError",
-          code: error?.code,
+        })
+        .finally(() => {
+          backfillPromise = null;
         });
-      })
-      .finally(() => {
-        backfillPromise = null;
-      });
-    return backfillPromise;
-  };
+      return backfillPromise;
+    };
 
-  const runtime = {
-    pool,
-    repository,
-    durableUploadRepository,
-    processRepository,
-    settingsRepository,
-    synchronizer,
-    thumbnailService,
-    drive,
-    imageProcessor,
-    photoApi: createMemoriesPhotoApi({
-      repository,
-      drive,
-      thumbnailService,
-    }),
-    adminPhotoApi: createAdminPhotoApi({
-      repository,
-      drive,
-      adminToken: env.MEMORIES_ADMIN_TOKEN,
-    }),
-    uploadApi: createGuestUploadApi({
+    const runtime = {
+      pool,
       repository,
       durableUploadRepository,
       processRepository,
+      settingsRepository,
+      auditRepository,
+      synchronizer,
+      thumbnailService,
+      publicMediaService,
+      trashCleanupService,
       drive,
       imageProcessor,
-    }),
-    processApi: createProcessApi({
-      repository: processRepository,
-      synchronizer,
-      adminToken: env.MEMORIES_ADMIN_TOKEN,
-    }),
-    settingsApi: createSettingsApi({
-      repository: settingsRepository,
-      adminToken: env.MEMORIES_ADMIN_TOKEN,
-    }),
-  };
+      photoApi: createMemoriesPhotoApi({
+        repository,
+        drive,
+        thumbnailService,
+        publicMediaService,
+      }),
+      adminPhotoApi: createAdminPhotoApi({
+        repository,
+        adminToken: env.MEMORIES_ADMIN_TOKEN,
+        auditRepository,
+      }),
+      adminBatchApi: createAdminBatchApi({
+        repository,
+        adminToken: env.MEMORIES_ADMIN_TOKEN,
+        auditRepository,
+      }),
+      uploadApi: createGuestUploadApi({
+        repository,
+        durableUploadRepository,
+        processRepository,
+        drive,
+        imageProcessor,
+      }),
+      managementApi: createGuestBatchManagementApi({
+        repository,
+        auditRepository,
+      }),
+      processApi: createProcessApi({
+        repository: processRepository,
+        synchronizer,
+        adminToken: env.MEMORIES_ADMIN_TOKEN,
+        auditRepository,
+      }),
+      settingsApi: createSettingsApi({
+        repository: settingsRepository,
+        adminToken: env.MEMORIES_ADMIN_TOKEN,
+        auditRepository,
+      }),
+    };
 
-  let synchronizationPromise = null;
-  const runBackgroundSynchronization = () => {
-    if (synchronizationPromise) return synchronizationPromise;
-    const syncStartedAt = Date.now();
-    synchronizationPromise = synchronizer
-      .reconcileFromDrive()
-      .then(() => runThumbnailBackfill())
-      .then(() => {
-        console.log("Memories background synchronization completed", {
-          durationMs: Date.now() - syncStartedAt,
+    let synchronizationPromise = null;
+    const runBackgroundSynchronization = () => {
+      if (synchronizationPromise) return synchronizationPromise;
+      const syncStartedAt = Date.now();
+      synchronizationPromise = synchronizer
+        .reconcileFromDrive()
+        .then(() => runThumbnailBackfill())
+        .then(() => {
+          console.log("Memories background synchronization completed", {
+            durationMs: Date.now() - syncStartedAt,
+          });
+        })
+        .catch((error) => {
+          console.warn("Memories Drive synchronization failed", {
+            name: error instanceof Error ? error.name : "UnknownError",
+            code: error?.code,
+            durationMs: Date.now() - syncStartedAt,
+          });
+        })
+        .finally(() => {
+          synchronizationPromise = null;
         });
-      })
-      .catch((error) => {
-        console.warn("Memories Drive synchronization failed", {
-          name: error instanceof Error ? error.name : "UnknownError",
-          code: error?.code,
-          durationMs: Date.now() - syncStartedAt,
+      return synchronizationPromise;
+    };
+
+    let cleanupPromise = null;
+    const runTrashCleanup = () => {
+      if (cleanupPromise) return cleanupPromise;
+      cleanupPromise = trashCleanupService
+        .runOnce()
+        .then((result) => {
+          if (result.claimed > 0) {
+            console.info("Memories trash cleanup completed", result);
+          }
+          return result;
+        })
+        .catch((error) => {
+          console.warn("Memories trash cleanup failed", {
+            code: boundedRuntimeErrorCode(error),
+          });
+        })
+        .finally(() => {
+          cleanupPromise = null;
         });
-      })
-      .finally(() => {
-        synchronizationPromise = null;
-      });
-    return synchronizationPromise;
-  };
+      return cleanupPromise;
+    };
 
-  console.log("Memories runtime ready", {
-    durationMs: Date.now() - startedAt,
-    backgroundDriveSync: true,
-  });
-  setImmediate(() => void runBackgroundSynchronization());
+    setImmediate(() => {
+      void runBackgroundSynchronization();
+      void runTrashCleanup();
+    });
 
-  const intervalMs = Math.max(
-    60_000,
-    Number(env.MEMORIES_DRIVE_SYNC_INTERVAL_MS ?? 300_000),
-  );
-  const timer = setInterval(() => {
-    void runBackgroundSynchronization();
-  }, intervalMs);
-  timer.unref?.();
+    const intervalMs = Math.max(
+      60_000,
+      Number(env.MEMORIES_DRIVE_SYNC_INTERVAL_MS ?? 300_000),
+    );
+    const timer = setInterval(() => {
+      void runBackgroundSynchronization();
+    }, intervalMs);
+    timer.unref?.();
+    const cleanupIntervalMs = Math.max(
+      60_000,
+      Number(env.MEMORIES_TRASH_CLEANUP_INTERVAL_MS ?? 300_000),
+    );
+    const cleanupTimer = setInterval(() => {
+      void runTrashCleanup();
+    }, cleanupIntervalMs);
+    cleanupTimer.unref?.();
 
-  return runtime;
+    return runtime;
+  } catch (error) {
+    if (pool) {
+      try {
+        await pool.end();
+      } catch (cleanupError) {
+        console.warn("Memories failed runtime pool cleanup", {
+          code: boundedRuntimeErrorCode(cleanupError),
+        });
+      }
+    }
+    throw error;
+  }
 }

@@ -1,20 +1,29 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { createServer } from "node:http";
+import { createAdminSessionCookie } from "../src/server/admin/auth.mjs";
 import { createProcessApi } from "../src/server/processes/api.mjs";
+
+function adminCookie() {
+  return createAdminSessionCookie({
+    configuredToken: "secret",
+  }).header.split(";", 1)[0];
+}
 
 async function withApi(run, { initialProcesses } = {}) {
   const repository = {
-    processes: initialProcesses ?? [{
-      id: "drive-folder-1",
-      labelZh: "進場",
-      labelEn: "Entrance",
-      displayOrder: 1,
-      driveFolderId: "folder-1",
-      syncState: "synced",
-      isActive: true,
-      lastSyncedAt: null,
-    }],
+    processes: initialProcesses ?? [
+      {
+        id: "drive-folder-1",
+        labelZh: "進場",
+        labelEn: "Entrance",
+        displayOrder: 1,
+        driveFolderId: "folder-1",
+        syncState: "synced",
+        isActive: true,
+        lastSyncedAt: null,
+      },
+    ],
     async listProcesses() {
       return this.processes.filter((process) => process.isActive !== false);
     },
@@ -40,8 +49,12 @@ async function withApi(run, { initialProcesses } = {}) {
         driveCalls.delete += 1;
       },
     },
-    async reconcileFromDrive() { return repository.listProcesses(); },
-    async syncProcessFoldersFromDrive() { return repository.listProcesses(); },
+    async reconcileFromDrive() {
+      return repository.listProcesses();
+    },
+    async syncProcessFoldersFromDrive() {
+      return repository.listProcesses();
+    },
     async createProcess(input) {
       const process = {
         id: "drive-folder-2",
@@ -72,7 +85,11 @@ async function withApi(run, { initialProcesses } = {}) {
       return repository.listProcesses();
     },
   };
-  const api = createProcessApi({ repository, synchronizer, adminToken: "secret" });
+  const api = createProcessApi({
+    repository,
+    synchronizer,
+    adminToken: "secret",
+  });
   const server = createServer(async (request, response) => {
     const handled = await api(request, response);
     if (!handled) {
@@ -89,7 +106,9 @@ async function withApi(run, { initialProcesses } = {}) {
       driveCalls,
     });
   } finally {
-    await new Promise((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
+    await new Promise((resolve, reject) =>
+      server.close((error) => (error ? reject(error) : resolve())),
+    );
   }
 }
 
@@ -103,13 +122,15 @@ test("public process listing omits Drive identifiers", async () => {
   });
 });
 
-test("admin mutations require the deployment token", async () => {
+test("admin mutations require an administrator session", async () => {
   await withApi(async (origin) => {
-    const denied = await fetch(`${origin}/Memories/api/admin/processes/sync`, { method: "POST" });
+    const denied = await fetch(`${origin}/Memories/api/admin/processes/sync`, {
+      method: "POST",
+    });
     assert.equal(denied.status, 401);
     const allowed = await fetch(`${origin}/Memories/api/admin/processes/sync`, {
       method: "POST",
-      headers: { Authorization: "Bearer secret" },
+      headers: { Cookie: adminCookie() },
     });
     assert.equal(allowed.status, 200);
   });
@@ -120,7 +141,7 @@ test("website process creation writes through the synchronizer", async () => {
     const response = await fetch(`${origin}/Memories/api/admin/processes`, {
       method: "POST",
       headers: {
-        Authorization: "Bearer secret",
+        Cookie: adminCookie(),
         "Content-Type": "application/json",
       },
       body: JSON.stringify({ labelZh: "宴客" }),
@@ -134,10 +155,13 @@ test("website process creation writes through the synchronizer", async () => {
 test("legacy ghost process deletion succeeds without calling Drive", async () => {
   await withApi(
     async (origin, { repository, driveCalls }) => {
-      const response = await fetch(`${origin}/Memories/api/admin/processes/entrance`, {
-        method: "DELETE",
-        headers: { Authorization: "Bearer secret" },
-      });
+      const response = await fetch(
+        `${origin}/Memories/api/admin/processes/entrance`,
+        {
+          method: "DELETE",
+          headers: { Cookie: adminCookie() },
+        },
+      );
       assert.equal(response.status, 200);
       const body = await response.json();
       assert.equal(body.deletedProcessId, "entrance");
@@ -148,26 +172,31 @@ test("legacy ghost process deletion succeeds without calling Drive", async () =>
       assert.equal(repository.processes[0].isActive, false);
     },
     {
-      initialProcesses: [{
-        id: "entrance",
-        labelZh: "進場",
-        labelEn: "Entrance",
-        displayOrder: 1,
-        driveFolderId: null,
-        syncState: "pending",
-        isActive: true,
-        lastSyncedAt: null,
-      }],
+      initialProcesses: [
+        {
+          id: "entrance",
+          labelZh: "進場",
+          labelEn: "Entrance",
+          displayOrder: 1,
+          driveFolderId: null,
+          syncState: "pending",
+          isActive: true,
+          lastSyncedAt: null,
+        },
+      ],
     },
   );
 });
 
 test("deleting an already missing process is idempotent", async () => {
   await withApi(async (origin) => {
-    const response = await fetch(`${origin}/Memories/api/admin/processes/group-photo`, {
-      method: "DELETE",
-      headers: { Authorization: "Bearer secret" },
-    });
+    const response = await fetch(
+      `${origin}/Memories/api/admin/processes/group-photo`,
+      {
+        method: "DELETE",
+        headers: { Cookie: adminCookie() },
+      },
+    );
     assert.equal(response.status, 200);
     const body = await response.json();
     assert.equal(body.deletedProcessId, "group-photo");

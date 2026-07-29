@@ -32,20 +32,58 @@ function photo(overrides) {
   };
 }
 
-async function withApi(run) {
+async function withApi(run, { thumbnailService = null } = {}) {
   const repository = new MemoryPhotoRepository([
-    photo({ id: firstId, driveFileId: "drive-original-1", thumbnailDriveFileId: "drive-thumb-1" }),
-    photo({ id: secondId, driveFileId: "drive-original-2", thumbnailDriveFileId: "drive-thumb-2", createdAt: "2026-06-20T02:00:00.000Z", source: "guest", uploaderName: "小安", processIds: [] }),
-    photo({ id: hiddenId, driveFileId: "drive-hidden", thumbnailDriveFileId: null, visibility: "hidden", createdAt: "2026-06-20T01:00:00.000Z" }),
+    photo({
+      id: firstId,
+      driveFileId: "drive-original-1",
+      thumbnailDriveFileId: "drive-thumb-1",
+    }),
+    photo({
+      id: secondId,
+      driveFileId: "drive-original-2",
+      thumbnailDriveFileId: "drive-thumb-2",
+      createdAt: "2026-06-20T02:00:00.000Z",
+      source: "guest",
+      uploaderName: "小安",
+      processIds: [],
+    }),
+    photo({
+      id: hiddenId,
+      driveFileId: "drive-hidden",
+      thumbnailDriveFileId: null,
+      visibility: "hidden",
+      createdAt: "2026-06-20T01:00:00.000Z",
+    }),
   ]);
   const drive = new FakeDriveStorage([
-    { fileId: "drive-original-1", bytes: Buffer.from("first-original"), contentType: "image/jpeg" },
-    { fileId: "drive-thumb-1", bytes: Buffer.from("first-thumb"), contentType: "image/webp" },
-    { fileId: "drive-original-2", bytes: Buffer.from("second-original"), contentType: "image/jpeg" },
-    { fileId: "drive-thumb-2", bytes: Buffer.from("second-thumb"), contentType: "image/webp" },
-    { fileId: "drive-hidden", bytes: Buffer.from("hidden"), contentType: "image/jpeg" },
+    {
+      fileId: "drive-original-1",
+      bytes: Buffer.from("first-original"),
+      contentType: "image/jpeg",
+    },
+    {
+      fileId: "drive-thumb-1",
+      bytes: Buffer.from("first-thumb"),
+      contentType: "image/webp",
+    },
+    {
+      fileId: "drive-original-2",
+      bytes: Buffer.from("second-original"),
+      contentType: "image/jpeg",
+    },
+    {
+      fileId: "drive-thumb-2",
+      bytes: Buffer.from("second-thumb"),
+      contentType: "image/webp",
+    },
+    {
+      fileId: "drive-hidden",
+      bytes: Buffer.from("hidden"),
+      contentType: "image/jpeg",
+    },
   ]);
-  const api = createMemoriesPhotoApi({ repository, drive });
+  const api = createMemoriesPhotoApi({ repository, drive, thumbnailService });
   const server = createServer(async (request, response) => {
     const handled = await api(request, response);
     if (!handled) {
@@ -58,7 +96,9 @@ async function withApi(run) {
   try {
     await run(`http://127.0.0.1:${address.port}`, { repository, drive });
   } finally {
-    await new Promise((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
+    await new Promise((resolve, reject) =>
+      server.close((error) => (error ? reject(error) : resolve())),
+    );
   }
 }
 
@@ -68,8 +108,15 @@ test("lists public photos with opaque ids and never exposes Drive metadata", asy
     assert.equal(response.status, 200);
     const body = await response.json();
     assert.equal(body.photos.length, 1);
-    assert.equal(body.photos[0].id, firstId);
-    assert.equal(body.photos[0].mediaUrl, `/Memories/api/photos/${firstId}/media`);
+    assert.equal(body.photos[0].id, secondId);
+    assert.equal(
+      body.photos[0].mediaUrl,
+      `/Memories/api/photos/${secondId}/media?v=1`,
+    );
+    assert.equal(
+      body.photos[0].thumbnailSrcSet,
+      `/Memories/api/photos/${secondId}/thumbnail?v=1&width=480 480w, /Memories/api/photos/${secondId}/thumbnail?v=1&width=960 960w`,
+    );
     assert.ok(body.nextCursor);
     const serialized = JSON.stringify(body);
     assert.equal(serialized.includes("drive-original"), false);
@@ -79,36 +126,96 @@ test("lists public photos with opaque ids and never exposes Drive metadata", asy
 
 test("cursor pagination is stable and guest filtering is explicit", async () => {
   await withApi(async (origin) => {
-    const first = await (await fetch(`${origin}/Memories/api/photos?limit=1`)).json();
-    const second = await (await fetch(`${origin}/Memories/api/photos?limit=1&cursor=${encodeURIComponent(first.nextCursor)}`)).json();
-    assert.equal(second.photos[0].id, secondId);
-    const guest = await (await fetch(`${origin}/Memories/api/photos?source=guest`)).json();
-    assert.deepEqual(guest.photos.map((item) => item.id), [secondId]);
+    const first = await (
+      await fetch(`${origin}/Memories/api/photos?limit=1`)
+    ).json();
+    const second = await (
+      await fetch(
+        `${origin}/Memories/api/photos?limit=1&cursor=${encodeURIComponent(first.nextCursor)}`,
+      )
+    ).json();
+    assert.equal(second.photos[0].id, firstId);
+    const guest = await (
+      await fetch(`${origin}/Memories/api/photos?source=guest`)
+    ).json();
+    assert.deepEqual(
+      guest.photos.map((item) => item.id),
+      [secondId],
+    );
     assert.deepEqual(guest.photos[0].processIds, []);
+    assert.equal(guest.photos[0].uploaderName, null);
   });
 });
 
 test("streams thumbnail and media through controlled endpoints", async () => {
   await withApi(async (origin, { drive }) => {
-    const thumb = await fetch(`${origin}/Memories/api/photos/${firstId}/thumbnail`);
+    const thumb = await fetch(
+      `${origin}/Memories/api/photos/${firstId}/thumbnail`,
+    );
     assert.equal(thumb.status, 200);
+    assert.equal(thumb.headers.get("cache-control"), "private, no-store");
     assert.equal(await thumb.text(), "first-thumb");
     const media = await fetch(`${origin}/Memories/api/photos/${firstId}/media`);
+    assert.equal(media.headers.get("cache-control"), "private, no-store");
     assert.equal(await media.text(), "first-original");
-    assert.deepEqual(drive.calls.filter((call) => call.operation === "download").map((call) => call.fileId), ["drive-thumb-1", "drive-original-1"]);
+    assert.deepEqual(
+      drive.calls
+        .filter((call) => call.operation === "download")
+        .map((call) => call.fileId),
+      ["drive-thumb-1", "drive-original-1"],
+    );
   });
+});
+
+test("serves only the supported responsive thumbnail widths", async () => {
+  const widths = [];
+  await withApi(
+    async (origin) => {
+      const responsive = await fetch(
+        `${origin}/Memories/api/photos/${firstId}/thumbnail?width=480`,
+      );
+      assert.equal(responsive.status, 200);
+      assert.equal(await responsive.text(), "responsive-480");
+      const invalid = await fetch(
+        `${origin}/Memories/api/photos/${firstId}/thumbnail?width=777`,
+      );
+      assert.equal(invalid.status, 400);
+      assert.equal((await invalid.json()).code, "INVALID_THUMBNAIL_WIDTH");
+      assert.deepEqual(widths, [480]);
+    },
+    {
+      thumbnailService: {
+        async createResponsiveVariant(_photo, width) {
+          widths.push(width);
+          return {
+            body: Buffer.from(`responsive-${width}`),
+            contentType: "image/webp",
+          };
+        },
+      },
+    },
+  );
 });
 
 test("hidden photos and malformed ids are indistinguishable from missing photos", async () => {
   await withApi(async (origin) => {
-    assert.equal((await fetch(`${origin}/Memories/api/photos/${hiddenId}/media`)).status, 404);
-    assert.equal((await fetch(`${origin}/Memories/api/photos/drive-original-1/media`)).status, 404);
+    assert.equal(
+      (await fetch(`${origin}/Memories/api/photos/${hiddenId}/media`)).status,
+      404,
+    );
+    assert.equal(
+      (await fetch(`${origin}/Memories/api/photos/drive-original-1/media`))
+        .status,
+      404,
+    );
   });
 });
 
 test("invalid cursors return a bounded public error", async () => {
   await withApi(async (origin) => {
-    const response = await fetch(`${origin}/Memories/api/photos?cursor=not-a-cursor`);
+    const response = await fetch(
+      `${origin}/Memories/api/photos?cursor=not-a-cursor`,
+    );
     assert.equal(response.status, 400);
     assert.deepEqual(await response.json(), { error: "Invalid cursor" });
   });

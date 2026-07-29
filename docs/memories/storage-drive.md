@@ -38,7 +38,7 @@ Official wedding originals remain in their process folder or `00 未分類`. Gue
 - A wedding original is stored exactly once.
 - Technical derivatives are stored in the managed `系統縮圖` child folder and are never placed beside originals.
 - PostgreSQL is the query/index source for visibility, upload ownership, process membership, dimensions, hashes, and processing state.
-- Guest uploads use `uploader_type = guest`, retain the submitted name, and may receive a logical wedding-process or Life-photos classification without copying or moving the original out of `訪客上傳`.
+- Guest uploads use `uploader_type = guest`, retain the submitted name for private batch/admin use, and may receive a logical wedding-process or Life-photos classification without copying or moving the original out of `訪客上傳`. Public photo responses do not expose the name.
 
 ## Runtime configuration
 

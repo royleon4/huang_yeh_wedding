@@ -1,103 +1,54 @@
 import { useEffect, useRef, useState } from "react";
 import { adminApi as api, adminLoginMessage } from "./admin-api.mjs";
-
-document.documentElement.dataset.memoriesPrimaryNav = "hidden";
-
-const PROCESSES_UPDATED_EVENT = "memories:processes-updated";
-const ADMIN_TITLE_SELECTOR = ".archive-header h1";
-
-function applyNavigationVisibility(visible) {
-  document.documentElement.dataset.memoriesPrimaryNav = visible
-    ? "visible"
-    : "hidden";
-}
-
-function publishProcesses(processes) {
-  window.dispatchEvent(
-    new CustomEvent(PROCESSES_UPDATED_EVENT, {
-      detail: { processes: Array.isArray(processes) ? processes : [] },
-    }),
-  );
-}
+import { useMemoriesState } from "./MemoriesState.jsx";
+import { useAccessibleDialog } from "./useAccessibleDialog.js";
 
 export default function ProcessSyncAdmin() {
-  const [open, setOpen] = useState(false);
-  const [authenticated, setAuthenticated] = useState(false);
+  const {
+    adminAuthenticated: authenticated,
+    adminOpen: open,
+    albumOpen,
+    markPhotosChanged,
+    photoRevision,
+    primaryNavigationVisible,
+    processes,
+    setAdminAuthenticated,
+    setAdminOpen,
+    setAlbumOpen,
+    setPrimaryNavigationVisible,
+    setServerProcesses,
+  } = useMemoriesState();
   const [token, setToken] = useState("");
-  const [processes, setProcesses] = useState([]);
-  const [primaryNavigationVisible, setPrimaryNavigationVisible] =
-    useState(false);
+  const [batches, setBatches] = useState([]);
+  const [trash, setTrash] = useState([]);
+  const [replacementLink, setReplacementLink] = useState("");
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
-  const tapsRef = useRef([]);
   const passwordRef = useRef(null);
-
-  const loadPublicSettings = async () => {
-    const payload = await api("/Memories/api/settings");
-    const visible = payload.primaryNavigationVisible === true;
-    setPrimaryNavigationVisible(visible);
-    applyNavigationVisibility(visible);
-    return visible;
-  };
+  const gateRef = useRef(null);
+  const panelRef = useRef(null);
+  const panelCloseRef = useRef(null);
 
   const refresh = async () => {
-    const [processPayload, settingsPayload] = await Promise.all([
-      api("/Memories/api/processes"),
-      api("/Memories/api/settings"),
-    ]);
+    const [processPayload, settingsPayload, batchPayload, trashPayload] =
+      await Promise.all([
+        api("/Memories/api/processes"),
+        api("/Memories/api/settings"),
+        api("/Memories/api/admin/upload-batches"),
+        api("/Memories/api/admin/trash"),
+      ]);
     const nextProcesses = processPayload.processes || [];
-    setProcesses(nextProcesses);
-    publishProcesses(nextProcesses);
+    setServerProcesses(nextProcesses);
     const visible = settingsPayload.primaryNavigationVisible === true;
     setPrimaryNavigationVisible(visible);
-    applyNavigationVisibility(visible);
+    setAlbumOpen(settingsPayload.albumOpen !== false);
+    setBatches(batchPayload.batches || []);
+    setTrash(trashPayload.photos || []);
   };
 
   useEffect(() => {
-    void loadPublicSettings().catch(() => {
-      applyNavigationVisibility(false);
-    });
-  }, []);
-
-  useEffect(() => {
-    const labelCurrentTitle = () => {
-      const title = document.querySelector(ADMIN_TITLE_SELECTOR);
-      if (!title) return;
-      title.setAttribute(
-        "aria-label",
-        `${title.textContent || "Wedding archive"}. Administrator access is hidden.`,
-      );
-    };
-
-    const onDocumentClick = (event) => {
-      const target = event.target instanceof Element ? event.target : null;
-      if (!target?.closest(ADMIN_TITLE_SELECTOR)) return;
-
-      const now = Date.now();
-      tapsRef.current = [
-        ...tapsRef.current.filter((time) => now - time < 3500),
-        now,
-      ];
-      if (tapsRef.current.length < 5) return;
-
-      tapsRef.current = [];
-      setMessage("");
-      setAuthenticated(false);
-      setToken("");
-      setOpen(true);
-      requestAnimationFrame(() => passwordRef.current?.focus());
-    };
-
-    labelCurrentTitle();
-    document.addEventListener("click", onDocumentClick);
-    const observer = new MutationObserver(labelCurrentTitle);
-    observer.observe(document.body, { childList: true, subtree: true });
-
-    return () => {
-      document.removeEventListener("click", onDocumentClick);
-      observer.disconnect();
-    };
-  }, []);
+    if (open && authenticated) void refresh();
+  }, [photoRevision, open, authenticated]);
 
   const run = async (work, success) => {
     setBusy(true);
@@ -120,36 +71,51 @@ export default function ProcessSyncAdmin() {
     setMessage("");
     try {
       await api("/Memories/api/admin/session", { token, method: "POST" });
-      sessionStorage.setItem("memories-admin-token", token);
-      setAuthenticated(true);
+      setToken("");
+      setAdminAuthenticated(true);
       await refresh();
     } catch (error) {
-      sessionStorage.removeItem("memories-admin-token");
       setMessage(adminLoginMessage(error));
-      setAuthenticated(false);
+      setAdminAuthenticated(false);
     } finally {
       setBusy(false);
     }
   };
 
   const close = () => {
-    setOpen(false);
-    setAuthenticated(false);
+    setAdminOpen(false);
     setToken("");
     setMessage("");
+    setReplacementLink("");
   };
 
-  const signOut = () => {
-    sessionStorage.removeItem("memories-admin-token");
-    close();
-  };
+  const signOut = () =>
+    void api("/Memories/api/admin/session", { method: "DELETE" }).finally(
+      () => {
+        setAdminAuthenticated(false);
+        close();
+      },
+    );
+
+  useAccessibleDialog({
+    containerRef: gateRef,
+    initialFocusRef: passwordRef,
+    onClose: close,
+    enabled: open && !authenticated,
+  });
+  useAccessibleDialog({
+    containerRef: panelRef,
+    initialFocusRef: panelCloseRef,
+    onClose: close,
+    enabled: open && authenticated,
+  });
 
   const sync = () =>
     run(
-      () =>
-        api("/Memories/api/admin/processes/sync", { token, method: "POST" }),
+      () => api("/Memories/api/admin/processes/sync", { method: "POST" }),
       "已從 Google Drive 同步流程與照片分類。",
     );
+  const reload = () => run(async () => {}, "已重新讀取目前的相簿管理資料。");
 
   const add = () => {
     const labelZh = window.prompt("新增流程名稱");
@@ -157,7 +123,6 @@ export default function ProcessSyncAdmin() {
     void run(
       () =>
         api("/Memories/api/admin/processes", {
-          token,
           method: "POST",
           body: { labelZh: labelZh.trim() },
         }),
@@ -171,7 +136,6 @@ export default function ProcessSyncAdmin() {
     void run(
       () =>
         api(`/Memories/api/admin/processes/${encodeURIComponent(process.id)}`, {
-          token,
           method: "PATCH",
           body: { labelZh: labelZh.trim() },
         }),
@@ -187,7 +151,6 @@ export default function ProcessSyncAdmin() {
     void run(
       () =>
         api("/Memories/api/admin/processes/order", {
-          token,
           method: "PUT",
           body: { processIds: next.map((item) => item.id) },
         }),
@@ -199,35 +162,108 @@ export default function ProcessSyncAdmin() {
     run(
       async () => {
         const payload = await api("/Memories/api/admin/settings", {
-          token,
           method: "PATCH",
           body: { primaryNavigationVisible: visible },
         });
-        applyNavigationVisibility(payload.primaryNavigationVisible === true);
+        setPrimaryNavigationVisible(payload.primaryNavigationVisible === true);
       },
       visible ? "功能導覽列已對訪客顯示。" : "功能導覽列已對訪客隱藏。",
     );
 
-  const openUpload = () => {
-    const uploadButton = document.querySelectorAll(".primary-nav .nav-card")[2];
-    uploadButton?.click();
+  const toggleAlbum = (openForGuests) =>
+    run(
+      async () => {
+        const payload = await api("/Memories/api/admin/settings", {
+          method: "PATCH",
+          body: { albumOpen: openForGuests },
+        });
+        setAlbumOpen(payload.albumOpen !== false);
+      },
+      openForGuests
+        ? "Memories 已重新對訪客開放。"
+        : "Memories 已關閉；管理員仍可檢視與整理。",
+    );
+
+  const revokeBatch = (batch) => {
+    if (!window.confirm(`撤銷 ${batch.uploaderName || "訪客"} 的私人連結？`)) {
+      return;
+    }
+    void run(
+      () =>
+        api(
+          `/Memories/api/admin/upload-batches/${encodeURIComponent(batch.id)}/revoke`,
+          { method: "POST" },
+        ),
+      "私人連結已撤銷。",
+    );
+  };
+
+  const regenerateBatchLink = (batch) => {
+    if (!window.confirm("建立新連結後，舊連結會立即失效。確定繼續？")) {
+      return;
+    }
+    setBusy(true);
+    setMessage("");
+    void api(
+      `/Memories/api/admin/upload-batches/${encodeURIComponent(batch.id)}/management-token`,
+      { method: "POST" },
+    )
+      .then(async (payload) => {
+        setReplacementLink(
+          new URL(payload.manageUrl, window.location.origin).href,
+        );
+        await refresh();
+        setMessage("新的私人連結已建立，請立即交給正確的訪客。");
+      })
+      .catch((error) => {
+        setMessage(error instanceof Error ? error.message : "建立連結失敗");
+      })
+      .finally(() => setBusy(false));
+  };
+
+  const restorePhoto = (photo) =>
+    run(async () => {
+      await api(
+        `/Memories/api/admin/photos/${encodeURIComponent(photo.id)}/restore`,
+        { method: "POST" },
+      );
+      markPhotosChanged();
+    }, "照片已還原到相簿。");
+
+  const deleteProcess = (process) => {
+    if (
+      !window.confirm(`確定刪除「${process.labelZh}」？只有空的分類可以刪除。`)
+    ) {
+      return;
+    }
+    void run(
+      () =>
+        api(`/Memories/api/admin/processes/${encodeURIComponent(process.id)}`, {
+          method: "DELETE",
+        }),
+      "分類已刪除，網站與 Google Drive 已同步。",
+    );
   };
 
   return (
     <>
-      <button
-        type="button"
-        className="floating-upload-button"
-        onClick={openUpload}
-        aria-label="上傳婚禮照片"
-      >
-        <span aria-hidden="true">＋</span>
-        <strong>上傳照片</strong>
-      </button>
-
       {open && !authenticated && (
-        <div className="admin-gate-backdrop" role="presentation">
-          <form className="admin-gate" onSubmit={login}>
+        <div
+          className="admin-gate-backdrop"
+          role="presentation"
+          onMouseDown={(event) =>
+            event.target === event.currentTarget && close()
+          }
+        >
+          <form
+            ref={gateRef}
+            className="admin-gate"
+            onSubmit={login}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="admin-gate-title"
+            tabIndex="-1"
+          >
             <button
               type="button"
               className="admin-gate-close"
@@ -237,7 +273,7 @@ export default function ProcessSyncAdmin() {
               ×
             </button>
             <p className="eyebrow">ARCHIVE ADMIN</p>
-            <h2>管理員登入</h2>
+            <h2 id="admin-gate-title">管理員登入</h2>
             <label>
               管理密碼
               <input
@@ -264,15 +300,20 @@ export default function ProcessSyncAdmin() {
 
       {open && authenticated && (
         <aside
+          ref={panelRef}
           className="process-sync-admin"
-          aria-label="Google Drive 流程同步管理"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="admin-panel-title"
+          tabIndex="-1"
         >
           <div className="process-sync-heading">
             <div>
               <p className="eyebrow">ARCHIVE DESK</p>
-              <h2>相簿管理</h2>
+              <h2 id="admin-panel-title">相簿管理</h2>
             </div>
             <button
+              ref={panelCloseRef}
               type="button"
               className="process-sync-close"
               onClick={close}
@@ -301,7 +342,28 @@ export default function ProcessSyncAdmin() {
             </label>
           </section>
 
+          <section className="admin-setting-card">
+            <div>
+              <strong>對訪客開放 Memories</strong>
+              <p>
+                關閉後會停止一般瀏覽、上傳與私人批次管理；原邀請網站不受影響，管理員仍可整理。
+              </p>
+            </div>
+            <label className="switch-control">
+              <input
+                type="checkbox"
+                checked={albumOpen}
+                disabled={busy}
+                onChange={(event) => void toggleAlbum(event.target.checked)}
+              />
+              <span>{albumOpen ? "開放" : "關閉"}</span>
+            </label>
+          </section>
+
           <div className="process-sync-actions">
+            <button type="button" disabled={busy} onClick={reload}>
+              重新讀取分類
+            </button>
             <button type="button" disabled={busy} onClick={sync}>
               立即同步 Drive
             </button>
@@ -342,10 +404,105 @@ export default function ProcessSyncAdmin() {
                   >
                     改名
                   </button>
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => deleteProcess(process)}
+                    aria-label={`刪除分類 ${process.labelZh}`}
+                  >
+                    刪除
+                  </button>
                 </div>
               </li>
             ))}
           </ol>
+          <section className="admin-batch-section">
+            <div>
+              <h3>訪客上傳批次</h3>
+              <p>可檢查照片數、撤銷舊連結，或建立只能顯示一次的新連結。</p>
+            </div>
+            {replacementLink && (
+              <label className="admin-replacement-link">
+                新的私人連結
+                <input
+                  readOnly
+                  value={replacementLink}
+                  onFocus={(event) => event.currentTarget.select()}
+                />
+              </label>
+            )}
+            <ul>
+              {batches.map((batch) => (
+                <li key={batch.id}>
+                  <div>
+                    <strong>{batch.uploaderName || "未命名訪客"}</strong>
+                    <small>
+                      {batch.status} · {batch.visiblePhotoCount ?? 0}/
+                      {batch.photoCount ?? 0} 張可見
+                      {Object.keys(batch.uploadStatusCounts || {}).length > 0
+                        ? ` · ${Object.entries(batch.uploadStatusCounts)
+                            .map(([status, count]) => `${status} ${count}`)
+                            .join(" / ")}`
+                        : ""}
+                    </small>
+                  </div>
+                  <div>
+                    <button
+                      type="button"
+                      disabled={busy || batch.status === "revoked"}
+                      onClick={() => revokeBatch(batch)}
+                    >
+                      撤銷連結
+                    </button>
+                    <button
+                      type="button"
+                      disabled={busy}
+                      onClick={() => regenerateBatchLink(batch)}
+                    >
+                      建立新連結
+                    </button>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </section>
+          <section className="admin-batch-section">
+            <div>
+              <h3>七天垃圾桶</h3>
+              <p>到期前可還原；到期後背景工作才會移除 Drive 檔案與資料。</p>
+            </div>
+            {trash.length === 0 ? (
+              <p>垃圾桶目前是空的。</p>
+            ) : (
+              <ul>
+                {trash.map((photo) => (
+                  <li key={photo.id}>
+                    <div>
+                      <strong>
+                        {photo.originalFilename || photo.uploaderName || "照片"}
+                      </strong>
+                      <small>
+                        可還原至{" "}
+                        {new Intl.DateTimeFormat("zh-TW", {
+                          dateStyle: "medium",
+                          timeStyle: "short",
+                        }).format(new Date(photo.restoreUntil))}
+                      </small>
+                    </div>
+                    <div>
+                      <button
+                        type="button"
+                        disabled={busy}
+                        onClick={() => restorePhoto(photo)}
+                      >
+                        還原照片
+                      </button>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
           {message && (
             <p role="status" className="process-sync-message">
               {message}

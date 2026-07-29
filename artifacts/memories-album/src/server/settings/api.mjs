@@ -1,4 +1,5 @@
 import { adminAuthorized } from "../admin/auth.mjs";
+import { createFixedWindowRateLimiter } from "../admin/rate-limit.mjs";
 
 function json(response, status, body) {
   response.writeHead(status, {
@@ -32,7 +33,16 @@ async function readJson(request, maxBytes = 8 * 1024) {
   }
 }
 
-export function createSettingsApi({ repository, adminToken }) {
+export function createSettingsApi({
+  repository,
+  adminToken,
+  auditRepository = null,
+  now = () => new Date(),
+  rateLimiter = createFixedWindowRateLimiter({
+    limit: 60,
+    windowMs: 60_000,
+  }),
+}) {
   if (!repository) throw new Error("Settings repository is required");
 
   return async function handleSettingsApi(
@@ -57,21 +67,41 @@ export function createSettingsApi({ repository, adminToken }) {
           json(response, 401, { error: "Unauthorized", code: "UNAUTHORIZED" });
           return true;
         }
+        const rate = rateLimiter.consume(request);
+        if (!rate.allowed) {
+          json(response, 429, {
+            error: "Too many administrator requests",
+            code: "RATE_LIMITED",
+          });
+          return true;
+        }
         const body = await readJson(request);
-        if (typeof body.primaryNavigationVisible !== "boolean") {
+        const patch = {};
+        if (typeof body.primaryNavigationVisible === "boolean") {
+          patch.primaryNavigationVisible = body.primaryNavigationVisible;
+        }
+        if (typeof body.albumOpen === "boolean") {
+          patch.albumOpen = body.albumOpen;
+        }
+        if (Object.keys(patch).length === 0) {
           json(response, 422, {
-            error: "primaryNavigationVisible must be boolean",
+            error: "primaryNavigationVisible or albumOpen must be boolean",
             code: "INVALID_SETTING",
           });
           return true;
         }
-        json(
-          response,
-          200,
-          await repository.setPrimaryNavigationVisible(
-            body.primaryNavigationVisible,
-          ),
-        );
+        const before = await repository.getPublicSettings();
+        const after = await repository.updateSettings(patch);
+        await auditRepository?.record({
+          actor: "shared-secret-admin",
+          action: "settings.update",
+          targetType: "album",
+          targetId: "memories",
+          before,
+          after,
+          createdAt: now().toISOString(),
+        });
+        json(response, 200, after);
         return true;
       }
 

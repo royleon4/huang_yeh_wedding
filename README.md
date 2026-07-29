@@ -20,28 +20,30 @@
 
 ## Memories 目前功能
 
-已進入 `main`：
+目前 launch-readiness 實作：
 
 - 手機優先的瀑布流相簿與全螢幕檢視器
 - 婚禮流程、訪客上傳、生活照三個分類
 - 固定底部導覽與醒目的中央上傳按鈕
 - Google Drive 流程資料夾與網站流程同步
-- 訪客姓名必填、多照片逐張上傳、進度、暫停及安全重試
-- WebP 縮圖、原圖受控串流與拍攝／建立時間排序
-- PostgreSQL 照片、流程、批次與上傳狀態索引
-- 隱藏式管理員入口、流程同步、顯示設定與照片管理
+- 訪客姓名必填但不公開、多照片預覽／移除、逐張進度、暫停及安全重試
+- 私人批次管理連結、訪客撤回與管理 token 旋轉
+- 真正的 12 筆 opaque cursor 分頁、480／960 WebP `srcset`
+- 清除 EXIF/GPS 的受控公開原圖與拍攝／建立時間排序
+- PostgreSQL 照片、流程、批次、上傳狀態、設定、稽核與 cleanup jobs
+- 可自行從 Drive／Database 暫時失敗恢復的 runtime 與 `/ready`
+- 30 分鐘 HttpOnly 管理 session、相簿開關、流程／批次管理、單張／批次垃圾桶操作與稽核
+- 七天垃圾桶、到期清理、還原與 retryable cleanup
+- 共用 accessible dialog、safe area、320px lightbox 與 React shared state
+- CSP、安全 headers、管理與上傳 rate limit
 - 繁體中文／英文介面
 
-Phase 1 尚未完成：
+Phase 1 的 #5、#6、#7、#49、#51 已完成程式與 Node 測試實作；#48、#50 已完成核心程式，但其 browser-level 與實機驗收尚未完成。合併前仍需 review／CI，正式上線前仍缺：
 
-- 私人批次管理頁與訪客撤回（Issue #5）
-- 相簿關閉、完整管理稽核與正式 session 設計（Issue #6）
-- 七天垃圾桶、復原及到期清除（Issue #7）
-- 手機 overlay、safe area、焦點與小螢幕 lightbox 修正（Issue #48）
-- Drive／資料庫暫時失敗後免重啟恢復（Issue #49）
-- 真正的 server cursor 分頁與響應式圖片（Issue #50）
-- 移除 DOM／MutationObserver 橋接並統一 React state（Issue #51）
-- 手機實機、視覺比對與正式上線驗收（Issues #13、#26）
+- Production migrations、真實 Drive 建立／讀取／刪除 smoke test（Issue #13）
+- 八個指定 viewport 的真實 browser checks、iOS Safari／Android Chrome 實機矩陣、慢速／離線操作與效能量測（Issues #48、#50、#13）
+- Legacy 相片牆 list、upload、preview、lightbox 與部署前後 regression 證據（Issue #19）
+- 視覺 baseline、主要 viewport 截圖與 go／no-go 紀錄（Issue #26）
 
 人物分類與自拍找照片屬於 Phase 2，目前仍為 `即將推出`，統一追蹤於 Issue #24。
 
@@ -79,7 +81,7 @@ pnpm --filter @workspace/memories-album build
 pnpm --filter @workspace/memories-album db:migrate
 ```
 
-2026-07-29 repo audit：standalone Memories 測試為 105/105 通過，production build 成功。正式 Drive smoke test 仍需在已連線 Integration 與 production secrets 的 Replit 環境執行。
+2026-07-28 launch-readiness 分支：standalone Memories Node 測試與 production build 通過；精確測試數以 PR 的最新 CI 為準。這不取代 browser-level、真實 Drive 或 iOS／Android 實機驗收。
 
 ## Replit 正式環境
 
@@ -95,8 +97,12 @@ MEMORIES_ADMIN_TOKEN
 
 ```text
 MEMORIES_DRIVE_SYNC_INTERVAL_MS
+MEMORIES_RUNTIME_RETRY_DELAY_MS
 MEMORIES_THUMBNAIL_BATCH_SIZE
 MEMORIES_THUMBNAIL_MAX_PER_RUN
+MEMORIES_TRASH_CLEANUP_INTERVAL_MS
+MEMORIES_TRASH_CLEANUP_BATCH_SIZE
+MEMORIES_TRASH_CLEANUP_LEASE_MS
 ```
 
 不要把任何 secret、Drive folder ID 或真實管理密碼寫入 `.replit`、GitHub、前端 bundle 或文件。
@@ -109,6 +115,12 @@ MEMORIES_THUMBNAIL_MAX_PER_RUN
 4. 訪客多照片上傳、縮圖、排序與重試
 5. iOS Safari、Android Chrome、橫向畫面、safe area、鍵盤與慢速網路
 6. legacy 邀請網站與 `/api/photos*` 完全沒有回歸
+
+完整步驟見：
+
+- [`docs/memories/launch-readiness.md`](docs/memories/launch-readiness.md)
+- [`docs/memories/mobile-acceptance.md`](docs/memories/mobile-acceptance.md)
+- [`docs/memories/trash-retention.md`](docs/memories/trash-retention.md)
 
 ## 開發規則
 

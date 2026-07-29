@@ -1,12 +1,17 @@
-import { useMemo, useRef, useState } from "react";
-import { retryFailedUploads, uploadQueue } from "./upload-client.mjs";
+import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  retryFailedUploads,
+  selectUploadFiles,
+  uploadQueue,
+} from "./upload-client.mjs";
+import { useAccessibleDialog } from "./useAccessibleDialog.js";
 
 const COPY = {
   zh: {
     title: "把你的照片放進檔案館",
     intro:
       "請留下姓名、選擇照片，並可替這批照片選擇網站分類。系統會逐張安全上傳，暫時性失敗會自動重試。",
-    name: "你的姓名（必填）",
+    name: "你的姓名（必填，不會公開顯示）",
     namePlaceholder: "例如：小安",
     classification: "顯示分類（選填）",
     guestOnly: "不分類，只顯示在訪客上傳",
@@ -14,8 +19,7 @@ const COPY = {
     weddingGroup: "婚禮流程",
     files: "選擇照片",
     choose: "選擇最多 30 張照片",
-    hint:
-      "支援 JPEG、PNG、WebP、HEIC／HEIF；每張上限 25 MB。照片逐張傳送並使用固定識別碼，重新嘗試不會重複建立 Drive 檔案。",
+    hint: "支援 JPEG、PNG、WebP、HEIC／HEIF；每張上限 25 MB。照片逐張傳送並使用固定識別碼，重新嘗試不會重複建立 Drive 檔案。",
     start: "開始上傳",
     retryFailed: "繼續未完成照片",
     cancel: "暫停上傳",
@@ -34,12 +38,15 @@ const COPY = {
     openManagement: "開啟私人管理連結",
     retryNote:
       "已完成的照片不會重傳；按下「繼續未完成照片」會沿用同一批次與同一 Drive 檔案安全續傳。",
+    ignored: (count) => `已達 30 張上限，另有 ${count} 張未加入。`,
+    removeFile: (name) => `移除 ${name}`,
+    selectedFiles: "已選照片",
   },
   en: {
     title: "Add your photos to the archive",
     intro:
       "Enter your name, choose photos, and optionally select where they appear. Files upload one at a time and temporary failures retry automatically.",
-    name: "Your name (required)",
+    name: "Your name (required, not displayed publicly)",
     namePlaceholder: "For example: An",
     classification: "Display category (optional)",
     guestOnly: "No category — Guest uploads only",
@@ -47,8 +54,7 @@ const COPY = {
     weddingGroup: "Wedding moments",
     files: "Choose photos",
     choose: "Choose up to 30 photos",
-    hint:
-      "JPEG, PNG, WebP, HEIC and HEIF are accepted, up to 25 MB each. Stable upload IDs prevent duplicate Drive files when a request is retried.",
+    hint: "JPEG, PNG, WebP, HEIC and HEIF are accepted, up to 25 MB each. Stable upload IDs prevent duplicate Drive files when a request is retried.",
     start: "Start upload",
     retryFailed: "Continue unfinished photos",
     cancel: "Pause upload",
@@ -63,10 +69,15 @@ const COPY = {
     required: "Enter your name and select at least one photo.",
     completed: "Upload complete",
     partial: "Some photos are not finished",
-    management: "Save this private management link. It will let you view or withdraw this batch later.",
+    management:
+      "Save this private management link. It will let you view or withdraw this batch later.",
     openManagement: "Open private management link",
     retryNote:
       "Completed photos are never resent. Continue unfinished photos safely resumes the same batch and Drive files.",
+    ignored: (count) =>
+      `The 30-photo limit was reached. ${count} additional photo${count === 1 ? " was" : "s were"} not added.`,
+    removeFile: (name) => `Remove ${name}`,
+    selectedFiles: "Selected photos",
   },
 };
 
@@ -89,8 +100,26 @@ export default function UploadModal({
   const [error, setError] = useState("");
   const [batch, setBatch] = useState(null);
   const [summary, setSummary] = useState(null);
+  const [selectionNotice, setSelectionNotice] = useState("");
   const controllerRef = useRef(null);
   const uploadedIdsRef = useRef(new Set());
+  const dialogRef = useRef(null);
+  const closeButtonRef = useRef(null);
+  const previews = useMemo(
+    () =>
+      files.map((file) => ({
+        file,
+        url: URL.createObjectURL(file),
+      })),
+    [files],
+  );
+
+  useEffect(
+    () => () => {
+      for (const preview of previews) URL.revokeObjectURL(preview.url);
+    },
+    [previews],
+  );
 
   const overallProgress = useMemo(() => {
     if (items.length === 0) return 0;
@@ -101,10 +130,10 @@ export default function UploadModal({
   }, [items]);
 
   const handleFiles = (event) => {
-    const selected = Array.from(event.target.files ?? []).slice(0, 30);
-    setFiles(selected);
+    const selection = selectUploadFiles(event.target.files);
+    setFiles(selection.accepted);
     setItems(
-      selected.map((file) => ({
+      selection.accepted.map((file) => ({
         file,
         status: "queued",
         progress: 0,
@@ -114,7 +143,21 @@ export default function UploadModal({
     setError("");
     setSummary(null);
     setBatch(null);
+    setSelectionNotice(
+      selection.ignored.length > 0 ? t.ignored(selection.ignored.length) : "",
+    );
     uploadedIdsRef.current.clear();
+    event.target.value = "";
+  };
+
+  const removeFile = (index) => {
+    setFiles((current) =>
+      current.filter((_, itemIndex) => itemIndex !== index),
+    );
+    setItems((current) =>
+      current.filter((_, itemIndex) => itemIndex !== index),
+    );
+    setSelectionNotice("");
   };
 
   const handleUpdate = (update) => {
@@ -149,7 +192,9 @@ export default function UploadModal({
       setSummary(result.summary);
       setPhase("done");
     } catch (uploadError) {
-      setError(uploadError instanceof Error ? uploadError.message : "Upload failed");
+      setError(
+        uploadError instanceof Error ? uploadError.message : "Upload failed",
+      );
       setPhase("done");
     } finally {
       controllerRef.current = null;
@@ -162,7 +207,9 @@ export default function UploadModal({
       setError(t.required);
       return;
     }
-    const [classification, processId] = classificationChoice.startsWith("wedding:")
+    const [classification, processId] = classificationChoice.startsWith(
+      "wedding:",
+    )
       ? ["wedding", classificationChoice.slice("wedding:".length)]
       : [classificationChoice, null];
     await runUpload((signal) =>
@@ -192,19 +239,31 @@ export default function UploadModal({
     controllerRef.current?.abort();
     onClose();
   };
+  useAccessibleDialog({
+    containerRef: dialogRef,
+    initialFocusRef: closeButtonRef,
+    onClose: close,
+  });
 
   const hasUnfinished = Boolean(summary?.failed || summary?.cancelled);
   const completedTitle = hasUnfinished ? t.partial : t.completed;
 
   return (
-    <div className="modal-backdrop" role="presentation">
+    <div
+      className="modal-backdrop"
+      role="presentation"
+      onMouseDown={(event) => event.target === event.currentTarget && close()}
+    >
       <section
+        ref={dialogRef}
         className="paper-modal upload-modal"
         role="dialog"
         aria-modal="true"
         aria-labelledby="upload-dialog-title"
+        tabIndex="-1"
       >
         <button
+          ref={closeButtonRef}
           className="icon-button modal-close"
           type="button"
           onClick={close}
@@ -260,8 +319,43 @@ export default function UploadModal({
             />
           </label>
           <small className="upload-hint">{t.hint}</small>
+          {selectionNotice && (
+            <p className="upload-selection-notice" role="status">
+              {selectionNotice}
+            </p>
+          )}
 
-          {items.length > 0 && (
+          {phase === "idle" && previews.length > 0 && (
+            <section
+              className="selected-upload-files"
+              aria-labelledby="selected-upload-files-title"
+            >
+              <h3 id="selected-upload-files-title">{t.selectedFiles}</h3>
+              <ul>
+                {previews.map((preview, index) => (
+                  <li key={`${preview.file.name}-${preview.file.lastModified}`}>
+                    <img
+                      src={preview.url}
+                      alt=""
+                      onError={(event) => {
+                        event.currentTarget.hidden = true;
+                      }}
+                    />
+                    <span>{preview.file.name}</span>
+                    <button
+                      type="button"
+                      onClick={() => removeFile(index)}
+                      aria-label={t.removeFile(preview.file.name)}
+                    >
+                      ×
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
+
+          {items.length > 0 && phase !== "idle" && (
             <div className="upload-queue" aria-live="polite">
               <div className="overall-progress">
                 <span>{t.overall}</span>
@@ -270,7 +364,9 @@ export default function UploadModal({
               </div>
               <ol>
                 {items.map((item, index) => (
-                  <li key={`${item.file.name}-${item.file.lastModified}-${index}`}>
+                  <li
+                    key={`${item.file.name}-${item.file.lastModified}-${index}`}
+                  >
                     <div>
                       <strong>{item.file.name}</strong>
                       <small>
@@ -318,7 +414,11 @@ export default function UploadModal({
               </button>
             )}
             {phase === "uploading" && (
-              <button className="button secondary" type="button" onClick={cancelUpload}>
+              <button
+                className="button secondary"
+                type="button"
+                onClick={cancelUpload}
+              >
                 {t.cancel}
               </button>
             )}
@@ -332,7 +432,11 @@ export default function UploadModal({
               </button>
             )}
             {phase === "done" && (
-              <button className="button secondary" type="button" onClick={close}>
+              <button
+                className="button secondary"
+                type="button"
+                onClick={close}
+              >
                 {t.close}
               </button>
             )}

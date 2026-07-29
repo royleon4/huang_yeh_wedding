@@ -71,3 +71,36 @@ test("limits simultaneous full-original thumbnail generation", async () => {
   assert.equal(maximumActive, 2);
   assert.equal(uploadCount, 4);
 });
+
+test("responsive variants share the bounded image-generation queue", async () => {
+  const photos = [photo(1), photo(2), photo(3), photo(4)].map((item) => ({
+    ...item,
+    thumbnailDriveFileId: `thumb-${item.id}`,
+  }));
+  let active = 0;
+  let maximumActive = 0;
+  const service = new ThumbnailService({
+    repository: new MemoryPhotoRepository(photos),
+    drive: {
+      async download() {
+        return { body: Buffer.from("thumbnail"), contentType: "image/webp" };
+      },
+    },
+    imageProcessor: {
+      async createDisplayVariant({ bytes }) {
+        active += 1;
+        maximumActive = Math.max(maximumActive, active);
+        await new Promise((resolve) => setTimeout(resolve, 10));
+        active -= 1;
+        return { bytes, contentType: "image/webp" };
+      },
+    },
+    thumbnailFolderId: "thumbnail-folder",
+    maxConcurrent: 2,
+  });
+
+  await Promise.all(
+    photos.map((item) => service.createResponsiveVariant(item, 480)),
+  );
+  assert.equal(maximumActive, 2);
+});

@@ -1,17 +1,21 @@
 import assert from "node:assert/strict";
 import { createServer } from "node:http";
 import test from "node:test";
+import { createAdminSessionCookie } from "../src/server/admin/auth.mjs";
 import { createSettingsApi } from "../src/server/settings/api.mjs";
 
 async function withApi(run) {
-  let visible = false;
+  let settings = {
+    primaryNavigationVisible: false,
+    albumOpen: true,
+  };
   const repository = {
     async getPublicSettings() {
-      return { primaryNavigationVisible: visible };
+      return { ...settings };
     },
-    async setPrimaryNavigationVisible(value) {
-      visible = value === true;
-      return { primaryNavigationVisible: visible };
+    async updateSettings(patch) {
+      settings = { ...settings, ...patch };
+      return { ...settings };
     },
   };
   const api = createSettingsApi({
@@ -41,6 +45,7 @@ test("primary navigation is publicly reported as hidden by default", async () =>
     assert.equal(response.status, 200);
     assert.deepEqual(await response.json(), {
       primaryNavigationVisible: false,
+      albumOpen: true,
     });
   });
 });
@@ -58,18 +63,22 @@ test("only an authenticated admin can change primary navigation visibility", asy
       method: "PATCH",
       headers: {
         "Content-Type": "application/json",
-        Authorization: "Bearer correct-admin-password",
+        Cookie: createAdminSessionCookie({
+          configuredToken: "correct-admin-password",
+        }).header.split(";", 1)[0],
       },
       body: JSON.stringify({ primaryNavigationVisible: true }),
     });
     assert.equal(changed.status, 200);
     assert.deepEqual(await changed.json(), {
       primaryNavigationVisible: true,
+      albumOpen: true,
     });
 
     const publicSettings = await fetch(`${origin}/Memories/api/settings`);
     assert.deepEqual(await publicSettings.json(), {
       primaryNavigationVisible: true,
+      albumOpen: true,
     });
   });
 });

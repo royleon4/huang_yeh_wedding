@@ -1,6 +1,7 @@
 export async function adminApi(path, { token, method = "GET", body } = {}) {
   const response = await fetch(path, {
     method,
+    credentials: "same-origin",
     headers: {
       Accept: "application/json",
       ...(body ? { "Content-Type": "application/json" } : {}),
