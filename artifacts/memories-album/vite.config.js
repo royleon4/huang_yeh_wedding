@@ -5,6 +5,16 @@ import { createAdminSessionApi } from "./src/server/admin/session-api.mjs";
 import { getMemoriesRuntime } from "./src/server/runtime.mjs";
 import { applyDocumentSecurityHeaders } from "./src/server/security-headers.mjs";
 
+// In dev mode the React Fast Refresh preamble is an inline <script> injected by
+// @vitejs/plugin-react.  The production CSP has no 'unsafe-inline' for scripts,
+// which causes browsers to block that inline script so the preamble flag is never
+// set and every JSX module throws "can't detect preamble".  CSP is meaningless in
+// a local dev server, so we strip it from all HTML responses served by Vite.
+function applyDevDocumentHeaders(response) {
+  applyDocumentSecurityHeaders(response);
+  response.removeHeader("Content-Security-Policy");
+}
+
 const CANONICAL_BASE = "/Memories";
 const API_BASE = `${CANONICAL_BASE}/api`;
 
@@ -55,7 +65,7 @@ function memoriesDevelopmentRoutes() {
             redirect(response, "/admin");
             return;
           }
-          applyDocumentSecurityHeaders(response);
+          applyDevDocumentHeaders(response);
           request.url = `${CANONICAL_BASE}/${url.search}`;
           next();
           return;
@@ -66,7 +76,7 @@ function memoriesDevelopmentRoutes() {
             redirect(response, `${CANONICAL_BASE}/`);
             return;
           }
-          applyDocumentSecurityHeaders(response);
+          applyDevDocumentHeaders(response);
           request.url = `${CANONICAL_BASE}/${url.search}`;
           next();
           return;
@@ -173,7 +183,7 @@ function memoriesDevelopmentRoutes() {
           (url.pathname.startsWith(`${CANONICAL_BASE}/`) &&
             !url.pathname.split("/").at(-1)?.includes("."))
         ) {
-          applyDocumentSecurityHeaders(response);
+          applyDevDocumentHeaders(response);
         }
         next();
       });
