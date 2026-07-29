@@ -1,5 +1,5 @@
 import { createMemoriesPhotoApi } from "./photos/api.mjs";
-import { createAdminPhotoApi } from "./photos/admin-api.mjs";
+import { createAdminPhotoApi } from "./photos/admin-with-changes-api.mjs";
 import { PostgresPhotoRepository } from "./photos/postgres-repository.mjs";
 import { ThumbnailService } from "./photos/thumbnail-service.mjs";
 import { createReplitDriveStorage } from "./storage/replit-drive.mjs";
