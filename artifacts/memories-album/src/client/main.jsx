@@ -13,6 +13,7 @@ import "./photo-lightbox.css";
 import "./feature-controls.css";
 import "./bottom-collection-nav.css";
 import "./admin.css";
+import "./gallery-tweaks.css";
 
 class MemoriesErrorBoundary extends Component {
   constructor(props) {
