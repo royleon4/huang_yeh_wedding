@@ -26,7 +26,9 @@ function sameValue(left, right) {
 function changedFields(original, draft, fields) {
   const changes = {};
   for (const field of fields) {
-    if (!sameValue(original?.[field], draft?.[field])) changes[field] = draft?.[field];
+    if (!sameValue(original?.[field], draft?.[field])) {
+      changes[field] = draft?.[field];
+    }
   }
   return changes;
 }
@@ -60,6 +62,15 @@ export function photoDraft(photo) {
     categoryIds: [...photo.categoryIds],
     capturedAt: photo.capturedAt,
   };
+}
+
+export function mergeCategoryOrder(currentOrder, categories) {
+  const canonical = categories.map((category) => category.id);
+  const available = new Set(canonical);
+  return [
+    ...currentOrder.filter((id) => available.has(id)),
+    ...canonical.filter((id) => !currentOrder.includes(id)),
+  ];
 }
 
 export function buildAdminChangeSet({
@@ -99,10 +110,7 @@ export function buildAdminChangeSet({
     .map((photo) => ({
       id: photo.id,
       changes: changedFields(
-        {
-          ...photo,
-          categoryIds: photo.categoryIds,
-        },
+        photo,
         photoDrafts[photo.id] ?? photoDraft(photo),
         PHOTO_FIELDS,
       ),
@@ -110,9 +118,10 @@ export function buildAdminChangeSet({
     .filter((entry) => hasKeys(entry.changes));
 
   const canonicalOrder = categories.map((category) => category.id);
-  const reordered =
-    categoryOrder.length === canonicalOrder.length &&
-    categoryOrder.some((id, index) => id !== canonicalOrder[index]);
+  const effectiveOrder = mergeCategoryOrder(categoryOrder, categories);
+  const reordered = effectiveOrder.some(
+    (id, index) => id !== canonicalOrder[index],
+  );
 
   const albumCreates = String(newAlbum.titleZh ?? "").trim()
     ? [{ clientId: "new-album", values: { ...newAlbum } }]
@@ -126,7 +135,7 @@ export function buildAdminChangeSet({
     categories: {
       create: categoryCreates,
       update: categoryUpdates,
-      ...(reordered ? { reorder: [...categoryOrder] } : {}),
+      ...(reordered ? { reorder: effectiveOrder } : {}),
     },
     photos: { update: photoUpdates },
   };
