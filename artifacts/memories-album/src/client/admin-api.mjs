@@ -1,11 +1,18 @@
+function requestTimeoutError() {
+  const error = new Error("伺服器回應逾時");
+  error.code = "REQUEST_TIMEOUT";
+  return error;
+}
+
 export async function adminApi(
   path,
   { token, method = "GET", body, timeoutMs = 12000 } = {},
 ) {
   const controller = new AbortController();
-  const timer = globalThis.setTimeout(() => controller.abort(), timeoutMs);
+  const boundedTimeoutMs = Math.max(1, Number(timeoutMs) || 12000);
+  let timer;
 
-  try {
+  const request = (async () => {
     const response = await fetch(path, {
       method,
       signal: controller.signal,
@@ -26,12 +33,19 @@ export async function adminApi(
       throw error;
     }
     return payload;
+  })();
+
+  const timeout = new Promise((_, reject) => {
+    timer = globalThis.setTimeout(() => {
+      controller.abort();
+      reject(requestTimeoutError());
+    }, boundedTimeoutMs);
+  });
+
+  try {
+    return await Promise.race([request, timeout]);
   } catch (error) {
-    if (error?.name === "AbortError") {
-      const timeoutError = new Error("伺服器回應逾時");
-      timeoutError.code = "REQUEST_TIMEOUT";
-      throw timeoutError;
-    }
+    if (error?.name === "AbortError") throw requestTimeoutError();
     throw error;
   } finally {
     globalThis.clearTimeout(timer);
