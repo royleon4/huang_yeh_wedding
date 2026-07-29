@@ -45,6 +45,20 @@ artifacts/memories-album/db/003_description.sql
 
 Never edit a migration after it has been published. Add a later migration to make further changes. The checksum guard intentionally stops deployment if an already-applied migration was rewritten.
 
+## Development and production schema parity
+
+Replit generates its production-database deployment plan by comparing the development schema with the production schema. A migration that has reached production but not development can therefore appear as a destructive `DROP TABLE` or `DROP COLUMN` operation during the next publish.
+
+The repository `postMerge` hook runs the same tracked Memories migration runner against the development `DATABASE_URL`:
+
+```bash
+pnpm --filter @workspace/memories-album run db:migrate
+```
+
+Do not use `drizzle-kit push` for Memories. The shared Drizzle schema is not the source of truth for these tables, and an empty or incomplete Drizzle schema can incorrectly remove SQL-managed objects.
+
+If Publishing already shows a destructive migration, cancel that deployment, run the command above in the Replit development environment, then start a new publish. Do not choose the option that copies development data over production unless replacing all live production data is intentional.
+
 ## Manual development migration
 
 The development database can still be updated manually:
@@ -53,7 +67,7 @@ The development database can still be updated manually:
 npx -y pnpm@10.15.1 --filter @workspace/memories-album run db:migrate
 ```
 
-This command now uses the same tracked migration runner as production.
+This command uses the same tracked migration runner as production.
 
 ## Publish verification
 
