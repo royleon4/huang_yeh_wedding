@@ -1,0 +1,12 @@
+.primary-nav {
+  display: none !important;
+}
+
+.masonry-grid {
+  grid-auto-rows: 8px;
+  align-items: start;
+}
+
+.photo-card {
+  align-self: start;
+}
