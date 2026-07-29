@@ -1,6 +1,18 @@
 import { randomUUID } from "node:crypto";
 import { decodePhotoCursor, encodePhotoCursor } from "./cursor.mjs";
 
+/** Convert a raw Drive date string to an ISO timestamp, falling back to now() on any invalid value. */
+function safeDateIso(raw) {
+  if (!raw) return new Date().toISOString();
+  try {
+    const d = new Date(raw);
+    if (isNaN(d.getTime())) return new Date().toISOString();
+    return d.toISOString();
+  } catch {
+    return new Date().toISOString();
+  }
+}
+
 export class PostgresPhotoRepository {
   constructor(pool) {
     if (!pool?.query) throw new Error("A PostgreSQL pool is required");
@@ -109,11 +121,12 @@ export class PostgresPhotoRepository {
       preserveLogicalClassification = false,
     } = {},
   ) {
-    const createdAt =
+    const rawDate =
       file.imageMediaMetadata?.time ||
       file.createdTime ||
       file.modifiedTime ||
-      new Date().toISOString();
+      null;
+    const createdAt = safeDateIso(rawDate);
     const result = await this.pool.query(
       `INSERT INTO memories_photos (
         id, drive_file_id, original_filename, mime_type, byte_size,
