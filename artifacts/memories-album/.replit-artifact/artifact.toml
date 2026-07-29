@@ -1,13 +1,13 @@
 kind = "web"
 previewPath = "/Memories/"
 title = "婚禮相簿 Memories"
-version = "0.1.1"
+version = "0.1.2"
 id = "artifacts/memories-album"
 router = "path"
 
 [[services]]
 name = "memories"
-paths = [ "/Memories", "/memories" ]
+paths = [ "/Memories/admin", "/memories/admin", "/Memories", "/memories", "/admin" ]
 localPort = 19316
 
 [services.development]
