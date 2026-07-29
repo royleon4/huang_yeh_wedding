@@ -29,7 +29,7 @@ export default function AdminLoginPage() {
       <section className="admin-auth-card" aria-labelledby="admin-login-title">
         <p className="admin-kicker">WEDDING ARCHIVE</p>
         <h1 id="admin-login-title">管理員登入</h1>
-        <p>輸入 Replit Secrets 中設定的 SECRET_TOKEN。</p>
+        <p>輸入 Replit Secrets 中設定的 MEMORIES_ADMIN_TOKEN。</p>
         <form onSubmit={submit}>
           <label htmlFor="admin-password">管理密碼</label>
           <input

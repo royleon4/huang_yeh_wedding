@@ -154,12 +154,12 @@ async function createRuntime(env) {
     }),
     adminAlbumApi: createAdminAlbumApi({
       repository: albumRepository,
-      adminToken: env.SECRET_TOKEN,
+      adminToken: env.MEMORIES_ADMIN_TOKEN,
     }),
     adminCategoryApi: createAdminCategoryApi({
       repository: processRepository,
       synchronizer,
-      adminToken: env.SECRET_TOKEN,
+      adminToken: env.MEMORIES_ADMIN_TOKEN,
     }),
     adminPhotoApi: createAdminPhotoApi({
       repository,
@@ -168,7 +168,7 @@ async function createRuntime(env) {
       drive,
       imageProcessor,
       synchronizer,
-      adminToken: env.SECRET_TOKEN,
+      adminToken: env.MEMORIES_ADMIN_TOKEN,
     }),
     uploadApi: createGuestUploadApi({
       repository,

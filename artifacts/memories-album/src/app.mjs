@@ -193,7 +193,7 @@ async function handleStandaloneApi(
 export async function handleRequest(request, response, options) {
   const requestedUrl = new URL(request.url ?? "/", "http://localhost");
   const env = options?.env ?? process.env;
-  const adminToken = env.SECRET_TOKEN;
+  const adminToken = env.MEMORIES_ADMIN_TOKEN;
   const adminSessionApi =
     options?.adminSessionApi ?? createAdminSessionApi({ adminToken });
 
@@ -335,7 +335,7 @@ export function createServer(options = {}) {
     adminSessionApi:
       options.adminSessionApi ??
       createAdminSessionApi({
-        adminToken: env.SECRET_TOKEN,
+        adminToken: env.MEMORIES_ADMIN_TOKEN,
         trustProxy:
           options.trustProxy ??
           (env.REPLIT_DEPLOYMENT === "1" || env.MEMORIES_TRUST_PROXY === "1"),

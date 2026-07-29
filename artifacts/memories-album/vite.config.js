@@ -46,7 +46,7 @@ function memoriesDevelopmentRoutes() {
   return {
     name: "memories-development-routes",
     configureServer(server) {
-      const adminToken = process.env.SECRET_TOKEN;
+      const adminToken = process.env.MEMORIES_ADMIN_TOKEN;
       const adminSessionApi = createAdminSessionApi({
         adminToken,
         trustProxy:
