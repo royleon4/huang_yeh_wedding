@@ -29,7 +29,7 @@ test("the dedicated admin route owns album, photo, and category management", asy
   assert.match(adminSource, /\/admin\/api\/albums/);
   assert.match(adminSource, /\/admin\/api\/photos/);
   assert.match(adminSource, /\/admin\/api\/categories/);
-  assert.match(loginSource, /SECRET_TOKEN/);
+  assert.match(loginSource, /MEMORIES_ADMIN_TOKEN/);
 });
 
 test("collection controls remain sticky and span the viewport", async () => {

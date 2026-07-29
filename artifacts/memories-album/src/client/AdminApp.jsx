@@ -1,9 +1,17 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import "./admin-save-bar.css";
 import {
   adminErrorMessage,
   adminRequest,
   logoutAdministrator,
 } from "./admin-client.mjs";
+import {
+  albumDraft,
+  buildAdminChangeSet,
+  categoryDraft,
+  photoDraft,
+  successfulResultKeys,
+} from "./admin-change-set.mjs";
 
 function toLocalDateTime(value) {
   const date = new Date(value);
@@ -17,22 +25,15 @@ function toIso(value) {
   return Number.isFinite(date.getTime()) ? date.toISOString() : "";
 }
 
-function AlbumEditor({ album, busy, onSaved }) {
-  const [draft, setDraft] = useState(album);
+function withoutSuccessfulDrafts(current, prefix, successful) {
+  return Object.fromEntries(
+    Object.entries(current).filter(([id]) => !successful.has(`${prefix}${id}`)),
+  );
+}
 
-  const save = async (event) => {
-    event.preventDefault();
-    await onSaved({
-      titleZh: draft.titleZh,
-      titleEn: draft.titleEn,
-      descriptionZh: draft.descriptionZh,
-      descriptionEn: draft.descriptionEn,
-      isVisible: draft.isVisible,
-    });
-  };
-
+function AlbumEditor({ album, draft, busy, onChange }) {
   return (
-    <form className="admin-editor-card" onSubmit={save}>
+    <form className="admin-editor-card" onSubmit={(event) => event.preventDefault()}>
       <div className="admin-editor-heading">
         <strong>{album.titleZh}</strong>
         <span>{album.isSystem ? "系統相簿" : "自訂相簿"}</span>
@@ -42,49 +43,33 @@ function AlbumEditor({ album, busy, onSaved }) {
           中文名稱
           <input
             value={draft.titleZh}
-            onChange={(event) =>
-              setDraft((current) => ({
-                ...current,
-                titleZh: event.target.value,
-              }))
-            }
+            onChange={(event) => onChange({ titleZh: event.target.value })}
             required
+            disabled={busy}
           />
         </label>
         <label>
           英文名稱
           <input
             value={draft.titleEn}
-            onChange={(event) =>
-              setDraft((current) => ({
-                ...current,
-                titleEn: event.target.value,
-              }))
-            }
+            onChange={(event) => onChange({ titleEn: event.target.value })}
+            disabled={busy}
           />
         </label>
         <label className="admin-wide-field">
           中文說明
           <textarea
             value={draft.descriptionZh}
-            onChange={(event) =>
-              setDraft((current) => ({
-                ...current,
-                descriptionZh: event.target.value,
-              }))
-            }
+            onChange={(event) => onChange({ descriptionZh: event.target.value })}
+            disabled={busy}
           />
         </label>
         <label className="admin-wide-field">
           英文說明
           <textarea
             value={draft.descriptionEn}
-            onChange={(event) =>
-              setDraft((current) => ({
-                ...current,
-                descriptionEn: event.target.value,
-              }))
-            }
+            onChange={(event) => onChange({ descriptionEn: event.target.value })}
+            disabled={busy}
           />
         </label>
       </div>
@@ -93,50 +78,49 @@ function AlbumEditor({ album, busy, onSaved }) {
           <input
             type="checkbox"
             checked={draft.isVisible}
-            onChange={(event) =>
-              setDraft((current) => ({
-                ...current,
-                isVisible: event.target.checked,
-              }))
-            }
+            onChange={(event) => onChange({ isVisible: event.target.checked })}
+            disabled={busy}
           />
           對訪客顯示
         </label>
-        <button type="submit" disabled={busy}>
-          儲存相簿
-        </button>
+        <span className="admin-draft-hint">變更會由頁面底部統一儲存</span>
       </div>
     </form>
   );
 }
 
-function CategoryEditor({ category, busy, onSaved, onMove, first, last }) {
-  const [labelZh, setLabelZh] = useState(category.labelZh);
-  const [labelEn, setLabelEn] = useState(category.labelEn);
-
-  const save = async (event) => {
-    event.preventDefault();
-    await onSaved({ labelZh, labelEn });
-  };
-
+function CategoryEditor({
+  category,
+  draft,
+  busy,
+  onChange,
+  onMove,
+  first,
+  last,
+}) {
   return (
-    <form className="admin-editor-card admin-category-row" onSubmit={save}>
+    <form
+      className="admin-editor-card admin-category-row"
+      onSubmit={(event) => event.preventDefault()}
+    >
       <span className="admin-order-number">
         {String(category.displayOrder).padStart(2, "0")}
       </span>
       <label>
         中文分類
         <input
-          value={labelZh}
-          onChange={(event) => setLabelZh(event.target.value)}
+          value={draft.labelZh}
+          onChange={(event) => onChange({ labelZh: event.target.value })}
           required
+          disabled={busy}
         />
       </label>
       <label>
         英文分類
         <input
-          value={labelEn}
-          onChange={(event) => setLabelEn(event.target.value)}
+          value={draft.labelEn}
+          onChange={(event) => onChange({ labelEn: event.target.value })}
+          disabled={busy}
         />
       </label>
       <div className="admin-row-actions">
@@ -156,17 +140,14 @@ function CategoryEditor({ category, busy, onSaved, onMove, first, last }) {
         >
           ↓
         </button>
-        <button type="submit" disabled={busy}>
-          儲存
-        </button>
       </div>
     </form>
   );
 }
 
-function AlbumChoices({ albums, selected, onChange }) {
+function AlbumChoices({ albums, selected, onChange, disabled }) {
   return (
-    <fieldset className="admin-album-choices">
+    <fieldset className="admin-album-choices" disabled={disabled}>
       <legend>所屬相簿</legend>
       {albums.map((album) => (
         <label key={album.id} className="admin-check">
@@ -188,76 +169,46 @@ function AlbumChoices({ albums, selected, onChange }) {
   );
 }
 
-function PhotoEditor({ photo, albums, categories, busy, onSaved }) {
-  const [draft, setDraft] = useState({
-    displayName: photo.displayName,
-    visibility: photo.visibility,
-    albumIds: photo.albumIds,
-    categoryId: photo.categoryIds[0] ?? "",
-    capturedAt: toLocalDateTime(photo.capturedAt),
-  });
-
-  const save = async (event) => {
-    event.preventDefault();
-    await onSaved({
-      displayName: draft.displayName,
-      visibility: draft.visibility,
-      albumIds: draft.albumIds,
-      categoryIds: draft.categoryId ? [draft.categoryId] : [],
-      capturedAt: toIso(draft.capturedAt),
-    });
-  };
-
+function PhotoEditor({ photo, draft, albums, categories, busy, onChange }) {
   return (
-    <form className="admin-photo-card" onSubmit={save}>
+    <form className="admin-photo-card" onSubmit={(event) => event.preventDefault()}>
       <div className="admin-photo-preview">
         <img src={photo.thumbnailUrl} alt="" loading="lazy" />
-        <span>{photo.visibility === "public" ? "公開" : "隱藏"}</span>
+        <span>{draft.visibility === "public" ? "公開" : "隱藏"}</span>
       </div>
       <div className="admin-photo-fields">
         <label>
           顯示名稱
           <input
             value={draft.displayName}
-            onChange={(event) =>
-              setDraft((current) => ({
-                ...current,
-                displayName: event.target.value,
-              }))
-            }
+            onChange={(event) => onChange({ displayName: event.target.value })}
             required
+            disabled={busy}
           />
         </label>
         <label>
           拍攝時間
           <input
             type="datetime-local"
-            value={draft.capturedAt}
-            onChange={(event) =>
-              setDraft((current) => ({
-                ...current,
-                capturedAt: event.target.value,
-              }))
-            }
+            value={toLocalDateTime(draft.capturedAt)}
+            onChange={(event) => onChange({ capturedAt: toIso(event.target.value) })}
             required
+            disabled={busy}
           />
         </label>
         <label>
           流程分類
           <select
-            value={draft.categoryId}
+            value={draft.categoryIds[0] ?? ""}
             onChange={(event) =>
-              setDraft((current) => ({
-                ...current,
-                categoryId: event.target.value,
-              }))
+              onChange({ categoryIds: event.target.value ? [event.target.value] : [] })
             }
+            disabled={busy}
           >
             <option value="">不指定流程</option>
             {categories.map((category) => (
               <option key={category.id} value={category.id}>
-                {String(category.displayOrder).padStart(2, "0")}{" "}
-                {category.labelZh}
+                {String(category.displayOrder).padStart(2, "0")} {category.labelZh}
               </option>
             ))}
           </select>
@@ -266,12 +217,8 @@ function PhotoEditor({ photo, albums, categories, busy, onSaved }) {
           公開狀態
           <select
             value={draft.visibility}
-            onChange={(event) =>
-              setDraft((current) => ({
-                ...current,
-                visibility: event.target.value,
-              }))
-            }
+            onChange={(event) => onChange({ visibility: event.target.value })}
+            disabled={busy}
           >
             <option value="public">公開</option>
             <option value="hidden">隱藏</option>
@@ -280,17 +227,26 @@ function PhotoEditor({ photo, albums, categories, busy, onSaved }) {
         <AlbumChoices
           albums={albums}
           selected={draft.albumIds}
-          onChange={(albumIds) =>
-            setDraft((current) => ({ ...current, albumIds }))
-          }
+          onChange={(albumIds) => onChange({ albumIds })}
+          disabled={busy}
         />
-        <button type="submit" disabled={busy || draft.albumIds.length === 0}>
-          儲存照片
-        </button>
+        {draft.albumIds.length === 0 && (
+          <p className="admin-form-error">照片至少必須屬於一個相簿。</p>
+        )}
+        <span className="admin-draft-hint">變更會由頁面底部統一儲存</span>
       </div>
     </form>
   );
 }
+
+const EMPTY_ALBUM = {
+  titleZh: "",
+  titleEn: "",
+  descriptionZh: "",
+  descriptionEn: "",
+  isVisible: true,
+};
+const EMPTY_CATEGORY = { labelZh: "", labelEn: "" };
 
 export default function AdminApp() {
   const [tab, setTab] = useState("albums");
@@ -298,20 +254,13 @@ export default function AdminApp() {
   const [categories, setCategories] = useState([]);
   const [photos, setPhotos] = useState([]);
   const [nextCursor, setNextCursor] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [busy, setBusy] = useState(false);
-  const [message, setMessage] = useState("");
-  const [error, setError] = useState("");
-  const [newAlbum, setNewAlbum] = useState({
-    titleZh: "",
-    titleEn: "",
-    descriptionZh: "",
-    descriptionEn: "",
-  });
-  const [newCategory, setNewCategory] = useState({
-    labelZh: "",
-    labelEn: "",
-  });
+  const [albumDrafts, setAlbumDrafts] = useState({});
+  const [categoryDrafts, setCategoryDrafts] = useState({});
+  const [photoDrafts, setPhotoDrafts] = useState({});
+  const [categoryOrder, setCategoryOrder] = useState([]);
+  const [newAlbum, setNewAlbum] = useState(EMPTY_ALBUM);
+  const [newCategory, setNewCategory] = useState(EMPTY_CATEGORY);
+  const [uploadInputKey, setUploadInputKey] = useState(0);
   const [upload, setUpload] = useState({
     file: null,
     displayName: "",
@@ -319,33 +268,90 @@ export default function AdminApp() {
     albumIds: [],
     categoryId: "",
   });
+  const [loading, setLoading] = useState(true);
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState("");
+  const [error, setError] = useState("");
+
+  const orderedCategories = useMemo(() => {
+    const byId = new Map(categories.map((category) => [category.id, category]));
+    const ordered = categoryOrder.map((id) => byId.get(id)).filter(Boolean);
+    for (const category of categories) {
+      if (!categoryOrder.includes(category.id)) ordered.push(category);
+    }
+    return ordered.map((category, index) => ({
+      ...category,
+      displayOrder: index + 1,
+    }));
+  }, [categories, categoryOrder]);
+
+  const changeSet = useMemo(
+    () =>
+      buildAdminChangeSet({
+        albums,
+        albumDrafts,
+        newAlbum,
+        categories,
+        categoryDrafts,
+        categoryOrder,
+        newCategory,
+        photos,
+        photoDrafts,
+      }),
+    [
+      albums,
+      albumDrafts,
+      newAlbum,
+      categories,
+      categoryDrafts,
+      categoryOrder,
+      newCategory,
+      photos,
+      photoDrafts,
+    ],
+  );
+  const pendingCount = changeSet.count + (upload.file ? 1 : 0);
+
+  const replaceUnauthorized = (loadError) => {
+    if (loadError?.status !== 401) return false;
+    window.location.replace("/Memories/");
+    return true;
+  };
+
+  const loadCanonical = async ({ preserveCategoryOrder = false } = {}) => {
+    const [albumData, categoryData, photoData] = await Promise.all([
+      adminRequest("/admin/api/albums"),
+      adminRequest("/admin/api/categories"),
+      adminRequest("/admin/api/photos?limit=50"),
+    ]);
+    setAlbums(albumData.albums);
+    setCategories(categoryData.categories);
+    setPhotos(photoData.photos);
+    setNextCursor(photoData.nextCursor);
+    if (!preserveCategoryOrder) {
+      setCategoryOrder(categoryData.categories.map((category) => category.id));
+    }
+    setUpload((current) => ({
+      ...current,
+      albumIds:
+        current.albumIds.length > 0
+          ? current.albumIds.filter((id) =>
+              albumData.albums.some((album) => album.id === id),
+            )
+          : albumData.albums[0]?.id
+            ? [albumData.albums[0].id]
+            : [],
+    }));
+  };
 
   useEffect(() => {
     document.documentElement.lang = "zh-Hant";
     document.title = "管理後台｜詠葉婚禮照片檔案館";
     let cancelled = false;
-    void Promise.all([
-      adminRequest("/admin/api/session"),
-      adminRequest("/admin/api/albums"),
-      adminRequest("/admin/api/categories"),
-      adminRequest("/admin/api/photos?limit=50"),
-    ])
-      .then(([, albumData, categoryData, photoData]) => {
-        if (cancelled) return;
-        setAlbums(albumData.albums);
-        setCategories(categoryData.categories);
-        setPhotos(photoData.photos);
-        setNextCursor(photoData.nextCursor);
-        setUpload((current) => ({
-          ...current,
-          albumIds: albumData.albums[0]?.id ? [albumData.albums[0].id] : [],
-        }));
-      })
+    void adminRequest("/admin/api/session")
+      .then(() => loadCanonical())
       .catch((loadError) => {
-        if (loadError?.status === 401) {
-          window.location.replace("/Memories/");
-          return;
-        }
+        if (replaceUnauthorized(loadError)) return;
         if (!cancelled) setError(adminErrorMessage(loadError));
       })
       .finally(() => {
@@ -356,137 +362,165 @@ export default function AdminApp() {
     };
   }, []);
 
-  const run = async (operation, success) => {
-    if (busy) return null;
+  useEffect(() => {
+    if (pendingCount === 0) return undefined;
+    const warn = (event) => {
+      event.preventDefault();
+      event.returnValue = "";
+    };
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, [pendingCount]);
+
+  const confirmDiscard = () =>
+    pendingCount === 0 || window.confirm("尚有未儲存的變更，確定要離開嗎？");
+
+  const updateAlbumDraft = (album, changes) => {
+    setAlbumDrafts((current) => ({
+      ...current,
+      [album.id]: { ...(current[album.id] ?? albumDraft(album)), ...changes },
+    }));
+  };
+
+  const updateCategoryDraft = (category, changes) => {
+    setCategoryDrafts((current) => ({
+      ...current,
+      [category.id]: {
+        ...(current[category.id] ?? categoryDraft(category)),
+        ...changes,
+      },
+    }));
+  };
+
+  const updatePhotoDraft = (photo, changes) => {
+    setPhotoDrafts((current) => ({
+      ...current,
+      [photo.id]: { ...(current[photo.id] ?? photoDraft(photo)), ...changes },
+    }));
+  };
+
+  const moveCategory = (index, direction) => {
+    const nextIndex = index + direction;
+    if (nextIndex < 0 || nextIndex >= orderedCategories.length) return;
+    const reordered = orderedCategories.map((category) => category.id);
+    [reordered[index], reordered[nextIndex]] = [
+      reordered[nextIndex],
+      reordered[index],
+    ];
+    setCategoryOrder(reordered);
+  };
+
+  const saveAll = async () => {
+    if (busy || pendingCount === 0) return;
     setBusy(true);
-    setError("");
     setMessage("");
+    setError("");
+    const failures = [];
+    let succeeded = 0;
+    let preserveCategoryOrder = changeSet.reordered;
+
     try {
-      const value = await operation();
-      setMessage(success);
-      return value;
-    } catch (operationError) {
-      if (operationError?.status === 401) {
-        window.location.replace("/Memories/");
-        return null;
+      if (changeSet.count > 0) {
+        const payload = await adminRequest("/admin/api/changes", {
+          method: "PATCH",
+          body: changeSet.payload,
+          timeoutMs: 120_000,
+        });
+        const successful = successfulResultKeys(payload.results);
+        succeeded += payload.summary?.succeeded ?? successful.size;
+        failures.push(
+          ...(payload.results ?? [])
+            .filter((result) => result.status === "error")
+            .map((result) => result.error || result.code || "變更儲存失敗"),
+        );
+
+        setAlbumDrafts((current) =>
+          withoutSuccessfulDrafts(current, "album:update:", successful),
+        );
+        setCategoryDrafts((current) =>
+          withoutSuccessfulDrafts(current, "category:update:", successful),
+        );
+        setPhotoDrafts((current) =>
+          withoutSuccessfulDrafts(current, "photo:update:", successful),
+        );
+        if (successful.has("album:create:new-album")) setNewAlbum(EMPTY_ALBUM);
+        if (successful.has("category:create:new-category")) {
+          setNewCategory(EMPTY_CATEGORY);
+        }
+        if (successful.has("category:reorder")) preserveCategoryOrder = false;
       }
-      setError(adminErrorMessage(operationError));
-      return null;
+
+      if (upload.file) {
+        const form = new FormData();
+        form.append("photo", upload.file);
+        form.append(
+          "metadata",
+          JSON.stringify({
+            displayName: upload.displayName || upload.file.name,
+            capturedAt: toIso(upload.capturedAt),
+            albumIds: upload.albumIds,
+            categoryIds: upload.categoryId ? [upload.categoryId] : [],
+            visibility: "public",
+          }),
+        );
+        try {
+          await adminRequest("/admin/api/photos", {
+            method: "POST",
+            form,
+            timeoutMs: 120_000,
+          });
+          succeeded += 1;
+          setUpload((current) => ({
+            ...current,
+            file: null,
+            displayName: "",
+            capturedAt: toLocalDateTime(new Date()),
+          }));
+          setUploadInputKey((current) => current + 1);
+        } catch (uploadError) {
+          if (replaceUnauthorized(uploadError)) return;
+          failures.push(adminErrorMessage(uploadError));
+        }
+      }
+
+      await loadCanonical({ preserveCategoryOrder });
+      if (failures.length > 0) {
+        setError(
+          `${succeeded} 項已儲存，${failures.length} 項仍待處理：${[
+            ...new Set(failures),
+          ].join("；")}`,
+        );
+      } else {
+        setMessage(`已儲存全部 ${succeeded} 項變更。`);
+      }
+    } catch (saveError) {
+      if (replaceUnauthorized(saveError)) return;
+      setError(adminErrorMessage(saveError));
     } finally {
       setBusy(false);
     }
   };
 
-  const createAlbum = async (event) => {
-    event.preventDefault();
-    const payload = await run(
-      () =>
-        adminRequest("/admin/api/albums", {
-          method: "POST",
-          body: newAlbum,
-        }),
-      "相簿已新增。",
-    );
-    if (!payload) return;
-    setAlbums((current) => [...current, payload.album]);
-    setNewAlbum({
-      titleZh: "",
-      titleEn: "",
-      descriptionZh: "",
-      descriptionEn: "",
-    });
-  };
-
-  const createCategory = async (event) => {
-    event.preventDefault();
-    const payload = await run(
-      () =>
-        adminRequest("/admin/api/categories", {
-          method: "POST",
-          body: newCategory,
-        }),
-      "分類已新增並同步至 Google Drive。",
-    );
-    if (!payload) return;
-    setCategories((current) => [...current, payload.category]);
-    setNewCategory({ labelZh: "", labelEn: "" });
-  };
-
-  const moveCategory = async (index, direction) => {
-    const nextIndex = index + direction;
-    if (nextIndex < 0 || nextIndex >= categories.length) return;
-    const reordered = [...categories];
-    [reordered[index], reordered[nextIndex]] = [
-      reordered[nextIndex],
-      reordered[index],
-    ];
-    const payload = await run(
-      () =>
-        adminRequest("/admin/api/categories/order", {
-          method: "PUT",
-          body: { categoryIds: reordered.map((category) => category.id) },
-        }),
-      "分類順序已同步至 Google Drive。",
-    );
-    if (payload) setCategories(payload.categories);
-  };
-
-  const uploadPhoto = async (event) => {
-    event.preventDefault();
-    if (!upload.file) return;
-    const formElement = event.currentTarget;
-    const form = new FormData();
-    form.append("photo", upload.file);
-    form.append(
-      "metadata",
-      JSON.stringify({
-        displayName: upload.displayName || upload.file.name,
-        capturedAt: toIso(upload.capturedAt),
-        albumIds: upload.albumIds,
-        categoryIds: upload.categoryId ? [upload.categoryId] : [],
-        visibility: "public",
-      }),
-    );
-    const payload = await run(
-      () =>
-        adminRequest("/admin/api/photos", {
-          method: "POST",
-          form,
-          timeoutMs: 60_000,
-        }),
-      "照片已新增。",
-    );
-    if (!payload) return;
-    setPhotos((current) =>
-      [...current, payload.photo].sort((left, right) =>
-        left.capturedAt.localeCompare(right.capturedAt),
-      ),
-    );
-    setUpload((current) => ({
-      ...current,
-      file: null,
-      displayName: "",
-      capturedAt: toLocalDateTime(new Date()),
-    }));
-    formElement.reset();
-  };
-
   const loadMorePhotos = async () => {
-    if (!nextCursor) return;
-    const payload = await run(
-      () =>
-        adminRequest(
-          `/admin/api/photos?limit=50&cursor=${encodeURIComponent(nextCursor)}`,
-        ),
-      "已載入更多照片。",
-    );
-    if (!payload) return;
-    setPhotos((current) => [...current, ...payload.photos]);
-    setNextCursor(payload.nextCursor);
+    if (!nextCursor || busy) return;
+    setBusy(true);
+    setError("");
+    try {
+      const payload = await adminRequest(
+        `/admin/api/photos?limit=50&cursor=${encodeURIComponent(nextCursor)}`,
+      );
+      setPhotos((current) => [...current, ...payload.photos]);
+      setNextCursor(payload.nextCursor);
+      setMessage("已載入更多照片。");
+    } catch (loadError) {
+      if (!replaceUnauthorized(loadError)) setError(adminErrorMessage(loadError));
+    } finally {
+      setBusy(false);
+    }
   };
 
   const logout = async () => {
-    if (busy) return;
+    if (busy || !confirmDiscard()) return;
     setBusy(true);
     setError("");
     try {
@@ -511,10 +545,17 @@ export default function AdminApp() {
         <div>
           <p className="admin-kicker">LEON & YEHY · MEMORIES</p>
           <h1>婚禮相簿管理</h1>
-          <p>相簿、照片與分類均在這個獨立路由管理。</p>
+          <p>可跨相簿、照片與分類修改，最後一次儲存全部變更。</p>
         </div>
         <div className="admin-header-actions">
-          <a href="/Memories/">查看相簿</a>
+          <a
+            href="/Memories/"
+            onClick={(event) => {
+              if (!confirmDiscard()) event.preventDefault();
+            }}
+          >
+            查看相簿
+          </a>
           <button type="button" onClick={() => void logout()} disabled={busy}>
             登出
           </button>
@@ -557,8 +598,14 @@ export default function AdminApp() {
               </div>
               <span>{albums.length} 個相簿</span>
             </div>
-            <form className="admin-create-card" onSubmit={createAlbum}>
+            <form
+              className="admin-create-card"
+              onSubmit={(event) => event.preventDefault()}
+            >
               <h3>新增相簿</h3>
+              <p className="admin-section-note">
+                填寫名稱後，這筆新相簿會加入頁面底部的待儲存項目。
+              </p>
               <div className="admin-field-grid">
                 <label>
                   中文名稱
@@ -570,7 +617,7 @@ export default function AdminApp() {
                         titleZh: event.target.value,
                       }))
                     }
-                    required
+                    disabled={busy}
                   />
                 </label>
                 <label>
@@ -583,6 +630,7 @@ export default function AdminApp() {
                         titleEn: event.target.value,
                       }))
                     }
+                    disabled={busy}
                   />
                 </label>
                 <label className="admin-wide-field">
@@ -595,34 +643,32 @@ export default function AdminApp() {
                         descriptionZh: event.target.value,
                       }))
                     }
+                    disabled={busy}
+                  />
+                </label>
+                <label className="admin-wide-field">
+                  英文說明
+                  <textarea
+                    value={newAlbum.descriptionEn}
+                    onChange={(event) =>
+                      setNewAlbum((current) => ({
+                        ...current,
+                        descriptionEn: event.target.value,
+                      }))
+                    }
+                    disabled={busy}
                   />
                 </label>
               </div>
-              <button type="submit" disabled={busy}>
-                新增相簿
-              </button>
             </form>
             <div className="admin-editor-list">
               {albums.map((album) => (
                 <AlbumEditor
                   key={album.id}
                   album={album}
+                  draft={albumDrafts[album.id] ?? albumDraft(album)}
                   busy={busy}
-                  onSaved={(changes) =>
-                    run(async () => {
-                      const payload = await adminRequest(
-                        `/admin/api/albums/${encodeURIComponent(album.id)}`,
-                        { method: "PATCH", body: changes },
-                      );
-                      const saved = payload.album;
-                      setAlbums((current) =>
-                        current.map((item) =>
-                          item.id === saved.id ? saved : item,
-                        ),
-                      );
-                      return saved;
-                    }, "相簿已更新。")
-                  }
+                  onChange={(changes) => updateAlbumDraft(album, changes)}
                 />
               ))}
             </div>
@@ -639,9 +685,12 @@ export default function AdminApp() {
               <span>{categories.length} 個分類</span>
             </div>
             <p className="admin-section-note">
-              新增、改名與排序會同步變更 Google Drive 的編號資料夾。
+              新增、改名與排序會在統一儲存時同步變更 Google Drive 的編號資料夾。
             </p>
-            <form className="admin-create-card" onSubmit={createCategory}>
+            <form
+              className="admin-create-card"
+              onSubmit={(event) => event.preventDefault()}
+            >
               <h3>新增分類</h3>
               <div className="admin-field-grid">
                 <label>
@@ -654,7 +703,7 @@ export default function AdminApp() {
                         labelZh: event.target.value,
                       }))
                     }
-                    required
+                    disabled={busy}
                   />
                 </label>
                 <label>
@@ -667,37 +716,24 @@ export default function AdminApp() {
                         labelEn: event.target.value,
                       }))
                     }
+                    disabled={busy}
                   />
                 </label>
               </div>
-              <button type="submit" disabled={busy}>
-                新增分類
-              </button>
             </form>
             <div className="admin-editor-list">
-              {categories.map((category, index) => (
+              {orderedCategories.map((category, index) => (
                 <CategoryEditor
                   key={category.id}
                   category={category}
+                  draft={
+                    categoryDrafts[category.id] ?? categoryDraft(category)
+                  }
                   busy={busy}
                   first={index === 0}
-                  last={index === categories.length - 1}
-                  onMove={(direction) => void moveCategory(index, direction)}
-                  onSaved={(changes) =>
-                    run(async () => {
-                      const payload = await adminRequest(
-                        `/admin/api/categories/${encodeURIComponent(category.id)}`,
-                        { method: "PATCH", body: changes },
-                      );
-                      const saved = payload.category;
-                      setCategories((current) =>
-                        current.map((item) =>
-                          item.id === saved.id ? saved : item,
-                        ),
-                      );
-                      return saved;
-                    }, "分類已更新。")
-                  }
+                  last={index === orderedCategories.length - 1}
+                  onMove={(direction) => moveCategory(index, direction)}
+                  onChange={(changes) => updateCategoryDraft(category, changes)}
                 />
               ))}
             </div>
@@ -713,12 +749,19 @@ export default function AdminApp() {
               </div>
               <span>{photos.length} 張已載入</span>
             </div>
-            <form className="admin-create-card" onSubmit={uploadPhoto}>
+            <form
+              className="admin-create-card"
+              onSubmit={(event) => event.preventDefault()}
+            >
               <h3>新增照片</h3>
+              <p className="admin-section-note">
+                選好照片與資料後，會在按下「儲存所有變更」時上傳。
+              </p>
               <div className="admin-field-grid">
                 <label className="admin-wide-field">
                   選擇照片
                   <input
+                    key={uploadInputKey}
                     type="file"
                     accept="image/jpeg,image/png,image/webp,image/heic,image/heif"
                     onChange={(event) => {
@@ -729,7 +772,7 @@ export default function AdminApp() {
                         displayName: current.displayName || file?.name || "",
                       }));
                     }}
-                    required
+                    disabled={busy}
                   />
                 </label>
                 <label>
@@ -742,7 +785,7 @@ export default function AdminApp() {
                         displayName: event.target.value,
                       }))
                     }
-                    required
+                    disabled={busy}
                   />
                 </label>
                 <label>
@@ -756,7 +799,7 @@ export default function AdminApp() {
                         capturedAt: event.target.value,
                       }))
                     }
-                    required
+                    disabled={busy}
                   />
                 </label>
                 <label>
@@ -769,12 +812,12 @@ export default function AdminApp() {
                         categoryId: event.target.value,
                       }))
                     }
+                    disabled={busy}
                   >
                     <option value="">不指定流程</option>
-                    {categories.map((category) => (
+                    {orderedCategories.map((category) => (
                       <option key={category.id} value={category.id}>
-                        {String(category.displayOrder).padStart(2, "0")}{" "}
-                        {category.labelZh}
+                        {String(category.displayOrder).padStart(2, "0")} {category.labelZh}
                       </option>
                     ))}
                   </select>
@@ -785,38 +828,23 @@ export default function AdminApp() {
                   onChange={(albumIds) =>
                     setUpload((current) => ({ ...current, albumIds }))
                   }
+                  disabled={busy}
                 />
               </div>
-              <button
-                type="submit"
-                disabled={busy || !upload.file || upload.albumIds.length === 0}
-              >
-                {busy ? "處理中…" : "上傳照片"}
-              </button>
+              {upload.file && upload.albumIds.length === 0 && (
+                <p className="admin-form-error">照片至少必須屬於一個相簿。</p>
+              )}
             </form>
             <div className="admin-photo-list">
               {photos.map((photo) => (
                 <PhotoEditor
                   key={photo.id}
                   photo={photo}
+                  draft={photoDrafts[photo.id] ?? photoDraft(photo)}
                   albums={albums}
-                  categories={categories}
+                  categories={orderedCategories}
                   busy={busy}
-                  onSaved={(changes) =>
-                    run(async () => {
-                      const payload = await adminRequest(
-                        `/admin/api/photos/${encodeURIComponent(photo.id)}`,
-                        { method: "PATCH", body: changes },
-                      );
-                      const saved = payload.photo;
-                      setPhotos((current) =>
-                        current.map((item) =>
-                          item.id === saved.id ? saved : item,
-                        ),
-                      );
-                      return saved;
-                    }, "照片已更新。")
-                  }
+                  onChange={(changes) => updatePhotoDraft(photo, changes)}
                 />
               ))}
             </div>
@@ -833,6 +861,26 @@ export default function AdminApp() {
           </section>
         )}
       </main>
+
+      <aside className="admin-save-bar" aria-live="polite">
+        <div>
+          <strong>
+            {pendingCount > 0 ? `${pendingCount} 項變更尚未儲存` : "沒有未儲存的變更"}
+          </strong>
+          <span>只會送出實際變動的欄位；失敗項目會保留供重試。</span>
+        </div>
+        <button
+          type="button"
+          onClick={() => void saveAll()}
+          disabled={
+            busy ||
+            pendingCount === 0 ||
+            Boolean(upload.file && upload.albumIds.length === 0)
+          }
+        >
+          {busy ? "儲存中…" : `儲存所有變更${pendingCount ? `（${pendingCount}）` : ""}`}
+        </button>
+      </aside>
     </div>
   );
 }

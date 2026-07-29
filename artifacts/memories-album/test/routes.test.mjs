@@ -73,7 +73,7 @@ test("validates an admin session on /admin without initializing storage", async 
       assert.equal(runtimeRequested, false);
     },
     {
-      env: { SECRET_TOKEN: "correct-password" },
+      env: { MEMORIES_ADMIN_TOKEN: "correct-password" },
       getRuntime() {
         runtimeRequested = true;
         throw new Error("Runtime must not initialize for admin login");

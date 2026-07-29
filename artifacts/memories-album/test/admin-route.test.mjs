@@ -19,10 +19,10 @@ function cookiePair(setCookie) {
   return setCookie.split(";", 1)[0];
 }
 
-test("SECRET_TOKEN login opens the protected /Memories/admin/ route", async () => {
+test("MEMORIES_ADMIN_TOKEN login opens the protected /Memories/admin/ route", async () => {
   await withServer(
     {
-      env: { SECRET_TOKEN: "correct-password" },
+      env: { MEMORIES_ADMIN_TOKEN: "correct-password" },
       getRuntime: async () => {
         throw new Error("The admin route must not initialize storage");
       },
@@ -122,7 +122,7 @@ test("the nested production route retains login failure limits", async () => {
   await withServer(
     {
       env: {
-        SECRET_TOKEN: "correct-password",
+        MEMORIES_ADMIN_TOKEN: "correct-password",
         REPLIT_DEPLOYMENT: "1",
       },
       getRuntime: async () => {

@@ -4,7 +4,7 @@ import { createServer } from "../src/app.mjs";
 
 async function withServer(run) {
   const server = createServer({
-    env: { SECRET_TOKEN: "correct-password" },
+    env: { MEMORIES_ADMIN_TOKEN: "correct-password" },
     getRuntime: async () => {
       const error = new Error("Drive unavailable");
       error.code = "DRIVE_RETRYABLE";
