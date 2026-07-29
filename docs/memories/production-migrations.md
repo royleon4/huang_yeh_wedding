@@ -1,89 +1,109 @@
-# Automatic production database migrations
+# Automatic Memories database migrations
 
-The standalone Memories service updates its PostgreSQL schema automatically when a published production instance starts.
+The standalone Memories service uses immutable, numbered SQL migrations for both development and production PostgreSQL schemas.
 
-## Why startup instead of the build step
+## Why migrations run before the server listens
 
-Replit development and published applications can use different `DATABASE_URL` values. Running migrations from the Project Editor Shell updates the development database. Running them immediately before the production server listens guarantees that the migration uses the published application's production `DATABASE_URL`.
+Replit development and Published Apps can use different `DATABASE_URL` values. A migration executed in the Project Editor updates development only; the production process must therefore verify and update its own database before accepting traffic.
 
-The production artifact sets `NODE_ENV=production`. On startup, `src/server.mjs` therefore:
+When a Memories server starts with `DATABASE_URL` and migrations are not explicitly skipped, the migration runner:
 
-1. acquires a PostgreSQL advisory lock;
-2. creates `memories_schema_migrations` if needed;
-3. reads numbered SQL files in `artifacts/memories-album/db`;
-4. applies only files not already recorded;
-5. verifies that an already-applied migration's checksum has not changed;
-6. releases the lock;
-7. starts the HTTP server only after migration success.
+1. reads numbered SQL files from `artifacts/memories-album/db` or the packaged `dist/db` directory;
+2. performs a read-only preflight against `memories_schema_migrations`;
+3. verifies that every already-applied migration still has the recorded checksum;
+4. obtains a PostgreSQL advisory lock when pending files exist;
+5. creates `memories_schema_migrations` when necessary;
+6. applies only pending files in filename order;
+7. records each filename and SHA-256 checksum;
+8. releases the lock and starts the HTTP listener only after success.
 
-A failed migration prevents the new production instance from becoming healthy, so an incompatible schema is not served silently. Existing published instances remain separate until Replit completes or rolls back the new publication.
+A failed migration prevents the new instance from becoming healthy rather than serving an incompatible schema.
 
-## Required production setting
-
-The Publishing environment must provide the production database connection as:
+## Required production configuration
 
 ```text
 DATABASE_URL
-```
-
-Do not replace it with the development database URL. The Drive root-folder secret and current administrator secret are independent:
-
-```text
 MEMORIES_DRIVE_PHOTOS_FOLDER_ID
-SECRET_TOKEN
+MEMORIES_ADMIN_TOKEN
 ```
 
-The runtime discovers or creates `訪客上傳`, `生活照`, `系統縮圖`, and `00 未分類` below the root. A separate thumbnail-folder secret is not required.
+`MEMORIES_ADMIN_TOKEN` is the administrator password. The obsolete `SECRET_TOKEN` name is not used by the current server.
+
+The Replit Google Drive Integration must also be connected in the Published App environment.
+
+## Current tracked migrations
+
+| File | Purpose |
+| --- | --- |
+| `001_memories_foundation.sql` | Core photos, processes, upload batches and relationships |
+| `002_guest_uploads.sql` | Guest management token hash and batch status |
+| `003_drive_process_sync.sql` | Drive folder metadata, parent references and sync runs |
+| `004_photo_collections.sql` | wedding／guest／life classifications |
+| `005_durable_upload_items.sql` | Stable per-file upload leases and retry state |
+| `006_app_settings.sql` | JSONB application settings |
+| `007_admin_albums.sql` | Albums, photo-album relationships and display names |
+| `008_admin_photo_overrides.sql` | Capture-time and album-membership override flags |
+| `009_admin_login_failures.sql` | Shared administrator login failure limits |
 
 ## Adding a migration
 
-Add a new immutable, sequentially numbered file:
+Add a new immutable sequential file, for example:
 
 ```text
-artifacts/memories-album/db/003_description.sql
+artifacts/memories-album/db/010_description.sql
 ```
 
-Never edit a migration after it has been published. Add a later migration to make further changes. The checksum guard intentionally stops deployment if an already-applied migration was rewritten.
+Never edit a migration after it has reached any shared environment. Add a later migration for further changes. The checksum guard intentionally stops startup when an applied migration is rewritten.
 
 ## Development and production schema parity
 
-Replit generates its production-database deployment plan by comparing the development schema with the production schema. A migration that has reached production but not development can therefore appear as a destructive `DROP TABLE` or `DROP COLUMN` operation during the next publish.
+Replit may compare development and production schemas when preparing a deployment. If a migration exists in production but not development, the next publish can incorrectly propose destructive operations such as `DROP TABLE` or `DROP COLUMN`.
 
-The repository `postMerge` hook runs the same tracked Memories migration runner against the development `DATABASE_URL`:
+The repository `postMerge` hook therefore runs:
 
 ```bash
 pnpm --filter @workspace/memories-album run db:migrate
 ```
 
-Do not use `drizzle-kit push` for Memories. The shared Drizzle schema is not the source of truth for these tables, and an empty or incomplete Drizzle schema can incorrectly remove SQL-managed objects.
+against the development `DATABASE_URL` when available.
 
-If Publishing already shows a destructive migration, cancel that deployment, run the command above in the Replit development environment, then start a new publish. Do not choose the option that copies development data over production unless replacing all live production data is intentional.
+Do **not** use `drizzle-kit push` for Memories. The SQL migration directory—not the shared Drizzle schema—is the source of truth.
 
-## Manual development migration
+If Publishing displays destructive changes to `memories_albums`, `memories_photo_albums`, `memories_admin_login_failures` or the photo override columns:
 
-The development database can still be updated manually:
+1. cancel the deployment;
+2. run the tracked migration command in the Replit development environment;
+3. do not choose the option that copies development data over production unless replacing production is intentional;
+4. start a new publish and confirm that the destructive plan has disappeared.
+
+## Manual command
 
 ```bash
-npx -y pnpm@10.15.1 --filter @workspace/memories-album run db:migrate
+pnpm --filter @workspace/memories-album run db:migrate
 ```
-
-This command uses the same tracked migration runner as production.
 
 ## Publish verification
 
-After publishing, check the deployment logs for:
+A current database logs:
 
 ```text
-Checking Memories production database schema before startup...
-Applied Memories migration: ...
-Memories database schema is ready.
-Standalone Memories listening on ...
+Memories database schema is current; no migration needed.
 ```
 
-Then inspect the Production Database and confirm these tracking records exist:
+A database with pending files logs:
+
+```text
+Applying N pending Memories migration(s)...
+Applied Memories migration: ...
+Memories database schema is ready.
+```
+
+The HTTP server should then log its listener, and `/Memories/api/health` should return `200`.
+
+To inspect recorded migrations:
 
 ```sql
-SELECT filename, applied_at
+SELECT filename, checksum, applied_at
 FROM memories_schema_migrations
 ORDER BY filename;
 ```
