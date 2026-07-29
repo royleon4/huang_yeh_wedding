@@ -85,10 +85,29 @@ async function withMigrationDirectory(run) {
   }
 }
 
-test("only production or a published Replit instance enables startup migrations", () => {
-  assert.equal(shouldRunProductionMigrations({ NODE_ENV: "development" }), false);
-  assert.equal(shouldRunProductionMigrations({ NODE_ENV: "production" }), true);
-  assert.equal(shouldRunProductionMigrations({ REPLIT_DEPLOYMENT: "1" }), true);
+test("a configured database always enables startup migrations", () => {
+  assert.equal(shouldRunProductionMigrations({}), false);
+  assert.equal(
+    shouldRunProductionMigrations({
+      NODE_ENV: "development",
+      DATABASE_URL: "postgres://local/memories",
+    }),
+    true,
+  );
+  assert.equal(
+    shouldRunProductionMigrations({
+      REPLIT_DEPLOYMENT: "1",
+      DATABASE_URL: "postgres://deployment/memories",
+    }),
+    true,
+  );
+  assert.equal(
+    shouldRunProductionMigrations({
+      DATABASE_URL: "postgres://deployment/memories",
+      MEMORIES_SKIP_MIGRATIONS: "1",
+    }),
+    false,
+  );
 });
 
 test("creates migration history and applies migrations only on first use", async () => {
