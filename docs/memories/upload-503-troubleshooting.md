@@ -1,37 +1,86 @@
-# Troubleshooting Memories upload 503 responses
+# Troubleshooting Memories 503 responses
 
-The guest upload flow has two stages:
+## Identify the endpoint first
 
-1. create an upload batch in PostgreSQL;
-2. validate and normalize each image, upload its original and thumbnail to Google Drive, then insert the public photo record.
+| Endpoint | Dependencies before success |
+| --- | --- |
+| `POST /Memories/admin/api/session` | `MEMORIES_ADMIN_TOKEN` and PostgreSQL login-failure store; no Drive runtime |
+| `PATCH /Memories/admin/api/changes` | Valid admin cookie, PostgreSQL and operation-specific Drive access |
+| `GET /Memories/api/processes` | Full runtime: migrations, PostgreSQL, Drive root and reserved-folder lookup |
+| `POST /Memories/api/upload-batches` | PostgreSQL runtime and valid classification |
+| `POST /Memories/api/upload-batches/:id/photos` | Image processing, durable state, Drive writes and final DB insert |
+| `GET /Memories/api/photos/:id/thumbnail` | Photo row plus Drive thumbnail/original access |
 
-A successful batch ID followed by a `503` from `/Memories/api/upload-batches/:id/photos` means the database batch was created but a later image, Drive, or persistence step is unavailable.
+## Required Published App configuration
 
-## Required production configuration
-
-Connect the Replit Google Drive Integration and set these **Production Secrets**:
+Connect Replit Google Drive Integration and set:
 
 ```text
 DATABASE_URL
 MEMORIES_DRIVE_PHOTOS_FOLDER_ID
-SECRET_TOKEN
+MEMORIES_ADMIN_TOKEN
 ```
 
-The runtime discovers or creates `訪客上傳`, `生活照`, `系統縮圖`, and `00 未分類` below the configured root. Do not add a separate thumbnail-folder ID to `.replit` or the frontend.
+Using obsolete `SECRET_TOKEN` causes:
 
-Project Editor secrets and local shell variables are not a substitute for Published App secrets.
+```text
+503 ADMIN_TOKEN_NOT_CONFIGURED
+```
 
-## Bounded error codes
+Development secrets and local Connector access do not automatically configure the Published App.
 
-- `MEMORIES_ROOT_FOLDER_MISSING`: the published app lacks `MEMORIES_DRIVE_PHOTOS_FOLDER_ID`.
-- `DRIVE_AUTHORIZATION_REQUIRED`: reconnect the Replit Google Drive Integration.
-- `DRIVE_RETRYABLE`: Google Drive or the connector returned a temporary rate-limit/server failure; the client may retry.
-- `DRIVE_REQUEST_FAILED`: Google Drive rejected the request; check Integration authorization and folder access.
-- `THUMBNAIL_FOLDER_NOT_CONFIGURED`: the reserved `系統縮圖` folder could not be discovered or created.
-- `MEMORIES_STORAGE_UNAVAILABLE`: another server-side dependency failed; review the bounded name/code in deployment logs.
+## Admin login codes
 
-The API intentionally does not return folder IDs, connector response bodies, database URLs, OAuth details, administrator secrets, or guest-management tokens.
+- `ADMIN_TOKEN_NOT_CONFIGURED`: Published App did not receive `MEMORIES_ADMIN_TOKEN`.
+- `ADMIN_RATE_LIMIT_UNAVAILABLE`: PostgreSQL limiter failed, often due to wrong `DATABASE_URL`, unavailable DB or missing migration 009.
+- `UNAUTHORIZED`: wrong password or invalid/expired session.
+- `RATE_LIMITED`: too many failed attempts within the current window.
+
+Admin login does not initialize Drive. A simultaneous Drive sync warning is a separate background task unless the failing request is a runtime-dependent API after login.
+
+## Global admin save failures
+
+`PATCH /Memories/admin/api/changes` returns one result per requested operation. Partial failure is expected to be recoverable:
+
+- successful operations are removed from client draft state;
+- failed operations remain pending;
+- category/photo operations may fail because their required Drive action failed;
+- a failed binary photo upload occurs after the JSON batch and remains selected for retry.
+
+Do not interpret one failed operation as proof that every operation was rolled back or saved. Inspect the per-operation results.
+
+## Guest upload stages
+
+1. Create upload batch.
+2. Parse and validate one photo.
+3. Normalize image and create WebP.
+4. Claim durable upload state.
+5. Find or upload deterministic original and thumbnail.
+6. Insert photo and relationships.
+7. Mark durable item ready.
+
+A batch ID followed by per-photo `503` means batch creation succeeded but a later image, Drive or DB step failed.
+
+## Storage codes
+
+- `MEMORIES_ROOT_FOLDER_MISSING`: missing `MEMORIES_DRIVE_PHOTOS_FOLDER_ID`.
+- `DRIVE_AUTHORIZATION_REQUIRED`: Connector 401/403; reconnect and verify folder edit access.
+- `DRIVE_RETRYABLE`: Connector/Drive 429 or 5xx; retry safely.
+- `DRIVE_REQUEST_FAILED`: non-retryable Drive rejection.
+- `THUMBNAIL_FOLDER_NOT_CONFIGURED`: `系統縮圖` could not be found or created.
+- `MEMORIES_STORAGE_UNAVAILABLE`: another bounded dependency failed.
+- PostgreSQL `42P01`: queried table does not exist; apply tracked migrations.
+
+The API intentionally omits folder IDs, Connector bodies, DB URLs, OAuth details, admin secrets and raw guest tokens.
+
+## Background logs
+
+`Memories Drive synchronization failed { code: 'DRIVE_RETRYABLE' }` is a background scan failure, not proof of admin-password failure.
+
+A thumbnail summary with `attempted: 12`, `createdOrAttached: 0` and one authorization code means the default first batch of 12 all failed. Fix the shared authorization/folder problem before increasing batch size.
+
+`Memories background synchronization completed` only means the scheduled task reached its end; collected thumbnail failures may still exist.
 
 ## Current recovery limitation
 
-Issue #49 tracks a known runtime behavior: if the very first Drive/database initialization rejects, the rejected initialization Promise can stay cached until the process restarts. Until #49 is complete, reconnect the Integration or correct secrets and restart/re-publish the Memories service before retesting.
+If the first full runtime initialization rejects, the cached Promise can remain rejected until restart. After correcting DB, Drive or secrets, restart or re-publish before retesting.

@@ -1,22 +1,20 @@
 # Memories Google Drive and data boundary
 
-## Approved original-photo folder
+## Approved root folder
 
-New standalone Memories originals are stored in:
+Standalone Memories originals are stored below the configured wedding root, represented as:
 
 ```text
 相片簿/20260620 我們結婚了
 ```
 
-The connected Drive folder has been resolved, but its provider ID is intentionally not committed to this public repository. Configure it in Replit as:
+The provider ID is intentionally not committed. Set it in Replit Production Secrets as:
 
 ```text
 MEMORIES_DRIVE_PHOTOS_FOLDER_ID
 ```
 
 ## Managed child folders
-
-The service discovers or creates these reserved folders below the configured root:
 
 ```text
 00 未分類
@@ -25,34 +23,34 @@ The service discovers or creates these reserved folders below the configured roo
 系統縮圖
 ```
 
-Numbered Google Drive folders are the canonical wedding-process names and order. Separate provider IDs for the reserved child folders are not required.
+Numbered folders such as `01 進場` are canonical for wedding-process names and order. Separate child IDs are normally unnecessary.
 
-Official wedding originals remain in their process folder or `00 未分類`. Guest originals remain physically in `訪客上傳` even when their website classification is a wedding process or Life photos. Generated WebP derivatives are stored only in `系統縮圖`.
+## Physical and logical placement
 
-## Rules
+- Official wedding originals remain in a numbered process folder, root or `00 未分類`.
+- Official life photos remain in `生活照`.
+- Guest originals remain physically in `訪客上傳` even when logically classified elsewhere.
+- WebP derivatives are stored only in `系統縮圖`.
+- Official reclassification moves the original; it does not copy it.
 
-- Google Drive is canonical for standalone Memories originals and process-folder metadata.
-- The legacy invitation photo wall and its Object Storage files are not read, moved, copied, or migrated.
-- The browser receives only opaque Memories UUIDs and controlled `/Memories/api/photos/:id/*` URLs.
-- Drive file IDs, folder IDs, connector responses, tokens, and Drive URLs stay server-side.
-- A wedding original is stored exactly once.
-- Technical derivatives are stored in the managed `系統縮圖` child folder and are never placed beside originals.
-- PostgreSQL is the query/index source for visibility, upload ownership, process membership, dimensions, hashes, and processing state.
-- Guest uploads use `uploader_type = guest`, retain the submitted name, and may receive a logical wedding-process or Life-photos classification without copying or moving the original out of `訪客上傳`.
+## Boundary
 
-## Runtime configuration
+- Drive owns originals, thumbnails and process-folder metadata.
+- PostgreSQL owns visibility, ordering, upload ownership, albums, process relationships, durable state and admin overrides.
+- Browser receives opaque IDs and controlled `/Memories/api/photos/:id/*` URLs.
+- Drive IDs, folder IDs, Connector responses, OAuth details and Drive URLs stay server-side.
+- Legacy invitation photo-wall data is not read, moved, copied or migrated.
 
-Required:
+Current reconciliation does not automatically trash a PostgreSQL photo row when its Drive original is manually deleted. A public card, separate thumbnail and browser cache may remain.
+
+## Required production configuration
 
 ```text
 DATABASE_URL
 MEMORIES_DRIVE_PHOTOS_FOLDER_ID
+MEMORIES_ADMIN_TOKEN
 ```
 
-Also required for administrator login:
+The current server does not read obsolete `SECRET_TOKEN`.
 
-```text
-SECRET_TOKEN
-```
-
-Replit Google Drive Integration supplies authorization through `@replit/connectors-sdk`; do not add a service account, OAuth client secret, refresh token, or `GOOGLE_APPLICATION_CREDENTIALS`.
+Replit Google Drive Integration supplies authorization through `@replit/connectors-sdk`. Do not add service-account JSON, OAuth client secrets, refresh tokens or `GOOGLE_APPLICATION_CREDENTIALS`.

@@ -1,10 +1,8 @@
 # Google Drive process-folder synchronization
 
-Issue: #33
+Standalone Memories maps numbered Google Drive folders to public wedding-process categories while keeping provider identifiers server-side.
 
 ## Drive structure
-
-The standalone Memories root folder contains numbered wedding-process folders plus reserved system folders:
 
 ```text
 00 未分類
@@ -25,49 +23,74 @@ The standalone Memories root folder contains numbered wedding-process folders pl
 系統縮圖
 ```
 
-Existing photos directly under the root remain visible as unclassified compatibility content. They are not moved automatically.
+Photos directly under the root remain visible as unclassified compatibility content and are not moved automatically.
 
-## Synchronization rules
+## Source-of-truth rules
 
-- Numbered Drive folders become website processes.
-- Renaming a numbered Drive folder changes the website process label after synchronization.
-- Adding a numbered Drive folder creates a website process after synchronization.
-- Website create, rename, and reorder operations update the matching Drive folders.
-- Folder numbering controls public process order.
-- An image inside a process folder is classified under that process.
-- Moving an image between Drive folders changes its website classification after reconciliation.
-- Guest originals are stored under `訪客上傳`.
-- Generated WebP thumbnails are stored under `系統縮圖`.
-- Process classification moves the original Drive file; it does not copy it.
-- Drive IDs remain server-only.
+- `NN 名稱` becomes a website wedding process.
+- Folder numbering controls public order.
+- Renaming or adding numbered folders updates PostgreSQL after reconciliation.
+- Removing a numbered folder deactivates the matching process row.
+- Official images in process folders inherit that process.
+- Moving an official image between managed folders changes its website process.
+- Guest originals remain in `訪客上傳`; wedding/life classification is logical PostgreSQL state.
+- Generated WebP derivatives remain in `系統縮圖`.
+- Drive IDs never leave the server.
 
-## Reconciliation schedule
+Manual Drive photo deletion is not currently reconciled into hidden/trashed PostgreSQL state. Process-folder cleanup and missing-photo cleanup are different behaviors.
 
-Reconciliation runs:
+## Runtime reconciliation
 
-1. when the standalone Memories runtime starts;
-2. periodically, every five minutes by default.
+```mermaid
+flowchart TD
+  Start[Runtime ready]
+  Ensure[Discover/create reserved folders]
+  Processes[Read numbered folders]
+  DBP[(Upsert memories_processes)]
+  Photos[Scan process/root/reserved photos]
+  DBF[(Upsert photos and relationships)]
+  Backfill[Backfill thumbnails]
+  Timer[Default every 5 minutes]
 
-Category create, rename, reorder and official-photo reclassification from `/admin` write through to Drive immediately.
+  Start --> Ensure --> Processes --> DBP
+  Processes --> Photos --> DBF --> Backfill
+  Timer --> Ensure
+```
 
-Override the interval with `MEMORIES_DRIVE_SYNC_INTERVAL_MS`, with a minimum of one minute.
+The default interval is five minutes; `MEMORIES_DRIVE_SYNC_INTERVAL_MS` overrides it with a one-minute minimum. A second sync does not start while one is active.
 
-## Website administration
+## Administrator write-through
 
-Open `/admin/login` and enter the production `SECRET_TOKEN`. A successful login creates a short-lived, signed HttpOnly cookie and navigates to `/admin`. The password is not stored in browser storage. Opening `/admin` without a valid session redirects to `/Memories/`.
+Canonical routes:
 
-The dedicated admin surface can add and edit albums, photos and Drive-backed process categories. The old title-tap trigger and `/Memories/api/admin/*` endpoints have been removed.
+```text
+/Memories/admin/login
+/Memories/admin/
+/Memories/admin/api/categories*
+/Memories/admin/api/changes
+```
 
-## Production settings
+Authentication uses `MEMORIES_ADMIN_TOKEN` and a signed HttpOnly cookie.
 
-Required:
+Category changes are drafted locally and committed by `儲存所有變更`. The patch-style changes API executes category operations independently:
+
+- create: create the next numbered folder, then upsert PostgreSQL;
+- rename: validate and rename Drive folder, then upsert PostgreSQL;
+- reorder: rename folders to new sequential numbers, then reload Drive order;
+- official-photo category edit: move the original Drive file, then update PostgreSQL.
+
+Partial failure returns one result per operation. Successful drafts clear; failed drafts remain pending for retry.
+
+The gallery title still provides a hidden entry: five taps within about 3.5 seconds check `/Memories/admin/api/session` and open the admin or login page.
+
+Old `/admin*` is redirect-only. Removed `/Memories/api/admin/*` is not accepted.
+
+## Required production configuration
 
 ```text
 DATABASE_URL
 MEMORIES_DRIVE_PHOTOS_FOLDER_ID
-SECRET_TOKEN
+MEMORIES_ADMIN_TOKEN
 ```
 
-The root folder ID must be stored in Replit Production Secrets. Do not place it in `.replit` or browser code.
-
-The Replit Google Drive integration must be connected for the published application. Reconnect it if APIs return `DRIVE_REQUEST_FAILED`.
+Published App Google Drive Integration must have edit access to the root and managed children. Never commit the real folder ID, password or Connector credentials.

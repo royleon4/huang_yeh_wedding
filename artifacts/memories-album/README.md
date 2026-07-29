@@ -1,92 +1,166 @@
 # Standalone Memories album
 
-This artifact owns the independent wedding archive at `/Memories/` and the isolated API namespace at `/Memories/api/*`.
+This artifact owns the independent wedding archive under `/Memories/`: the public gallery, guest uploads, administrator application, Node HTTP APIs, PostgreSQL schema and Google Drive integration.
 
-## Current stack
+It does **not** own the legacy invitation photo wall or legacy `/api/photos*` implementation.
 
-- React + Vite frontend
-- Node HTTP server
-- PostgreSQL index and durable upload state
+## Canonical routes
+
+| Route | Purpose |
+| --- | --- |
+| `/Memories/` | Public gallery |
+| `/Memories/api/health` | Lightweight healthcheck; no full runtime initialization |
+| `/Memories/api/photos*` | Public list and controlled image streaming |
+| `/Memories/api/upload-batches*` | Guest batch and per-photo uploads |
+| `/Memories/manage/:batchId` | Reserved private batch-management route; incomplete |
+| `/Memories/admin/login` | Administrator login |
+| `/Memories/admin/` | Administrator application |
+| `/Memories/admin/api/session` | Login/session/logout |
+| `/Memories/admin/api/changes` | Patch-style global save API |
+| `/Memories/admin/api/albums*` | Album API |
+| `/Memories/admin/api/photos*` | Photo read/upload/edit API |
+| `/Memories/admin/api/categories*` | Drive-backed category API |
+| `/admin...` | Compatibility redirect only |
+
+The Replit artifact router sends `/Memories/admin`, `/Memories`, lowercase compatibility paths and the old `/admin` alias to port 19316. Production health uses `/Memories/api/health`.
+
+## Stack
+
+- React + Vite
+- Node.js 24 HTTP server
+- PostgreSQL
 - Google Drive originals and WebP thumbnails
-- Replit Google Drive Integration through `@replit/connectors-sdk`
-- Node test runner and a dedicated GitHub Actions workflow
+- Replit Google Drive Integration via `@replit/connectors-sdk`
+- `sharp` image processing
+- Busboy multipart parsing
+- Node test runner and GitHub Actions
 
-Google Drive is the storage source of truth for Memories media. PostgreSQL is the query source of truth for public visibility, ordering, collections, process relationships, upload batches, durable upload state and settings. Browser responses use opaque Memories IDs and controlled media URLs only.
+## Source-of-truth model
 
-## Hard boundary
+Google Drive owns originals, generated thumbnails and numbered process-folder metadata. PostgreSQL owns visibility, ordering, albums, process relationships, upload batches, durable upload state, settings, administrator overrides and shared login-failure limits.
 
-This artifact must not import from or modify:
+Numbered folders such as `01 進場` determine process labels and order. The runtime discovers or creates:
 
-- `artifacts/wedding-invitation/**`
-- the legacy `/api/photos*` implementation
-- legacy Replit Object Storage photo-wall files
+```text
+00 未分類
+訪客上傳
+生活照
+系統縮圖
+```
 
-The CI boundary workflow must pass for every Memories change.
+Browser responses expose only opaque Memories UUIDs and controlled `/Memories/api/photos/:id/*` URLs. Drive IDs, folder IDs, connector payloads and credentials stay server-side.
 
-## Implemented
+## Runtime sequence
 
-- Responsive waterfall gallery with thumbnail delivery
-- Full-screen original viewer with keyboard, swipe, wheel, double-click and pinch controls
-- Wedding, guest-upload and life-photo system albums plus database-defined custom albums
-- Google Drive-derived wedding process names and ordering
-- Required-name multi-photo upload with per-file progress, stable upload IDs and bounded retry
-- EXIF orientation normalization and metadata-stripped guest uploads
-- Capture-created chronological ordering
-- Production migration preflight and background Drive reconciliation
-- Dedicated `/Memories/admin/` surface for adding and editing albums, photos and Drive-backed categories
-- One global `儲存所有變更` action: administrators can edit across tabs, then submit only changed fields in a patch-style batch
-- Partial batch failure keeps failed drafts pending while clearing only successfully saved items
-- Unsaved-change protection for reload, leaving the archive, and logout
-- Administrator capture-time and album edits survive later Drive reconciliation
-- `MEMORIES_ADMIN_TOKEN` login exchanged for a short-lived HttpOnly session cookie, with PostgreSQL-backed failure limits shared across Autoscale instances
-- Visitor archive contains no embedded administrator controls or browser-stored admin password
+```mermaid
+flowchart LR
+  Request[First runtime-dependent request]
+  Validate[Validate DB and root-folder settings]
+  Migrate[Apply pending checksum-protected SQL]
+  Connect[Create PostgreSQL and Drive adapters]
+  Structure[Discover/create reserved folders]
+  Ready[Return APIs]
+  Sync[Background reconciliation]
+  Thumb[Thumbnail backfill]
+  Timer[Periodic repeat]
+
+  Request --> Validate --> Migrate --> Connect --> Structure --> Ready
+  Ready --> Sync --> Thumb
+  Timer --> Sync
+```
+
+Only the reserved-folder lookup blocks readiness; the expensive folder/photo scan runs in the background.
+
+## Public gallery
+
+- Public rows require `visibility = 'public'`.
+- Default order is `created_at ASC, id ASC`.
+- Drive imports prefer capture time, then Drive creation time, then modified time.
+- Rendering is row-major: left-to-right, then top-to-bottom.
+- Measured CSS Grid masonry reduces gaps without cropping.
+- Missing thumbnails are repaired when possible and may temporarily fall back to the original with `no-store`.
+- Five title taps within about 3.5 seconds check the nested admin session route.
+
+## Guest upload
+
+1. Create a PostgreSQL upload batch.
+2. Send one photo per multipart request.
+3. Validate and normalize with `sharp`; generate WebP.
+4. Claim stable `(batch_id, client_upload_id)` durable state.
+5. Reuse deterministic Drive files on retries.
+6. Insert the completed photo and relationships.
+
+The UI accepts up to 30 files, 25 MB each: JPEG, PNG, WebP, HEIC and HEIF. Retryable Drive errors use bounded exponential backoff.
+
+## Administrator authentication
+
+The exact Production Secret is:
+
+```text
+MEMORIES_ADMIN_TOKEN
+```
+
+The obsolete `SECRET_TOKEN` name is not read.
+
+Successful login creates a 30-minute HMAC-signed cookie:
+
+```text
+HttpOnly; Secure; SameSite=Strict; Path=/Memories/admin
+```
+
+The password is never stored in browser storage. PostgreSQL-backed failure limits are shared across Autoscale instances.
 
 ## Administrator save workflow
 
-The browser keeps album, category, photo, ordering, and new-record edits as local React draft state. The persistent footer shows the pending operation count. Pressing `儲存所有變更` sends changed JSON fields to:
+Album, category, photo, ordering and new-record edits remain in local React draft state. A persistent footer displays the pending-operation count.
+
+Pressing `儲存所有變更` builds operations containing only changed fields and sends JSON edits to:
 
 ```text
 PATCH /Memories/admin/api/changes
 ```
 
-The endpoint returns one result per operation. A successful result is removed from draft state; a failed result remains pending and can be retried. Google Drive-backed category/photo operations report precise partial failures instead of falsely marking the whole batch successful.
+The server returns one result per operation. Successful drafts are cleared; failed drafts remain pending for correction and retry. Drive-backed category/photo operations report precise partial failures rather than falsely marking the entire batch successful.
 
-A selected new photo uses the same global save action but is uploaded as a multipart request after the JSON change batch, because binary media is not embedded in the patch payload. Failed uploads remain selected for retry.
+A selected new photo is binary multipart data, so it uploads after the JSON change batch. A failed upload remains selected. Reload, archive navigation and logout protect unsaved changes.
 
-## Known incomplete Phase 1 work
+Current admin capabilities:
 
-- `/Memories/manage/:batchId` does not yet provide the private management/withdrawal UI or API (#5).
-- Album closure and complete administrator audit logging remain incomplete (#6).
-- Photo deletion is not exposed by the rebuilt admin surface; seven-day trash/restore/cleanup remains incomplete (#7).
-- Mobile dialog/lightbox safe-area and focus work remains (#48).
-- A rejected first runtime initialization remains cached until restart (#49).
-- The client currently fetches all cursor pages before client-side paging (#50).
-- Several frontend surfaces still communicate through document-wide observers and hidden DOM clicks (#51).
-- Production mobile/visual acceptance remains under #13 and #26.
+- create and edit albums;
+- create, rename and reorder Drive-backed categories;
+- upload one official photo;
+- edit photo display name, capture time, visibility, albums and category;
+- preserve administrator capture-time and album overrides across reconciliation;
+- save cross-tab edits in one global action with partial-failure recovery.
 
-Face processing, People and Find-me are deferred to Phase 2 (#24).
+Current limitations:
 
-## Commands
+- no photo single/batch delete;
+- no album or category delete;
+- no seven-day trash/restore/expiry workflow;
+- incomplete private guest-batch management/withdrawal.
 
-Run from the repository root:
+## Drive reconciliation
 
-```bash
-pnpm --filter @workspace/memories-album dev
-pnpm --filter @workspace/memories-album test
-pnpm --filter @workspace/memories-album build
-pnpm --filter @workspace/memories-album start
-pnpm --filter @workspace/memories-album db:migrate
-```
+Reconciliation runs after readiness and every five minutes by default, never more often than once per minute. It creates missing reserved folders, imports numbered processes and photos, deactivates missing process folders and backfills thumbnails.
 
-The live Drive smoke test must run only in a configured Replit environment:
+Guest originals stay physically in `訪客上傳`; wedding/life placement is logical database classification. Manual Drive deletion does **not** currently trash/deactivate the corresponding PostgreSQL photo row, so a public record, separate thumbnail and browser cache may remain.
 
-```bash
-pnpm --filter @workspace/memories-album test:drive-live
-```
+## Migrations
 
-## Production configuration
+Tracked migrations live under `db/001_...sql` through `db/009_...sql`. The runner:
 
-Required Replit Production Secrets:
+- records filenames and SHA-256 checksums in `memories_schema_migrations`;
+- refuses changed already-applied files;
+- uses a PostgreSQL advisory lock;
+- applies only pending files;
+- starts production listening only after success.
+
+Never manage Memories tables with `drizzle-kit push`. Replit `postMerge` applies the same migrations to development to keep publish previews non-destructive.
+
+## Required production configuration
+
+Connect Replit Google Drive Integration and set:
 
 ```text
 DATABASE_URL
@@ -94,16 +168,39 @@ MEMORIES_DRIVE_PHOTOS_FOLDER_ID
 MEMORIES_ADMIN_TOKEN
 ```
 
-Optional tuning:
+Optional:
 
 ```text
-MEMORIES_DRIVE_SYNC_INTERVAL_MS
-MEMORIES_THUMBNAIL_BATCH_SIZE
-MEMORIES_THUMBNAIL_MAX_PER_RUN
+MEMORIES_DRIVE_SYNC_INTERVAL_MS=300000
+MEMORIES_THUMBNAIL_BATCH_SIZE=12
+MEMORIES_THUMBNAIL_MAX_PER_RUN=240
+MEMORIES_DRIVE_THUMBNAILS_FOLDER_ID=
+MEMORIES_TRUST_PROXY=1
+MEMORIES_SKIP_MIGRATIONS=1
 ```
 
-The runtime discovers or creates `訪客上傳`, `生活照`, `系統縮圖` and `00 未分類` below the configured root. Do not add separate provider folder IDs to source code or `.replit`.
+The thumbnail-folder ID is a legacy override. Normal runtime discovers or creates `系統縮圖`. Skipping migrations is for controlled diagnosis only.
 
-Open `/Memories/admin/login` to authenticate. A correct password navigates to `/Memories/admin/`. `/admin` remains only a redirect alias. Administrator APIs are canonically served under `/Memories/admin/api/*`.
+## Commands
 
-Do not add service-account JSON, `GOOGLE_APPLICATION_CREDENTIALS`, OAuth client secrets, refresh tokens, raw guest-management tokens or the real administrator password to the repository.
+```bash
+pnpm install
+pnpm --filter @workspace/memories-album dev
+pnpm --filter @workspace/memories-album test
+pnpm --filter @workspace/memories-album build
+pnpm --filter @workspace/memories-album start
+pnpm --filter @workspace/memories-album db:migrate
+pnpm --filter @workspace/memories-album test:drive-live
+```
+
+The live Drive test must run only in a configured Replit environment against a safe folder.
+
+## CI and boundary
+
+Standalone CI runs Node tests, production build and a real `dist/server.mjs` health smoke. A separate workflow prevents Memories PRs from modifying:
+
+- `artifacts/wedding-invitation/**`;
+- legacy `/api/photos*`;
+- legacy Object Storage photo-wall files.
+
+Do not commit service-account JSON, `GOOGLE_APPLICATION_CREDENTIALS`, OAuth client secrets, refresh tokens, Drive provider IDs, raw guest-management tokens or the real administrator password.
