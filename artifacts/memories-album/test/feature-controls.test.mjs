@@ -6,6 +6,10 @@ const adminSourceUrl = new URL(
   "../src/client/ProcessSyncAdmin.jsx",
   import.meta.url,
 );
+const adminApiSourceUrl = new URL(
+  "../src/client/admin-api.mjs",
+  import.meta.url,
+);
 const enhancementsSourceUrl = new URL(
   "../src/client/GalleryEnhancements.jsx",
   import.meta.url,
@@ -50,6 +54,27 @@ test("admin has no visible URL or button entrance and opens after five title tap
   assert.match(adminSource, /\/Memories\/api\/admin\/session/);
   assert.match(styles, /\.header-tools \.quiet-button:first-child\s*{\s*display: none;/);
   assert.match(appSource, /className="archive-header"/);
+});
+
+test("successful admin authentication renders before storage refresh", async () => {
+  const source = await readFile(adminSourceUrl, "utf8");
+  assert.match(
+    source,
+    /sessionStorage\.setItem\("memories-admin-token", token\);[\s\S]*setAuthenticated\(true\);[\s\S]*setBusy\(false\);[\s\S]*window\.setTimeout/,
+  );
+  assert.doesNotMatch(
+    source,
+    /setAuthenticated\(true\);\s*await refresh\(\);/,
+  );
+  assert.match(source, /已登入；分類與設定載入逾時/);
+});
+
+test("admin requests have a bounded timeout instead of spinning forever", async () => {
+  const source = await readFile(adminApiSourceUrl, "utf8");
+  assert.match(source, /new AbortController\(\)/);
+  assert.match(source, /controller\.abort\(\)/);
+  assert.match(source, /REQUEST_TIMEOUT/);
+  assert.match(source, /伺服器回應逾時/);
 });
 
 test("collection controls remain sticky and span the viewport", async () => {
