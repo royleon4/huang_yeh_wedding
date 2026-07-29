@@ -33,10 +33,25 @@ The CI boundary workflow must pass for every Memories change.
 - EXIF orientation normalization and metadata-stripped guest uploads
 - Capture-created chronological ordering
 - Production migration preflight and background Drive reconciliation
-- Dedicated `/admin` surface for adding and editing albums, photos and Drive-backed categories
+- Dedicated `/Memories/admin/` surface for adding and editing albums, photos and Drive-backed categories
+- One global `儲存所有變更` action: administrators can edit across tabs, then submit only changed fields in a patch-style batch
+- Partial batch failure keeps failed drafts pending while clearing only successfully saved items
+- Unsaved-change protection for reload, leaving the archive, and logout
 - Administrator capture-time and album edits survive later Drive reconciliation
-- `SECRET_TOKEN` login exchanged for a short-lived HttpOnly session cookie, with PostgreSQL-backed failure limits shared across Autoscale instances
+- `MEMORIES_ADMIN_TOKEN` login exchanged for a short-lived HttpOnly session cookie, with PostgreSQL-backed failure limits shared across Autoscale instances
 - Visitor archive contains no embedded administrator controls or browser-stored admin password
+
+## Administrator save workflow
+
+The browser keeps album, category, photo, ordering, and new-record edits as local React draft state. The persistent footer shows the pending operation count. Pressing `儲存所有變更` sends changed JSON fields to:
+
+```text
+PATCH /Memories/admin/api/changes
+```
+
+The endpoint returns one result per operation. A successful result is removed from draft state; a failed result remains pending and can be retried. Google Drive-backed category/photo operations report precise partial failures instead of falsely marking the whole batch successful.
+
+A selected new photo uses the same global save action but is uploaded as a multipart request after the JSON change batch, because binary media is not embedded in the patch payload. Failed uploads remain selected for retry.
 
 ## Known incomplete Phase 1 work
 
@@ -76,7 +91,7 @@ Required Replit Production Secrets:
 ```text
 DATABASE_URL
 MEMORIES_DRIVE_PHOTOS_FOLDER_ID
-SECRET_TOKEN
+MEMORIES_ADMIN_TOKEN
 ```
 
 Optional tuning:
@@ -89,6 +104,6 @@ MEMORIES_THUMBNAIL_MAX_PER_RUN
 
 The runtime discovers or creates `訪客上傳`, `生活照`, `系統縮圖` and `00 未分類` below the configured root. Do not add separate provider folder IDs to source code or `.replit`.
 
-Open `/admin/login` to authenticate. A correct password navigates to `/admin`. A request for `/admin` without a valid session redirects to `/Memories/`. Administrator APIs live only under `/admin/api/*`; the removed `/Memories/api/admin/*` namespace is not accepted.
+Open `/Memories/admin/login` to authenticate. A correct password navigates to `/Memories/admin/`. `/admin` remains only a redirect alias. Administrator APIs are canonically served under `/Memories/admin/api/*`.
 
 Do not add service-account JSON, `GOOGLE_APPLICATION_CREDENTIALS`, OAuth client secrets, refresh tokens, raw guest-management tokens or the real administrator password to the repository.
