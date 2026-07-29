@@ -9,8 +9,6 @@ const adminToken = "correct-password";
 function adminCookie() {
   return createAdminSessionCookie({
     configuredToken: adminToken,
-    now: () => 1_000,
-    ttlMs: 60_000,
     createNonce: () => "nonce",
   }).value;
 }
