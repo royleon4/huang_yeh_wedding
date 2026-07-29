@@ -11,10 +11,19 @@ test("shows the password message only for an unauthorized response", () => {
   );
 });
 
-test("explains when the server or Google Drive is not ready", () => {
+test("reports a temporarily unavailable administrator login service", () => {
   assert.equal(
     adminLoginMessage(Object.assign(new Error("Unavailable"), { status: 503 })),
-    "伺服器或 Google Drive 尚未就緒，請稍後再試",
+    "管理登入服務暫時無法使用，請稍後再試",
+  );
+});
+
+test("reports request timeout instead of leaving the button spinning", () => {
+  assert.equal(
+    adminLoginMessage(
+      Object.assign(new Error("Timed out"), { code: "REQUEST_TIMEOUT" }),
+    ),
+    "伺服器回應逾時，請再按一次進入管理",
   );
 });
 
