@@ -15,6 +15,7 @@ import { createAlbumApi } from "./albums/api.mjs";
 import { createAdminAlbumApi } from "./albums/admin-api.mjs";
 import { PostgresAlbumRepository } from "./albums/postgres-repository.mjs";
 import { createAdminCategoryApi } from "./categories/admin-api.mjs";
+import { runMemoriesMigrations } from "./migrations.mjs";
 
 let runtimePromise;
 
@@ -32,6 +33,10 @@ async function createRuntime(env) {
     const error = new Error("MEMORIES_DRIVE_PHOTOS_FOLDER_ID is required");
     error.code = "MEMORIES_ROOT_FOLDER_MISSING";
     throw error;
+  }
+
+  if (env.MEMORIES_SKIP_MIGRATIONS !== "1") {
+    await runMemoriesMigrations({ databaseUrl: env.DATABASE_URL });
   }
 
   const [{ Pool }, drive] = await Promise.all([
