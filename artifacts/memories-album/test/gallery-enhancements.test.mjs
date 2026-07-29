@@ -24,27 +24,32 @@ test("title tap counting resets after the allowed window", () => {
   assert.deepEqual(state, { count: 1, lastTap: 5_000, triggered: false });
 });
 
-test("admin entry opens admin only for a valid session", async () => {
+test("admin entry opens nested admin only for a valid session", async () => {
+  const requested = [];
   const authenticated = await adminEntryDestination({
-    fetchImpl: async () => ({
-      ok: true,
-      json: async () => ({ authenticated: true }),
-    }),
+    fetchImpl: async (path) => {
+      requested.push(path);
+      return {
+        ok: true,
+        json: async () => ({ authenticated: true }),
+      };
+    },
   });
   const anonymous = await adminEntryDestination({
     fetchImpl: async () => ({ ok: false, json: async () => ({}) }),
   });
 
-  assert.equal(authenticated, "/admin");
-  assert.equal(anonymous, "/admin/login");
+  assert.deepEqual(requested, ["/Memories/admin/api/session"]);
+  assert.equal(authenticated, "/Memories/admin/");
+  assert.equal(anonymous, "/Memories/admin/login");
 });
 
-test("admin entry falls back to login when the session check hangs", async () => {
+test("admin entry falls back to nested login when the session check hangs", async () => {
   const destination = await adminEntryDestination({
     fetchImpl: () => new Promise(() => {}),
     timeoutMs: 5,
   });
-  assert.equal(destination, "/admin/login");
+  assert.equal(destination, "/Memories/admin/login");
 });
 
 test("masonry row spans cover the rendered card height", () => {

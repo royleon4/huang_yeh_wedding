@@ -19,7 +19,7 @@ function cookiePair(setCookie) {
   return setCookie.split(";", 1)[0];
 }
 
-test("SECRET_TOKEN login redirects administration into the protected /admin route", async () => {
+test("SECRET_TOKEN login opens the protected /Memories/admin/ route", async () => {
   await withServer(
     {
       env: { SECRET_TOKEN: "correct-password" },
@@ -28,41 +28,52 @@ test("SECRET_TOKEN login redirects administration into the protected /admin rout
       },
     },
     async (origin) => {
-      const anonymous = await fetch(`${origin}/admin`, {
+      const anonymous = await fetch(`${origin}/Memories/admin/`, {
         redirect: "manual",
       });
       assert.equal(anonymous.status, 303);
-      assert.equal(anonymous.headers.get("location"), "/Memories/");
+      assert.equal(
+        anonymous.headers.get("location"),
+        "/Memories/admin/login",
+      );
 
-      const anonymousApi = await fetch(`${origin}/admin/api/albums`);
+      const anonymousApi = await fetch(
+        `${origin}/Memories/admin/api/albums`,
+      );
       assert.equal(anonymousApi.status, 401);
       assert.equal((await anonymousApi.json()).code, "UNAUTHORIZED");
 
-      const loginPage = await fetch(`${origin}/admin/login`);
+      const loginPage = await fetch(`${origin}/Memories/admin/login`);
       assert.equal(loginPage.status, 200);
       assert.match(loginPage.headers.get("content-type"), /^text\/html/);
 
-      const rejected = await fetch(`${origin}/admin/api/session`, {
-        method: "POST",
-        headers: { Authorization: "Bearer wrong-password" },
-      });
+      const rejected = await fetch(
+        `${origin}/Memories/admin/api/session`,
+        {
+          method: "POST",
+          headers: { Authorization: "Bearer wrong-password" },
+        },
+      );
       assert.equal(rejected.status, 401);
 
-      const accepted = await fetch(`${origin}/admin/api/session`, {
-        method: "POST",
-        headers: { Authorization: "Bearer correct-password" },
-      });
+      const accepted = await fetch(
+        `${origin}/Memories/admin/api/session`,
+        {
+          method: "POST",
+          headers: { Authorization: "Bearer correct-password" },
+        },
+      );
       assert.equal(accepted.status, 200);
       assert.deepEqual(await accepted.json(), { authenticated: true });
       const setCookie = accepted.headers.get("set-cookie");
       assert.match(setCookie, /^memories_admin_session=/);
-      assert.match(setCookie, /Path=\/admin/i);
+      assert.match(setCookie, /Path=\/Memories\/admin/i);
       assert.match(setCookie, /HttpOnly/i);
       assert.match(setCookie, /Secure/i);
       assert.match(setCookie, /SameSite=Strict/i);
       assert.doesNotMatch(setCookie, /correct-password/);
 
-      const protectedPage = await fetch(`${origin}/admin`, {
+      const protectedPage = await fetch(`${origin}/Memories/admin/`, {
         headers: { Cookie: cookiePair(setCookie) },
       });
       assert.equal(protectedPage.status, 200);
@@ -77,11 +88,26 @@ test("SECRET_TOKEN login redirects administration into the protected /admin rout
         /style-src-attr 'unsafe-inline'/,
       );
 
-      const session = await fetch(`${origin}/admin/api/session`, {
+      const session = await fetch(`${origin}/Memories/admin/api/session`, {
         headers: { Cookie: cookiePair(setCookie) },
       });
       assert.equal(session.status, 200);
       assert.deepEqual(await session.json(), { authenticated: true });
+
+      const oldAdmin = await fetch(`${origin}/admin`, {
+        redirect: "manual",
+      });
+      assert.equal(oldAdmin.status, 308);
+      assert.equal(oldAdmin.headers.get("location"), "/Memories/admin/");
+
+      const oldSession = await fetch(`${origin}/admin/api/session`, {
+        redirect: "manual",
+      });
+      assert.equal(oldSession.status, 308);
+      assert.equal(
+        oldSession.headers.get("location"),
+        "/Memories/admin/api/session",
+      );
 
       const removedLegacyLogin = await fetch(
         `${origin}/Memories/api/admin/session`,
@@ -92,7 +118,7 @@ test("SECRET_TOKEN login redirects administration into the protected /admin rout
   );
 });
 
-test("the production route retains login failure limits between requests", async () => {
+test("the nested production route retains login failure limits", async () => {
   await withServer(
     {
       env: {
@@ -105,31 +131,40 @@ test("the production route retains login failure limits between requests", async
     },
     async (origin) => {
       for (let index = 0; index < 5; index += 1) {
-        const response = await fetch(`${origin}/admin/api/session`, {
-          method: "POST",
-          headers: {
-            Authorization: "Bearer wrong-password",
-            "X-Forwarded-For": "203.0.113.55",
+        const response = await fetch(
+          `${origin}/Memories/admin/api/session`,
+          {
+            method: "POST",
+            headers: {
+              Authorization: "Bearer wrong-password",
+              "X-Forwarded-For": "203.0.113.55",
+            },
           },
-        });
+        );
         assert.equal(response.status, 401);
       }
-      const limited = await fetch(`${origin}/admin/api/session`, {
-        method: "POST",
-        headers: {
-          Authorization: "Bearer correct-password",
-          "X-Forwarded-For": "203.0.113.55",
+      const limited = await fetch(
+        `${origin}/Memories/admin/api/session`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: "Bearer correct-password",
+            "X-Forwarded-For": "203.0.113.55",
+          },
         },
-      });
+      );
       assert.equal(limited.status, 429);
 
-      const otherClient = await fetch(`${origin}/admin/api/session`, {
-        method: "POST",
-        headers: {
-          Authorization: "Bearer correct-password",
-          "X-Forwarded-For": "203.0.113.56",
+      const otherClient = await fetch(
+        `${origin}/Memories/admin/api/session`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: "Bearer correct-password",
+            "X-Forwarded-For": "203.0.113.56",
+          },
         },
-      });
+      );
       assert.equal(otherClient.status, 200);
     },
   );

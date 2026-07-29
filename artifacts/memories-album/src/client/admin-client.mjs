@@ -1,14 +1,54 @@
+import {
+  LEGACY_ADMIN_PATH,
+  MEMORIES_ADMIN_LOGIN_PATH,
+  MEMORIES_ADMIN_PAGE_PATH,
+  MEMORIES_ADMIN_PATH,
+  MEMORIES_ADMIN_SESSION_PATH,
+  canonicalAdminRequestPath,
+} from "../admin-route-paths.mjs";
+
 function timeoutError() {
   const error = new Error("伺服器回應逾時");
   error.code = "REQUEST_TIMEOUT";
   return error;
 }
 
+function canonicalPhotoPayload(photo) {
+  if (!photo || typeof photo !== "object" || !photo.thumbnailUrl) return photo;
+  return {
+    ...photo,
+    thumbnailUrl: canonicalAdminRequestPath(photo.thumbnailUrl),
+  };
+}
+
+function canonicalAdminPayload(payload) {
+  if (!payload || typeof payload !== "object") return payload;
+  return {
+    ...payload,
+    ...(payload.photo ? { photo: canonicalPhotoPayload(payload.photo) } : {}),
+    ...(Array.isArray(payload.photos)
+      ? { photos: payload.photos.map(canonicalPhotoPayload) }
+      : {}),
+  };
+}
+
 export function adminSurface(pathname) {
-  if (pathname === "/admin/login" || pathname === "/admin/login/") {
+  if (
+    pathname === MEMORIES_ADMIN_LOGIN_PATH ||
+    pathname === `${MEMORIES_ADMIN_LOGIN_PATH}/` ||
+    pathname === `${LEGACY_ADMIN_PATH}/login` ||
+    pathname === `${LEGACY_ADMIN_PATH}/login/`
+  ) {
     return "login";
   }
-  if (pathname === "/admin" || pathname === "/admin/") return "admin";
+  if (
+    pathname === MEMORIES_ADMIN_PATH ||
+    pathname === MEMORIES_ADMIN_PAGE_PATH ||
+    pathname === LEGACY_ADMIN_PATH ||
+    pathname === `${LEGACY_ADMIN_PATH}/`
+  ) {
+    return "admin";
+  }
   return "memories";
 }
 
@@ -26,7 +66,7 @@ export async function adminRequest(
   const controller = new AbortController();
   let timer;
   const request = (async () => {
-    const response = await fetchImpl(path, {
+    const response = await fetchImpl(canonicalAdminRequestPath(path), {
       method,
       credentials: "same-origin",
       signal: controller.signal,
@@ -48,7 +88,7 @@ export async function adminRequest(
       error.code = payload.code;
       throw error;
     }
-    return payload;
+    return canonicalAdminPayload(payload);
   })();
   const timeout = new Promise((_, reject) => {
     timer = globalThis.setTimeout(
@@ -76,7 +116,7 @@ export async function loginAdministrator(
     navigate = (destination) => globalThis.location.replace(destination),
   } = {},
 ) {
-  const result = await request("/admin/api/session", {
+  const result = await request(MEMORIES_ADMIN_SESSION_PATH, {
     method: "POST",
     password,
   });
@@ -85,14 +125,14 @@ export async function loginAdministrator(
     error.code = "UNAUTHORIZED";
     throw error;
   }
-  navigate("/admin");
+  navigate(MEMORIES_ADMIN_PAGE_PATH);
 }
 
 export async function logoutAdministrator({
   request = adminRequest,
   navigate = (destination) => globalThis.location.replace(destination),
 } = {}) {
-  await request("/admin/api/session", { method: "DELETE" });
+  await request(MEMORIES_ADMIN_SESSION_PATH, { method: "DELETE" });
   navigate("/Memories/");
 }
 

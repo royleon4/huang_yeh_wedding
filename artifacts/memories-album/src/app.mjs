@@ -3,14 +3,31 @@ import { readFile, stat } from "node:fs/promises";
 import { createServer as createNodeServer } from "node:http";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import {
+  LEGACY_ADMIN_API_PATH,
+  LEGACY_ADMIN_PATH,
+  LEGACY_ADMIN_SESSION_PATH,
+  MEMORIES_ADMIN_LOGIN_PATH,
+  MEMORIES_ADMIN_PAGE_PATH,
+  MEMORIES_ADMIN_PATH,
+  MEMORIES_API_PATH,
+  MEMORIES_BASE_PATH,
+  MEMORIES_LOWERCASE_PATH,
+  internalAdminUrl,
+} from "./admin-route-paths.mjs";
 import { adminAuthorized } from "./server/admin/auth.mjs";
 import { createAdminSessionApi } from "./server/admin/session-api.mjs";
 import { getMemoriesRuntime } from "./server/runtime.mjs";
 import { DOCUMENT_SECURITY_HEADERS } from "./server/security-headers.mjs";
 
-export const MEMORIES_BASE_PATH = "/Memories";
-export const MEMORIES_LOWERCASE_PATH = "/memories";
-export const MEMORIES_API_PATH = `${MEMORIES_BASE_PATH}/api`;
+export {
+  MEMORIES_ADMIN_LOGIN_PATH,
+  MEMORIES_ADMIN_PAGE_PATH,
+  MEMORIES_ADMIN_PATH,
+  MEMORIES_API_PATH,
+  MEMORIES_BASE_PATH,
+  MEMORIES_LOWERCASE_PATH,
+};
 
 const moduleDirectory = path.dirname(fileURLToPath(import.meta.url));
 const isProductionBuild = path.basename(moduleDirectory) === "dist";
@@ -174,42 +191,63 @@ async function handleStandaloneApi(
 }
 
 export async function handleRequest(request, response, options) {
-  const url = new URL(request.url ?? "/", "http://localhost");
+  const requestedUrl = new URL(request.url ?? "/", "http://localhost");
   const env = options?.env ?? process.env;
   const adminToken = env.SECRET_TOKEN;
   const adminSessionApi =
     options?.adminSessionApi ?? createAdminSessionApi({ adminToken });
 
-  if (url.pathname === "/admin/api/session") {
+  if (
+    requestedUrl.pathname === LEGACY_ADMIN_PATH ||
+    requestedUrl.pathname.startsWith(`${LEGACY_ADMIN_PATH}/`)
+  ) {
+    const suffix = requestedUrl.pathname.slice(LEGACY_ADMIN_PATH.length);
+    const destination =
+      !suffix || suffix === "/"
+        ? MEMORIES_ADMIN_PAGE_PATH
+        : `${MEMORIES_ADMIN_PATH}${suffix}`;
+    redirect(response, `${destination}${requestedUrl.search}`, 308);
+    return;
+  }
+
+  const url = internalAdminUrl(requestedUrl);
+
+  if (url.pathname === LEGACY_ADMIN_SESSION_PATH) {
     if (await adminSessionApi(request, response, url)) return;
     sendJson(response, 405, { error: "Method not allowed" });
     return;
   }
 
-  if (url.pathname === "/admin/login" || url.pathname === "/admin/login/") {
+  if (
+    url.pathname === `${LEGACY_ADMIN_PATH}/login` ||
+    url.pathname === `${LEGACY_ADMIN_PATH}/login/`
+  ) {
     if (adminAuthorized(request, adminToken)) {
-      redirect(response, "/admin", 303);
+      redirect(response, MEMORIES_ADMIN_PAGE_PATH, 303);
       return;
     }
     await sendIndex(response);
     return;
   }
 
-  if (url.pathname === "/admin/") {
-    redirect(response, "/admin", 308);
+  if (url.pathname === `${LEGACY_ADMIN_PATH}/`) {
+    redirect(response, MEMORIES_ADMIN_PAGE_PATH, 308);
     return;
   }
 
-  if (url.pathname === "/admin") {
+  if (url.pathname === LEGACY_ADMIN_PATH) {
     if (!adminAuthorized(request, adminToken)) {
-      redirect(response, `${MEMORIES_BASE_PATH}/`, 303);
+      redirect(response, MEMORIES_ADMIN_LOGIN_PATH, 303);
       return;
     }
     await sendIndex(response);
     return;
   }
 
-  if (url.pathname === "/admin/api" || url.pathname.startsWith("/admin/api/")) {
+  if (
+    url.pathname === LEGACY_ADMIN_API_PATH ||
+    url.pathname.startsWith(`${LEGACY_ADMIN_API_PATH}/`)
+  ) {
     if (!adminAuthorized(request, adminToken)) {
       sendJson(response, 401, {
         error: "Unauthorized",

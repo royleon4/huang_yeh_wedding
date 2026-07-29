@@ -1,3 +1,9 @@
+import {
+  MEMORIES_ADMIN_LOGIN_PATH,
+  MEMORIES_ADMIN_PAGE_PATH,
+  MEMORIES_ADMIN_SESSION_PATH,
+} from "../admin-route-paths.mjs";
+
 export const ADMIN_TITLE_TAP_COUNT = 5;
 export const ADMIN_TITLE_TAP_WINDOW_MS = 3_500;
 
@@ -38,21 +44,23 @@ export async function adminEntryDestination({
   const controller = new AbortController();
   let timer;
   const request = (async () => {
-    const response = await fetchImpl("/admin/api/session", {
+    const response = await fetchImpl(MEMORIES_ADMIN_SESSION_PATH, {
       method: "GET",
       credentials: "same-origin",
       headers: { Accept: "application/json" },
       signal: controller.signal,
     });
-    if (!response.ok) return "/admin/login";
+    if (!response.ok) return MEMORIES_ADMIN_LOGIN_PATH;
     const body = await response.json().catch(() => ({}));
-    return body?.authenticated ? "/admin" : "/admin/login";
-  })().catch(() => "/admin/login");
+    return body?.authenticated
+      ? MEMORIES_ADMIN_PAGE_PATH
+      : MEMORIES_ADMIN_LOGIN_PATH;
+  })().catch(() => MEMORIES_ADMIN_LOGIN_PATH);
 
   const timeout = new Promise((resolve) => {
     timer = setTimeoutImpl(() => {
       controller.abort();
-      resolve("/admin/login");
+      resolve(MEMORIES_ADMIN_LOGIN_PATH);
     }, Math.max(1, Number(timeoutMs) || 3_000));
   });
 
