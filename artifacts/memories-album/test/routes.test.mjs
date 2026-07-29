@@ -53,27 +53,33 @@ test("serves an isolated health endpoint", async () => {
   });
 });
 
-test("validates an admin session on /admin without initializing storage", async () => {
+test("validates an admin session without initializing storage", async () => {
   let runtimeRequested = false;
   await withServer(
     async (origin) => {
-      const accepted = await fetch(`${origin}/admin/api/session`, {
-        method: "POST",
-        headers: { Authorization: "Bearer correct-password" },
-      });
+      const accepted = await fetch(
+        `${origin}/Memories/admin/api/session`,
+        {
+          method: "POST",
+          headers: { Authorization: "Bearer correct-password" },
+        },
+      );
       assert.equal(accepted.status, 200);
       assert.deepEqual(await accepted.json(), { authenticated: true });
 
-      const rejected = await fetch(`${origin}/admin/api/session`, {
-        method: "POST",
-        headers: { Authorization: "Bearer wrong-password" },
-      });
+      const rejected = await fetch(
+        `${origin}/Memories/admin/api/session`,
+        {
+          method: "POST",
+          headers: { Authorization: "Bearer wrong-password" },
+        },
+      );
       assert.equal(rejected.status, 401);
       assert.equal((await rejected.json()).code, "UNAUTHORIZED");
       assert.equal(runtimeRequested, false);
     },
     {
-      env: { SECRET_TOKEN: "correct-password" },
+      env: { MEMORIES_ADMIN_TOKEN: "correct-password" },
       getRuntime() {
         runtimeRequested = true;
         throw new Error("Runtime must not initialize for admin login");
@@ -85,10 +91,13 @@ test("validates an admin session on /admin without initializing storage", async 
 test("reports missing admin configuration as unavailable, not a wrong password", async () => {
   await withServer(
     async (origin) => {
-      const response = await fetch(`${origin}/admin/api/session`, {
-        method: "POST",
-        headers: { Authorization: "Bearer any-password" },
-      });
+      const response = await fetch(
+        `${origin}/Memories/admin/api/session`,
+        {
+          method: "POST",
+          headers: { Authorization: "Bearer any-password" },
+        },
+      );
       assert.equal(response.status, 503);
       assert.equal((await response.json()).code, "ADMIN_TOKEN_NOT_CONFIGURED");
     },
@@ -103,7 +112,7 @@ test("reports missing admin configuration as unavailable, not a wrong password",
 
 test("rejects unsupported admin session methods without hanging", async () => {
   await withServer(async (origin) => {
-    const response = await fetch(`${origin}/admin/api/session`, {
+    const response = await fetch(`${origin}/Memories/admin/api/session`, {
       method: "PUT",
     });
     assert.equal(response.status, 405);
