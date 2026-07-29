@@ -35,6 +35,24 @@ export function masonryRowSpan(height, rowHeight, rowGap) {
   return Math.max(1, Math.ceil((measuredHeight + gap) / (trackHeight + gap)));
 }
 
+export function masonryMeasuredHeight(
+  scrollHeight,
+  borderTopWidth = 0,
+  borderBottomWidth = 0,
+) {
+  const contentHeight = Math.max(0, Number(scrollHeight) || 0);
+  const topBorder = Math.max(0, Number(borderTopWidth) || 0);
+  const bottomBorder = Math.max(0, Number(borderBottomWidth) || 0);
+  return contentHeight + topBorder + bottomBorder;
+}
+
+export function viewportWidthChanged(previousWidth, nextWidth, tolerance = 1) {
+  const previous = Number(previousWidth);
+  const next = Number(nextWidth);
+  if (!Number.isFinite(previous) || !Number.isFinite(next)) return true;
+  return Math.abs(next - previous) > Math.max(0, Number(tolerance) || 0);
+}
+
 export async function adminEntryDestination({
   fetchImpl = globalThis.fetch,
   timeoutMs = 3_000,
