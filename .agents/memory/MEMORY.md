@@ -1,2 +1,3 @@
+- [Current Memories project architecture](memories-project-overview.md) — canonical routes, source-of-truth ownership, deployment, security, synchronization rules and current limitations.
 - [CSP blocks React preamble in dev](csp-dev-preamble.md) — production CSP (no 'unsafe-inline') silently blocks the @vitejs/plugin-react inline preamble script; strip CSP in vite.config.js dev middleware.
-- [Admin token env var name](admin-token-envvar.md) — server reads MEMORIES_ADMIN_TOKEN (not SECRET_TOKEN) for admin auth; all five call-sites in app.mjs, runtime.mjs, vite.config.js must use this name.
+- [Admin token env var name](admin-token-envvar.md) — server reads MEMORIES_ADMIN_TOKEN (not SECRET_TOKEN) for admin auth; all server and client documentation must use this exact name.
