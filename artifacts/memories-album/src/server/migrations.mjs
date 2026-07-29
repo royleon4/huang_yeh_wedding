@@ -57,7 +57,8 @@ function pendingMigrations(migrations, applied) {
 }
 
 export function shouldRunProductionMigrations(env = process.env) {
-  return env.NODE_ENV === "production" || env.REPLIT_DEPLOYMENT === "1";
+  if (env.MEMORIES_SKIP_MIGRATIONS === "1") return false;
+  return Boolean(env.DATABASE_URL);
 }
 
 export async function runMemoriesMigrations({
