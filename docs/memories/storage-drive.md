@@ -49,10 +49,10 @@ DATABASE_URL
 MEMORIES_DRIVE_PHOTOS_FOLDER_ID
 ```
 
-Also required for the current shared-secret administrator boundary:
+Also required for administrator login:
 
 ```text
-MEMORIES_ADMIN_TOKEN
+SECRET_TOKEN
 ```
 
 Replit Google Drive Integration supplies authorization through `@replit/connectors-sdk`; do not add a service account, OAuth client secret, refresh token, or `GOOGLE_APPLICATION_CREDENTIALS`.

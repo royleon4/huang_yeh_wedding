@@ -14,7 +14,7 @@ Connect the Replit Google Drive Integration and set these **Production Secrets**
 ```text
 DATABASE_URL
 MEMORIES_DRIVE_PHOTOS_FOLDER_ID
-MEMORIES_ADMIN_TOKEN
+SECRET_TOKEN
 ```
 
 The runtime discovers or creates `訪客上傳`, `生活照`, `系統縮圖`, and `00 未分類` below the configured root. Do not add a separate thumbnail-folder ID to `.replit` or the frontend.

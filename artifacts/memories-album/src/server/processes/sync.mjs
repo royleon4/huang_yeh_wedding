@@ -64,7 +64,10 @@ export class DriveProcessSynchronizer {
       );
   }
 
-  async #upsertProcessFolder(folder, parsed = parseManagedProcessFolder(folder?.name)) {
+  async #upsertProcessFolder(
+    folder,
+    parsed = parseManagedProcessFolder(folder?.name),
+  ) {
     if (!folder?.id || !parsed) {
       const error = new Error("Google Drive process folder is invalid");
       error.status = 409;
@@ -82,6 +85,22 @@ export class DriveProcessSynchronizer {
     });
   }
 
+  async #applyEnglishLabel(process, labelEn) {
+    const normalized = String(labelEn ?? process.labelZh)
+      .normalize("NFKC")
+      .replace(/\s+/g, " ")
+      .trim();
+    if (!this.processRepository.updateProcessLabelEn) {
+      return { ...process, labelEn: normalized || process.labelZh };
+    }
+    return (
+      (await this.processRepository.updateProcessLabelEn(
+        process.id,
+        normalized || process.labelZh,
+      )) ?? process
+    );
+  }
+
   async syncProcessFoldersFromDrive() {
     const children = await this.drive.listChildren(this.rootFolderId);
     const processFolders = this.#processFolders(children);
@@ -91,7 +110,9 @@ export class DriveProcessSynchronizer {
       activeFolderIds.add(folder.id);
       processes.push(await this.#upsertProcessFolder(folder, parsed));
     }
-    await this.processRepository.deactivateMissingDriveProcesses(activeFolderIds);
+    await this.processRepository.deactivateMissingDriveProcesses(
+      activeFolderIds,
+    );
     return processes.sort(processOrder);
   }
 
@@ -114,7 +135,10 @@ export class DriveProcessSynchronizer {
         preserveLogicalClassification,
       });
       if (preserveLogicalClassification) {
-        await this.photoRepository.updateDriveParentByDriveFile?.(file.id, folder.id);
+        await this.photoRepository.updateDriveParentByDriveFile?.(
+          file.id,
+          folder.id,
+        );
       } else {
         await this.photoRepository.replacePhotoProcessByDriveFile(
           file.id,
@@ -144,7 +168,9 @@ export class DriveProcessSynchronizer {
       });
     }
 
-    const rootImages = children.filter((item) => item.mimeType?.startsWith("image/"));
+    const rootImages = children.filter((item) =>
+      item.mimeType?.startsWith("image/"),
+    );
     for (const file of rootImages) {
       await this.photoRepository.upsertDrivePhotoMetadata(file, {
         source: "official",
@@ -159,7 +185,9 @@ export class DriveProcessSynchronizer {
       );
     }
 
-    const unclassified = reservedFolders.get(DRIVE_RESERVED_FOLDERS.unclassified);
+    const unclassified = reservedFolders.get(
+      DRIVE_RESERVED_FOLDERS.unclassified,
+    );
     if (unclassified) {
       await this.#importFolderPhotos(unclassified, {
         source: "official",
@@ -187,11 +215,13 @@ export class DriveProcessSynchronizer {
       });
     }
 
-    await this.processRepository.deactivateMissingDriveProcesses(activeFolderIds);
+    await this.processRepository.deactivateMissingDriveProcesses(
+      activeFolderIds,
+    );
     return processes.sort(processOrder);
   }
 
-  async createProcess({ labelZh }) {
+  async createProcess({ labelZh, labelEn = "" }) {
     const children = await this.drive.listChildren(this.rootFolderId);
     const currentFolders = this.#processFolders(children);
     const displayOrder =
@@ -209,15 +239,20 @@ export class DriveProcessSynchronizer {
       parentId: this.rootFolderId,
       name: formatManagedProcessFolder(displayOrder, labelZh),
     });
-    return this.#upsertProcessFolder(folder);
+    return this.#applyEnglishLabel(
+      await this.#upsertProcessFolder(folder),
+      labelEn || labelZh,
+    );
   }
 
-  async renameProcess(process, labelZh) {
+  async renameProcess(process, labelZh, labelEn = "") {
     const current = (await this.syncProcessFoldersFromDrive()).find(
       (item) => item.id === process.id,
     );
     if (!current?.driveFolderId) {
-      const error = new Error("Process folder no longer exists in Google Drive");
+      const error = new Error(
+        "Process folder no longer exists in Google Drive",
+      );
       error.status = 404;
       error.code = "PROCESS_FOLDER_NOT_FOUND";
       throw error;
@@ -226,7 +261,10 @@ export class DriveProcessSynchronizer {
       current.driveFolderId,
       formatManagedProcessFolder(current.displayOrder, labelZh),
     );
-    return this.#upsertProcessFolder(renamed);
+    return this.#applyEnglishLabel(
+      await this.#upsertProcessFolder(renamed),
+      labelEn || labelZh,
+    );
   }
 
   async reorderProcesses(processIds) {

@@ -3,8 +3,10 @@ import { readFile, stat } from "node:fs/promises";
 import { createServer as createNodeServer } from "node:http";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { adminAuthorized } from "./server/admin/auth.mjs";
 import { createAdminSessionApi } from "./server/admin/session-api.mjs";
 import { getMemoriesRuntime } from "./server/runtime.mjs";
+import { DOCUMENT_SECURITY_HEADERS } from "./server/security-headers.mjs";
 
 export const MEMORIES_BASE_PATH = "/Memories";
 export const MEMORIES_LOWERCASE_PATH = "/memories";
@@ -36,8 +38,8 @@ function sendJson(response, status, body) {
   response.end(JSON.stringify(body));
 }
 
-function redirect(response, location) {
-  response.writeHead(308, {
+function redirect(response, location, status = 308) {
+  response.writeHead(status, {
     Location: location,
     "Cache-Control": "no-store",
   });
@@ -68,7 +70,7 @@ async function sendIndex(response) {
   response.writeHead(200, {
     "Content-Type": "text/html; charset=utf-8",
     "Cache-Control": "no-cache",
-    "X-Content-Type-Options": "nosniff",
+    ...DOCUMENT_SECURITY_HEADERS,
     "Content-Length": html.length,
   });
   response.end(html);
@@ -109,11 +111,6 @@ async function handleStandaloneApi(
   url,
   { env = process.env, getRuntime = getMemoriesRuntime } = {},
 ) {
-  const adminSessionApi = createAdminSessionApi({
-    adminToken: env.MEMORIES_ADMIN_TOKEN,
-  });
-  if (adminSessionApi(request, response, url)) return true;
-
   if (url.pathname === `${MEMORIES_API_PATH}/health`) {
     sendJson(response, 200, {
       status: "ok",
@@ -126,17 +123,15 @@ async function handleStandaloneApi(
   if (
     url.pathname.startsWith(`${MEMORIES_API_PATH}/photos`) ||
     url.pathname.startsWith(`${MEMORIES_API_PATH}/upload-batches`) ||
+    url.pathname.startsWith(`${MEMORIES_API_PATH}/albums`) ||
     url.pathname.startsWith(`${MEMORIES_API_PATH}/processes`) ||
-    url.pathname.startsWith(`${MEMORIES_API_PATH}/settings`) ||
-    url.pathname.startsWith(`${MEMORIES_API_PATH}/admin/photos`) ||
-    url.pathname.startsWith(`${MEMORIES_API_PATH}/admin/processes`) ||
-    url.pathname.startsWith(`${MEMORIES_API_PATH}/admin/settings`)
+    url.pathname.startsWith(`${MEMORIES_API_PATH}/settings`)
   ) {
     try {
       const runtime = await getRuntime(env);
+      if (await runtime.albumApi(request, response, url)) return true;
       if (await runtime.settingsApi(request, response, url)) return true;
       if (await runtime.processApi(request, response, url)) return true;
-      if (await runtime.adminPhotoApi(request, response, url)) return true;
       if (await runtime.uploadApi(request, response, url)) return true;
       if (await runtime.photoApi(request, response, url)) return true;
     } catch (error) {
@@ -180,6 +175,68 @@ async function handleStandaloneApi(
 
 export async function handleRequest(request, response, options) {
   const url = new URL(request.url ?? "/", "http://localhost");
+  const env = options?.env ?? process.env;
+  const adminToken = env.SECRET_TOKEN;
+  const adminSessionApi =
+    options?.adminSessionApi ?? createAdminSessionApi({ adminToken });
+
+  if (url.pathname === "/admin/api/session") {
+    if (await adminSessionApi(request, response, url)) return;
+    sendJson(response, 405, { error: "Method not allowed" });
+    return;
+  }
+
+  if (url.pathname === "/admin/login" || url.pathname === "/admin/login/") {
+    if (adminAuthorized(request, adminToken)) {
+      redirect(response, "/admin", 303);
+      return;
+    }
+    await sendIndex(response);
+    return;
+  }
+
+  if (url.pathname === "/admin/") {
+    redirect(response, "/admin", 308);
+    return;
+  }
+
+  if (url.pathname === "/admin") {
+    if (!adminAuthorized(request, adminToken)) {
+      redirect(response, `${MEMORIES_BASE_PATH}/`, 303);
+      return;
+    }
+    await sendIndex(response);
+    return;
+  }
+
+  if (url.pathname === "/admin/api" || url.pathname.startsWith("/admin/api/")) {
+    if (!adminAuthorized(request, adminToken)) {
+      sendJson(response, 401, {
+        error: "Unauthorized",
+        code: "UNAUTHORIZED",
+      });
+      return;
+    }
+    try {
+      const runtime = await (options?.getRuntime ?? getMemoriesRuntime)(env);
+      if (await runtime.adminAlbumApi?.(request, response, url)) return;
+      if (await runtime.adminCategoryApi?.(request, response, url)) return;
+      if (await runtime.adminPhotoApi?.(request, response, url)) return;
+    } catch (error) {
+      console.warn("Memories administrator API unavailable", {
+        name: error instanceof Error ? error.name : "UnknownError",
+        code: error?.code,
+      });
+      if (!response.headersSent) {
+        sendJson(response, 503, boundedStorageError(error));
+      } else {
+        response.destroy();
+      }
+      return;
+    }
+    sendJson(response, 404, { error: "Not found" });
+    return;
+  }
 
   if (
     url.pathname === MEMORIES_LOWERCASE_PATH ||
@@ -232,9 +289,23 @@ export async function handleRequest(request, response, options) {
   sendJson(response, 404, { error: "Not found" });
 }
 
-export function createServer(options) {
+export function createServer(options = {}) {
+  const env = options.env ?? process.env;
+  const serverOptions = {
+    ...options,
+    env,
+    adminSessionApi:
+      options.adminSessionApi ??
+      createAdminSessionApi({
+        adminToken: env.SECRET_TOKEN,
+        trustProxy:
+          options.trustProxy ??
+          (env.REPLIT_DEPLOYMENT === "1" || env.MEMORIES_TRUST_PROXY === "1"),
+        failureStore: options.adminFailureStore,
+      }),
+  };
   return createNodeServer((request, response) => {
-    void handleRequest(request, response, options).catch((error) => {
+    void handleRequest(request, response, serverOptions).catch((error) => {
       console.error("Memories request failed", {
         name: error instanceof Error ? error.name : "UnknownError",
         code: error?.code,

@@ -1,7 +1,9 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
+import { adminAuthorized } from "./src/server/admin/auth.mjs";
 import { createAdminSessionApi } from "./src/server/admin/session-api.mjs";
 import { getMemoriesRuntime } from "./src/server/runtime.mjs";
+import { applyDocumentSecurityHeaders } from "./src/server/security-headers.mjs";
 
 const CANONICAL_BASE = "/Memories";
 const API_BASE = `${CANONICAL_BASE}/api`;
@@ -14,16 +16,90 @@ function sendJson(response, status, body) {
   response.end(JSON.stringify(body));
 }
 
+function redirect(response, location, status = 303) {
+  response.statusCode = status;
+  response.setHeader("Location", location);
+  response.setHeader("Cache-Control", "no-store");
+  response.end();
+}
+
 function memoriesDevelopmentRoutes() {
   return {
     name: "memories-development-routes",
     configureServer(server) {
+      const adminToken = process.env.SECRET_TOKEN;
+      const adminSessionApi = createAdminSessionApi({
+        adminToken,
+        trustProxy:
+          process.env.REPLIT_DEPLOYMENT === "1" ||
+          process.env.MEMORIES_TRUST_PROXY === "1",
+      });
       server.middlewares.use(async (request, response, next) => {
         const url = new URL(request.url ?? "/", "http://localhost");
-        const adminSessionApi = createAdminSessionApi({
-          adminToken: process.env.MEMORIES_ADMIN_TOKEN,
-        });
-        if (adminSessionApi(request, response, url)) return;
+        if (url.pathname === "/admin/api/session") {
+          if (await adminSessionApi(request, response, url)) return;
+          sendJson(response, 405, { error: "Method not allowed" });
+          return;
+        }
+
+        if (url.pathname === "/admin/") {
+          redirect(response, "/admin", 308);
+          return;
+        }
+
+        if (
+          url.pathname === "/admin/login" ||
+          url.pathname === "/admin/login/"
+        ) {
+          if (adminAuthorized(request, adminToken)) {
+            redirect(response, "/admin");
+            return;
+          }
+          applyDocumentSecurityHeaders(response);
+          request.url = `${CANONICAL_BASE}/${url.search}`;
+          next();
+          return;
+        }
+
+        if (url.pathname === "/admin") {
+          if (!adminAuthorized(request, adminToken)) {
+            redirect(response, `${CANONICAL_BASE}/`);
+            return;
+          }
+          applyDocumentSecurityHeaders(response);
+          request.url = `${CANONICAL_BASE}/${url.search}`;
+          next();
+          return;
+        }
+
+        if (
+          url.pathname === "/admin/api" ||
+          url.pathname.startsWith("/admin/api/")
+        ) {
+          if (!adminAuthorized(request, adminToken)) {
+            sendJson(response, 401, {
+              error: "Unauthorized",
+              code: "UNAUTHORIZED",
+            });
+            return;
+          }
+          try {
+            const runtime = await getMemoriesRuntime();
+            if (await runtime.adminAlbumApi(request, response, url)) return;
+            if (await runtime.adminCategoryApi(request, response, url)) return;
+            if (await runtime.adminPhotoApi(request, response, url)) return;
+            sendJson(response, 404, { error: "Not found" });
+          } catch (error) {
+            console.warn("Memories development administrator API unavailable", {
+              name: error instanceof Error ? error.name : "UnknownError",
+              code: error?.code,
+            });
+            sendJson(response, 503, {
+              error: "Memories storage is temporarily unavailable",
+            });
+          }
+          return;
+        }
 
         if (
           url.pathname === "/memories" ||
@@ -57,10 +133,16 @@ function memoriesDevelopmentRoutes() {
 
         if (
           url.pathname.startsWith(`${API_BASE}/photos`) ||
-          url.pathname.startsWith(`${API_BASE}/upload-batches`)
+          url.pathname.startsWith(`${API_BASE}/upload-batches`) ||
+          url.pathname.startsWith(`${API_BASE}/albums`) ||
+          url.pathname.startsWith(`${API_BASE}/processes`) ||
+          url.pathname.startsWith(`${API_BASE}/settings`)
         ) {
           try {
             const runtime = await getMemoriesRuntime();
+            if (await runtime.albumApi(request, response, url)) return;
+            if (await runtime.settingsApi(request, response, url)) return;
+            if (await runtime.processApi(request, response, url)) return;
             if (await runtime.uploadApi(request, response, url)) return;
             if (await runtime.photoApi(request, response, url)) return;
           } catch (error) {
@@ -86,6 +168,13 @@ function memoriesDevelopmentRoutes() {
           return;
         }
 
+        if (
+          url.pathname === `${CANONICAL_BASE}/` ||
+          (url.pathname.startsWith(`${CANONICAL_BASE}/`) &&
+            !url.pathname.split("/").at(-1)?.includes("."))
+        ) {
+          applyDocumentSecurityHeaders(response);
+        }
         next();
       });
     },

@@ -4,7 +4,7 @@ import { createServer } from "../src/app.mjs";
 
 async function withServer(run) {
   const server = createServer({
-    env: { MEMORIES_ADMIN_TOKEN: "correct-password" },
+    env: { SECRET_TOKEN: "correct-password" },
     getRuntime: async () => {
       const error = new Error("Drive unavailable");
       error.code = "DRIVE_RETRYABLE";
@@ -24,7 +24,7 @@ async function withServer(run) {
 
 test("admin login succeeds even when Drive runtime is unavailable", async () => {
   await withServer(async (origin) => {
-    const login = await fetch(`${origin}/Memories/api/admin/session`, {
+    const login = await fetch(`${origin}/admin/api/session`, {
       method: "POST",
       headers: { Authorization: "Bearer correct-password" },
     });

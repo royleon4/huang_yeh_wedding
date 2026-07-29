@@ -22,6 +22,7 @@ export function toPublicPhoto(photo) {
     source: photo.source,
     collection:
       photo.collection ?? (photo.source === "guest" ? "guest" : "wedding"),
+    albumIds: [...(photo.albumIds ?? [])],
     uploaderName: photo.uploaderName ?? null,
     processIds: photo.processIds ?? [],
     createdAt: photo.createdAt,
@@ -154,6 +155,7 @@ export function createMemoriesPhotoApi({
     if (request.method === "GET" && url.pathname === "/Memories/api/photos") {
       try {
         const collection = url.searchParams.get("collection");
+        const albumId = url.searchParams.get("albumId");
         if (
           collection &&
           !new Set(["wedding", "guest", "life"]).has(collection)
@@ -170,6 +172,7 @@ export function createMemoriesPhotoApi({
           processId: url.searchParams.get("process"),
           source: url.searchParams.get("source"),
           collection,
+          albumId,
         });
         json(response, 200, {
           photos: page.items.map(toPublicPhoto),
