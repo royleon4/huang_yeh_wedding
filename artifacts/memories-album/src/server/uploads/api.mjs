@@ -76,18 +76,24 @@ async function readJson(request, maxBytes = 8 * 1024) {
   }
 }
 
-export function parseSinglePhoto(
+export function parsePhotoMultipart(
   request,
-  { maxFileBytes = DEFAULT_MAX_FILE_BYTES } = {},
+  {
+    maxFileBytes = DEFAULT_MAX_FILE_BYTES,
+    allowedFields = [],
+    maxFieldBytes = 32 * 1024,
+  } = {},
 ) {
   return new Promise((resolve, reject) => {
+    const permittedFields = new Set(allowedFields);
     let parser;
     try {
       parser = Busboy({
         headers: request.headers,
         limits: {
           files: 2,
-          fields: 1,
+          fields: Math.max(1, permittedFields.size),
+          fieldSize: maxFieldBytes,
           fileSize: maxFileBytes,
         },
       });
@@ -106,6 +112,7 @@ export function parseSinglePhoto(
     let fileSeen = false;
     let record = null;
     let problem = null;
+    const fields = {};
     const fail = (error) => {
       if (settled) return;
       settled = true;
@@ -148,12 +155,20 @@ export function parseSinglePhoto(
       });
     });
 
-    parser.on("field", () => {
-      problem = new UploadApiError(
-        400,
-        "Unexpected multipart fields",
-        "INVALID_MULTIPART",
-      );
+    parser.on("field", (fieldName, value, info) => {
+      if (
+        !permittedFields.has(fieldName) ||
+        Object.hasOwn(fields, fieldName) ||
+        info?.valueTruncated
+      ) {
+        problem = new UploadApiError(
+          400,
+          "Unexpected multipart fields",
+          "INVALID_MULTIPART",
+        );
+        return;
+      }
+      fields[fieldName] = value;
     });
     parser.on("filesLimit", () => {
       problem = new UploadApiError(
@@ -182,7 +197,9 @@ export function parseSinglePhoto(
       if (settled) return;
       if (problem) return fail(problem);
       if (!record) {
-        return fail(new UploadApiError(400, "A photo is required", "PHOTO_REQUIRED"));
+        return fail(
+          new UploadApiError(400, "A photo is required", "PHOTO_REQUIRED"),
+        );
       }
       if (record.truncated) {
         return fail(
@@ -194,11 +211,16 @@ export function parseSinglePhoto(
         );
       }
       settled = true;
-      resolve(record);
+      resolve({ file: record, fields });
     });
 
     request.pipe(parser);
   });
+}
+
+export async function parseSinglePhoto(request, options = {}) {
+  const parsed = await parsePhotoMultipart(request, options);
+  return parsed.file;
 }
 
 function safeFilenamePart(filename) {
@@ -564,7 +586,11 @@ export function createGuestUploadApi({
             ...(retryAfterMs ? { retryAfterMs } : {}),
           },
           retryAfterMs
-            ? { "Retry-After": String(Math.max(1, Math.ceil(retryAfterMs / 1000))) }
+            ? {
+                "Retry-After": String(
+                  Math.max(1, Math.ceil(retryAfterMs / 1000)),
+                ),
+              }
             : {},
         );
         return true;

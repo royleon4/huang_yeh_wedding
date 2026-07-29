@@ -5,11 +5,12 @@ import {
   NAV_ITEMS,
   PROCESS_DEFINITIONS,
   filterPhotos,
-  moveItem,
+  normalizePublicAlbums,
   pagePhotos,
 } from "./gallery-model.mjs";
 import UploadModal from "./UploadModal.jsx";
 import PhotoLightbox from "./PhotoLightbox.jsx";
+import BottomCollectionNav from "./BottomCollectionNav.jsx";
 
 const COPY = {
   zh: {
@@ -24,16 +25,6 @@ const COPY = {
     weddingNote: "依照婚禮當天流程整理的正式照片與已分類訪客照片。",
     guestNote: "所有訪客上傳都會在這裡出現，原圖固定保存在「訪客上傳」資料夾。",
     lifeNote: "婚禮之外的日常片刻，以及訪客選擇歸入生活照的照片。",
-    admin: "管理模式",
-    leaveAdmin: "離開管理",
-    addProcess: "新增流程",
-    processEditor: "流程編輯",
-    rename: "改名",
-    remove: "刪除",
-    moveLeft: "前移",
-    moveRight: "後移",
-    addTo: "加入此流程",
-    removeFrom: "移除此流程",
     loadMore: "載入更多回憶",
     emptyTitle: "這個分類還在等待照片",
     emptyBody: "回憶會慢慢被收藏進來。",
@@ -61,7 +52,6 @@ const COPY = {
     closedBody: "管理員完成整理後會再次開放瀏覽。",
     language: "English",
     photosCount: "張照片",
-    adminHint: "流程資料夾會與 Google Drive 同步；生活照與訪客上傳為獨立大分類。",
   },
   en: {
     archive: "The Leon & YehYeh Wedding Archive",
@@ -79,16 +69,6 @@ const COPY = {
       "Every guest upload appears here. Originals always remain in the Guest uploads Drive folder.",
     lifeNote:
       "Everyday memories outside the wedding, including guest uploads classified as life photos.",
-    admin: "Admin view",
-    leaveAdmin: "Leave admin",
-    addProcess: "Add moment",
-    processEditor: "Moment editor",
-    rename: "Rename",
-    remove: "Delete",
-    moveLeft: "Move earlier",
-    moveRight: "Move later",
-    addTo: "Add to moment",
-    removeFrom: "Remove from moment",
     loadMore: "Load more memories",
     emptyTitle: "This collection is waiting for photos",
     emptyBody: "Memories will be carefully added here.",
@@ -113,14 +93,37 @@ const COPY = {
     offlineTitle: "You are offline",
     offlineBody: "The archive will continue loading after you reconnect.",
     closedTitle: "The archive is temporarily closed",
-    closedBody:
-      "It will reopen after the administrators finish arranging it.",
+    closedBody: "It will reopen after the administrators finish arranging it.",
     language: "中文",
     photosCount: "photos",
-    adminHint:
-      "Wedding moment folders synchronize with Google Drive; Life photos and Guest uploads are separate top-level collections.",
   },
 };
+
+const SYSTEM_COLLECTION_NOTES = {
+  wedding: { zh: "weddingNote", en: "weddingNote" },
+  guest: { zh: "guestNote", en: "guestNote" },
+  life: { zh: "lifeNote", en: "lifeNote" },
+};
+
+function fallbackAlbums() {
+  return COLLECTION_DEFINITIONS.map((album, index) => ({
+    id: album.id,
+    zh: album.zh,
+    en: album.en,
+    descriptionZh: "",
+    descriptionEn: "",
+    displayOrder: index + 1,
+  }));
+}
+
+async function fetchAlbums() {
+  const response = await fetch("/Memories/api/albums", {
+    headers: { Accept: "application/json" },
+  });
+  if (!response.ok) throw new Error("Album listing failed");
+  const body = await response.json();
+  return normalizePublicAlbums(body.albums);
+}
 
 async function fetchAllPhotos() {
   const photos = [];
@@ -201,9 +204,7 @@ function Modal({ title, children, closeLabel, onClose }) {
     <div
       className="modal-backdrop"
       role="presentation"
-      onMouseDown={(event) =>
-        event.target === event.currentTarget && onClose()
-      }
+      onMouseDown={(event) => event.target === event.currentTarget && onClose()}
     >
       <section
         className="paper-modal"
@@ -248,25 +249,35 @@ export default function App() {
   const [lang, setLang] = useState(() =>
     localStorage.getItem("memories-language") === "en" ? "en" : "zh",
   );
-  const [processes, setProcesses] = useState(PROCESS_DEFINITIONS);
+  const [processes] = useState(PROCESS_DEFINITIONS);
+  const [albums, setAlbums] = useState(fallbackAlbums);
   const [activeCollection, setActiveCollection] = useState("wedding");
   const [activeFilter, setActiveFilter] = useState("all");
-  const [adminMode, setAdminMode] = useState(false);
   const [pageSize, setPageSize] = useState(12);
   const [selectedPhotoId, setSelectedPhotoId] = useState(null);
   const [modal, setModal] = useState(null);
   const [remotePhotos, setRemotePhotos] = useState(null);
   const [galleryError, setGalleryError] = useState(false);
-  const [photoAssignments, setPhotoAssignments] = useState(
-    () => new Map(MOCK_PHOTOS.map((photo) => [photo.id, photo.processIds])),
-  );
   const openerRef = useRef(null);
   const t = COPY[lang];
 
   useEffect(() => {
     if (runtimeState !== "ready") return undefined;
     let cancelled = false;
-    fetchAllPhotos()
+    void fetchAlbums()
+      .then((nextAlbums) => {
+        if (cancelled) return;
+        setAlbums(nextAlbums);
+        setActiveCollection((current) =>
+          nextAlbums.some((album) => album.id === current)
+            ? current
+            : (nextAlbums[0]?.id ?? ""),
+        );
+      })
+      .catch(() => {
+        // The three system albums remain available while storage recovers.
+      });
+    void fetchAllPhotos()
       .then((photos) => {
         if (cancelled) return;
         if (photos.length > 0 || !useMockFallback) setRemotePhotos(photos);
@@ -287,10 +298,13 @@ export default function App() {
         ...photo,
         collection:
           photo.collection ?? (photo.source === "guest" ? "guest" : "wedding"),
-        processIds:
-          photoAssignments.get(photo.id) ?? photo.processIds ?? [],
+        albumIds: photo.albumIds ?? [
+          photo.collection ?? (photo.source === "guest" ? "guest" : "wedding"),
+          ...(photo.source === "guest" ? ["guest"] : []),
+        ],
+        processIds: photo.processIds ?? [],
       })),
-    [sourcePhotos, photoAssignments],
+    [sourcePhotos],
   );
   const filtered = useMemo(
     () => filterPhotos(photos, activeFilter, activeCollection),
@@ -309,14 +323,14 @@ export default function App() {
     !useMockFallback &&
     !galleryError;
   const activeCollectionDefinition =
-    COLLECTION_DEFINITIONS.find((item) => item.id === activeCollection) ??
-    COLLECTION_DEFINITIONS[0];
+    albums.find((item) => item.id === activeCollection) ?? albums[0];
+  const configuredDescription =
+    activeCollectionDefinition?.[
+      lang === "zh" ? "descriptionZh" : "descriptionEn"
+    ]?.trim();
+  const fallbackNoteKey = SYSTEM_COLLECTION_NOTES[activeCollection]?.[lang];
   const collectionNote =
-    activeCollection === "guest"
-      ? t.guestNote
-      : activeCollection === "life"
-        ? t.lifeNote
-        : t.weddingNote;
+    configuredDescription || (fallbackNoteKey ? t[fallbackNoteKey] : "");
 
   useEffect(() => {
     document.documentElement.lang = lang === "zh" ? "zh-Hant" : "en";
@@ -360,49 +374,6 @@ export default function App() {
     });
   };
 
-  const renameProcess = (index) => {
-    const current = processes[index];
-    const nextName = window.prompt(
-      lang === "zh" ? "新的流程名稱" : "New moment name",
-      current[lang],
-    );
-    if (!nextName?.trim()) return;
-    setProcesses((items) =>
-      items.map((item, itemIndex) =>
-        itemIndex === index ? { ...item, [lang]: nextName.trim() } : item,
-      ),
-    );
-  };
-
-  const addProcess = () => {
-    const label = window.prompt(
-      lang === "zh" ? "新增流程名稱" : "New moment name",
-    );
-    if (!label?.trim()) return;
-    const id = `custom-${Date.now()}`;
-    setProcesses((items) => [
-      ...items,
-      { id, zh: label.trim(), en: label.trim() },
-    ]);
-    setActiveCollection("wedding");
-    setActiveFilter(id);
-  };
-
-  const toggleAssignment = (photoId) => {
-    if (activeCollection !== "wedding" || activeFilter === "all") return;
-    setPhotoAssignments((current) => {
-      const next = new Map(current);
-      const assignments = next.get(photoId) ?? [];
-      next.set(
-        photoId,
-        assignments.includes(activeFilter)
-          ? assignments.filter((id) => id !== activeFilter)
-          : [...assignments, activeFilter],
-      );
-      return next;
-    });
-  };
-
   const closeLightbox = () => {
     setSelectedPhotoId(null);
     requestAnimationFrame(() => openerRef.current?.focus());
@@ -439,12 +410,14 @@ export default function App() {
   })();
 
   const photoCollectionLabel = (photo) => {
-    if (activeCollection === "guest") return t.guest;
-    if (activeCollection === "life") return t.life;
-    return (
-      processes.find((process) => photo.processIds.includes(process.id))?.[lang] ??
-      t.allProcesses
-    );
+    if (activeCollection === "wedding") {
+      return (
+        processes.find((process) => photo.processIds.includes(process.id))?.[
+          lang
+        ] ?? t.allProcesses
+      );
+    }
+    return activeCollectionDefinition?.[lang] ?? t.categories;
   };
 
   return (
@@ -452,13 +425,6 @@ export default function App() {
       <div className="paper-grain" aria-hidden="true" />
       <header className="archive-header">
         <div className="header-tools">
-          <button
-            className="quiet-button"
-            type="button"
-            onClick={() => setAdminMode((value) => !value)}
-          >
-            {adminMode ? t.leaveAdmin : t.admin}
-          </button>
           <button
             className="quiet-button"
             type="button"
@@ -496,7 +462,10 @@ export default function App() {
       </nav>
 
       <main>
-        <section className="process-section" aria-labelledby="collection-heading">
+        <section
+          className="process-section"
+          aria-labelledby="collection-heading"
+        >
           <div className="section-heading">
             <div>
               <p className="eyebrow">PHOTO COLLECTIONS</p>
@@ -507,8 +476,12 @@ export default function App() {
             </p>
           </div>
 
-          <div className="collection-tabs" role="list" aria-label={t.categories}>
-            {COLLECTION_DEFINITIONS.map((collection) => (
+          <div
+            className="collection-tabs"
+            role="list"
+            aria-label={t.categories}
+          >
+            {albums.map((collection) => (
               <button
                 key={collection.id}
                 type="button"
@@ -523,8 +496,10 @@ export default function App() {
           </div>
 
           <div className="collection-summary">
-            <strong>{activeCollectionDefinition[lang]}</strong>
-            <p>{collectionNote}</p>
+            <strong>
+              {activeCollectionDefinition?.[lang] ?? t.categories}
+            </strong>
+            {collectionNote && <p>{collectionNote}</p>}
           </div>
 
           {activeCollection === "wedding" && (
@@ -559,63 +534,6 @@ export default function App() {
           )}
         </section>
 
-        {adminMode && (
-          <section className="admin-panel" aria-labelledby="admin-heading">
-            <div>
-              <p className="eyebrow">ARCHIVE DESK</p>
-              <h2 id="admin-heading">{t.processEditor}</h2>
-              <p>{t.adminHint}</p>
-            </div>
-            <button className="button primary" type="button" onClick={addProcess}>
-              ＋ {t.addProcess}
-            </button>
-            <div className="admin-process-list">
-              {processes.map((process, index) => (
-                <article key={process.id} className="admin-process-row">
-                  <span>{String(index + 1).padStart(2, "0")}</span>
-                  <strong>{process[lang]}</strong>
-                  <div>
-                    <button
-                      type="button"
-                      disabled={index === 0}
-                      onClick={() =>
-                        setProcesses((items) => moveItem(items, index, -1))
-                      }
-                      aria-label={t.moveLeft}
-                    >
-                      ←
-                    </button>
-                    <button
-                      type="button"
-                      disabled={index === processes.length - 1}
-                      onClick={() =>
-                        setProcesses((items) => moveItem(items, index, 1))
-                      }
-                      aria-label={t.moveRight}
-                    >
-                      →
-                    </button>
-                    <button type="button" onClick={() => renameProcess(index)}>
-                      {t.rename}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setProcesses((items) =>
-                          items.filter((_, itemIndex) => itemIndex !== index),
-                        );
-                        if (activeFilter === process.id) setActiveFilter("all");
-                      }}
-                    >
-                      {t.remove}
-                    </button>
-                  </div>
-                </article>
-              ))}
-            </div>
-          </section>
-        )}
-
         <section
           id="archive-gallery"
           className="gallery-section"
@@ -628,10 +546,6 @@ export default function App() {
               <>
                 <div className="masonry-grid">
                   {visible.map((photo, index) => {
-                    const assigned =
-                      activeCollection === "wedding" &&
-                      activeFilter !== "all" &&
-                      photo.processIds.includes(activeFilter);
                     return (
                       <article className="photo-card" key={photo.id}>
                         <button
@@ -659,19 +573,6 @@ export default function App() {
                           <span>{photoCollectionLabel(photo)}</span>
                           <small>{photo.uploaderName}</small>
                         </footer>
-                        {adminMode &&
-                          activeCollection === "wedding" &&
-                          activeFilter !== "all" && (
-                            <button
-                              className="assignment-button"
-                              type="button"
-                              onClick={() => toggleAssignment(photo.id)}
-                            >
-                              {assigned
-                                ? `− ${t.removeFrom}`
-                                : `＋ ${t.addTo}`}
-                            </button>
-                          )}
                       </article>
                     );
                   })}
@@ -696,6 +597,14 @@ export default function App() {
         <p>Leon & YehYeh · 20.06.2026</p>
         <small>Collected with love in Tainan</small>
       </footer>
+
+      <BottomCollectionNav
+        albums={albums}
+        active={activeCollection}
+        isEnglish={lang === "en"}
+        onChoose={chooseCollection}
+        onUpload={() => setModal("upload")}
+      />
 
       {modal === "upload" && (
         <UploadModal

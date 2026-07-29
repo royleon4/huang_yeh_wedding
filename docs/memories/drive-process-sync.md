@@ -46,16 +46,17 @@ Existing photos directly under the root remain visible as unclassified compatibi
 Reconciliation runs:
 
 1. when the standalone Memories runtime starts;
-2. when an authorized administrator selects **立即同步 Drive**;
-3. periodically, every five minutes by default.
+2. periodically, every five minutes by default.
+
+Category create, rename, reorder and official-photo reclassification from `/admin` write through to Drive immediately.
 
 Override the interval with `MEMORIES_DRIVE_SYNC_INTERVAL_MS`, with a minimum of one minute.
 
 ## Website administration
 
-Tap the archive title five times within 3.5 seconds to open the temporary Phase 1 administrator login. The panel requires the production secret `MEMORIES_ADMIN_TOKEN`. The entered token remains only in the current browser tab's `sessionStorage`; it is not built into the frontend or committed to the repository.
+Open `/admin/login` and enter the production `SECRET_TOKEN`. A successful login creates a short-lived, signed HttpOnly cookie and navigates to `/admin`. The password is not stored in browser storage. Opening `/admin` without a valid session redirects to `/Memories/`.
 
-The final identity provider remains ticket #6.
+The dedicated admin surface can add and edit albums, photos and Drive-backed process categories. The old title-tap trigger and `/Memories/api/admin/*` endpoints have been removed.
 
 ## Production settings
 
@@ -64,7 +65,7 @@ Required:
 ```text
 DATABASE_URL
 MEMORIES_DRIVE_PHOTOS_FOLDER_ID
-MEMORIES_ADMIN_TOKEN
+SECRET_TOKEN
 ```
 
 The root folder ID must be stored in Replit Production Secrets. Do not place it in `.replit` or browser code.

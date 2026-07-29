@@ -4,20 +4,12 @@ import test from "node:test";
 import { createSettingsApi } from "../src/server/settings/api.mjs";
 
 async function withApi(run) {
-  let visible = false;
   const repository = {
     async getPublicSettings() {
-      return { primaryNavigationVisible: visible };
-    },
-    async setPrimaryNavigationVisible(value) {
-      visible = value === true;
-      return { primaryNavigationVisible: visible };
+      return { primaryNavigationVisible: false };
     },
   };
-  const api = createSettingsApi({
-    repository,
-    adminToken: "correct-admin-password",
-  });
+  const api = createSettingsApi({ repository });
   const server = createServer(async (request, response) => {
     if (!(await api(request, response))) {
       response.statusCode = 404;
@@ -45,31 +37,11 @@ test("primary navigation is publicly reported as hidden by default", async () =>
   });
 });
 
-test("only an authenticated admin can change primary navigation visibility", async () => {
+test("the removed Memories admin settings route is not handled", async () => {
   await withApi(async (origin) => {
-    const unauthorized = await fetch(`${origin}/Memories/api/admin/settings`, {
+    const response = await fetch(`${origin}/Memories/api/admin/settings`, {
       method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ primaryNavigationVisible: true }),
     });
-    assert.equal(unauthorized.status, 401);
-
-    const changed = await fetch(`${origin}/Memories/api/admin/settings`, {
-      method: "PATCH",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: "Bearer correct-admin-password",
-      },
-      body: JSON.stringify({ primaryNavigationVisible: true }),
-    });
-    assert.equal(changed.status, 200);
-    assert.deepEqual(await changed.json(), {
-      primaryNavigationVisible: true,
-    });
-
-    const publicSettings = await fetch(`${origin}/Memories/api/settings`);
-    assert.deepEqual(await publicSettings.json(), {
-      primaryNavigationVisible: true,
-    });
+    assert.equal(response.status, 404);
   });
 });

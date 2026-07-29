@@ -45,7 +45,12 @@ export class PostgresProcessRepository {
       ) VALUES ($1,$2,$3,$4,true,$5,$6,'synced',now(),now(),now())
       ON CONFLICT (id) DO UPDATE SET
         label_zh = EXCLUDED.label_zh,
-        label_en = EXCLUDED.label_en,
+        label_en = CASE
+          WHEN memories_processes.label_en = memories_processes.label_zh
+            OR memories_processes.label_en = ''
+          THEN EXCLUDED.label_en
+          ELSE memories_processes.label_en
+        END,
         display_order = EXCLUDED.display_order,
         is_active = true,
         drive_folder_id = EXCLUDED.drive_folder_id,
@@ -64,6 +69,18 @@ export class PostgresProcessRepository {
       ],
     );
     return mapRow(result.rows[0]);
+  }
+
+  async updateProcessLabelEn(id, labelEn) {
+    const result = await this.pool.query(
+      `UPDATE memories_processes
+       SET label_en = $2, updated_at = now()
+       WHERE id = $1 AND is_active = true
+       RETURNING id, label_zh, label_en, display_order, drive_folder_id,
+                 drive_folder_name, sync_state, last_synced_at, is_active`,
+      [id, labelEn],
+    );
+    return result.rows[0] ? mapRow(result.rows[0]) : null;
   }
 
   async deactivateLegacyProcesses() {
@@ -95,7 +112,9 @@ export class PostgresProcessRepository {
 
   async #deactivateMatching(condition, values, syncState) {
     const client =
-      typeof this.pool.connect === "function" ? await this.pool.connect() : this.pool;
+      typeof this.pool.connect === "function"
+        ? await this.pool.connect()
+        : this.pool;
     try {
       await client.query("BEGIN");
       const stateParameter = values.length + 1;

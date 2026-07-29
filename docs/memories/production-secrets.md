@@ -4,7 +4,7 @@ Set these values in Replit Production Secrets, not in `.replit` or GitHub:
 
 - `DATABASE_URL`
 - `MEMORIES_DRIVE_PHOTOS_FOLDER_ID`
-- `MEMORIES_ADMIN_TOKEN`
+- `SECRET_TOKEN`
 
 Optional:
 

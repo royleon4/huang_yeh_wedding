@@ -16,6 +16,17 @@ export const NAV_ITEMS = [
   { id: "find", zh: "找找我", en: "Find me", enabled: false },
 ];
 
+export function normalizePublicAlbums(albums) {
+  if (!Array.isArray(albums)) {
+    throw new TypeError("Public albums must be an array");
+  }
+  return albums.map((album) => ({
+    ...album,
+    zh: album.titleZh,
+    en: album.titleEn || album.titleZh,
+  }));
+}
+
 function collectionForPhoto(photo) {
   return photo.collection ?? (photo.source === "guest" ? "guest" : "wedding");
 }
@@ -26,6 +37,9 @@ export function filterPhotos(
   collectionId = "wedding",
 ) {
   const inCollection = photos.filter((photo) => {
+    if (Array.isArray(photo.albumIds)) {
+      return photo.albumIds.includes(collectionId);
+    }
     if (collectionId === "guest") return photo.source === "guest";
     return collectionForPhoto(photo) === collectionId;
   });

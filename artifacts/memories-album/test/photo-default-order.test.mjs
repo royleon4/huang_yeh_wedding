@@ -19,8 +19,15 @@ test("public photos default to chronological capture-created order", async () =>
 
   assert.match(repositorySource, /file\.imageMediaMetadata\?\.time/);
   assert.match(repositorySource, /file\.createdTime/);
-  assert.match(repositorySource, /created_at = EXCLUDED\.created_at/);
+  assert.match(
+    repositorySource,
+    /WHEN memories_photos\.captured_at_overridden/,
+  );
+  assert.match(repositorySource, /ELSE EXCLUDED\.created_at/);
   assert.match(repositorySource, /\(p\.created_at, p\.id\) > /);
   assert.match(repositorySource, /ORDER BY p\.created_at ASC, p\.id ASC/);
-  assert.match(driveSource, /createdTime,modifiedTime,imageMediaMetadata\(time\)/);
+  assert.match(
+    driveSource,
+    /createdTime,modifiedTime,imageMediaMetadata\(time\)/,
+  );
 });

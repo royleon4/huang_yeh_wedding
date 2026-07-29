@@ -53,18 +53,18 @@ test("serves an isolated health endpoint", async () => {
   });
 });
 
-test("validates an admin session without initializing Drive or the database", async () => {
+test("validates an admin session on /admin without initializing storage", async () => {
   let runtimeRequested = false;
   await withServer(
     async (origin) => {
-      const accepted = await fetch(`${origin}/Memories/api/admin/session`, {
+      const accepted = await fetch(`${origin}/admin/api/session`, {
         method: "POST",
         headers: { Authorization: "Bearer correct-password" },
       });
       assert.equal(accepted.status, 200);
       assert.deepEqual(await accepted.json(), { authenticated: true });
 
-      const rejected = await fetch(`${origin}/Memories/api/admin/session`, {
+      const rejected = await fetch(`${origin}/admin/api/session`, {
         method: "POST",
         headers: { Authorization: "Bearer wrong-password" },
       });
@@ -73,7 +73,7 @@ test("validates an admin session without initializing Drive or the database", as
       assert.equal(runtimeRequested, false);
     },
     {
-      env: { MEMORIES_ADMIN_TOKEN: "correct-password" },
+      env: { SECRET_TOKEN: "correct-password" },
       getRuntime() {
         runtimeRequested = true;
         throw new Error("Runtime must not initialize for admin login");
@@ -85,7 +85,7 @@ test("validates an admin session without initializing Drive or the database", as
 test("reports missing admin configuration as unavailable, not a wrong password", async () => {
   await withServer(
     async (origin) => {
-      const response = await fetch(`${origin}/Memories/api/admin/session`, {
+      const response = await fetch(`${origin}/admin/api/session`, {
         method: "POST",
         headers: { Authorization: "Bearer any-password" },
       });
@@ -103,8 +103,10 @@ test("reports missing admin configuration as unavailable, not a wrong password",
 
 test("rejects unsupported admin session methods without hanging", async () => {
   await withServer(async (origin) => {
-    const response = await fetch(`${origin}/Memories/api/admin/session`);
-    assert.equal(response.status, 404);
+    const response = await fetch(`${origin}/admin/api/session`, {
+      method: "PUT",
+    });
+    assert.equal(response.status, 405);
   });
 });
 

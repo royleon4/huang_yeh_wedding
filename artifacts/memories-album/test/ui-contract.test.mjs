@@ -6,6 +6,7 @@ import {
   PROCESS_DEFINITIONS,
   filterPhotos,
   moveItem,
+  normalizePublicAlbums,
   pagePhotos,
 } from "../src/client/gallery-model.mjs";
 import { MOCK_PHOTOS } from "../src/client/mock-data.mjs";
@@ -14,10 +15,37 @@ test("does not bundle production wedding process categories", () => {
   assert.deepEqual(PROCESS_DEFINITIONS, []);
 });
 
-test("keeps three separate top-level photo collections", () => {
+test("keeps three system albums as the storage-unavailable fallback", () => {
   assert.deepEqual(
     COLLECTION_DEFINITIONS.map((item) => item.zh),
     ["婚禮流程", "訪客上傳", "生活照"],
+  );
+});
+
+test("an authoritative empty public album list stays empty", () => {
+  assert.deepEqual(normalizePublicAlbums([]), []);
+});
+
+test("database-defined custom albums filter by album membership", () => {
+  const photos = [
+    {
+      id: "story-photo",
+      source: "official",
+      collection: "wedding",
+      albumIds: ["wedding", "our-story"],
+      processIds: [],
+    },
+    {
+      id: "wedding-only",
+      source: "official",
+      collection: "wedding",
+      albumIds: ["wedding"],
+      processIds: [],
+    },
+  ];
+  assert.deepEqual(
+    filterPhotos(photos, "all", "our-story").map((photo) => photo.id),
+    ["story-photo"],
   );
 });
 

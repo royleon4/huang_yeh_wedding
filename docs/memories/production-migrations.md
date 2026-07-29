@@ -30,7 +30,7 @@ Do not replace it with the development database URL. The Drive root-folder secre
 
 ```text
 MEMORIES_DRIVE_PHOTOS_FOLDER_ID
-MEMORIES_ADMIN_TOKEN
+SECRET_TOKEN
 ```
 
 The runtime discovers or creates `訪客上傳`, `生活照`, `系統縮圖`, and `00 未分類` below the root. A separate thumbnail-folder secret is not required.

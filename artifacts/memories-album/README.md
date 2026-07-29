@@ -27,19 +27,22 @@ The CI boundary workflow must pass for every Memories change.
 
 - Responsive waterfall gallery with thumbnail delivery
 - Full-screen original viewer with keyboard, swipe, wheel, double-click and pinch controls
-- Wedding, guest-upload and life-photo collections
+- Wedding, guest-upload and life-photo system albums plus database-defined custom albums
 - Google Drive-derived wedding process names and ordering
 - Required-name multi-photo upload with per-file progress, stable upload IDs and bounded retry
 - EXIF orientation normalization and metadata-stripped guest uploads
 - Capture-created chronological ordering
 - Production migration preflight and background Drive reconciliation
-- Shared-secret admin session validation, process management, UI setting and photo deletion
+- Dedicated `/admin` surface for adding and editing albums, photos and Drive-backed categories
+- Administrator capture-time and album edits survive later Drive reconciliation
+- `SECRET_TOKEN` login exchanged for a short-lived HttpOnly session cookie, with PostgreSQL-backed failure limits shared across Autoscale instances
+- Visitor archive contains no embedded administrator controls or browser-stored admin password
 
 ## Known incomplete Phase 1 work
 
 - `/Memories/manage/:batchId` does not yet provide the private management/withdrawal UI or API (#5).
-- Album closure and the final admin/audit/session model are incomplete (#6).
-- Current admin photo deletion is immediate; seven-day trash/restore/cleanup is not implemented (#7).
+- Album closure and complete administrator audit logging remain incomplete (#6).
+- Photo deletion is not exposed by the rebuilt admin surface; seven-day trash/restore/cleanup remains incomplete (#7).
 - Mobile dialog/lightbox safe-area and focus work remains (#48).
 - A rejected first runtime initialization remains cached until restart (#49).
 - The client currently fetches all cursor pages before client-side paging (#50).
@@ -73,7 +76,7 @@ Required Replit Production Secrets:
 ```text
 DATABASE_URL
 MEMORIES_DRIVE_PHOTOS_FOLDER_ID
-MEMORIES_ADMIN_TOKEN
+SECRET_TOKEN
 ```
 
 Optional tuning:
@@ -85,5 +88,7 @@ MEMORIES_THUMBNAIL_MAX_PER_RUN
 ```
 
 The runtime discovers or creates `訪客上傳`, `生活照`, `系統縮圖` and `00 未分類` below the configured root. Do not add separate provider folder IDs to source code or `.replit`.
+
+Open `/admin/login` to authenticate. A correct password navigates to `/admin`. A request for `/admin` without a valid session redirects to `/Memories/`. Administrator APIs live only under `/admin/api/*`; the removed `/Memories/api/admin/*` namespace is not accepted.
 
 Do not add service-account JSON, `GOOGLE_APPLICATION_CREDENTIALS`, OAuth client secrets, refresh tokens, raw guest-management tokens or the real administrator password to the repository.

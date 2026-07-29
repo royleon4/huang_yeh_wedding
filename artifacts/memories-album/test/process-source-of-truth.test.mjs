@@ -50,15 +50,27 @@ class CanonicalProcessRepository {
       ...(existing ?? {}),
       ...process,
       id: existing?.id ?? process.id,
+      labelEn:
+        existing?.labelEn && existing.labelEn !== existing.labelZh
+          ? existing.labelEn
+          : process.labelEn,
       isActive: true,
       syncState: "synced",
       lastSyncedAt: "2026-07-29T00:00:00.000Z",
     };
     this.records = [
-      ...this.records.filter((item) => item.driveFolderId !== process.driveFolderId),
+      ...this.records.filter(
+        (item) => item.driveFolderId !== process.driveFolderId,
+      ),
       record,
     ];
     return record;
+  }
+  async updateProcessLabelEn(id, labelEn) {
+    const record = this.records.find((item) => item.id === id);
+    if (!record) return null;
+    record.labelEn = labelEn;
+    return { ...record };
   }
   async deactivateMissingDriveProcesses(activeFolderIds) {
     this.records = this.records.map((item) => ({
@@ -112,27 +124,43 @@ test("website process changes write to Drive before database refresh", async () 
   const synchronizer = createSynchronizer(drive, repository);
   const [process] = await synchronizer.syncProcessFoldersFromDrive();
 
-  await synchronizer.renameProcess(process, "網站改名");
+  await synchronizer.renameProcess(process, "網站改名", "Renamed online");
   assert.equal(drive.children[0].name, "01 網站改名");
   assert.equal((await repository.listProcesses())[0].labelZh, "網站改名");
+  assert.equal((await repository.listProcesses())[0].labelEn, "Renamed online");
 
-  const added = await synchronizer.createProcess({ labelZh: "網站新增" });
+  const added = await synchronizer.createProcess({
+    labelZh: "網站新增",
+    labelEn: "Added online",
+  });
   assert.equal(added.driveFolderName, "02 網站新增");
+  assert.equal(added.labelEn, "Added online");
   assert.ok(drive.children.some((folder) => folder.name === "02 網站新增"));
 });
 
 test("client process and guest-upload options are database hydrated, not bundled", async () => {
-  const [galleryModel, mainSource, adminSource, uploadSource] = await Promise.all([
-    readFile(new URL("../src/client/gallery-model.mjs", import.meta.url), "utf8"),
-    readFile(new URL("../src/client/main.jsx", import.meta.url), "utf8"),
-    readFile(new URL("../src/client/ProcessSyncAdmin.jsx", import.meta.url), "utf8"),
-    readFile(new URL("../src/client/UploadModal.jsx", import.meta.url), "utf8"),
-  ]);
+  const [galleryModel, mainSource, adminSource, uploadSource] =
+    await Promise.all([
+      readFile(
+        new URL("../src/client/gallery-model.mjs", import.meta.url),
+        "utf8",
+      ),
+      readFile(new URL("../src/client/main.jsx", import.meta.url), "utf8"),
+      readFile(new URL("../src/client/AdminApp.jsx", import.meta.url), "utf8"),
+      readFile(
+        new URL("../src/client/UploadModal.jsx", import.meta.url),
+        "utf8",
+      ),
+    ]);
 
   assert.match(galleryModel, /export const PROCESS_DEFINITIONS = \[\];/);
   assert.doesNotMatch(galleryModel, /進場|祈禱|證婚|分組照相/);
   assert.match(mainSource, /fetch\("\/Memories\/api\/processes"/);
   assert.match(mainSource, /PROCESS_DEFINITIONS\.splice/);
-  assert.match(adminSource, /memories:processes-updated/);
+  assert.match(adminSource, /\/admin\/api\/categories/);
+  assert.doesNotMatch(
+    adminSource,
+    /sessionStorage|CustomEvent|MutationObserver/,
+  );
   assert.match(uploadSource, /processes\.map/);
 });

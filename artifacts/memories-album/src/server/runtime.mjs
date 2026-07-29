@@ -11,6 +11,10 @@ import { DriveProcessSynchronizer } from "./processes/sync.mjs";
 import { createProcessApi } from "./processes/api.mjs";
 import { PostgresSettingsRepository } from "./settings/repository.mjs";
 import { createSettingsApi } from "./settings/api.mjs";
+import { createAlbumApi } from "./albums/api.mjs";
+import { createAdminAlbumApi } from "./albums/admin-api.mjs";
+import { PostgresAlbumRepository } from "./albums/postgres-repository.mjs";
+import { createAdminCategoryApi } from "./categories/admin-api.mjs";
 
 let runtimePromise;
 
@@ -54,47 +58,10 @@ async function createRuntime(env) {
     }
     return repository.findPublicPhoto(photoId);
   };
-  repository.findPhotoForAdmin = async (photoId) => {
-    const result = await pool.query(
-      `SELECT id, drive_file_id, thumbnail_drive_file_id
-       FROM memories_photos
-       WHERE id = $1
-       LIMIT 1`,
-      [photoId],
-    );
-    const row = result.rows[0];
-    return row
-      ? {
-          id: row.id,
-          driveFileId: row.drive_file_id,
-          thumbnailDriveFileId: row.thumbnail_drive_file_id,
-        }
-      : null;
-  };
-  repository.deletePhotoRecord = async (photoId) => {
-    const result = await pool.query(
-      `DELETE FROM memories_photos WHERE id = $1 RETURNING id`,
-      [photoId],
-    );
-    if (!result.rows[0]) {
-      const error = new Error("Photo not found while deleting");
-      error.code = "PHOTO_NOT_FOUND";
-      throw error;
-    }
-    return result.rows[0].id;
-  };
-  repository.trashPhoto = async (photoId) => {
-    await pool.query(
-      `UPDATE memories_photos
-       SET visibility = 'trashed', trashed_at = now(), updated_at = now()
-       WHERE id = $1`,
-      [photoId],
-    );
-  };
-
   const durableUploadRepository = new PostgresDurableUploadRepository(pool);
   const processRepository = new PostgresProcessRepository(pool);
   const settingsRepository = new PostgresSettingsRepository(pool);
+  const albumRepository = new PostgresAlbumRepository(pool);
   const synchronizer = new DriveProcessSynchronizer({
     drive,
     processRepository,
@@ -107,6 +74,9 @@ async function createRuntime(env) {
   const folders = await synchronizer.ensureStructure();
   drive.originalFolderId =
     folders.get("訪客上傳")?.id ?? drive.originalFolderId;
+  drive.unclassifiedFolderId =
+    folders.get("00 未分類")?.id ?? drive.unclassifiedFolderId;
+  drive.lifeFolderId = folders.get("生活照")?.id ?? drive.lifeFolderId;
   drive.thumbnailFolderId =
     folders.get("系統縮圖")?.id ?? drive.thumbnailFolderId;
 
@@ -164,6 +134,7 @@ async function createRuntime(env) {
     durableUploadRepository,
     processRepository,
     settingsRepository,
+    albumRepository,
     synchronizer,
     thumbnailService,
     drive,
@@ -173,10 +144,26 @@ async function createRuntime(env) {
       drive,
       thumbnailService,
     }),
+    albumApi: createAlbumApi({
+      repository: albumRepository,
+    }),
+    adminAlbumApi: createAdminAlbumApi({
+      repository: albumRepository,
+      adminToken: env.SECRET_TOKEN,
+    }),
+    adminCategoryApi: createAdminCategoryApi({
+      repository: processRepository,
+      synchronizer,
+      adminToken: env.SECRET_TOKEN,
+    }),
     adminPhotoApi: createAdminPhotoApi({
       repository,
+      albumRepository,
+      categoryRepository: processRepository,
       drive,
-      adminToken: env.MEMORIES_ADMIN_TOKEN,
+      imageProcessor,
+      synchronizer,
+      adminToken: env.SECRET_TOKEN,
     }),
     uploadApi: createGuestUploadApi({
       repository,
@@ -187,12 +174,9 @@ async function createRuntime(env) {
     }),
     processApi: createProcessApi({
       repository: processRepository,
-      synchronizer,
-      adminToken: env.MEMORIES_ADMIN_TOKEN,
     }),
     settingsApi: createSettingsApi({
       repository: settingsRepository,
-      adminToken: env.MEMORIES_ADMIN_TOKEN,
     }),
   };
 
