@@ -20,6 +20,13 @@ function publishProcesses(processes) {
   );
 }
 
+function backgroundLoadMessage(error) {
+  if (error?.code === "REQUEST_TIMEOUT") {
+    return "已登入；分類與設定載入逾時，可稍後按「重新讀取分類」。";
+  }
+  return "已登入；分類或設定目前無法載入，管理功能仍可開啟。";
+}
+
 export default function ProcessSyncAdmin() {
   const [open, setOpen] = useState(false);
   const [authenticated, setAuthenticated] = useState(false);
@@ -33,7 +40,7 @@ export default function ProcessSyncAdmin() {
   const passwordRef = useRef(null);
 
   const loadPublicSettings = async () => {
-    const payload = await api("/Memories/api/settings");
+    const payload = await api("/Memories/api/settings", { timeoutMs: 10000 });
     const visible = payload.primaryNavigationVisible === true;
     setPrimaryNavigationVisible(visible);
     applyNavigationVisibility(visible);
@@ -41,16 +48,27 @@ export default function ProcessSyncAdmin() {
   };
 
   const refresh = async () => {
-    const [processPayload, settingsPayload] = await Promise.all([
-      api("/Memories/api/processes"),
-      api("/Memories/api/settings"),
+    const [processResult, settingsResult] = await Promise.allSettled([
+      api("/Memories/api/processes", { timeoutMs: 10000 }),
+      api("/Memories/api/settings", { timeoutMs: 10000 }),
     ]);
-    const nextProcesses = processPayload.processes || [];
-    setProcesses(nextProcesses);
-    publishProcesses(nextProcesses);
-    const visible = settingsPayload.primaryNavigationVisible === true;
-    setPrimaryNavigationVisible(visible);
-    applyNavigationVisibility(visible);
+
+    if (processResult.status === "fulfilled") {
+      const nextProcesses = processResult.value.processes || [];
+      setProcesses(nextProcesses);
+      publishProcesses(nextProcesses);
+    }
+
+    if (settingsResult.status === "fulfilled") {
+      const visible = settingsResult.value.primaryNavigationVisible === true;
+      setPrimaryNavigationVisible(visible);
+      applyNavigationVisibility(visible);
+    }
+
+    const failure = [processResult, settingsResult].find(
+      (result) => result.status === "rejected",
+    );
+    if (failure?.status === "rejected") throw failure.reason;
   };
 
   useEffect(() => {
@@ -104,8 +122,12 @@ export default function ProcessSyncAdmin() {
     setMessage("");
     try {
       await work();
-      await refresh();
-      setMessage(success);
+      try {
+        await refresh();
+        setMessage(success);
+      } catch {
+        setMessage(`${success} 分類畫面暫時無法重新載入，稍後可手動重讀。`);
+      }
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "操作失敗");
     } finally {
@@ -115,19 +137,32 @@ export default function ProcessSyncAdmin() {
 
   const login = async (event) => {
     event.preventDefault();
-    if (!token) return;
+    if (!token || busy) return;
     setBusy(true);
     setMessage("");
+
     try {
-      await api("/Memories/api/admin/session", { token, method: "POST" });
+      await api("/Memories/api/admin/session", {
+        token,
+        method: "POST",
+        timeoutMs: 10000,
+      });
+
       sessionStorage.setItem("memories-admin-token", token);
       setAuthenticated(true);
-      await refresh();
+      setBusy(false);
+
+      // Authentication is complete here. Storage-backed data loads separately so
+      // Google Drive or PostgreSQL can never leave the login button spinning.
+      window.setTimeout(() => {
+        void refresh().catch((error) => {
+          setMessage(backgroundLoadMessage(error));
+        });
+      }, 0);
     } catch (error) {
       sessionStorage.removeItem("memories-admin-token");
       setMessage(adminLoginMessage(error));
       setAuthenticated(false);
-    } finally {
       setBusy(false);
     }
   };
@@ -137,6 +172,7 @@ export default function ProcessSyncAdmin() {
     setAuthenticated(false);
     setToken("");
     setMessage("");
+    setBusy(false);
   };
 
   const signOut = () => {
@@ -147,7 +183,11 @@ export default function ProcessSyncAdmin() {
   const sync = () =>
     run(
       () =>
-        api("/Memories/api/admin/processes/sync", { token, method: "POST" }),
+        api("/Memories/api/admin/processes/sync", {
+          token,
+          method: "POST",
+          timeoutMs: 60000,
+        }),
       "已從 Google Drive 同步流程與照片分類。",
     );
 
@@ -160,6 +200,7 @@ export default function ProcessSyncAdmin() {
           token,
           method: "POST",
           body: { labelZh: labelZh.trim() },
+          timeoutMs: 30000,
         }),
       "已在 Google Drive 建立流程，網站與上傳選項已更新。",
     );
@@ -174,6 +215,7 @@ export default function ProcessSyncAdmin() {
           token,
           method: "PATCH",
           body: { labelZh: labelZh.trim() },
+          timeoutMs: 30000,
         }),
       "Google Drive 資料夾已改名，網站與上傳選項已更新。",
     );
@@ -190,6 +232,7 @@ export default function ProcessSyncAdmin() {
           token,
           method: "PUT",
           body: { processIds: next.map((item) => item.id) },
+          timeoutMs: 45000,
         }),
       "Google Drive 資料夾編號已重新排序，網站與上傳選項已更新。",
     );
@@ -202,6 +245,7 @@ export default function ProcessSyncAdmin() {
           token,
           method: "PATCH",
           body: { primaryNavigationVisible: visible },
+          timeoutMs: 15000,
         });
         applyNavigationVisibility(payload.primaryNavigationVisible === true);
       },
@@ -302,6 +346,18 @@ export default function ProcessSyncAdmin() {
           </section>
 
           <div className="process-sync-actions">
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() =>
+                void run(
+                  () => refresh(),
+                  "已重新讀取資料庫中的分類與網站設定。",
+                )
+              }
+            >
+              重新讀取分類
+            </button>
             <button type="button" disabled={busy} onClick={sync}>
               立即同步 Drive
             </button>
@@ -317,8 +373,7 @@ export default function ProcessSyncAdmin() {
             {processes.map((process, index) => (
               <li key={process.id}>
                 <span>
-                  {String(process.displayOrder).padStart(2, "0")}{" "}
-                  {process.labelZh}
+                  {String(process.displayOrder).padStart(2, "0")} {process.labelZh}
                 </span>
                 <div>
                   <button
