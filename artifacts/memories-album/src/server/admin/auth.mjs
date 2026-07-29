@@ -1,4 +1,5 @@
 import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
+import { MEMORIES_ADMIN_PATH } from "../../admin-route-paths.mjs";
 
 export const ADMIN_SESSION_COOKIE = "memories_admin_session";
 
@@ -56,14 +57,14 @@ export function createAdminSessionCookie({
   const value = `${payload}.${sign(payload, configuredToken)}`;
   return {
     value,
-    header: `${ADMIN_SESSION_COOKIE}=${value}; Path=/admin; Max-Age=${Math.floor(
+    header: `${ADMIN_SESSION_COOKIE}=${value}; Path=${MEMORIES_ADMIN_PATH}; Max-Age=${Math.floor(
       ttlMs / 1000,
     )}; HttpOnly; Secure; SameSite=Strict`,
   };
 }
 
 export function clearAdminSessionCookie() {
-  return `${ADMIN_SESSION_COOKIE}=; Path=/admin; Max-Age=0; HttpOnly; Secure; SameSite=Strict`;
+  return `${ADMIN_SESSION_COOKIE}=; Path=${MEMORIES_ADMIN_PATH}; Max-Age=0; HttpOnly; Secure; SameSite=Strict`;
 }
 
 export function adminAuthorized(
