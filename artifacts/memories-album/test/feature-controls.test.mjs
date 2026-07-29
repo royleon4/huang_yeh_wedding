@@ -10,6 +10,10 @@ const adminApiSourceUrl = new URL(
   "../src/client/admin-api.mjs",
   import.meta.url,
 );
+const adminLoginFlowSourceUrl = new URL(
+  "../src/client/admin-login-flow.mjs",
+  import.meta.url,
+);
 const enhancementsSourceUrl = new URL(
   "../src/client/GalleryEnhancements.jsx",
   import.meta.url,
@@ -44,34 +48,41 @@ test("feature navigation is hidden by default and only changed through admin API
 });
 
 test("admin has no visible URL or button entrance and opens after five title taps", async () => {
-  const [adminSource, appSource, styles] = await Promise.all([
+  const [adminSource, loginFlowSource, appSource, styles] = await Promise.all([
     readFile(adminSourceUrl, "utf8"),
+    readFile(adminLoginFlowSourceUrl, "utf8"),
     readFile(appSourceUrl, "utf8"),
     readFile(stylesUrl, "utf8"),
   ]);
   assert.doesNotMatch(adminSource, /searchParams.*admin|\?admin=1/);
   assert.match(adminSource, /tapsRef\.current\.length < 5/);
-  assert.match(adminSource, /\/Memories\/api\/admin\/session/);
+  assert.match(adminSource, /performAdminLogin/);
+  assert.match(loginFlowSource, /\/Memories\/api\/admin\/session/);
   assert.match(styles, /\.header-tools \.quiet-button:first-child\s*{\s*display: none;/);
   assert.match(appSource, /className="archive-header"/);
 });
 
 test("successful admin authentication renders before storage refresh", async () => {
-  const source = await readFile(adminSourceUrl, "utf8");
+  const [adminSource, loginFlowSource] = await Promise.all([
+    readFile(adminSourceUrl, "utf8"),
+    readFile(adminLoginFlowSourceUrl, "utf8"),
+  ]);
+  assert.match(adminSource, /await performAdminLogin\(/);
   assert.match(
-    source,
-    /sessionStorage\.setItem\("memories-admin-token", token\);[\s\S]*setAuthenticated\(true\);[\s\S]*setBusy\(false\);[\s\S]*window\.setTimeout/,
+    loginFlowSource,
+    /setItem\?\.\(ADMIN_TOKEN_STORAGE_KEY, token\);[\s\S]*setAuthenticated\(true\);[\s\S]*setBusy\(false\);[\s\S]*schedule\(/,
   );
   assert.doesNotMatch(
-    source,
+    loginFlowSource,
     /setAuthenticated\(true\);\s*await refresh\(\);/,
   );
-  assert.match(source, /已登入；分類與設定載入逾時/);
+  assert.match(loginFlowSource, /已登入；分類與設定載入逾時/);
 });
 
-test("admin requests have a bounded timeout instead of spinning forever", async () => {
+test("admin requests have a hard bounded timeout instead of spinning forever", async () => {
   const source = await readFile(adminApiSourceUrl, "utf8");
   assert.match(source, /new AbortController\(\)/);
+  assert.match(source, /Promise\.race\(\[request, timeout\]\)/);
   assert.match(source, /controller\.abort\(\)/);
   assert.match(source, /REQUEST_TIMEOUT/);
   assert.match(source, /伺服器回應逾時/);

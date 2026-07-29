@@ -5,7 +5,11 @@ import { fileURLToPath } from "node:url";
 
 const MIGRATION_LOCK_NAME = "huang-yeh-memories-schema-migrations";
 const moduleDirectory = path.dirname(fileURLToPath(import.meta.url));
-const defaultMigrationDirectory = path.resolve(moduleDirectory, "../../db");
+const packageDirectoryName = path.basename(path.dirname(moduleDirectory));
+const defaultMigrationDirectory =
+  packageDirectoryName === "dist"
+    ? path.resolve(moduleDirectory, "../db")
+    : path.resolve(moduleDirectory, "../../db");
 
 function checksum(contents) {
   return createHash("sha256").update(contents).digest("hex");
@@ -57,7 +61,8 @@ function pendingMigrations(migrations, applied) {
 }
 
 export function shouldRunProductionMigrations(env = process.env) {
-  return env.NODE_ENV === "production" || env.REPLIT_DEPLOYMENT === "1";
+  if (env.MEMORIES_SKIP_MIGRATIONS === "1") return false;
+  return Boolean(env.DATABASE_URL);
 }
 
 export async function runMemoriesMigrations({

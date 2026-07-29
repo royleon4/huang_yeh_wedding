@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { adminApi as api, adminLoginMessage } from "./admin-api.mjs";
+import { adminApi as api } from "./admin-api.mjs";
+import { performAdminLogin } from "./admin-login-flow.mjs";
 
 document.documentElement.dataset.memoriesPrimaryNav = "hidden";
 
@@ -18,13 +19,6 @@ function publishProcesses(processes) {
       detail: { processes: Array.isArray(processes) ? processes : [] },
     }),
   );
-}
-
-function backgroundLoadMessage(error) {
-  if (error?.code === "REQUEST_TIMEOUT") {
-    return "已登入；分類與設定載入逾時，可稍後按「重新讀取分類」。";
-  }
-  return "已登入；分類或設定目前無法載入，管理功能仍可開啟。";
 }
 
 export default function ProcessSyncAdmin() {
@@ -138,33 +132,17 @@ export default function ProcessSyncAdmin() {
   const login = async (event) => {
     event.preventDefault();
     if (!token || busy) return;
-    setBusy(true);
-    setMessage("");
 
-    try {
-      await api("/Memories/api/admin/session", {
-        token,
-        method: "POST",
-        timeoutMs: 10000,
-      });
-
-      sessionStorage.setItem("memories-admin-token", token);
-      setAuthenticated(true);
-      setBusy(false);
-
-      // Authentication is complete here. Storage-backed data loads separately so
-      // Google Drive or PostgreSQL can never leave the login button spinning.
-      window.setTimeout(() => {
-        void refresh().catch((error) => {
-          setMessage(backgroundLoadMessage(error));
-        });
-      }, 0);
-    } catch (error) {
-      sessionStorage.removeItem("memories-admin-token");
-      setMessage(adminLoginMessage(error));
-      setAuthenticated(false);
-      setBusy(false);
-    }
+    await performAdminLogin({
+      token,
+      request: api,
+      storage: sessionStorage,
+      refresh,
+      schedule: (callback) => window.setTimeout(callback, 0),
+      setAuthenticated,
+      setBusy,
+      setMessage,
+    });
   };
 
   const close = () => {
