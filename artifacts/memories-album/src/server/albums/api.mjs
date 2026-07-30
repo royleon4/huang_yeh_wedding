@@ -1,3 +1,4 @@
+import { normalizeAlbumPhotoSortMode } from "../../../album-photo-order.mjs";
 import { sendAdminJson } from "../admin/auth.mjs";
 
 function publicAlbum(album) {
@@ -9,6 +10,7 @@ function publicAlbum(album) {
     descriptionEn: album.descriptionEn,
     displayOrder: album.displayOrder,
     showSummary: album.showSummary !== false,
+    photoSortMode: normalizeAlbumPhotoSortMode(album.photoSortMode),
   };
 }
 
