@@ -3,6 +3,10 @@ import {
   normalizeGalleryMediaOrder,
 } from "./media-order.mjs";
 import { normalizePinnedPhotosByProcess } from "../../pinned-photo-settings.mjs";
+import {
+  DEFAULT_DRIVE_UPLOAD_MODE,
+  normalizeDriveUploadMode,
+} from "./upload-mode.mjs";
 
 const NAVIGATION_KEY = "primary_navigation_visible";
 const GUEST_UPLOAD_CATEGORY_SELECTION_KEY =
@@ -11,6 +15,7 @@ const PROCESS_WHEEL_ENABLED_KEY = "process_wheel_enabled";
 const PROCESS_WHEEL_VISIBLE_COUNT_KEY = "process_wheel_visible_count";
 const GALLERY_MEDIA_ORDER_KEY = "gallery_media_order";
 const PINNED_PHOTOS_BY_PROCESS_KEY = "pinned_photos_by_process";
+const DRIVE_UPLOAD_MODE_KEY = "drive_upload_mode";
 
 function booleanSetting(rows, key, fallback) {
   const row = rows.find((item) => item.key === key);
@@ -33,6 +38,11 @@ function pinnedPhotosSetting(rows) {
   return normalizePinnedPhotosByProcess(row?.value);
 }
 
+function driveUploadModeSetting(rows) {
+  const row = rows.find((item) => item.key === DRIVE_UPLOAD_MODE_KEY);
+  return normalizeDriveUploadMode(row?.value ?? DEFAULT_DRIVE_UPLOAD_MODE);
+}
+
 export class PostgresSettingsRepository {
   constructor(pool) {
     if (!pool?.query) throw new Error("A PostgreSQL pool is required");
@@ -51,6 +61,7 @@ export class PostgresSettingsRepository {
         PROCESS_WHEEL_VISIBLE_COUNT_KEY,
         GALLERY_MEDIA_ORDER_KEY,
         PINNED_PHOTOS_BY_PROCESS_KEY,
+        DRIVE_UPLOAD_MODE_KEY,
       ]],
     );
     return {
@@ -76,7 +87,19 @@ export class PostgresSettingsRepository {
       ),
       galleryMediaOrder: mediaOrderSetting(result.rows),
       pinnedPhotoIdsByProcess: pinnedPhotosSetting(result.rows),
+      driveUploadMode: driveUploadModeSetting(result.rows),
     };
+  }
+
+  async getDriveUploadMode() {
+    const result = await this.pool.query(
+      `SELECT key, value
+       FROM memories_app_settings
+       WHERE key = $1
+       LIMIT 1`,
+      [DRIVE_UPLOAD_MODE_KEY],
+    );
+    return driveUploadModeSetting(result.rows);
   }
 
   async setPrimaryNavigationVisible(value) {
@@ -124,6 +147,14 @@ export class PostgresSettingsRepository {
       PINNED_PHOTOS_BY_PROCESS_KEY,
       "pinnedPhotoIdsByProcess",
       normalizePinnedPhotosByProcess(value),
+    );
+  }
+
+  async setDriveUploadMode(value) {
+    return this.setJson(
+      DRIVE_UPLOAD_MODE_KEY,
+      "driveUploadMode",
+      normalizeDriveUploadMode(value),
     );
   }
 

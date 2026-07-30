@@ -1,4 +1,5 @@
 import AdminFeatureSettings from "./AdminFeatureSettings.jsx";
+import DriveUploadModeSettings from "./DriveUploadModeSettings.jsx";
 import GalleryMediaOrderSettings from "./GalleryMediaOrderSettings.jsx";
 import "./general-settings.css";
 
@@ -15,6 +16,7 @@ export default function GeneralSettings() {
       <p className="admin-section-note">
         這裡只放會影響整個照片牆的設定，不會分散顯示在相簿、照片或分類頁面中。
       </p>
+      <DriveUploadModeSettings />
       <GalleryMediaOrderSettings />
       <AdminFeatureSettings />
     </section>

@@ -4,6 +4,7 @@ import { PostgresPhotoRepository } from "./photos/postgres-repository.mjs";
 import { ThumbnailService } from "./photos/thumbnail-service.mjs";
 import { AdminRefreshService } from "./refresh/service.mjs";
 import { createReplitDriveStorage } from "./storage/replit-drive.mjs";
+import { uploadOriginalSingleRequest } from "./storage/single-request-upload.mjs";
 import { createGuestUploadApi } from "./uploads/api.mjs";
 import { PostgresDurableUploadRepository } from "./uploads/durable-repository.mjs";
 import { createImageProcessor } from "./uploads/image-processor.mjs";
@@ -79,6 +80,12 @@ async function createRuntime(env) {
   const processRepository = new PostgresProcessRepository(pool);
   const processContentRepository = new PostgresProcessContentRepository(pool);
   const settingsRepository = new PostgresSettingsRepository(pool);
+  const chunkedUploadOriginal = drive.uploadOriginal.bind(drive);
+  drive.uploadOriginal = async (options) => {
+    const uploadMode = await settingsRepository.getDriveUploadMode();
+    if (uploadMode === "chunked") return chunkedUploadOriginal(options);
+    return uploadOriginalSingleRequest({ drive, ...options });
+  };
   const albumRepository = new PostgresAlbumRepository(pool);
   const synchronizer = new DriveProcessSynchronizer({
     drive,

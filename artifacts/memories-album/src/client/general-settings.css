@@ -35,6 +35,56 @@
   white-space: nowrap;
 }
 
+.upload-mode-options {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.upload-mode-option {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: flex-start;
+  gap: 0.7rem;
+  min-width: 0;
+  border: 1px solid rgba(53, 95, 77, 0.18);
+  border-radius: 1rem;
+  background: #fffdf8;
+  padding: 0.9rem;
+  cursor: pointer;
+}
+
+.upload-mode-option.selected {
+  border-color: var(--leaf);
+  box-shadow: 0 0 0 2px rgba(53, 95, 77, 0.1);
+}
+
+.upload-mode-option input {
+  margin-top: 0.2rem;
+}
+
+.upload-mode-option span,
+.upload-mode-option strong,
+.upload-mode-option small {
+  min-width: 0;
+}
+
+.upload-mode-option strong,
+.upload-mode-option small {
+  display: block;
+}
+
+.upload-mode-option strong {
+  color: var(--admin-ink);
+}
+
+.upload-mode-option small {
+  margin-top: 0.3rem;
+  color: var(--admin-muted);
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+}
+
 .media-order-list {
   display: grid;
   gap: 0.7rem;
@@ -129,6 +179,12 @@
 
 .general-setting-status.error {
   color: #9e3f32;
+}
+
+@media (max-width: 680px) {
+  .upload-mode-options {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 
 @media (max-width: 560px) {
