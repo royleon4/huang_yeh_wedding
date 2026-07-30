@@ -65,6 +65,9 @@ export function createAdminSettingsApi({ repository }) {
 
     try {
       const body = await readJson(request);
+      const wheelUpdates = {};
+      let hasWheelUpdate = false;
+
       if (Object.hasOwn(body, "processWheelEnabled")) {
         if (typeof body.processWheelEnabled !== "boolean") {
           json(response, 422, {
@@ -73,11 +76,31 @@ export function createAdminSettingsApi({ repository }) {
           });
           return true;
         }
-        json(
-          response,
-          200,
+        Object.assign(
+          wheelUpdates,
           await repository.setProcessWheelEnabled(body.processWheelEnabled),
         );
+        hasWheelUpdate = true;
+      }
+
+      if (Object.hasOwn(body, "processWheelVisibleCount")) {
+        const count = Number(body.processWheelVisibleCount);
+        if (!Number.isInteger(count) || count < 3 || count > 8) {
+          json(response, 422, {
+            error: "processWheelVisibleCount must be an integer from 3 to 8",
+            code: "INVALID_SETTING",
+          });
+          return true;
+        }
+        Object.assign(
+          wheelUpdates,
+          await repository.setProcessWheelVisibleCount(count),
+        );
+        hasWheelUpdate = true;
+      }
+
+      if (hasWheelUpdate) {
+        json(response, 200, wheelUpdates);
         return true;
       }
 
