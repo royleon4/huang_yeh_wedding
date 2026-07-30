@@ -46,8 +46,8 @@ function transformGallery(source) {
 
   code = replaceOnce(
     code,
-    `         ] ?? t.allProcesses`,
-    `         ] ?? ALL_PROCESS_DEFINITION[lang] ?? t.allProcesses`,
+    `        ] ?? t.allProcesses`,
+    `        ] ?? ALL_PROCESS_DEFINITION[lang] ?? t.allProcesses`,
     "photo all-process label",
   );
 
