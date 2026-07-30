@@ -2,10 +2,17 @@ const NAVIGATION_KEY = "primary_navigation_visible";
 const GUEST_UPLOAD_CATEGORY_SELECTION_KEY =
   "guest_upload_category_selection_enabled";
 const PROCESS_WHEEL_ENABLED_KEY = "process_wheel_enabled";
+const PROCESS_WHEEL_VISIBLE_COUNT_KEY = "process_wheel_visible_count";
 
 function booleanSetting(rows, key, fallback) {
   const row = rows.find((item) => item.key === key);
   return row ? row.value === true : fallback;
+}
+
+function integerSetting(rows, key, fallback) {
+  const row = rows.find((item) => item.key === key);
+  const value = Number(row?.value);
+  return Number.isInteger(value) ? value : fallback;
 }
 
 export class PostgresSettingsRepository {
@@ -23,6 +30,7 @@ export class PostgresSettingsRepository {
         NAVIGATION_KEY,
         GUEST_UPLOAD_CATEGORY_SELECTION_KEY,
         PROCESS_WHEEL_ENABLED_KEY,
+        PROCESS_WHEEL_VISIBLE_COUNT_KEY,
       ]],
     );
     return {
@@ -40,6 +48,11 @@ export class PostgresSettingsRepository {
         result.rows,
         PROCESS_WHEEL_ENABLED_KEY,
         false,
+      ),
+      processWheelVisibleCount: integerSetting(
+        result.rows,
+        PROCESS_WHEEL_VISIBLE_COUNT_KEY,
+        6,
       ),
     };
   }
@@ -68,6 +81,14 @@ export class PostgresSettingsRepository {
     );
   }
 
+  async setProcessWheelVisibleCount(value) {
+    return this.setNumber(
+      PROCESS_WHEEL_VISIBLE_COUNT_KEY,
+      "processWheelVisibleCount",
+      value,
+    );
+  }
+
   async setBoolean(key, responseKey, value) {
     const enabled = value === true;
     await this.pool.query(
@@ -79,5 +100,18 @@ export class PostgresSettingsRepository {
       [key, JSON.stringify(enabled)],
     );
     return { [responseKey]: enabled };
+  }
+
+  async setNumber(key, responseKey, value) {
+    const number = Number(value);
+    await this.pool.query(
+      `INSERT INTO memories_app_settings (key, value, updated_at)
+       VALUES ($1, $2::jsonb, now())
+       ON CONFLICT (key) DO UPDATE SET
+         value = EXCLUDED.value,
+         updated_at = now()`,
+      [key, JSON.stringify(number)],
+    );
+    return { [responseKey]: number };
   }
 }

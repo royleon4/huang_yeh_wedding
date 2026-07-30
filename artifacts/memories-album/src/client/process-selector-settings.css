@@ -104,6 +104,56 @@
   color: #fffaf1;
 }
 
+.selector-density-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 1rem;
+  border: 1px solid rgba(53, 95, 77, 0.18);
+  border-radius: 1rem;
+  background: rgba(239, 232, 218, 0.5);
+  padding: 1rem 1.1rem;
+  opacity: 0.76;
+  transition:
+    border-color 0.18s ease,
+    background 0.18s ease,
+    opacity 0.18s ease;
+}
+
+.selector-density-card.enabled {
+  border-color: rgba(53, 95, 77, 0.34);
+  background: rgba(255, 252, 245, 0.88);
+  opacity: 1;
+}
+
+.selector-density-card strong {
+  color: var(--ink);
+}
+
+.selector-density-card p {
+  margin: 0.35rem 0 0;
+  color: var(--muted);
+  font-size: 0.82rem;
+  line-height: 1.65;
+}
+
+.selector-density-card label {
+  display: grid;
+  gap: 0.4rem;
+  min-width: 7.5rem;
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.selector-density-card select {
+  min-height: 2.7rem;
+  border: 1px solid rgba(53, 95, 77, 0.28);
+  border-radius: 0.75rem;
+  background: #fffaf1;
+  padding: 0.45rem 0.7rem;
+  color: var(--ink);
+}
+
 .selector-settings-actions {
   display: flex;
   align-items: center;
@@ -141,5 +191,13 @@
 
   .selector-mode-card {
     min-height: 13rem;
+  }
+
+  .selector-density-card {
+    grid-template-columns: 1fr;
+  }
+
+  .selector-density-card label {
+    min-width: 0;
   }
 }

@@ -2,6 +2,9 @@ import { useEffect, useState } from "react";
 import { adminErrorMessage, adminRequest } from "./admin-client.mjs";
 import "./process-selector-settings.css";
 
+const DEFAULT_VISIBLE_COUNT = 6;
+const VISIBLE_COUNT_OPTIONS = [3, 4, 5, 6, 7, 8];
+
 const MODES = [
   {
     id: "traditional",
@@ -11,17 +14,27 @@ const MODES = [
   {
     id: "wheel",
     title: "輪盤滑動選擇",
-    description: "手機同時看見約 3 個、桌面約 5 個以上；滑動停止後，中央分類會立即切換。",
+    description: "滑動停止後，中央分類會立即切換，並自動定位到第一個影片或照片。",
   },
 ];
+
+function normalizedVisibleCount(value) {
+  const count = Number(value);
+  return VISIBLE_COUNT_OPTIONS.includes(count) ? count : DEFAULT_VISIBLE_COUNT;
+}
 
 export default function ProcessSelectorSettings() {
   const [savedMode, setSavedMode] = useState("traditional");
   const [draftMode, setDraftMode] = useState("traditional");
+  const [savedVisibleCount, setSavedVisibleCount] = useState(DEFAULT_VISIBLE_COUNT);
+  const [draftVisibleCount, setDraftVisibleCount] = useState(DEFAULT_VISIBLE_COUNT);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+
+  const hasChanges =
+    draftMode !== savedMode || draftVisibleCount !== savedVisibleCount;
 
   useEffect(() => {
     let cancelled = false;
@@ -29,8 +42,11 @@ export default function ProcessSelectorSettings() {
       .then((settings) => {
         if (cancelled) return;
         const mode = settings.processWheelEnabled === true ? "wheel" : "traditional";
+        const visibleCount = normalizedVisibleCount(settings.processWheelVisibleCount);
         setSavedMode(mode);
         setDraftMode(mode);
+        setSavedVisibleCount(visibleCount);
+        setDraftVisibleCount(visibleCount);
       })
       .catch((loadError) => {
         if (loadError?.status === 401) {
@@ -48,22 +64,28 @@ export default function ProcessSelectorSettings() {
   }, []);
 
   const save = async () => {
-    if (saving || draftMode === savedMode) return;
+    if (saving || !hasChanges) return;
     setSaving(true);
     setMessage("");
     setError("");
     try {
       const result = await adminRequest("/admin/api/settings", {
         method: "PATCH",
-        body: { processWheelEnabled: draftMode === "wheel" },
+        body: {
+          processWheelEnabled: draftMode === "wheel",
+          processWheelVisibleCount: draftVisibleCount,
+        },
       });
       const mode = result.processWheelEnabled === true ? "wheel" : "traditional";
+      const visibleCount = normalizedVisibleCount(result.processWheelVisibleCount);
       setSavedMode(mode);
       setDraftMode(mode);
+      setSavedVisibleCount(visibleCount);
+      setDraftVisibleCount(visibleCount);
       setMessage(
         mode === "wheel"
-          ? "前台子分類已切換為輪盤滑動選擇。"
-          : "前台子分類已切換回傳統按鈕。",
+          ? `前台已切換為輪盤模式；手機同時顯示約 ${visibleCount} 個選項。`
+          : `前台已切換回傳統按鈕；輪盤顯示數量保留為 ${visibleCount} 個。`,
       );
     } catch (saveError) {
       if (saveError?.status === 401) {
@@ -124,15 +146,42 @@ export default function ProcessSelectorSettings() {
             ))}
           </div>
 
+          <div className={`selector-density-card ${draftMode === "wheel" ? "enabled" : ""}`}>
+            <div>
+              <strong>手機同時顯示的選項數量</strong>
+              <p>
+                數量越多，每個選項會越窄；桌面版仍會自動使用較寬、較容易閱讀的尺寸。
+              </p>
+            </div>
+            <label>
+              顯示數量
+              <select
+                value={draftVisibleCount}
+                onChange={(event) => {
+                  setDraftVisibleCount(Number(event.target.value));
+                  setMessage("");
+                  setError("");
+                }}
+                disabled={saving}
+              >
+                {VISIBLE_COUNT_OPTIONS.map((count) => (
+                  <option key={count} value={count}>
+                    {count} 個
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+
           <div className="selector-settings-actions">
             <button
               type="button"
               onClick={() => void save()}
-              disabled={saving || draftMode === savedMode}
+              disabled={saving || !hasChanges}
             >
               {saving ? "儲存中…" : "套用操作方式"}
             </button>
-            {draftMode !== savedMode && <span>尚未儲存</span>}
+            {hasChanges && <span>尚未儲存</span>}
           </div>
         </>
       )}
