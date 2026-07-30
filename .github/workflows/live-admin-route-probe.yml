@@ -1,4 +1,4 @@
-name: Temporary live admin route probe
+name: Temporary live Memories probe
 
 on:
   pull_request:
@@ -13,22 +13,25 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 3
     steps:
-      - name: Probe unauthenticated admin route
+      - name: Probe public Memories routes
         shell: bash
         run: |
-          set -euo pipefail
+          set -uo pipefail
           base='https://leon-loves-yeh.com'
-          curl --silent --show-error --max-time 20 \
-            --dump-header /tmp/admin.headers \
-            --output /tmp/admin.body \
-            "$base/Memories/admin/"
-          echo '--- headers ---'
-          cat /tmp/admin.headers
-          echo '--- body prefix ---'
-          head -c 500 /tmp/admin.body || true
-          echo
-          status=$(awk 'toupper($1) ~ /^HTTP\// {code=$2} END {print code}' /tmp/admin.headers)
-          location=$(awk 'BEGIN{IGNORECASE=1} /^location:/ {gsub(/\r/, ""); print $2}' /tmp/admin.headers | tail -1)
-          echo "status=$status location=$location"
-          test "$status" = "303"
-          test "$location" = "/Memories/admin/login"
+          probe() {
+            label="$1"
+            url="$2"
+            status=$(curl --silent --show-error --max-time 30 \
+              --output "/tmp/${label}.body" \
+              --write-out '%{http_code}' \
+              "$url" || true)
+            echo "--- ${label}: HTTP ${status} ---"
+            head -c 1200 "/tmp/${label}.body" || true
+            echo
+          }
+          probe memories "$base/Memories/"
+          probe health "$base/Memories/api/health"
+          probe albums "$base/Memories/api/albums"
+          probe processes "$base/Memories/api/processes"
+          probe settings "$base/Memories/api/settings"
+          probe photos "$base/Memories/api/photos?limit=1"
