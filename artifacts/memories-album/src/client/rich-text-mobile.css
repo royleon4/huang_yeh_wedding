@@ -1,0 +1,120 @@
+@media (max-width: 720px) {
+  .tiptap-rich-editor,
+  .tiptap-editor-header,
+  .tiptap-toolbar {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+  }
+
+  .tiptap-editor-header {
+    position: static;
+    margin-inline: 0;
+    overflow: visible;
+    border-radius: 12px;
+  }
+
+  .tiptap-toolbar {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    align-items: stretch;
+    gap: 0.45rem;
+    padding: 0.55rem;
+    overflow: visible;
+    overscroll-behavior-inline: auto;
+  }
+
+  .tiptap-block-select {
+    grid-column: 1 / -1;
+    width: 100%;
+    min-width: 0;
+  }
+
+  .tiptap-block-select select {
+    width: 100%;
+    min-width: 0;
+    min-height: 3rem;
+  }
+
+  .tiptap-toolbar-divider,
+  .tiptap-toolbar-spacer {
+    display: none;
+  }
+
+  .tiptap-toolbar-button {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    min-width: 0;
+    min-height: 3.6rem;
+    gap: 0.15rem;
+    padding: 0.4rem 0.25rem;
+    border: 1px solid var(--editor-line);
+    background: #fff;
+    line-height: 1.15;
+    white-space: normal;
+  }
+
+  .tiptap-toolbar-button > span {
+    font-size: 1.05rem;
+    line-height: 1;
+  }
+
+  .tiptap-toolbar-button::after {
+    content: attr(aria-label);
+    display: block;
+    max-width: 100%;
+    color: inherit;
+    font-size: 0.68rem;
+    font-weight: 700;
+    line-height: 1.2;
+    text-align: center;
+    overflow-wrap: anywhere;
+  }
+
+  .tiptap-toolbar-button small {
+    display: none;
+  }
+
+  .tiptap-toolbar-button.is-wide {
+    grid-column: 1 / -1;
+    flex-direction: row;
+    min-height: 3.15rem;
+    gap: 0.45rem;
+    padding-inline: 0.8rem;
+  }
+
+  .tiptap-toolbar-button.is-wide::after {
+    font-size: 0.82rem;
+  }
+
+  .tiptap-editor-hint {
+    padding-inline: 0;
+    overflow-wrap: anywhere;
+  }
+
+  .tiptap-bubble-menu {
+    max-width: calc(100vw - 1rem);
+    overflow-x: auto;
+    overscroll-behavior-inline: contain;
+  }
+
+  .tiptap-bubble-menu .tiptap-toolbar-button {
+    width: auto;
+    min-width: 2.5rem;
+    min-height: 2.5rem;
+    border: 0;
+    padding: 0.35rem 0.55rem;
+  }
+
+  .tiptap-bubble-menu .tiptap-toolbar-button::after {
+    display: none;
+  }
+}
+
+@media (max-width: 360px) {
+  .tiptap-toolbar {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
