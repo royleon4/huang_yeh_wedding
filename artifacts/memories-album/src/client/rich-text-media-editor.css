@@ -1,0 +1,196 @@
+.tiptap-media-actions,
+.tiptap-media-size-controls,
+.tiptap-media-presets {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  min-width: 0;
+}
+
+.tiptap-media-controls {
+  grid-template-columns: auto auto;
+}
+
+.tiptap-media-actions button,
+.tiptap-media-presets button {
+  flex: none;
+}
+
+.tiptap-media-size-controls {
+  padding-inline: 0.2rem;
+}
+
+.tiptap-media-control-label {
+  flex: none;
+  font-size: 0.72rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.tiptap-media-presets button {
+  min-width: 2.65rem;
+  min-height: 2rem;
+  padding-inline: 0.4rem;
+  font-size: 0.7rem;
+}
+
+.tiptap-media-presets button.is-active {
+  background: #4d826b;
+}
+
+.tiptap-media-size-controls label {
+  min-width: 8rem;
+}
+
+.tiptap-attachment-preview {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.7rem;
+  min-height: 4rem;
+  padding: 0.7rem 0.85rem;
+  color: #2b4f40;
+}
+
+.tiptap-attachment-preview .process-attachment-name {
+  min-width: 0;
+  font-size: 0.95rem;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.tiptap-attachment-preview .process-attachment-meta {
+  font-size: 0.72rem;
+}
+
+@media (max-width: 720px), (pointer: coarse) {
+  .tiptap-editor-frame .tiptap-media-node {
+    display: flex;
+    flex-direction: column;
+    width: 100% !important;
+    max-width: 100%;
+    min-width: 0;
+    margin: 0.8rem 0;
+    border-radius: 13px;
+    box-sizing: border-box;
+  }
+
+  .tiptap-media-content {
+    order: 1;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+  }
+
+  .tiptap-media-controls {
+    position: static;
+    left: auto;
+    bottom: auto;
+    order: 2;
+    display: none;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0.35rem;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    margin-top: 0.4rem;
+    padding: 0.38rem;
+    overflow: hidden;
+    border-radius: 11px;
+    opacity: 1;
+    pointer-events: auto;
+    transform: none;
+    box-shadow: none;
+    box-sizing: border-box;
+  }
+
+  .tiptap-media-node.is-selected .tiptap-media-controls,
+  .tiptap-media-controls:focus-within {
+    display: grid;
+    transform: none;
+  }
+
+  .tiptap-media-actions,
+  .tiptap-media-size-controls {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: thin;
+    overscroll-behavior-inline: contain;
+    -webkit-overflow-scrolling: touch;
+    touch-action: pan-x;
+  }
+
+  .tiptap-media-actions button {
+    flex: 0 0 2.55rem;
+    min-width: 2.55rem;
+    min-height: 2.55rem;
+  }
+
+  .tiptap-media-actions [data-desktop-drag-handle] {
+    display: none;
+  }
+
+  .tiptap-media-size-controls {
+    min-height: 2.45rem;
+  }
+
+  .tiptap-media-control-label {
+    padding-inline: 0.2rem;
+  }
+
+  .tiptap-media-presets {
+    flex: none;
+  }
+
+  .tiptap-media-size-controls label {
+    flex: 1 0 9.5rem;
+    min-width: 9.5rem;
+    max-width: 15rem;
+    padding-inline: 0.25rem;
+  }
+
+  .tiptap-media-size-controls input[type="range"] {
+    width: min(7rem, 28vw);
+    min-width: 4.8rem;
+  }
+
+  .tiptap-media-resize-handle {
+    display: none !important;
+  }
+
+  .tiptap-attachment-preview {
+    grid-template-columns: 2.25rem minmax(0, 1fr);
+    gap: 0.55rem;
+    min-height: 3.6rem;
+    padding: 0.6rem 0.65rem;
+  }
+
+  .tiptap-attachment-preview .process-attachment-icon {
+    width: 2.25rem;
+    height: 2.25rem;
+    border-radius: 10px;
+  }
+
+  .tiptap-attachment-preview .process-attachment-name {
+    font-size: 0.9rem;
+  }
+
+  .tiptap-attachment-preview .process-attachment-meta {
+    grid-column: 2;
+    justify-self: start;
+    white-space: normal;
+  }
+
+  .tiptap-image-node img {
+    border-radius: 13px 13px 0 0;
+  }
+
+  .tiptap-media-node.is-selected {
+    outline-width: 2px;
+    outline-offset: 2px;
+  }
+}
