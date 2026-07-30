@@ -3,6 +3,7 @@ import react from "@vitejs/plugin-react";
 import { adminPhotoUploaderUiTransform } from "./admin-photo-uploader-ui-transform.mjs";
 import { processContentUiTransform } from "./process-content-ui-transform.mjs";
 import { adminPhotoWorkspaceUiTransform } from "./admin-photo-workspace-ui-transform.mjs";
+import { websiteCopyUiTransform } from "./website-copy-ui-transform.mjs";
 import {
   LEGACY_ADMIN_API_PATH,
   LEGACY_ADMIN_PATH,
@@ -127,6 +128,7 @@ function memoriesDevelopmentRoutes() {
             if (await runtime.adminProcessContentApi(request, response, url)) return;
             if (await runtime.adminCategoryApi(request, response, url)) return;
             if (await runtime.adminPhotoApi(request, response, url)) return;
+            if (await runtime.adminSettingsApi(request, response, url)) return;
             sendJson(response, 404, { error: "Not found" });
           } catch (error) {
             console.warn("Memories development administrator API unavailable", {
@@ -227,6 +229,7 @@ export default defineConfig({
   plugins: [
     adminPhotoUploaderUiTransform(),
     processContentUiTransform(),
+    websiteCopyUiTransform(),
     adminPhotoWorkspaceUiTransform(),
     react(),
     memoriesDevelopmentRoutes(),
