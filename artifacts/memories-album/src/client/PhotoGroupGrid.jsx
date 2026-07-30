@@ -1,3 +1,5 @@
+import LazyImage from "./LazyImage.jsx";
+
 export default function PhotoGroupGrid({
   photos,
   allVisiblePhotos,
@@ -24,11 +26,9 @@ export default function PhotoGroupGrid({
                 onClick={(event) => onOpen(photo, event.currentTarget)}
                 aria-label={`${copy.photo} ${index + 1}`}
               >
-                <img
+                <LazyImage
                   src={photo.thumbnailUrl}
                   alt={`${copy.photo} ${index + 1}`}
-                  loading="lazy"
-                  decoding="async"
                   width={photo.width}
                   height={photo.height}
                 />

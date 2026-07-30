@@ -1,0 +1,41 @@
+.lazy-image {
+  background:
+    linear-gradient(110deg, rgba(222, 216, 202, 0.72) 8%, rgba(247, 243, 234, 0.95) 18%, rgba(222, 216, 202, 0.72) 33%);
+  background-size: 220% 100%;
+  animation: lazy-image-shimmer 1.35s linear infinite;
+}
+
+.lazy-image.is-loaded {
+  background: transparent;
+  animation: none;
+}
+
+.lazy-image.is-failed {
+  background: rgba(222, 216, 202, 0.8);
+  animation: none;
+}
+
+.admin-photo-preview {
+  min-height: 0;
+  display: grid;
+  place-items: center;
+}
+
+.admin-photo-preview img.lazy-image {
+  width: 100%;
+  height: auto;
+  max-height: none;
+  object-fit: contain;
+}
+
+@keyframes lazy-image-shimmer {
+  to {
+    background-position-x: -220%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lazy-image {
+    animation: none;
+  }
+}
