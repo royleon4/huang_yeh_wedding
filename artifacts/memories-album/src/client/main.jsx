@@ -6,7 +6,10 @@ import AdminFeatureSettings from "./AdminFeatureSettings.jsx";
 import AdminLoginPage from "./AdminLoginPage.jsx";
 import GalleryEnhancements from "./GalleryEnhancements.jsx";
 import { adminSurface } from "./admin-client.mjs";
-import { PROCESS_DEFINITIONS } from "./gallery-model.mjs";
+import {
+  ALL_PROCESS_DEFINITION,
+  PROCESS_DEFINITIONS,
+} from "./gallery-model.mjs";
 import "./styles.css";
 import "./collections.css";
 import "./upload.css";
@@ -16,6 +19,7 @@ import "./bottom-collection-nav.css";
 import "./admin.css";
 import "./admin-feature-settings.css";
 import "./gallery-tweaks.css";
+import "./process-rich-content.css";
 
 class MemoriesErrorBoundary extends Component {
   constructor(props) {
@@ -82,7 +86,7 @@ class MemoriesErrorBoundary extends Component {
   }
 }
 
-function applyServerProcesses(processes) {
+function applyServerProcesses(processes, allProcess = null) {
   const normalized = Array.isArray(processes)
     ? processes
         .map((process) => ({
@@ -92,6 +96,10 @@ function applyServerProcesses(processes) {
           displayOrder: Number(process.displayOrder) || 0,
           youtubeVideoId: process.youtubeVideoId ?? null,
           youtubeAutoplay: Boolean(process.youtubeAutoplay),
+          contentHtmlZh: process.contentHtmlZh ?? "",
+          contentHtmlEn: process.contentHtmlEn ?? "",
+          dividerPaddingTop: Number(process.dividerPaddingTop ?? 12),
+          dividerPaddingBottom: Number(process.dividerPaddingBottom ?? 12),
         }))
         .filter((process) => process.id && process.zh)
         .sort(
@@ -101,6 +109,22 @@ function applyServerProcesses(processes) {
         )
     : [];
   PROCESS_DEFINITIONS.splice(0, PROCESS_DEFINITIONS.length, ...normalized);
+
+  if (allProcess && typeof allProcess === "object") {
+    Object.assign(ALL_PROCESS_DEFINITION, {
+      id: "all",
+      zh: allProcess.labelZh || "全部流程",
+      en: allProcess.labelEn || allProcess.labelZh || "All moments",
+      displayOrder: 0,
+      youtubeVideoId: allProcess.youtubeVideoId ?? null,
+      youtubeAutoplay: Boolean(allProcess.youtubeAutoplay),
+      showAllPhotos: allProcess.showAllPhotos !== false,
+      contentHtmlZh: allProcess.contentHtmlZh ?? "",
+      contentHtmlEn: allProcess.contentHtmlEn ?? "",
+      dividerPaddingTop: Number(allProcess.dividerPaddingTop ?? 12),
+      dividerPaddingBottom: Number(allProcess.dividerPaddingBottom ?? 12),
+    });
+  }
 }
 
 async function hydrateProcessesFromServer() {
@@ -114,9 +138,15 @@ async function hydrateProcessesFromServer() {
     if (!response.ok) return false;
     const body = await response.json();
     if (!Array.isArray(body.processes)) return false;
-    const before = JSON.stringify(PROCESS_DEFINITIONS);
-    applyServerProcesses(body.processes);
-    const after = JSON.stringify(PROCESS_DEFINITIONS);
+    const before = JSON.stringify({
+      processes: PROCESS_DEFINITIONS,
+      allProcess: ALL_PROCESS_DEFINITION,
+    });
+    applyServerProcesses(body.processes, body.allProcess);
+    const after = JSON.stringify({
+      processes: PROCESS_DEFINITIONS,
+      allProcess: ALL_PROCESS_DEFINITION,
+    });
     return before !== after;
   } catch {
     return false;
