@@ -7,12 +7,14 @@ import { createAdminPhotoUploaderApi } from "./uploader-admin-api.mjs";
 
 export function createAdminPhotoApi(options) {
   const photoApi = createPhotoApi(options);
-  const refreshApi = createAdminRefreshApi({
-    service: options.refreshService,
-    albumRepository: options.albumRepository,
-    categoryRepository: options.categoryRepository,
-    adminToken: options.adminToken,
-  });
+  const refreshApi = options.refreshService
+    ? createAdminRefreshApi({
+        service: options.refreshService,
+        albumRepository: options.albumRepository,
+        categoryRepository: options.categoryRepository,
+        adminToken: options.adminToken,
+      })
+    : null;
   const filterApi = createAdminPhotoFilterApi({
     repository: options.repository,
     adminToken: options.adminToken,
@@ -37,7 +39,7 @@ export function createAdminPhotoApi(options) {
   });
 
   return async function handleAdminPhotoAndChangesApi(request, response, url) {
-    if (await refreshApi(request, response, url)) return true;
+    if (refreshApi && (await refreshApi(request, response, url))) return true;
     if (await filterApi(request, response, url)) return true;
     if (await uploaderApi(request, response, url)) return true;
     if (await changesApi(request, response, url)) return true;
