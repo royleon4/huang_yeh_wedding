@@ -1,4 +1,10 @@
+import {
+  DEFAULT_ALBUM_PHOTO_SORT_MODE,
+  normalizeAlbumPhotoSortMode,
+} from "../../../album-photo-order.mjs";
+
 const SUMMARY_KEY_PREFIX = "album_summary_visible:";
+const PHOTO_SORT_KEY_PREFIX = "album_photo_sort:";
 
 function mapRow(row) {
   return {
@@ -11,6 +17,9 @@ function mapRow(row) {
     isVisible: row.is_visible,
     isSystem: row.is_system,
     showSummary: row.show_summary !== false,
+    photoSortMode: normalizeAlbumPhotoSortMode(
+      row.photo_sort_mode ?? DEFAULT_ALBUM_PHOTO_SORT_MODE,
+    ),
   };
 }
 
@@ -21,10 +30,26 @@ function albumSelect(where = "") {
                    SELECT setting.value = 'true'::jsonb
                    FROM memories_app_settings setting
                    WHERE setting.key = '${SUMMARY_KEY_PREFIX}' || a.id
-                 ), true) AS show_summary
+                 ), true) AS show_summary,
+                 COALESCE((
+                   SELECT setting.value #>> '{}'
+                   FROM memories_app_settings setting
+                   WHERE setting.key = '${PHOTO_SORT_KEY_PREFIX}' || a.id
+                 ), '${DEFAULT_ALBUM_PHOTO_SORT_MODE}') AS photo_sort_mode
           FROM memories_albums a
           ${where}
           ORDER BY a.display_order ASC, a.id ASC`;
+}
+
+async function upsertSetting(client, key, value) {
+  await client.query(
+    `INSERT INTO memories_app_settings (key, value, updated_at)
+     VALUES ($1, $2::jsonb, now())
+     ON CONFLICT (key) DO UPDATE SET
+       value = EXCLUDED.value,
+       updated_at = now()`,
+    [key, JSON.stringify(value)],
+  );
 }
 
 export class PostgresAlbumRepository {
@@ -65,7 +90,11 @@ export class PostgresAlbumRepository {
         album.isVisible !== false,
       ],
     );
-    return mapRow({ ...result.rows[0], show_summary: album.showSummary !== false });
+    return mapRow({
+      ...result.rows[0],
+      show_summary: album.showSummary !== false,
+      photo_sort_mode: normalizeAlbumPhotoSortMode(album.photoSortMode),
+    });
   }
 
   async updateAlbum(album) {
@@ -98,16 +127,15 @@ export class PostgresAlbumRepository {
         return null;
       }
       const showSummary = album.showSummary !== false;
-      await client.query(
-        `INSERT INTO memories_app_settings (key, value, updated_at)
-         VALUES ($1, $2::jsonb, now())
-         ON CONFLICT (key) DO UPDATE SET
-           value = EXCLUDED.value,
-           updated_at = now()`,
-        [`${SUMMARY_KEY_PREFIX}${album.id}`, JSON.stringify(showSummary)],
-      );
+      const photoSortMode = normalizeAlbumPhotoSortMode(album.photoSortMode);
+      await upsertSetting(client, `${SUMMARY_KEY_PREFIX}${album.id}`, showSummary);
+      await upsertSetting(client, `${PHOTO_SORT_KEY_PREFIX}${album.id}`, photoSortMode);
       await client.query("COMMIT");
-      return mapRow({ ...result.rows[0], show_summary: showSummary });
+      return mapRow({
+        ...result.rows[0],
+        show_summary: showSummary,
+        photo_sort_mode: photoSortMode,
+      });
     } catch (error) {
       await client.query("ROLLBACK");
       throw error;
