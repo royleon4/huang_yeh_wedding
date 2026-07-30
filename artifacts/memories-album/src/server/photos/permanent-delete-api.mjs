@@ -1,6 +1,10 @@
 import { sendAdminJson } from "../admin/auth.mjs";
 import { requireAdmin } from "../admin/request.mjs";
-import { deletePhotoRecordPermanently } from "./permanent-delete.mjs";
+import {
+  deletePhotoRecordsPermanently,
+  findPhotoRecordsForPermanentDeletion,
+  removeDeletedPhotoIdsFromPinnedSettings,
+} from "./permanent-delete.mjs";
 import { isWeddingPhotographerUploader } from "./uploader-admin-api.mjs";
 
 async function deleteDriveFile(drive, fileId) {
@@ -11,6 +15,16 @@ async function deleteDriveFile(drive, fileId) {
     if (Number(error?.status) === 404) return;
     throw error;
   }
+}
+
+function uniqueFileIds(photos) {
+  return [
+    ...new Set(
+      photos
+        .flatMap((photo) => [photo.thumbnailDriveFileId, photo.driveFileId])
+        .filter(Boolean),
+    ),
+  ];
 }
 
 export function createPermanentPhotoDeleteApi({
@@ -32,8 +46,8 @@ export function createPermanentPhotoDeleteApi({
     if (!requireAdmin(request, response, adminToken, { mutate: true })) return true;
 
     const id = decodeURIComponent(match[1]);
-    const photo = await repository.findPhotoForAdmin(id);
-    if (!photo) {
+    const photos = await findPhotoRecordsForPermanentDeletion(repository, id);
+    if (photos.length === 0) {
       sendAdminJson(response, 404, {
         error: "Photo not found",
         code: "NOT_FOUND",
@@ -41,7 +55,7 @@ export function createPermanentPhotoDeleteApi({
       return true;
     }
 
-    if (isWeddingPhotographerUploader(photo.uploaderName)) {
+    if (photos.some((photo) => isWeddingPhotographerUploader(photo.uploaderName))) {
       sendAdminJson(response, 403, {
         error: "婚禮攝影照片受保護，不允許永久刪除。",
         code: "WEDDING_PHOTOGRAPHER_PHOTO_PROTECTED",
@@ -49,13 +63,13 @@ export function createPermanentPhotoDeleteApi({
       return true;
     }
 
-    const fileIds = [photo.thumbnailDriveFileId, photo.driveFileId].filter(
-      (fileId, index, values) => fileId && values.indexOf(fileId) === index,
-    );
-    for (const fileId of fileIds) await deleteDriveFile(drive, fileId);
+    for (const fileId of uniqueFileIds(photos)) {
+      await deleteDriveFile(drive, fileId);
+    }
 
-    const deleted = await deletePhotoRecordPermanently(repository, id);
-    if (!deleted) {
+    const requestedIds = photos.map((photo) => photo.id);
+    const deletedIds = await deletePhotoRecordsPermanently(repository, requestedIds);
+    if (deletedIds.length === 0) {
       sendAdminJson(response, 404, {
         error: "Photo not found",
         code: "NOT_FOUND",
@@ -63,7 +77,14 @@ export function createPermanentPhotoDeleteApi({
       return true;
     }
 
-    sendAdminJson(response, 200, { deleted: true, id });
+    await removeDeletedPhotoIdsFromPinnedSettings(repository, deletedIds);
+
+    sendAdminJson(response, 200, {
+      deleted: true,
+      id,
+      deletedIds,
+      deletedCount: deletedIds.length,
+    });
     return true;
   };
 }
