@@ -3,11 +3,15 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 
 const mobileStylesUrl = new URL("../src/client/rich-text-mobile.css", import.meta.url);
-const indexUrl = new URL("../index.html", import.meta.url);
+const editorUrl = new URL("../src/client/RichTextEditor.jsx", import.meta.url);
 
-test("mobile rich text toolbar styles are included in the application", async () => {
-  const index = await readFile(indexUrl, "utf8");
-  assert.match(index, /rich-text-mobile\.css/);
+test("mobile overrides load after the base rich text styles", async () => {
+  const editor = await readFile(editorUrl, "utf8");
+  const baseIndex = editor.indexOf('import "./rich-text-formatting.css"');
+  const mobileIndex = editor.indexOf('import "./rich-text-mobile.css"');
+
+  assert.ok(baseIndex >= 0);
+  assert.ok(mobileIndex > baseIndex);
 });
 
 test("standard phones use one horizontally scrollable toolbar row", async () => {
@@ -37,7 +41,20 @@ test("narrow phones use no more than two horizontally scrollable rows", async ()
 test("mobile editor height adapts to the viewport and remains vertically resizable", async () => {
   const styles = await readFile(mobileStylesUrl, "utf8");
 
-  assert.match(styles, /height: clamp\(16rem, 50dvh, 34rem\)/);
-  assert.match(styles, /max-height: 72dvh/);
+  assert.match(styles, /height: clamp\(14rem, 48dvh, 34rem\)/);
+  assert.match(styles, /min-height: clamp\(12rem, 38dvh, 16rem\)/);
+  assert.match(styles, /max-height: min\(72dvh, 42rem\)/);
   assert.match(styles, /resize: vertical/);
+  assert.match(styles, /@media \(max-height: 520px\) and \(orientation: landscape\)/);
+});
+
+test("mobile editor and its parent containers cannot be clipped horizontally", async () => {
+  const styles = await readFile(mobileStylesUrl, "utf8");
+
+  assert.match(styles, /\.process-content-details,[\s\S]*max-width: 100%/);
+  assert.match(styles, /\.process-content-details,[\s\S]*overflow: visible/);
+  assert.match(styles, /\.tiptap-editor-frame \.ProseMirror[\s\S]*overflow-x: hidden/);
+  assert.match(styles, /overflow-wrap: anywhere/);
+  assert.match(styles, /word-break: break-word/);
+  assert.match(styles, /\.tiptap-media-node,[\s\S]*max-width: 100%/);
 });
