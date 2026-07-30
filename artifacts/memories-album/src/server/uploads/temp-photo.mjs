@@ -19,8 +19,13 @@ export class TemporaryPhotoError extends Error {
 
 export async function parsePhotoToTemporaryFile(
   request,
-  { maxFileBytes = DEFAULT_MAX_FILE_BYTES } = {},
+  {
+    maxFileBytes = DEFAULT_MAX_FILE_BYTES,
+    allowedFields = [],
+    maxFieldBytes = 32 * 1024,
+  } = {},
 ) {
+  const permittedFields = new Set(allowedFields);
   const directory = await mkdtemp(join(tmpdir(), "memories-upload-"));
   const filePath = join(directory, `${randomUUID()}.upload`);
   let parser;
@@ -29,7 +34,8 @@ export async function parsePhotoToTemporaryFile(
       headers: request.headers,
       limits: {
         files: 2,
-        fields: 1,
+        fields: Math.max(1, permittedFields.size),
+        fieldSize: maxFieldBytes,
         fileSize: maxFileBytes,
       },
     });
@@ -49,6 +55,7 @@ export async function parsePhotoToTemporaryFile(
   let truncated = false;
   let problem = null;
   let writePromise = null;
+  const fields = {};
   const digest = createHash("sha256");
 
   const parsed = new Promise((resolve, reject) => {
@@ -82,12 +89,20 @@ export async function parsePhotoToTemporaryFile(
       writePromise = pipeline(stream, createWriteStream(filePath));
     });
 
-    parser.on("field", () => {
-      problem = new TemporaryPhotoError(
-        400,
-        "Unexpected multipart fields",
-        "INVALID_MULTIPART",
-      );
+    parser.on("field", (fieldName, value, info) => {
+      if (
+        !permittedFields.has(fieldName) ||
+        Object.hasOwn(fields, fieldName) ||
+        info?.valueTruncated
+      ) {
+        problem = new TemporaryPhotoError(
+          400,
+          "Unexpected multipart fields",
+          "INVALID_MULTIPART",
+        );
+        return;
+      }
+      fields[fieldName] = value;
     });
     parser.on("filesLimit", () => {
       problem = new TemporaryPhotoError(
@@ -143,6 +158,7 @@ export async function parsePhotoToTemporaryFile(
       size,
       filePath,
       directory,
+      fields,
       contentHash: digest.digest("hex"),
       async readBytes() {
         return readFile(filePath);
