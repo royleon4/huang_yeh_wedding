@@ -100,41 +100,67 @@
 .admin-photo-selectable {
   position: relative;
   min-width: 0;
-  border: 2px solid transparent;
   border-radius: 1.15rem;
-  transition: border-color 150ms ease, box-shadow 150ms ease;
+  transition: box-shadow 150ms ease;
+}
+
+.admin-photo-selectable > .admin-photo-card {
+  width: 100%;
+  min-width: 0;
+}
+
+.admin-photo-selectable:has(> .admin-photo-card[open]) {
+  grid-column: 1 / -1;
 }
 
 .admin-photo-selectable.is-selected {
-  border-color: var(--leaf);
-  box-shadow: 0 0 0 3px rgba(53, 95, 77, 0.12);
+  box-shadow: 0 0 0 3px rgba(53, 95, 77, 0.34);
 }
 
 .admin-photo-select-control {
-  display: flex;
-  align-items: center;
-  gap: 0.45rem;
-  margin: 0 0 0.45rem;
-  border-radius: 0.75rem;
-  background: rgba(239, 246, 239, 0.92);
-  padding: 0.55rem 0.7rem;
+  position: absolute;
+  top: 0.48rem;
+  left: 0.48rem;
+  z-index: 5;
+  display: grid;
+  place-items: center;
+  width: 2.35rem;
+  height: 2.35rem;
+  margin: 0;
+  border: 1px solid rgba(53, 95, 77, 0.34);
+  border-radius: 999px;
+  background: rgba(255, 253, 247, 0.94);
+  padding: 0;
   color: var(--ink);
-  font-size: 0.76rem;
-  font-weight: 700;
   cursor: pointer;
+  box-shadow: 0 0.25rem 0.8rem rgba(31, 53, 45, 0.18);
+  backdrop-filter: blur(8px);
 }
 
 .admin-photo-select-control input {
-  width: 1.05rem;
-  height: 1.05rem;
+  width: 1.18rem !important;
+  min-height: 1.18rem !important;
+  height: 1.18rem !important;
+  margin: 0;
+  padding: 0;
   accent-color: var(--leaf);
+  cursor: pointer;
 }
 
-.admin-photo-select-control small {
-  margin-left: auto;
-  color: #8a5a2b;
-  font-size: 0.68rem;
-  font-weight: 600;
+.admin-photo-select-control > span,
+.admin-photo-select-control > small {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.admin-photo-selectable.is-selected .admin-photo-select-control {
+  border-color: var(--leaf);
+  background: #edf6ef;
 }
 
 @media (max-width: 800px) {
@@ -167,5 +193,18 @@
   .admin-photo-selection-actions button,
   .admin-photo-bulk-actions button {
     flex: 1 1 auto;
+  }
+
+  .admin-photo-select-control {
+    top: 0.34rem;
+    left: 0.34rem;
+    width: 2rem;
+    height: 2rem;
+  }
+
+  .admin-photo-select-control input {
+    width: 1.05rem !important;
+    min-height: 1.05rem !important;
+    height: 1.05rem !important;
   }
 }
