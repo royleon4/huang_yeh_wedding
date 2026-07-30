@@ -1,0 +1,14 @@
+.process-media-sequence {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.process-media-item,
+.process-photo-group {
+  min-width: 0;
+}
+
+.process-media-item > .process-divider {
+  margin-inline: auto;
+}

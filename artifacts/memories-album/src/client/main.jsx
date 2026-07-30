@@ -2,7 +2,6 @@ import React, { Component, useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
 import App from "./App.jsx";
 import AdminApp from "./AdminApp.jsx";
-import AdminFeatureSettings from "./AdminFeatureSettings.jsx";
 import AdminLoginPage from "./AdminLoginPage.jsx";
 import GalleryEnhancements from "./GalleryEnhancements.jsx";
 import { adminSurface } from "./admin-client.mjs";
@@ -182,10 +181,7 @@ const content =
   surface === "login" ? (
     <AdminLoginPage />
   ) : surface === "admin" ? (
-    <>
-      <AdminApp />
-      <AdminFeatureSettings />
-    </>
+    <AdminApp />
   ) : (
     <MemoriesRoot />
   );

@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { createServer } from "node:http";
 import test from "node:test";
+import { DEFAULT_GALLERY_MEDIA_ORDER } from "../src/gallery-media-order.mjs";
 import {
   createAdminSettingsApi,
   createSettingsApi,
@@ -10,6 +11,7 @@ async function withApis(run) {
   let guestUploadCategorySelectionEnabled = true;
   let processWheelEnabled = false;
   let processWheelVisibleCount = 6;
+  let galleryMediaOrder = [...DEFAULT_GALLERY_MEDIA_ORDER];
   const repository = {
     async getPublicSettings() {
       return {
@@ -17,6 +19,7 @@ async function withApis(run) {
         guestUploadCategorySelectionEnabled,
         processWheelEnabled,
         processWheelVisibleCount,
+        galleryMediaOrder,
       };
     },
     async setGuestUploadCategorySelectionEnabled(value) {
@@ -30,6 +33,10 @@ async function withApis(run) {
     async setProcessWheelVisibleCount(value) {
       processWheelVisibleCount = Number(value);
       return { processWheelVisibleCount };
+    },
+    async setGalleryMediaOrder(value) {
+      galleryMediaOrder = [...value];
+      return { galleryMediaOrder };
     },
   };
   const publicApi = createSettingsApi({ repository });
@@ -54,7 +61,7 @@ async function withApis(run) {
   }
 }
 
-test("public settings default to traditional buttons and six mobile wheel items", async () => {
+test("public settings default to traditional buttons, six wheel items, and official photos before guests", async () => {
   await withApis(async (origin) => {
     const response = await fetch(`${origin}/Memories/api/settings`);
     assert.equal(response.status, 200);
@@ -63,6 +70,12 @@ test("public settings default to traditional buttons and six mobile wheel items"
       guestUploadCategorySelectionEnabled: true,
       processWheelEnabled: false,
       processWheelVisibleCount: 6,
+      galleryMediaOrder: [
+        "video",
+        "text",
+        "weddingPhotos",
+        "guestPhotos",
+      ],
     });
   });
 });
@@ -112,7 +125,23 @@ test("administrator can enable the wheel and choose its mobile visible count", a
   });
 });
 
-test("administrator settings reject invalid wheel values", async () => {
+test("administrator can reorder video, text, official photos, and guest photos", async () => {
+  await withApis(async (origin) => {
+    const order = ["text", "video", "guestPhotos", "weddingPhotos"];
+    const update = await fetch(`${origin}/admin/api/settings`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ galleryMediaOrder: order }),
+    });
+    assert.equal(update.status, 200);
+    assert.deepEqual(await update.json(), { galleryMediaOrder: order });
+
+    const publicResponse = await fetch(`${origin}/Memories/api/settings`);
+    assert.deepEqual((await publicResponse.json()).galleryMediaOrder, order);
+  });
+});
+
+test("administrator settings reject invalid wheel and media order values", async () => {
   await withApis(async (origin) => {
     const wheelResponse = await fetch(`${origin}/admin/api/settings`, {
       method: "PATCH",
@@ -130,6 +159,21 @@ test("administrator settings reject invalid wheel values", async () => {
       });
       assert.equal(countResponse.status, 422);
       assert.equal((await countResponse.json()).code, "INVALID_SETTING");
+    }
+
+    for (const invalidOrder of [
+      ["video", "text", "weddingPhotos"],
+      ["video", "text", "weddingPhotos", "weddingPhotos"],
+      ["video", "text", "weddingPhotos", "unknown"],
+      "video,text,weddingPhotos,guestPhotos",
+    ]) {
+      const orderResponse = await fetch(`${origin}/admin/api/settings`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ galleryMediaOrder: invalidOrder }),
+      });
+      assert.equal(orderResponse.status, 422);
+      assert.equal((await orderResponse.json()).code, "INVALID_SETTING");
     }
   });
 });
