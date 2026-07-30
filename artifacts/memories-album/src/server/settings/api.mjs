@@ -7,6 +7,29 @@ function json(response, status, body) {
   response.end(JSON.stringify(body));
 }
 
+async function readJson(request, maxBytes = 8 * 1024) {
+  const chunks = [];
+  let size = 0;
+  for await (const chunk of request) {
+    size += chunk.length;
+    if (size > maxBytes) {
+      const error = new Error("Request body is too large");
+      error.status = 413;
+      error.code = "BODY_TOO_LARGE";
+      throw error;
+    }
+    chunks.push(chunk);
+  }
+  try {
+    return JSON.parse(Buffer.concat(chunks).toString("utf8") || "{}");
+  } catch {
+    const error = new Error("Invalid JSON body");
+    error.status = 400;
+    error.code = "INVALID_JSON";
+    throw error;
+  }
+}
+
 export function createSettingsApi({ repository }) {
   if (!repository) throw new Error("Settings repository is required");
 
@@ -19,6 +42,49 @@ export function createSettingsApi({ repository }) {
       return false;
     }
     json(response, 200, await repository.getPublicSettings());
+    return true;
+  };
+}
+
+export function createAdminSettingsApi({ repository }) {
+  if (!repository) throw new Error("Settings repository is required");
+
+  return async function handleAdminSettingsApi(
+    request,
+    response,
+    url = new URL(request.url ?? "/", "http://localhost"),
+  ) {
+    if (url.pathname !== "/admin/api/settings") return false;
+
+    if (request.method === "GET") {
+      json(response, 200, await repository.getPublicSettings());
+      return true;
+    }
+
+    if (request.method !== "PATCH") return false;
+
+    try {
+      const body = await readJson(request);
+      if (typeof body.guestUploadCategorySelectionEnabled !== "boolean") {
+        json(response, 422, {
+          error: "guestUploadCategorySelectionEnabled must be a boolean",
+          code: "INVALID_SETTING",
+        });
+        return true;
+      }
+      json(
+        response,
+        200,
+        await repository.setGuestUploadCategorySelectionEnabled(
+          body.guestUploadCategorySelectionEnabled,
+        ),
+      );
+    } catch (error) {
+      json(response, error.status ?? 400, {
+        error: error.message || "Invalid settings request",
+        code: error.code || "INVALID_SETTINGS_REQUEST",
+      });
+    }
     return true;
   };
 }

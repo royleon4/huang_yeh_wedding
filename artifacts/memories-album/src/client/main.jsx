@@ -2,6 +2,7 @@ import React, { Component, useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
 import App from "./App.jsx";
 import AdminApp from "./AdminApp.jsx";
+import AdminFeatureSettings from "./AdminFeatureSettings.jsx";
 import AdminLoginPage from "./AdminLoginPage.jsx";
 import GalleryEnhancements from "./GalleryEnhancements.jsx";
 import { adminSurface } from "./admin-client.mjs";
@@ -13,6 +14,7 @@ import "./photo-lightbox.css";
 import "./feature-controls.css";
 import "./bottom-collection-nav.css";
 import "./admin.css";
+import "./admin-feature-settings.css";
 import "./gallery-tweaks.css";
 
 class MemoriesErrorBoundary extends Component {
@@ -150,7 +152,10 @@ const content =
   surface === "login" ? (
     <AdminLoginPage />
   ) : surface === "admin" ? (
-    <AdminApp />
+    <>
+      <AdminApp />
+      <AdminFeatureSettings />
+    </>
   ) : (
     <MemoriesRoot />
   );

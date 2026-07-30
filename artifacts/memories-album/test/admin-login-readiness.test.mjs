@@ -43,6 +43,7 @@ test("admin login succeeds even when Drive runtime is unavailable", async () => 
     assert.equal(settings.status, 200);
     assert.deepEqual(await settings.json(), {
       primaryNavigationVisible: false,
+      guestUploadCategorySelectionEnabled: true,
       degraded: true,
       storageError: "DRIVE_RETRYABLE",
     });

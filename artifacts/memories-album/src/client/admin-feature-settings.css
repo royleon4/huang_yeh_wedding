@@ -1,0 +1,55 @@
+.admin-feature-settings {
+  width: min(1120px, calc(100% - 2rem));
+  margin: 1.5rem auto 7rem;
+  padding: 1.5rem;
+  border: 1px solid rgba(86, 67, 47, 0.2);
+  border-radius: 18px;
+  background: rgba(255, 253, 247, 0.96);
+  box-shadow: 0 14px 36px rgba(65, 48, 32, 0.08);
+}
+
+.admin-feature-settings h2 {
+  margin: 0.2rem 0 0.6rem;
+}
+
+.admin-feature-settings p {
+  max-width: 760px;
+}
+
+.admin-feature-control {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-top: 1.25rem;
+  padding-top: 1rem;
+  border-top: 1px solid rgba(86, 67, 47, 0.14);
+}
+
+.admin-feature-control .admin-check {
+  font-weight: 700;
+}
+
+.admin-feature-control button {
+  min-width: 8.5rem;
+}
+
+.admin-feature-status {
+  margin: 1rem 0 0;
+  font-weight: 700;
+}
+
+.admin-feature-status.error {
+  color: #9b2c2c;
+}
+
+@media (max-width: 680px) {
+  .admin-feature-control {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .admin-feature-control button {
+    width: 100%;
+  }
+}

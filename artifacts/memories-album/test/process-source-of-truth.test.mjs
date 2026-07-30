@@ -138,7 +138,7 @@ test("website process changes write to Drive before database refresh", async () 
   assert.ok(drive.children.some((folder) => folder.name === "02 網站新增"));
 });
 
-test("client process data is database hydrated while visitor upload is guest-only", async () => {
+test("client process data is database hydrated for gallery and visitor upload", async () => {
   const [galleryModel, mainSource, adminSource, uploadSource] =
     await Promise.all([
       readFile(
@@ -162,6 +162,8 @@ test("client process data is database hydrated while visitor upload is guest-onl
     adminSource,
     /sessionStorage|CustomEvent|MutationObserver/,
   );
-  assert.doesNotMatch(uploadSource, /processes\.map|processId|classificationChoice|<select/);
-  assert.match(uploadSource, /依照姓名自動整理/);
+  assert.match(uploadSource, /fetch\("\/Memories\/api\/processes"/);
+  assert.match(uploadSource, /processes\.map|processId|classificationChoice|<select/);
+  assert.match(uploadSource, /你的姓名只會用來自動整理/);
+  assert.doesNotMatch(uploadSource, /guestUploaderGroups|guestGroups|allGuests/);
 });

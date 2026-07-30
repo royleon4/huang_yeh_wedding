@@ -1,13 +1,19 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { retryFailedUploads, uploadQueue } from "./upload-client.mjs";
 
 const COPY = {
   zh: {
     title: "把你的照片放進檔案館",
-    intro:
+    introEnabled:
+      "請留下姓名、選擇照片，並可替這批照片選擇網站分類。你的姓名只會用來自動整理「訪客上傳」，不會出現在可選分類中。",
+    introDisabled:
       "請留下姓名並選擇照片。上傳完成後，系統會依照姓名自動整理在「訪客上傳」分類中。",
     name: "你的姓名（必填）",
     namePlaceholder: "例如：小安",
+    classification: "照片分類（選填）",
+    guestOnly: "不指定分類，只顯示在訪客上傳",
+    life: "生活照",
+    weddingGroup: "婚禮流程",
     files: "選擇照片",
     choose: "選擇最多 30 張照片",
     hint:
@@ -33,10 +39,16 @@ const COPY = {
   },
   en: {
     title: "Add your photos to the archive",
-    intro:
+    introEnabled:
+      "Enter your name, choose photos, and optionally select where they appear. Your name only groups the Guest uploads view and is never offered as a selectable category.",
+    introDisabled:
       "Enter your name and choose photos. The archive groups completed uploads automatically by that name.",
     name: "Your name (required)",
     namePlaceholder: "For example: An",
+    classification: "Photo category (optional)",
+    guestOnly: "No category — Guest uploads only",
+    life: "Life photos",
+    weddingGroup: "Wedding moments",
     files: "Choose photos",
     choose: "Choose up to 30 photos",
     hint:
@@ -66,9 +78,30 @@ function statusLabel(copy, status) {
   return copy[status] ?? status;
 }
 
+function normalizeProcesses(value) {
+  return Array.isArray(value)
+    ? value
+        .map((process) => ({
+          id: process.id,
+          zh: process.labelZh,
+          en: process.labelEn || process.labelZh,
+          displayOrder: Number(process.displayOrder) || 0,
+        }))
+        .filter((process) => process.id && process.zh)
+        .sort(
+          (left, right) =>
+            left.displayOrder - right.displayOrder ||
+            left.id.localeCompare(right.id),
+        )
+    : [];
+}
+
 export default function UploadModal({ lang, onClose, onUploaded }) {
   const t = COPY[lang] ?? COPY.zh;
   const [uploaderName, setUploaderName] = useState("");
+  const [classificationChoice, setClassificationChoice] = useState("guest");
+  const [categorySelectionEnabled, setCategorySelectionEnabled] = useState(true);
+  const [processes, setProcesses] = useState([]);
   const [files, setFiles] = useState([]);
   const [items, setItems] = useState([]);
   const [phase, setPhase] = useState("idle");
@@ -77,6 +110,41 @@ export default function UploadModal({ lang, onClose, onUploaded }) {
   const [summary, setSummary] = useState(null);
   const controllerRef = useRef(null);
   const uploadedIdsRef = useRef(new Set());
+
+  useEffect(() => {
+    let cancelled = false;
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 8000);
+
+    void Promise.all([
+      fetch("/Memories/api/settings", {
+        headers: { Accept: "application/json" },
+        signal: controller.signal,
+      }).then((response) => (response.ok ? response.json() : {})),
+      fetch("/Memories/api/processes", {
+        headers: { Accept: "application/json" },
+        signal: controller.signal,
+      }).then((response) => (response.ok ? response.json() : {})),
+    ])
+      .then(([settings, processData]) => {
+        if (cancelled) return;
+        const enabled =
+          settings.guestUploadCategorySelectionEnabled !== false;
+        setCategorySelectionEnabled(enabled);
+        if (!enabled) setClassificationChoice("guest");
+        setProcesses(normalizeProcesses(processData.processes));
+      })
+      .catch(() => {
+        // Restored behavior remains available while settings temporarily recover.
+      })
+      .finally(() => clearTimeout(timer));
+
+    return () => {
+      cancelled = true;
+      controller.abort();
+      clearTimeout(timer);
+    };
+  }, []);
 
   const overallProgress = useMemo(() => {
     if (items.length === 0) return 0;
@@ -148,10 +216,16 @@ export default function UploadModal({ lang, onClose, onUploaded }) {
       setError(t.required);
       return;
     }
+    const choice = categorySelectionEnabled ? classificationChoice : "guest";
+    const [classification, processId] = choice.startsWith("wedding:")
+      ? ["wedding", choice.slice("wedding:".length)]
+      : [choice, null];
     await runUpload((signal) =>
       uploadQueue({
         uploaderName,
         files,
+        classification,
+        processId,
         signal,
         onUpdate: handleUpdate,
       }),
@@ -195,7 +269,9 @@ export default function UploadModal({ lang, onClose, onUploaded }) {
         </button>
         <p className="eyebrow">GUEST MEMORIES · 20 JUN 2026</p>
         <h2 id="upload-dialog-title">{t.title}</h2>
-        <p>{t.intro}</p>
+        <p>
+          {categorySelectionEnabled ? t.introEnabled : t.introDisabled}
+        </p>
 
         <form className="upload-form" onSubmit={startUpload}>
           <label>
@@ -211,6 +287,28 @@ export default function UploadModal({ lang, onClose, onUploaded }) {
               autoComplete="name"
             />
           </label>
+          {categorySelectionEnabled && (
+            <label>
+              <span>{t.classification}</span>
+              <select
+                value={classificationChoice}
+                onChange={(event) => setClassificationChoice(event.target.value)}
+                disabled={phase === "uploading" || Boolean(batch)}
+              >
+                <option value="guest">{t.guestOnly}</option>
+                <option value="life">{t.life}</option>
+                {processes.length > 0 && (
+                  <optgroup label={t.weddingGroup}>
+                    {processes.map((process, index) => (
+                      <option key={process.id} value={`wedding:${process.id}`}>
+                        {String(index + 1).padStart(2, "0")} · {process[lang]}
+                      </option>
+                    ))}
+                  </optgroup>
+                )}
+              </select>
+            </label>
+          )}
           <label className="file-picker">
             <span>{t.files}</span>
             <strong>{t.choose}</strong>
