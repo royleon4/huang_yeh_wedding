@@ -47,13 +47,13 @@ export class ObjectStorageService {
         pathsStr
           .split(",")
           .map((path) => path.trim())
-          .filter((path) => path.length > 0)
-      )
+          .filter((path) => path.length > 0),
+      ),
     );
     if (paths.length === 0) {
       throw new Error(
         "PUBLIC_OBJECT_SEARCH_PATHS not set. Create a bucket in 'Object Storage' " +
-          "tool and set PUBLIC_OBJECT_SEARCH_PATHS env var (comma-separated paths)."
+          "tool and set PUBLIC_OBJECT_SEARCH_PATHS env var (comma-separated paths).",
       );
     }
     return paths;
@@ -64,7 +64,7 @@ export class ObjectStorageService {
     if (!dir) {
       throw new Error(
         "PRIVATE_OBJECT_DIR not set. Create a bucket in 'Object Storage' " +
-          "tool and set PRIVATE_OBJECT_DIR env var."
+          "tool and set PRIVATE_OBJECT_DIR env var.",
       );
     }
     return dir;
@@ -111,7 +111,7 @@ export class ObjectStorageService {
     if (!privateObjectDir) {
       throw new Error(
         "PRIVATE_OBJECT_DIR not set. Create a bucket in 'Object Storage' " +
-          "tool and set PRIVATE_OBJECT_DIR env var."
+          "tool and set PRIVATE_OBJECT_DIR env var.",
       );
     }
 
@@ -177,7 +177,7 @@ export class ObjectStorageService {
 
   async trySetObjectEntityAclPolicy(
     rawPath: string,
-    aclPolicy: ObjectAclPolicy
+    aclPolicy: ObjectAclPolicy,
   ): Promise<string> {
     const normalizedPath = this.normalizeObjectEntityPath(rawPath);
     if (!normalizedPath.startsWith("/")) {
@@ -227,6 +227,19 @@ function parseObjectPath(path: string): {
   };
 }
 
+function signedURLFromResponse(payload: unknown): string {
+  if (typeof payload !== "object" || payload === null) {
+    throw new Error("Object Storage sidecar returned an invalid response");
+  }
+
+  const signedURL = (payload as { signed_url?: unknown }).signed_url;
+  if (typeof signedURL !== "string" || signedURL.length === 0) {
+    throw new Error("Object Storage sidecar response is missing signed_url");
+  }
+
+  return signedURL;
+}
+
 async function signObjectURL({
   bucketName,
   objectName,
@@ -253,15 +266,14 @@ async function signObjectURL({
       },
       body: JSON.stringify(request),
       signal: AbortSignal.timeout(30_000),
-    }
+    },
   );
   if (!response.ok) {
     throw new Error(
       `Failed to sign object URL, errorcode: ${response.status}, ` +
-        `make sure you're running on Replit`
+        `make sure you're running on Replit`,
     );
   }
 
-  const { signed_url: signedURL } = await response.json();
-  return signedURL;
+  return signedURLFromResponse(await response.json());
 }
