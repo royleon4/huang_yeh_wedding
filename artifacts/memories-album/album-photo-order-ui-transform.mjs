@@ -33,7 +33,7 @@ function transformGallery(source) {
   code = replaceOnce(
     code,
     `  const openerRef = useRef(null);\n  const t = COPY[lang];`,
-    `  const openerRef = useRef(null);\n  const albumRandomSeedRef = useRef(\n    globalThis.crypto?.randomUUID?.() ?? \`\${Date.now()}-\${Math.random()}\`,\n  );\n  const t = COPY[lang];`,
+    `  const openerRef = useRef(null);\n  const t = COPY[lang];\n  const albumRandomSeedRef = useRef(\n    globalThis.crypto?.randomUUID?.() ?? \`${"${Date.now()}"}-${"${Math.random()}"}\`,\n  );`,
     "stable random seed",
   );
 
