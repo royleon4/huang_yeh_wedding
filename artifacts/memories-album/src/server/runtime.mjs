@@ -198,6 +198,7 @@ async function createRuntime(env) {
       processRepository,
       drive,
       imageProcessor,
+      thumbnailService,
     }),
     processApi: createProcessApi({
       repository: processRepository,
