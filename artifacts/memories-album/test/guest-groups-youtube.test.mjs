@@ -34,6 +34,13 @@ const guestPhotos = [
     processIds: [],
   },
   {
+    id: "removed-from-guest-album",
+    source: "guest",
+    uploaderName: "阿慧",
+    albumIds: ["life"],
+    processIds: [],
+  },
+  {
     id: "official",
     source: "official",
     uploaderName: "婚禮攝影",
@@ -50,6 +57,17 @@ test("guest uploads are grouped automatically by normalized uploader name", () =
   assert.deepEqual(
     filterPhotos(guestPhotos, "小安", "guest").map((photo) => photo.id),
     ["a", "b"],
+  );
+});
+
+test("photos unchecked from guest uploads do not count toward uploader labels", () => {
+  assert.deepEqual(
+    filterPhotos(guestPhotos, "阿慧", "guest").map((photo) => photo.id),
+    ["c"],
+  );
+  assert.equal(
+    guestUploaderGroups(guestPhotos).find((group) => group.id === "阿慧")?.count,
+    1,
   );
 });
 
