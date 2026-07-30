@@ -29,13 +29,14 @@ function replacePhotoTab(source) {
             busy={busy}
             refreshToken={message || error}
             setPhotos={setPhotos}
-            renderPhoto={(photo) => (
+            setPhotoDrafts={setPhotoDrafts}
+            renderPhoto={(photo, photoBusy = false) => (
               <PhotoEditor
                 photo={photo}
                 draft={photoDrafts[photo.id] ?? photoDraft(photo)}
                 albums={albums}
                 categories={orderedCategories}
-                busy={busy}
+                busy={busy || photoBusy}
                 onChange={(changes) => updatePhotoDraft(photo, changes)}
                 onDelete={() => void deletePhoto(photo)}
               />
@@ -126,12 +127,49 @@ function transformUploadModal(source) {
 }
 
 function transformAdminWorkspace(source) {
-  return replaceOnce(
+  let code = replaceOnce(
     source,
+    `import "./admin-photo-workspace.css";`,
+    `import "./admin-photo-workspace.css";\nimport AdminPhotoBulkActions from "./AdminPhotoBulkActions.jsx";`,
+    "bulk action component import",
+  );
+  code = replaceOnce(
+    code,
+    `  setPhotos,\n  renderPhoto,\n}) {`,
+    `  setPhotos,\n  setPhotoDrafts,\n  renderPhoto,\n}) {`,
+    "photo draft setter property",
+  );
+  code = replaceOnce(
+    code,
+    `  const [photoError, setPhotoError] = useState("");`,
+    `  const [photoError, setPhotoError] = useState("");\n  const [selectedIds, setSelectedIds] = useState([]);\n  const [bulkBusy, setBulkBusy] = useState(false);`,
+    "bulk selection state",
+  );
+  code = replaceOnce(
+    code,
+    `  const visiblePhotos = useMemo(\n    () => visibleIds.map((id) => photosById.get(id)).filter(Boolean),\n    [photosById, visibleIds],\n  );`,
+    `  const visiblePhotos = useMemo(\n    () => visibleIds.map((id) => photosById.get(id)).filter(Boolean),\n    [photosById, visibleIds],\n  );\n  const selectedIdSet = useMemo(() => new Set(selectedIds), [selectedIds]);\n\n  useEffect(() => {\n    const available = new Set(visiblePhotos.map((photo) => photo.id));\n    setSelectedIds((current) => {\n      const next = current.filter((id) => available.has(id));\n      return next.length === current.length ? current : next;\n    });\n  }, [visiblePhotos]);`,
+    "visible photo selection pruning",
+  );
+  code = replaceOnce(
+    code,
+    `  const controlsLocked = busy || uploading || Boolean(batch);`,
+    `  const controlsLocked = busy || uploading || bulkBusy || Boolean(batch);`,
+    "bulk busy upload lock",
+  );
+  code = replaceOnce(
+    code,
     `    uploading: "上傳中",`,
     `    uploading: "正在傳送到伺服器",\n    processing: "伺服器正在整理並儲存到 Google Drive",`,
     "administrator upload processing label",
   );
+  code = replaceOnce(
+    code,
+    `      {visiblePhotos.length > 0 ? (\n        <div className="admin-photo-list">\n          {visiblePhotos.map((photo) => (\n            <Fragment key={photo.id}>{renderPhoto(photo)}</Fragment>\n          ))}\n        </div>`,
+    `      <AdminPhotoBulkActions\n        albums={albums}\n        categories={categories}\n        visiblePhotos={visiblePhotos}\n        selectedIds={selectedIds}\n        setSelectedIds={setSelectedIds}\n        setPhotos={setPhotos}\n        setPhotoDrafts={setPhotoDrafts}\n        disabled={busy || uploading || bulkBusy}\n        onBusyChange={setBulkBusy}\n        onReload={() => Promise.all([loadPhotos(), loadAuthors()])}\n      />\n\n      {visiblePhotos.length > 0 ? (\n        <div className="admin-photo-list">\n          {visiblePhotos.map((photo) => (\n            <div\n              className={\`admin-photo-selectable\${\n                selectedIdSet.has(photo.id) ? " is-selected" : ""\n              }\`}\n              key={photo.id}\n            >\n              <label className="admin-photo-select-control">\n                <input\n                  type="checkbox"\n                  checked={selectedIdSet.has(photo.id)}\n                  onChange={(event) =>\n                    setSelectedIds((current) =>\n                      event.target.checked\n                        ? [...new Set([...current, photo.id])]\n                        : current.filter((id) => id !== photo.id),\n                    )\n                  }\n                  disabled={busy || uploading || bulkBusy}\n                />\n                <span>選取</span>\n                {photo.deleteProtected && <small>婚禮攝影・不可刪除</small>}\n              </label>\n              {renderPhoto(photo, bulkBusy)}\n            </div>\n          ))}\n        </div>`,
+    "selectable photo list",
+  );
+  return code;
 }
 
 export function adminPhotoWorkspaceUiTransform() {
