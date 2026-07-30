@@ -30,14 +30,6 @@ function normalizedText(value) {
     .trim();
 }
 
-function photoName(photo) {
-  return normalizedText(photo?.displayName || photo?.originalFilename);
-}
-
-function photoAuthor(photo) {
-  return normalizedText(photo?.uploaderName);
-}
-
 function photoTime(photo) {
   const time = new Date(photo?.createdAt ?? photo?.capturedAt ?? 0).getTime();
   return Number.isFinite(time) ? time : 0;
@@ -50,6 +42,15 @@ function compareText(left, right, direction) {
   if (!leftValue) return 1;
   if (!rightValue) return -1;
   return collator.compare(leftValue, rightValue) * direction;
+}
+
+function compareRankOrText(left, right, rankField, textValue, direction) {
+  const leftRank = Number(left?.[rankField]);
+  const rightRank = Number(right?.[rankField]);
+  if (Number.isFinite(leftRank) && Number.isFinite(rightRank)) {
+    return (leftRank - rightRank) * direction;
+  }
+  return compareText(textValue(left), textValue(right), direction);
 }
 
 function hashText(value) {
@@ -86,16 +87,40 @@ export function sortAlbumPhotos(
         result = photoTime(right) - photoTime(left);
         break;
       case "name-asc":
-        result = compareText(photoName(left), photoName(right), 1);
+        result = compareRankOrText(
+          left,
+          right,
+          "nameSortRank",
+          (photo) => photo?.displayName || photo?.originalFilename,
+          1,
+        );
         break;
       case "name-desc":
-        result = compareText(photoName(left), photoName(right), -1);
+        result = compareRankOrText(
+          left,
+          right,
+          "nameSortRank",
+          (photo) => photo?.displayName || photo?.originalFilename,
+          -1,
+        );
         break;
       case "author-asc":
-        result = compareText(photoAuthor(left), photoAuthor(right), 1);
+        result = compareRankOrText(
+          left,
+          right,
+          "authorSortRank",
+          (photo) => photo?.uploaderName,
+          1,
+        );
         break;
       case "author-desc":
-        result = compareText(photoAuthor(left), photoAuthor(right), -1);
+        result = compareRankOrText(
+          left,
+          right,
+          "authorSortRank",
+          (photo) => photo?.uploaderName,
+          -1,
+        );
         break;
       case "time-asc":
       default:
