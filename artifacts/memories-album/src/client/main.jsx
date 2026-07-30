@@ -88,6 +88,8 @@ function applyServerProcesses(processes) {
           zh: process.labelZh,
           en: process.labelEn || process.labelZh,
           displayOrder: Number(process.displayOrder) || 0,
+          youtubeVideoId: process.youtubeVideoId ?? null,
+          youtubeAutoplay: Boolean(process.youtubeAutoplay),
         }))
         .filter((process) => process.id && process.zh)
         .sort(
