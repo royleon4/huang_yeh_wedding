@@ -9,6 +9,11 @@ import { createImageProcessor } from "./uploads/image-processor.mjs";
 import { PostgresProcessRepository } from "./processes/repository.mjs";
 import { DriveProcessSynchronizer } from "./processes/sync.mjs";
 import { createProcessApi } from "./processes/api.mjs";
+import { PostgresProcessContentRepository } from "./process-content/repository.mjs";
+import {
+  createAdminProcessContentApi,
+  createProcessContentApi,
+} from "./process-content/api.mjs";
 import { PostgresSettingsRepository } from "./settings/repository.mjs";
 import {
   createAdminSettingsApi,
@@ -71,6 +76,7 @@ async function createRuntime(env) {
   };
   const durableUploadRepository = new PostgresDurableUploadRepository(pool);
   const processRepository = new PostgresProcessRepository(pool);
+  const processContentRepository = new PostgresProcessContentRepository(pool);
   const settingsRepository = new PostgresSettingsRepository(pool);
   const albumRepository = new PostgresAlbumRepository(pool);
   const synchronizer = new DriveProcessSynchronizer({
@@ -144,6 +150,7 @@ async function createRuntime(env) {
     repository,
     durableUploadRepository,
     processRepository,
+    processContentRepository,
     settingsRepository,
     albumRepository,
     synchronizer,
@@ -167,6 +174,12 @@ async function createRuntime(env) {
       synchronizer,
       adminToken: env.MEMORIES_ADMIN_TOKEN,
     }),
+    adminProcessContentApi: createAdminProcessContentApi({
+      repository: processContentRepository,
+      processRepository,
+      drive,
+      adminToken: env.MEMORIES_ADMIN_TOKEN,
+    }),
     adminPhotoApi: createAdminPhotoApi({
       repository,
       albumRepository,
@@ -188,6 +201,11 @@ async function createRuntime(env) {
     }),
     processApi: createProcessApi({
       repository: processRepository,
+      contentRepository: processContentRepository,
+    }),
+    processContentApi: createProcessContentApi({
+      repository: processContentRepository,
+      drive,
     }),
     settingsApi: createSettingsApi({
       repository: settingsRepository,
