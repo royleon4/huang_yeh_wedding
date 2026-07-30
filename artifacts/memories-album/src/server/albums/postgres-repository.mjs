@@ -69,32 +69,47 @@ export class PostgresAlbumRepository {
   }
 
   async createAlbum(album) {
-    const result = await this.pool.query(
-      `INSERT INTO memories_albums (
-         id, title_zh, title_en, description_zh, description_en,
-         display_order, is_visible, is_system, created_at, updated_at
-       )
-       VALUES (
-         $1, $2, $3, $4, $5,
-         COALESCE((SELECT MAX(display_order) + 1 FROM memories_albums), 1),
-         $6, false, now(), now()
-       )
-       RETURNING id, title_zh, title_en, description_zh, description_en,
-                 display_order, is_visible, is_system`,
-      [
-        album.id,
-        album.titleZh,
-        album.titleEn,
-        album.descriptionZh,
-        album.descriptionEn,
-        album.isVisible !== false,
-      ],
-    );
-    return mapRow({
-      ...result.rows[0],
-      show_summary: album.showSummary !== false,
-      photo_sort_mode: normalizeAlbumPhotoSortMode(album.photoSortMode),
-    });
+    const client =
+      typeof this.pool.connect === "function" ? await this.pool.connect() : this.pool;
+    try {
+      await client.query("BEGIN");
+      const result = await client.query(
+        `INSERT INTO memories_albums (
+           id, title_zh, title_en, description_zh, description_en,
+           display_order, is_visible, is_system, created_at, updated_at
+         )
+         VALUES (
+           $1, $2, $3, $4, $5,
+           COALESCE((SELECT MAX(display_order) + 1 FROM memories_albums), 1),
+           $6, false, now(), now()
+         )
+         RETURNING id, title_zh, title_en, description_zh, description_en,
+                   display_order, is_visible, is_system`,
+        [
+          album.id,
+          album.titleZh,
+          album.titleEn,
+          album.descriptionZh,
+          album.descriptionEn,
+          album.isVisible !== false,
+        ],
+      );
+      const showSummary = album.showSummary !== false;
+      const photoSortMode = normalizeAlbumPhotoSortMode(album.photoSortMode);
+      await upsertSetting(client, `${SUMMARY_KEY_PREFIX}${album.id}`, showSummary);
+      await upsertSetting(client, `${PHOTO_SORT_KEY_PREFIX}${album.id}`, photoSortMode);
+      await client.query("COMMIT");
+      return mapRow({
+        ...result.rows[0],
+        show_summary: showSummary,
+        photo_sort_mode: photoSortMode,
+      });
+    } catch (error) {
+      await client.query("ROLLBACK");
+      throw error;
+    } finally {
+      client.release?.();
+    }
   }
 
   async updateAlbum(album) {

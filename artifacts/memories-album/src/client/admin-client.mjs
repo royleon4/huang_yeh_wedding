@@ -6,6 +6,7 @@ import {
   MEMORIES_ADMIN_SESSION_PATH,
   canonicalAdminRequestPath,
 } from "../admin-route-paths.mjs";
+import { persistAlbumPhotoSortChanges } from "./admin-album-sort-persistence.mjs";
 import {
   verifyBatchPersistence,
   verifyMutationPersistence,
@@ -91,11 +92,7 @@ async function enrichPhotoUploaders(payload, options) {
   };
 }
 
-function supplementaryFailurePayload(
-  payload,
-  results,
-  failed,
-) {
+function supplementaryFailurePayload(payload, results, failed) {
   if (failed === 0) return payload;
   return {
     ...payload,
@@ -244,6 +241,17 @@ export async function adminRequest(
     }
     if (method === "PATCH" && path === "/admin/api/changes") {
       payload = await persistAlbumSummaryChanges(payload, body, options);
+      payload = await persistAlbumPhotoSortChanges(payload, body, {
+        patchAlbum: async (id, patch) => {
+          const albumPath = `/admin/api/albums/${encodeURIComponent(id)}`;
+          return fetchAdminJson(albumPath, {
+            ...options,
+            method: "PATCH",
+            body: patch,
+            form: undefined,
+          });
+        },
+      });
       payload = await persistUploaderChanges(payload, body, options);
       payload = verifyBatchPersistence(payload, body);
     } else {
