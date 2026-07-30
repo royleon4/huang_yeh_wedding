@@ -1,3 +1,5 @@
+import { adminResponsiveLayoutUiTransform } from "./admin-responsive-layout-ui-transform.mjs";
+
 const ADMIN_APP_SUFFIX = "/src/client/AdminApp.jsx";
 const ADMIN_WORKSPACE_SUFFIX = "/src/client/AdminPhotoWorkspace.jsx";
 const UPLOAD_MODAL_SUFFIX = "/src/client/UploadModal.jsx";
@@ -132,6 +134,7 @@ function transformAdminWorkspace(source) {
 }
 
 export function adminPhotoWorkspaceUiTransform() {
+  const responsiveLayout = adminResponsiveLayoutUiTransform();
   return {
     name: "admin-photo-workspace-ui",
     enforce: "pre",
@@ -159,7 +162,7 @@ export function adminPhotoWorkspaceUiTransform() {
       );
       code = transformDeleteFlow(code);
       code = replacePhotoTab(code);
-      return { code, map: null };
+      return responsiveLayout.transform(code, id);
     },
   };
 }
