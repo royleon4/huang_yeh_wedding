@@ -7,7 +7,6 @@ on:
       - "pnpm-workspace.yaml"
       - "pnpm-lock.yaml"
       - ".github/workflows/memories-ci.yml"
-      - "scripts/repo-audit-cleanup.mjs"
   push:
     branches: [main]
     paths:
@@ -17,18 +16,15 @@ on:
       - ".github/workflows/memories-ci.yml"
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   test-and-build:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - name: Check out audit branch
+      - name: Check out repository
         uses: actions/checkout@v4
-        with:
-          ref: repo-audit-dead-code-readme
-          fetch-depth: 0
 
       - name: Set up pnpm
         uses: pnpm/action-setup@v4
@@ -41,12 +37,8 @@ jobs:
           node-version: 24
           cache: pnpm
 
-      - name: Install workspace dependencies and refresh lockfile
+      - name: Install workspace dependencies
         run: pnpm install --no-frozen-lockfile
-
-      - name: Generate repository audit cleanup
-        if: github.actor != 'github-actions[bot]'
-        run: node scripts/repo-audit-cleanup.mjs
 
       - name: Test standalone Memories
         shell: bash
@@ -80,18 +72,3 @@ jobs:
           done
           echo "Memories production server did not become healthy" >&2
           exit 1
-
-      - name: Commit generated cleanup and lockfile
-        if: github.actor != 'github-actions[bot]'
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add artifacts/memories-album/src/client/AdminApp.jsx \
-            artifacts/memories-album/process-content-ui-transform.mjs \
-            pnpm-lock.yaml
-          if git diff --cached --quiet; then
-            echo "No generated changes"
-            exit 0
-          fi
-          git commit -m "Remove transformed-away admin code and refresh lockfile"
-          git push origin HEAD:repo-audit-dead-code-readme
