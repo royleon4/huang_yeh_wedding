@@ -1,3 +1,5 @@
+import { isValidGalleryMediaOrder } from "../../gallery-media-order.mjs";
+
 function json(response, status, body) {
   response.writeHead(status, {
     "Content-Type": "application/json; charset=utf-8",
@@ -70,6 +72,7 @@ export function createAdminSettingsApi({ repository }) {
         body,
         "processWheelVisibleCount",
       );
+      const hasGalleryMediaOrder = Object.hasOwn(body, "galleryMediaOrder");
 
       if (hasWheelEnabled && typeof body.processWheelEnabled !== "boolean") {
         json(response, 422, {
@@ -90,6 +93,22 @@ export function createAdminSettingsApi({ repository }) {
           error: "processWheelVisibleCount must be an integer from 3 to 8",
           code: "INVALID_SETTING",
         });
+        return true;
+      }
+
+      if (hasGalleryMediaOrder) {
+        if (!isValidGalleryMediaOrder(body.galleryMediaOrder)) {
+          json(response, 422, {
+            error: "galleryMediaOrder must contain each supported media block exactly once",
+            code: "INVALID_SETTING",
+          });
+          return true;
+        }
+        json(
+          response,
+          200,
+          await repository.setGalleryMediaOrder(body.galleryMediaOrder),
+        );
         return true;
       }
 
