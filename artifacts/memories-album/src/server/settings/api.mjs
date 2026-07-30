@@ -1,5 +1,6 @@
 import { isValidGalleryMediaOrder } from "./media-order.mjs";
 import { isValidPinnedPhotosByProcess } from "../../pinned-photo-settings.mjs";
+import { isValidDriveUploadMode } from "./upload-mode.mjs";
 
 function json(response, status, body) {
   response.writeHead(status, {
@@ -78,6 +79,23 @@ export function createAdminSettingsApi({ repository }) {
         body,
         "pinnedPhotoIdsByProcess",
       );
+      const hasDriveUploadMode = Object.hasOwn(body, "driveUploadMode");
+
+      if (hasDriveUploadMode) {
+        if (!isValidDriveUploadMode(body.driveUploadMode)) {
+          json(response, 422, {
+            error: "driveUploadMode must be either single or chunked",
+            code: "INVALID_SETTING",
+          });
+          return true;
+        }
+        json(
+          response,
+          200,
+          await repository.setDriveUploadMode(body.driveUploadMode),
+        );
+        return true;
+      }
 
       if (hasWheelEnabled && typeof body.processWheelEnabled !== "boolean") {
         json(response, 422, {
