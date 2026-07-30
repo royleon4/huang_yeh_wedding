@@ -113,7 +113,7 @@ export function buildAdminChangeSet({
     .map((photo) => ({
       id: photo.id,
       changes: changedFields(
-        photo,
+        { ...photo, uploaderName: photo.uploaderName ?? "" },
         photoDrafts[photo.id] ?? photoDraft(photo),
         PHOTO_FIELDS,
       ),
