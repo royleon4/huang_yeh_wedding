@@ -1,0 +1,162 @@
+.batch-management-page {
+  width: min(72rem, 100%);
+  min-height: 100dvh;
+  margin: 0 auto;
+  padding: max(1.25rem, env(safe-area-inset-top))
+    max(1rem, env(safe-area-inset-right)) max(2rem, env(safe-area-inset-bottom))
+    max(1rem, env(safe-area-inset-left));
+}
+
+.batch-management-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1.5rem 0 1rem;
+}
+
+.batch-management-header h1 {
+  max-width: 14ch;
+  margin: 0;
+  font-size: clamp(2rem, 8vw, 4rem);
+  line-height: 1.08;
+}
+
+.batch-private-warning,
+.batch-management-summary,
+.replacement-link,
+.batch-management-state {
+  border: 1px solid var(--line);
+  border-radius: 1.2rem;
+  background: rgba(248, 244, 236, 0.78);
+  box-shadow: 0 16px 48px rgba(42, 61, 51, 0.07);
+}
+
+.batch-private-warning {
+  margin: 0 0 1rem;
+  padding: 1rem;
+  color: var(--muted);
+  line-height: 1.75;
+}
+
+.batch-management-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1rem;
+  padding: 1rem;
+}
+
+.batch-management-summary p {
+  margin: 0;
+}
+
+.batch-management-state {
+  min-height: 12rem;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 0.75rem;
+  padding: 1.5rem;
+  text-align: center;
+}
+
+.batch-management-state > span {
+  color: var(--coral);
+  font-size: 2.5rem;
+}
+
+.batch-management-state h2,
+.batch-management-state p {
+  margin: 0;
+}
+
+.batch-management-state p {
+  max-width: 40rem;
+  color: var(--muted);
+  line-height: 1.75;
+}
+
+.replacement-link {
+  display: grid;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+  padding: 1rem;
+}
+
+.replacement-link input {
+  width: 100%;
+  min-height: 44px;
+  border: 1px solid var(--line);
+  border-radius: 0.75rem;
+  background: white;
+  padding: 0.7rem;
+  color: var(--ink);
+}
+
+.batch-photo-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.batch-photo-grid li {
+  overflow: hidden;
+  display: grid;
+  align-content: start;
+  gap: 0.65rem;
+  border: 1px solid var(--line);
+  border-radius: 1rem;
+  background: rgba(248, 244, 236, 0.82);
+  padding: 0.55rem;
+}
+
+.batch-photo-grid img {
+  width: 100%;
+  height: auto;
+  aspect-ratio: 4 / 3;
+  border-radius: 0.7rem;
+  object-fit: cover;
+}
+
+.button.danger {
+  min-height: 44px;
+  border-color: var(--coral);
+  background: transparent;
+  color: var(--coral);
+}
+
+.button:disabled {
+  opacity: 0.55;
+  cursor: wait;
+}
+
+.batch-back-link {
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  margin-top: 1.5rem;
+  color: var(--leaf);
+}
+
+@media (max-width: 420px) {
+  .batch-management-header {
+    flex-direction: column-reverse;
+  }
+
+  .batch-management-summary {
+    align-items: stretch;
+    flex-direction: column;
+  }
+}
+
+@media (min-width: 700px) {
+  .batch-photo-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 1rem;
+  }
+}

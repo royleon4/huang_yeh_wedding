@@ -121,6 +121,10 @@ test("production runtime supplies the existing thumbnail service to uploads", as
   );
   assert.match(
     runtime,
-    /uploadApi:\s*createGuestUploadApi\([\s\S]*?thumbnailService,[\s\S]*?\)/,
+    /const guestUploadApi = createGuestUploadApi\([\s\S]*?thumbnailService,[\s\S]*?\);/,
+  );
+  assert.match(
+    runtime,
+    /if \(await guestBatchManagementApi\([\s\S]*?return guestUploadApi\(/,
   );
 });
