@@ -21,6 +21,10 @@ function createBatch() {
   });
 }
 
+function pause(milliseconds) {
+  return new Promise((resolve) => setTimeout(resolve, milliseconds));
+}
+
 test("automatically retries a transient file failure and continues the queue", async () => {
   const attempts = new Map();
   const updates = [];
@@ -28,11 +32,12 @@ test("automatically retries a transient file failure and continues the queue", a
     uploaderName: "小安",
     files,
     createBatchFn: createBatch,
-    uploadFileFn: async ({ file, clientUploadId, onProgress }) => {
+    uploadFileFn: async ({ file, clientUploadId, onProgress, onStage }) => {
       assert.ok(clientUploadId);
       const attempt = (attempts.get(file.name) ?? 0) + 1;
       attempts.set(file.name, attempt);
       onProgress(50);
+      onStage("processing");
       if (file.name === "two.jpg" && attempt === 1) {
         throw new UploadClientError("temporary failure", {
           code: "DRIVE_RETRYABLE",
@@ -54,6 +59,53 @@ test("automatically retries a transient file failure and continues the queue", a
       (update) => update.type === "file" && update.item.status === "retrying",
     ),
   );
+  assert.ok(
+    updates.some(
+      (update) => update.type === "file" && update.item.status === "processing",
+    ),
+  );
+});
+
+test("runs no more than three photo uploads concurrently", async () => {
+  const manyFiles = Array.from({ length: 8 }, (_, index) => ({
+    name: `${index + 1}.jpg`,
+  }));
+  let active = 0;
+  let maximum = 0;
+  const result = await uploadQueue({
+    uploaderName: "小安",
+    files: manyFiles,
+    createBatchFn: createBatch,
+    uploadFileFn: async ({ file }) => {
+      active += 1;
+      maximum = Math.max(maximum, active);
+      await pause(15);
+      active -= 1;
+      return { id: file.name, source: "guest", processIds: [] };
+    },
+  });
+
+  assert.equal(maximum, 3);
+  assert.deepEqual(result.summary, { success: 8, failed: 0, cancelled: 0 });
+});
+
+test("allows a lower explicit concurrency limit", async () => {
+  let active = 0;
+  let maximum = 0;
+  await uploadQueue({
+    uploaderName: "小安",
+    files,
+    maxConcurrent: 2,
+    createBatchFn: createBatch,
+    uploadFileFn: async ({ file }) => {
+      active += 1;
+      maximum = Math.max(maximum, active);
+      await pause(10);
+      active -= 1;
+      return { id: file.name, source: "guest", processIds: [] };
+    },
+  });
+  assert.equal(maximum, 2);
 });
 
 test("a permanent individual failure does not stop later photos", async () => {
@@ -74,7 +126,7 @@ test("a permanent individual failure does not stop later photos", async () => {
     },
   });
 
-  assert.deepEqual(attempted, ["one.jpg", "two.jpg", "three.jpg"]);
+  assert.deepEqual(attempted.sort(), ["one.jpg", "three.jpg", "two.jpg"]);
   assert.deepEqual(result.summary, { success: 2, failed: 1, cancelled: 0 });
 });
 
@@ -105,7 +157,7 @@ test("manual retry keeps the same batch and per-file upload identifier", async (
   assert.deepEqual(retried.summary, { success: 1, failed: 0, cancelled: 0 });
 });
 
-test("cancellation stops the remaining queue", async () => {
+test("cancellation aborts active workers and marks the remaining queue", async () => {
   const controller = new AbortController();
   const attempted = [];
   const result = await uploadQueue({
@@ -120,14 +172,15 @@ test("cancellation stops the remaining queue", async () => {
     },
   });
 
-  assert.deepEqual(attempted, ["one.jpg"]);
+  assert.ok(attempted.length >= 1 && attempted.length <= 3);
   assert.deepEqual(result.summary, { success: 0, failed: 0, cancelled: 3 });
 });
 
 test("requires a name and at least one selected photo", async () => {
   await assert.rejects(
     uploadQueue({ uploaderName: "", files: [], createBatchFn: createBatch }),
-    (error) => error.code === "PHOTO_REQUIRED" || error.code === "INVALID_UPLOADER_NAME",
+    (error) =>
+      error.code === "PHOTO_REQUIRED" || error.code === "INVALID_UPLOADER_NAME",
   );
 });
 

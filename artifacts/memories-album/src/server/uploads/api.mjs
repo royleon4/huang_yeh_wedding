@@ -1,7 +1,10 @@
-import Busboy from "busboy";
 import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { toPublicPhoto } from "../photos/api.mjs";
 import { ImageValidationError } from "./image-processor.mjs";
+import {
+  parsePhotoToTemporaryFile,
+  TemporaryPhotoError,
+} from "./temp-photo.mjs";
 
 const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -76,146 +79,24 @@ async function readJson(request, maxBytes = 8 * 1024) {
   }
 }
 
-export function parsePhotoMultipart(
-  request,
-  {
-    maxFileBytes = DEFAULT_MAX_FILE_BYTES,
-    allowedFields = [],
-    maxFieldBytes = 32 * 1024,
-  } = {},
-) {
-  return new Promise((resolve, reject) => {
-    const permittedFields = new Set(allowedFields);
-    let parser;
-    try {
-      parser = Busboy({
-        headers: request.headers,
-        limits: {
-          files: 2,
-          fields: Math.max(1, permittedFields.size),
-          fieldSize: maxFieldBytes,
-          fileSize: maxFileBytes,
-        },
-      });
-    } catch {
-      reject(
-        new UploadApiError(
-          415,
-          "Expected a multipart photo upload",
-          "INVALID_MULTIPART",
-        ),
-      );
-      return;
-    }
-
-    let settled = false;
-    let fileSeen = false;
-    let record = null;
-    let problem = null;
-    const fields = {};
-    const fail = (error) => {
-      if (settled) return;
-      settled = true;
-      reject(error);
+// Compatibility helpers for existing server tests and one-off administrator code.
+// The production guest path below keeps the file on disk instead of buffering it.
+export async function parsePhotoMultipart(request, options = {}) {
+  const temporary = await parsePhotoToTemporaryFile(request, options);
+  try {
+    return {
+      file: {
+        filename: temporary.filename,
+        mimeType: temporary.mimeType,
+        bytes: await temporary.readBytes(),
+        size: temporary.size,
+        truncated: false,
+      },
+      fields: temporary.fields,
     };
-
-    request.once("aborted", () => {
-      fail(new UploadApiError(499, "Upload cancelled", "CANCELLED"));
-    });
-
-    parser.on("file", (fieldName, stream, info) => {
-      if (fieldName !== "photo" || fileSeen) {
-        problem = new UploadApiError(
-          400,
-          "Exactly one photo is required",
-          "INVALID_FILE_COUNT",
-        );
-        stream.resume();
-        return;
-      }
-      fileSeen = true;
-      const chunks = [];
-      let size = 0;
-      let truncated = false;
-      stream.on("limit", () => {
-        truncated = true;
-      });
-      stream.on("data", (chunk) => {
-        size += chunk.length;
-        chunks.push(chunk);
-      });
-      stream.on("end", () => {
-        record = {
-          filename: info.filename || "photo",
-          mimeType: info.mimeType || "application/octet-stream",
-          bytes: Buffer.concat(chunks),
-          size,
-          truncated,
-        };
-      });
-    });
-
-    parser.on("field", (fieldName, value, info) => {
-      if (
-        !permittedFields.has(fieldName) ||
-        Object.hasOwn(fields, fieldName) ||
-        info?.valueTruncated
-      ) {
-        problem = new UploadApiError(
-          400,
-          "Unexpected multipart fields",
-          "INVALID_MULTIPART",
-        );
-        return;
-      }
-      fields[fieldName] = value;
-    });
-    parser.on("filesLimit", () => {
-      problem = new UploadApiError(
-        400,
-        "Exactly one photo is required",
-        "INVALID_FILE_COUNT",
-      );
-    });
-    parser.on("fieldsLimit", () => {
-      problem = new UploadApiError(
-        400,
-        "Unexpected multipart fields",
-        "INVALID_MULTIPART",
-      );
-    });
-    parser.on("error", () => {
-      fail(
-        new UploadApiError(
-          400,
-          "The multipart upload could not be read",
-          "INVALID_MULTIPART",
-        ),
-      );
-    });
-    parser.on("finish", () => {
-      if (settled) return;
-      if (problem) return fail(problem);
-      if (!record) {
-        return fail(
-          new UploadApiError(400, "A photo is required", "PHOTO_REQUIRED"),
-        );
-      }
-      if (record.truncated) {
-        return fail(
-          new UploadApiError(
-            413,
-            "The selected photo is too large",
-            "PHOTO_TOO_LARGE",
-          ),
-        );
-      }
-      settled = true;
-      resolve({ file: record, fields });
-    });
-
-    request.pipe(parser);
-  });
+  } finally {
+    await temporary.cleanup();
+  }
 }
 
 export async function parseSinglePhoto(request, options = {}) {
@@ -279,9 +160,21 @@ function createMemoryDurableRepository() {
         status: "processing",
         originalDriveFileId: current?.originalDriveFileId ?? null,
         thumbnailDriveFileId: current?.thumbnailDriveFileId ?? null,
+        originalUploadSessionUri: current?.originalUploadSessionUri ?? null,
+        originalUploadOffset: current?.originalUploadOffset ?? 0,
       };
       items.set(key, item);
       return { state: "claimed", item };
+    },
+    async recordOriginalUploadSession(input) {
+      const key = `${input.batchId}:${input.clientUploadId}`;
+      const next = {
+        ...(items.get(key) ?? {}),
+        originalUploadSessionUri: input.sessionUri,
+        originalUploadOffset: Number(input.uploadedBytes ?? 0),
+      };
+      items.set(key, next);
+      return next;
     },
     async recordFiles(input) {
       const key = `${input.batchId}:${input.clientUploadId}`;
@@ -292,13 +185,22 @@ function createMemoryDurableRepository() {
           input.originalDriveFileId ?? current.originalDriveFileId ?? null,
         thumbnailDriveFileId:
           input.thumbnailDriveFileId ?? current.thumbnailDriveFileId ?? null,
+        ...(input.originalDriveFileId
+          ? { originalUploadSessionUri: null, originalUploadOffset: 0 }
+          : {}),
       };
       items.set(key, next);
       return next;
     },
     async markReady(input) {
       const key = `${input.batchId}:${input.clientUploadId}`;
-      items.set(key, { ...(items.get(key) ?? {}), ...input, status: "ready" });
+      items.set(key, {
+        ...(items.get(key) ?? {}),
+        ...input,
+        status: "ready",
+        originalUploadSessionUri: null,
+        originalUploadOffset: 0,
+      });
     },
     async markFailed(input) {
       const key = `${input.batchId}:${input.clientUploadId}`;
@@ -316,7 +218,6 @@ async function validateClassification(body, processRepository) {
       "INVALID_CLASSIFICATION",
     );
   }
-
   if (classification !== "wedding") {
     return { classification, classificationProcessId: null };
   }
@@ -340,12 +241,62 @@ async function validateClassification(body, processRepository) {
   return { classification, classificationProcessId: processId };
 }
 
+async function prepareOriginal(temporary, imageProcessor) {
+  if (typeof imageProcessor.processFile === "function") {
+    const processed = await imageProcessor.processFile({
+      filePath: temporary.filePath,
+      mimeType: temporary.mimeType,
+    });
+    return {
+      filePath: processed.originalPath,
+      bytes: null,
+      byteSize: processed.originalByteSize,
+      originalContentType: processed.originalContentType,
+      originalExtension: processed.originalExtension,
+      width: processed.width,
+      height: processed.height,
+      thumbnailBytes: null,
+      thumbnailContentType: null,
+    };
+  }
+
+  const processed = await imageProcessor.process({
+    bytes: await temporary.readBytes(),
+    mimeType: temporary.mimeType,
+  });
+  return {
+    filePath: null,
+    bytes: processed.originalBytes,
+    byteSize: processed.originalBytes.length,
+    originalContentType: processed.originalContentType,
+    originalExtension: processed.originalExtension,
+    width: processed.width,
+    height: processed.height,
+    thumbnailBytes: processed.thumbnailBytes ?? null,
+    thumbnailContentType: processed.thumbnailContentType ?? null,
+  };
+}
+
+function scheduleThumbnailCreation(thumbnailService, photo) {
+  if (!thumbnailService || photo.thumbnailDriveFileId) return;
+  setImmediate(() => {
+    void thumbnailService.ensurePhotoThumbnail(photo).catch((error) => {
+      console.warn("Memories deferred thumbnail generation failed", {
+        photoId: photo.id,
+        name: error instanceof Error ? error.name : "UnknownError",
+        code: error?.code,
+      });
+    });
+  });
+}
+
 export function createGuestUploadApi({
   repository,
   durableUploadRepository = createMemoryDurableRepository(),
   processRepository = null,
   drive,
   imageProcessor,
+  thumbnailService = null,
   limits = {},
   now = () => new Date(),
   createId = randomUUID,
@@ -363,6 +314,7 @@ export function createGuestUploadApi({
     url = new URL(request.url ?? "/", "http://localhost"),
   ) {
     let activeUpload = null;
+    let temporary = null;
     try {
       if (
         request.method === "POST" &&
@@ -432,18 +384,17 @@ export function createGuestUploadApi({
           );
         }
 
-        const input = await parseSinglePhoto(request, {
+        temporary = await parsePhotoToTemporaryFile(request, {
           maxFileBytes: limits.maxFileBytes ?? DEFAULT_MAX_FILE_BYTES,
         });
-        const processed = await imageProcessor.process(input);
-        const contentHash = hash(input.bytes);
+        const contentHash = temporary.contentHash;
         const clientUploadId = requestedClientUploadId(request, contentHash);
         const proposedPhotoId = createId();
         const claimed = await durableUploadRepository.claim({
           batchId,
           clientUploadId,
           contentHash,
-          originalFilename: input.filename,
+          originalFilename: temporary.filename,
           photoId: proposedPhotoId,
           now: now(),
         });
@@ -459,6 +410,7 @@ export function createGuestUploadApi({
               { retryAfterMs: 1000 },
             );
           }
+          activeUpload = null;
           json(response, 200, { photo: toPublicPhoto(existing), reused: true });
           return true;
         }
@@ -473,28 +425,42 @@ export function createGuestUploadApi({
 
         const item = claimed.item;
         const photoId = item.photoId ?? proposedPhotoId;
+        const processed = await prepareOriginal(temporary, imageProcessor);
         const stableKey = hash(`${batchId}:${clientUploadId}`).slice(0, 32);
-        const originalFilename = `guest-${stableKey}-${safeFilenamePart(input.filename)}.${processed.originalExtension}`;
+        const originalFilename = `guest-${stableKey}-${safeFilenamePart(temporary.filename)}.${processed.originalExtension}`;
         const thumbnailFilename = `guest-${stableKey}.webp`;
         const appProperties = {
           batchId,
           uploadId: clientUploadId.slice(0, 120),
         };
 
+        let sessionUri = item.originalUploadSessionUri ?? null;
+        let uploadedBytes = Number(item.originalUploadOffset ?? 0);
+        const recordSession = async (progress) => {
+          sessionUri = progress.sessionUri;
+          uploadedBytes = Number(progress.uploadedBytes ?? 0);
+          await durableUploadRepository.recordOriginalUploadSession?.({
+            batchId,
+            clientUploadId,
+            sessionUri,
+            uploadedBytes,
+          });
+        };
+
         let originalFileId = item.originalDriveFileId ?? null;
-        if (!originalFileId && drive.findChildByName) {
-          const existingOriginal = await withDriveRetry(() =>
-            drive.findChildByName(drive.originalFolderId, originalFilename),
-          );
-          originalFileId = existingOriginal?.id ?? null;
-        }
         if (!originalFileId) {
           const original = await withDriveRetry(() =>
             drive.uploadOriginal({
-              bytes: processed.originalBytes,
+              bytes: processed.bytes,
+              filePath: processed.filePath,
+              byteSize: processed.byteSize,
               filename: originalFilename,
               contentType: processed.originalContentType,
               appProperties,
+              resumeSessionUri: sessionUri,
+              resumeOffset: uploadedBytes,
+              onSession: recordSession,
+              onProgress: recordSession,
             }),
           );
           originalFileId = original.fileId;
@@ -506,13 +472,11 @@ export function createGuestUploadApi({
         });
 
         let thumbnailFileId = item.thumbnailDriveFileId ?? null;
-        if (!thumbnailFileId && drive.findChildByName) {
-          const existingThumbnail = await withDriveRetry(() =>
-            drive.findChildByName(drive.thumbnailFolderId, thumbnailFilename),
-          );
-          thumbnailFileId = existingThumbnail?.id ?? null;
-        }
-        if (!thumbnailFileId) {
+        if (
+          !thumbnailService &&
+          !thumbnailFileId &&
+          processed.thumbnailBytes
+        ) {
           const thumbnail = await withDriveRetry(() =>
             drive.uploadThumbnail({
               bytes: processed.thumbnailBytes,
@@ -522,17 +486,18 @@ export function createGuestUploadApi({
             }),
           );
           thumbnailFileId = thumbnail.fileId;
+          await durableUploadRepository.recordFiles({
+            batchId,
+            clientUploadId,
+            thumbnailDriveFileId: thumbnailFileId,
+          });
         }
-        await durableUploadRepository.recordFiles({
-          batchId,
-          clientUploadId,
-          thumbnailDriveFileId: thumbnailFileId,
-        });
 
         const processIds =
           batch.classification === "wedding" && batch.classificationProcessId
             ? [batch.classificationProcessId]
             : [];
+        const timestamp = now().toISOString();
         const photo = await repository.insertPhoto({
           id: photoId,
           batchId,
@@ -541,7 +506,7 @@ export function createGuestUploadApi({
           thumbnailDriveFileId: thumbnailFileId,
           originalFilename,
           mimeType: processed.originalContentType,
-          byteSize: processed.originalBytes.length,
+          byteSize: processed.byteSize,
           width: processed.width,
           height: processed.height,
           contentHash,
@@ -552,8 +517,8 @@ export function createGuestUploadApi({
           visibility: "public",
           processingState: "ready",
           processIds,
-          createdAt: now().toISOString(),
-          updatedAt: now().toISOString(),
+          createdAt: timestamp,
+          updatedAt: timestamp,
         });
         await durableUploadRepository.markReady({
           batchId,
@@ -561,7 +526,12 @@ export function createGuestUploadApi({
           photoId: photo.id,
         });
         activeUpload = null;
-        json(response, 201, { photo: toPublicPhoto(photo), reused: false });
+        json(response, 201, {
+          photo: toPublicPhoto(photo),
+          reused: false,
+          thumbnailPending: !photo.thumbnailDriveFileId,
+        });
+        scheduleThumbnailCreation(thumbnailService, photo);
         return true;
       }
 
@@ -574,6 +544,10 @@ export function createGuestUploadApi({
             code: error?.code ?? error?.name ?? "UPLOAD_FAILED",
           })
           .catch(() => {});
+      }
+      if (error instanceof TemporaryPhotoError) {
+        json(response, error.status, { error: error.message, code: error.code });
+        return true;
       }
       if (error instanceof UploadApiError) {
         const retryAfterMs = Number(error.details?.retryAfterMs ?? 0);
@@ -630,6 +604,8 @@ export function createGuestUploadApi({
         return true;
       }
       throw error;
+    } finally {
+      await temporary?.cleanup?.().catch(() => {});
     }
   };
 }

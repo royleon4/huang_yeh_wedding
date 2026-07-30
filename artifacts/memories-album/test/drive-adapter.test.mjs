@@ -12,17 +12,28 @@ function response({
   body = Buffer.from("file"),
   headers = new Map(),
 } = {}) {
+  const normalized = new Map(
+    [...headers.entries()].map(([key, value]) => [String(key).toLowerCase(), value]),
+  );
   return {
     ok,
     status,
     body,
     headers: {
-      get: (name) => headers.get(name.toLowerCase()) ?? null,
+      get: (name) => normalized.get(String(name).toLowerCase()) ?? null,
     },
     async json() {
       return json;
     },
   };
+}
+
+function isLookup(path) {
+  return path.startsWith("/drive/v3/files?q=");
+}
+
+function isSessionStart(path, options) {
+  return path.includes("uploadType=resumable") && options?.method === "POST";
 }
 
 test("requires the server-side Memories originals folder id", () => {
@@ -36,22 +47,26 @@ test("requires the server-side Memories originals folder id", () => {
   );
 });
 
-test("uploads originals into the approved folder without returning it", async () => {
-  let request;
+test("uploads originals through a Drive resumable session", async () => {
+  const requests = [];
   const storage = new GoogleDriveStorage({
     originalFolderId: "private-originals-folder-id",
-    proxy: async (connector, path, options) => {
-      if (path.startsWith("/drive/v3/files?q=")) {
-        return response({ json: { files: [] } });
+    proxy: async (connector, path, options = {}) => {
+      requests.push({ connector, path, options });
+      if (isLookup(path)) return response({ json: { files: [] } });
+      if (isSessionStart(path, options)) {
+        return response({
+          headers: new Map([
+            ["location", "https://www.googleapis.com/upload/drive/v3/files?upload_id=session-1"],
+          ]),
+        });
       }
-      request = { connector, path, options };
-      return response({
-        json: {
-          id: "private-file-id",
-          name: "photo.jpg",
-          size: "3",
-        },
-      });
+      if (path.includes("upload_id=session-1")) {
+        return response({
+          json: { id: "private-file-id", name: "photo.jpg", size: "3" },
+        });
+      }
+      throw new Error(`Unexpected path ${path}`);
     },
   });
 
@@ -67,11 +82,105 @@ test("uploads originals into the approved folder without returning it", async ()
     size: 3,
     reused: false,
   });
-  assert.equal(request.connector, "google-drive");
-  assert.match(
-    request.options.body.toString(),
-    /private-originals-folder-id/,
+  const start = requests.find(({ path, options }) => isSessionStart(path, options));
+  assert.equal(start.connector, "google-drive");
+  assert.match(start.options.body, /private-originals-folder-id/);
+  assert.equal(start.options.headers["X-Upload-Content-Length"], "3");
+  const chunk = requests.find(({ path, options }) =>
+    path.includes("upload_id=session-1") && options.headers?.["Content-Range"]?.startsWith("bytes 0-2/3"),
   );
+  assert.ok(chunk);
+  assert.equal(chunk.options.body.toString(), "abc");
+});
+
+test("uploads a large original in 4 MiB chunks", async () => {
+  const ranges = [];
+  const bytes = Buffer.alloc(4 * 1024 * 1024 + 3, 7);
+  const storage = new GoogleDriveStorage({
+    originalFolderId: "private-originals-folder-id",
+    proxy: async (_connector, path, options = {}) => {
+      if (isLookup(path)) return response({ json: { files: [] } });
+      if (isSessionStart(path, options)) {
+        return response({
+          headers: new Map([["location", "https://upload.example/session-large"]]),
+        });
+      }
+      if (path === "/session-large") {
+        const range = options.headers["Content-Range"];
+        ranges.push(range);
+        if (ranges.length === 1) {
+          return response({
+            ok: false,
+            status: 308,
+            headers: new Map([["range", `bytes=0-${4 * 1024 * 1024 - 1}`]]),
+          });
+        }
+        return response({
+          json: { id: "large-id", name: "large.jpg", size: String(bytes.length) },
+        });
+      }
+      throw new Error(`Unexpected path ${path}`);
+    },
+  });
+
+  const progress = [];
+  const result = await storage.uploadOriginal({
+    bytes,
+    filename: "large.jpg",
+    contentType: "image/jpeg",
+    onProgress: ({ uploadedBytes }) => progress.push(uploadedBytes),
+  });
+
+  assert.equal(result.fileId, "large-id");
+  assert.deepEqual(ranges, [
+    `bytes 0-${4 * 1024 * 1024 - 1}/${bytes.length}`,
+    `bytes ${4 * 1024 * 1024}-${bytes.length - 1}/${bytes.length}`,
+  ]);
+  assert.deepEqual(progress, [4 * 1024 * 1024, bytes.length]);
+});
+
+test("continues a persisted resumable session from the accepted range", async () => {
+  const requests = [];
+  const bytes = Buffer.alloc(4 * 1024 * 1024 + 2, 9);
+  const storage = new GoogleDriveStorage({
+    originalFolderId: "private-originals-folder-id",
+    proxy: async (_connector, path, options = {}) => {
+      requests.push({ path, options });
+      if (isLookup(path)) return response({ json: { files: [] } });
+      if (path === "/existing-session" && options.headers?.["Content-Range"] === `bytes */${bytes.length}`) {
+        return response({
+          ok: false,
+          status: 308,
+          headers: new Map([["range", `bytes=0-${4 * 1024 * 1024 - 1}`]]),
+        });
+      }
+      if (path === "/existing-session") {
+        return response({
+          json: { id: "resumed-id", name: "resume.jpg", size: String(bytes.length) },
+        });
+      }
+      throw new Error(`Unexpected path ${path}`);
+    },
+  });
+
+  const result = await storage.uploadOriginal({
+    bytes,
+    filename: "resume.jpg",
+    contentType: "image/jpeg",
+    resumeSessionUri: "https://upload.example/existing-session",
+    resumeOffset: 0,
+  });
+
+  assert.equal(result.fileId, "resumed-id");
+  assert.equal(requests.some(({ path, options }) => isSessionStart(path, options)), false);
+  const resumedChunk = requests.find(
+    ({ path, options }) =>
+      path === "/existing-session" &&
+      options.headers?.["Content-Range"] ===
+        `bytes ${4 * 1024 * 1024}-${bytes.length - 1}/${bytes.length}`,
+  );
+  assert.ok(resumedChunk);
+  assert.equal(resumedChunk.options.body.length, 2);
 });
 
 test("reuses an existing deterministic Drive filename without uploading again", async () => {
@@ -79,7 +188,7 @@ test("reuses an existing deterministic Drive filename without uploading again", 
   const storage = new GoogleDriveStorage({
     originalFolderId: "private-originals-folder-id",
     proxy: async (_connector, path) => {
-      if (path.startsWith("/drive/v3/files?q=")) {
+      if (isLookup(path)) {
         return response({
           json: {
             files: [{ id: "existing-id", name: "photo.jpg", size: "3" }],
@@ -117,15 +226,13 @@ test("does not place technical thumbnails beside originals without approval", as
   );
 });
 
-test("uses a separately configured technical thumbnail folder", async () => {
+test("keeps small thumbnails in the separately configured folder", async () => {
   let request;
   const storage = new GoogleDriveStorage({
     originalFolderId: "private-originals-folder-id",
     thumbnailFolderId: "private-thumbnails-folder-id",
     proxy: async (connector, path, options) => {
-      if (path.startsWith("/drive/v3/files?q=")) {
-        return response({ json: { files: [] } });
-      }
+      if (isLookup(path)) return response({ json: { files: [] } });
       request = { connector, path, options };
       return response({
         json: {
@@ -145,15 +252,15 @@ test("uses a separately configured technical thumbnail folder", async () => {
   const body = request.options.body.toString();
   assert.match(body, /private-thumbnails-folder-id/);
   assert.doesNotMatch(body, /private-originals-folder-id/);
+  assert.match(request.path, /uploadType=multipart/);
 });
 
-test("recovers a file created before an ambiguous retryable response", async () => {
+test("recovers a Drive file after an ambiguous resumable response", async () => {
   let lookupCount = 0;
-  let uploadCount = 0;
   const storage = new GoogleDriveStorage({
     originalFolderId: "private-originals-folder-id",
-    proxy: async (_connector, path) => {
-      if (path.startsWith("/drive/v3/files?q=")) {
+    proxy: async (_connector, path, options = {}) => {
+      if (isLookup(path)) {
         lookupCount += 1;
         return response({
           json: {
@@ -164,8 +271,22 @@ test("recovers a file created before an ambiguous retryable response", async () 
           },
         });
       }
-      uploadCount += 1;
-      return response({ ok: false, status: 503 });
+      if (isSessionStart(path, options)) {
+        return response({
+          headers: new Map([["location", "https://upload.example/ambiguous"]]),
+        });
+      }
+      if (path === "/ambiguous" && options.headers?.["Content-Range"] === "bytes 0-2/3") {
+        return response({ ok: false, status: 503 });
+      }
+      if (path === "/ambiguous" && options.headers?.["Content-Range"] === "bytes */3") {
+        return response({
+          ok: false,
+          status: 308,
+          headers: new Map([["range", "bytes=0-2"]]),
+        });
+      }
+      throw new Error(`Unexpected path ${path}`);
     },
   });
 
@@ -176,8 +297,8 @@ test("recovers a file created before an ambiguous retryable response", async () 
   });
 
   assert.equal(result.fileId, "recovered-id");
-  assert.equal(result.reused, true);
-  assert.equal(uploadCount, 1);
+  assert.equal(result.reused, false);
+  assert.equal(lookupCount, 2);
 });
 
 test("connector errors are sanitized and never include response bodies", async () => {
