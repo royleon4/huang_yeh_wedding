@@ -24,4 +24,16 @@ test("canonical Memories admin URLs translate to existing internal handlers", ()
     ).pathname,
     "/admin/api/photos",
   );
+  assert.equal(
+    internalAdminUrl(
+      new URL("https://example.test/Memories/admin/photos"),
+    ).pathname,
+    "/admin",
+  );
+  assert.equal(
+    internalAdminUrl(
+      new URL("https://example.test/Memories/admin/subcategory-ui"),
+    ).pathname,
+    "/admin",
+  );
 });
