@@ -39,6 +39,9 @@ test("admin transforms replace only the old add-photo tab and preserve photo edi
   assert.match(code, /renderPhoto=\{\(photo\) =>/);
   assert.match(code, /<PhotoEditor/);
   assert.match(code, /mergeAdminPhotos\(current, photoData\.photos\)/);
+  assert.match(code, /deletion\.deletedIds/);
+  assert.match(code, /所有位置都會一起刪除/);
+  assert.match(code, /deletedIds\.has\(item\.id\)/);
   assert.doesNotMatch(code, /value=\{upload\.displayName\}/);
   assert.doesNotMatch(code, /value=\{upload\.capturedAt\}/);
 });
