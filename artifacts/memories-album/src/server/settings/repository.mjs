@@ -2,6 +2,7 @@ import {
   DEFAULT_GALLERY_MEDIA_ORDER,
   normalizeGalleryMediaOrder,
 } from "./media-order.mjs";
+import { normalizePinnedPhotosByProcess } from "../../pinned-photo-settings.mjs";
 
 const NAVIGATION_KEY = "primary_navigation_visible";
 const GUEST_UPLOAD_CATEGORY_SELECTION_KEY =
@@ -9,6 +10,7 @@ const GUEST_UPLOAD_CATEGORY_SELECTION_KEY =
 const PROCESS_WHEEL_ENABLED_KEY = "process_wheel_enabled";
 const PROCESS_WHEEL_VISIBLE_COUNT_KEY = "process_wheel_visible_count";
 const GALLERY_MEDIA_ORDER_KEY = "gallery_media_order";
+const PINNED_PHOTOS_BY_PROCESS_KEY = "pinned_photos_by_process";
 
 function booleanSetting(rows, key, fallback) {
   const row = rows.find((item) => item.key === key);
@@ -24,6 +26,11 @@ function integerSetting(rows, key, fallback) {
 function mediaOrderSetting(rows) {
   const row = rows.find((item) => item.key === GALLERY_MEDIA_ORDER_KEY);
   return normalizeGalleryMediaOrder(row?.value ?? DEFAULT_GALLERY_MEDIA_ORDER);
+}
+
+function pinnedPhotosSetting(rows) {
+  const row = rows.find((item) => item.key === PINNED_PHOTOS_BY_PROCESS_KEY);
+  return normalizePinnedPhotosByProcess(row?.value);
 }
 
 export class PostgresSettingsRepository {
@@ -43,6 +50,7 @@ export class PostgresSettingsRepository {
         PROCESS_WHEEL_ENABLED_KEY,
         PROCESS_WHEEL_VISIBLE_COUNT_KEY,
         GALLERY_MEDIA_ORDER_KEY,
+        PINNED_PHOTOS_BY_PROCESS_KEY,
       ]],
     );
     return {
@@ -67,6 +75,7 @@ export class PostgresSettingsRepository {
         6,
       ),
       galleryMediaOrder: mediaOrderSetting(result.rows),
+      pinnedPhotoIdsByProcess: pinnedPhotosSetting(result.rows),
     };
   }
 
@@ -107,6 +116,14 @@ export class PostgresSettingsRepository {
       GALLERY_MEDIA_ORDER_KEY,
       "galleryMediaOrder",
       normalizeGalleryMediaOrder(value),
+    );
+  }
+
+  async setPinnedPhotoIdsByProcess(value) {
+    return this.setJson(
+      PINNED_PHOTOS_BY_PROCESS_KEY,
+      "pinnedPhotoIdsByProcess",
+      normalizePinnedPhotosByProcess(value),
     );
   }
 

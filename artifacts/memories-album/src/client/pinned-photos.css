@@ -1,0 +1,66 @@
+.pinned-photo-stack {
+  display: grid;
+  gap: 0.9rem;
+  width: 100%;
+  margin: 0 0 1rem;
+}
+
+.pinned-photo-card {
+  width: 100%;
+  margin: 0;
+  overflow: hidden;
+  border: 1px solid rgba(45, 67, 56, 0.16);
+  border-radius: 1rem;
+  background: rgba(249, 246, 239, 0.92);
+  box-shadow: 0 18px 48px rgba(42, 61, 51, 0.1);
+}
+
+.pinned-photo-open {
+  position: relative;
+  display: block;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: #ded8ca;
+  cursor: zoom-in;
+}
+
+.pinned-photo-open img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.pinned-photo-rank {
+  position: absolute;
+  top: 0.75rem;
+  left: 0.75rem;
+  min-width: 2.35rem;
+  height: 2.35rem;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(255, 255, 255, 0.82);
+  border-radius: 999px;
+  background: rgba(27, 55, 44, 0.72);
+  color: #fff;
+  font-family: "Playfair Display", serif;
+  font-size: 0.76rem;
+  backdrop-filter: blur(8px);
+}
+
+@media (min-width: 760px) {
+  .pinned-photo-stack {
+    gap: 1.25rem;
+    margin-bottom: 1.35rem;
+  }
+
+  .pinned-photo-open {
+    display: grid;
+    place-items: center;
+  }
+
+  .pinned-photo-open img {
+    max-height: 86vh;
+    object-fit: contain;
+  }
+}
