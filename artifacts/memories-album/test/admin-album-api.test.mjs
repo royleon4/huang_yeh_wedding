@@ -47,6 +47,7 @@ test("administrators can add and edit albums while visitors only see visible alb
       isVisible: true,
       isSystem: true,
       showSummary: true,
+      photoSortMode: "time-asc",
     },
   ]);
   const adminApi = createAdminAlbumApi({
@@ -82,6 +83,7 @@ test("administrators can add and edit albums while visitors only see visible alb
         titleZh: "婚前回憶",
         titleEn: "Before the wedding",
         descriptionZh: "我們一路走來的日常",
+        photoSortMode: "name-asc",
       }),
     });
     assert.equal(created.status, 201);
@@ -96,8 +98,24 @@ test("administrators can add and edit albums while visitors only see visible alb
         isVisible: true,
         isSystem: false,
         showSummary: true,
+        photoSortMode: "name-asc",
       },
     });
+
+    const invalidSort = await fetch(
+      `${origin}/admin/api/albums/11111111-1111-4111-8111-111111111111`,
+      {
+        method: "PATCH",
+        headers: {
+          Cookie: cookie,
+          "Content-Type": "application/json",
+          "X-Memories-Admin": "1",
+        },
+        body: JSON.stringify({ photoSortMode: "not-a-sort-mode" }),
+      },
+    );
+    assert.equal(invalidSort.status, 422);
+    assert.equal((await invalidSort.json()).code, "INVALID_ALBUM_SORT");
 
     const updated = await fetch(
       `${origin}/admin/api/albums/11111111-1111-4111-8111-111111111111`,
@@ -112,6 +130,7 @@ test("administrators can add and edit albums while visitors only see visible alb
           titleZh: "交往回憶",
           isVisible: false,
           showSummary: false,
+          photoSortMode: "author-desc",
         }),
       },
     );
@@ -119,6 +138,7 @@ test("administrators can add and edit albums while visitors only see visible alb
     const updatedAlbum = (await updated.json()).album;
     assert.equal(updatedAlbum.titleZh, "交往回憶");
     assert.equal(updatedAlbum.showSummary, false);
+    assert.equal(updatedAlbum.photoSortMode, "author-desc");
 
     const adminList = await fetch(`${origin}/admin/api/albums`, {
       headers: { Cookie: cookie },
@@ -141,6 +161,7 @@ test("administrators can add and edit albums while visitors only see visible alb
           descriptionEn: "",
           displayOrder: 1,
           showSummary: true,
+          photoSortMode: "time-asc",
         },
       ],
     });

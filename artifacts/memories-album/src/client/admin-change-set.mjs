@@ -1,3 +1,8 @@
+import {
+  DEFAULT_ALBUM_PHOTO_SORT_MODE,
+  normalizeAlbumPhotoSortMode,
+} from "../../album-photo-order.mjs";
+
 const ALBUM_FIELDS = [
   "titleZh",
   "titleEn",
@@ -5,6 +10,7 @@ const ALBUM_FIELDS = [
   "descriptionEn",
   "isVisible",
   "showSummary",
+  "photoSortMode",
 ];
 const CATEGORY_FIELDS = ["labelZh", "labelEn"];
 const PHOTO_FIELDS = [
@@ -47,6 +53,9 @@ export function albumDraft(album) {
     descriptionEn: album.descriptionEn,
     isVisible: album.isVisible,
     showSummary: album.showSummary !== false,
+    photoSortMode: normalizeAlbumPhotoSortMode(
+      album.photoSortMode ?? DEFAULT_ALBUM_PHOTO_SORT_MODE,
+    ),
   };
 }
 
@@ -93,7 +102,11 @@ export function buildAdminChangeSet({
     .map((album) => ({
       id: album.id,
       changes: changedFields(
-        { ...album, showSummary: album.showSummary !== false },
+        {
+          ...album,
+          showSummary: album.showSummary !== false,
+          photoSortMode: normalizeAlbumPhotoSortMode(album.photoSortMode),
+        },
         albumDrafts[album.id] ?? albumDraft(album),
         ALBUM_FIELDS,
       ),
@@ -129,7 +142,15 @@ export function buildAdminChangeSet({
   );
 
   const albumCreates = String(newAlbum.titleZh ?? "").trim()
-    ? [{ clientId: "new-album", values: { ...newAlbum } }]
+    ? [
+        {
+          clientId: "new-album",
+          values: {
+            ...newAlbum,
+            photoSortMode: normalizeAlbumPhotoSortMode(newAlbum.photoSortMode),
+          },
+        },
+      ]
     : [];
   const categoryCreates = String(newCategory.labelZh ?? "").trim()
     ? [{ clientId: "new-category", values: { ...newCategory } }]

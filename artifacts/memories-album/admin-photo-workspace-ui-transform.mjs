@@ -1,4 +1,5 @@
 import { adminResponsiveLayoutUiTransform } from "./admin-responsive-layout-ui-transform.mjs";
+import { albumPhotoOrderUiTransform } from "./album-photo-order-ui-transform.mjs";
 
 const ADMIN_APP_SUFFIX = "/src/client/AdminApp.jsx";
 const ADMIN_WORKSPACE_SUFFIX = "/src/client/AdminPhotoWorkspace.jsx";
@@ -135,21 +136,27 @@ function transformAdminWorkspace(source) {
 
 export function adminPhotoWorkspaceUiTransform() {
   const responsiveLayout = adminResponsiveLayoutUiTransform();
+  const albumPhotoOrder = albumPhotoOrderUiTransform();
   return {
     name: "admin-photo-workspace-ui",
     enforce: "pre",
     transform(source, id) {
       const normalizedId = id.split("?")[0].replace(/\\/g, "/");
+      const albumOrderResult = albumPhotoOrder.transform(source, id);
+      let code = albumOrderResult?.code ?? source;
+
       if (normalizedId.endsWith(UPLOAD_MODAL_SUFFIX)) {
-        return { code: transformUploadModal(source), map: null };
+        return { code: transformUploadModal(code), map: null };
       }
       if (normalizedId.endsWith(ADMIN_WORKSPACE_SUFFIX)) {
-        return { code: transformAdminWorkspace(source), map: null };
+        return { code: transformAdminWorkspace(code), map: null };
       }
-      if (!normalizedId.endsWith(ADMIN_APP_SUFFIX)) return null;
+      if (!normalizedId.endsWith(ADMIN_APP_SUFFIX)) {
+        return albumOrderResult ? { code, map: null } : null;
+      }
 
-      let code = replaceOnce(
-        source,
+      code = replaceOnce(
+        code,
         `import "./admin-save-bar.css";`,
         `import "./admin-save-bar.css";\nimport AdminPhotoWorkspace, { mergeAdminPhotos } from "./AdminPhotoWorkspace.jsx";`,
         "AdminApp stylesheet import",

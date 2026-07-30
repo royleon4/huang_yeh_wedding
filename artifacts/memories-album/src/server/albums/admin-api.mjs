@@ -1,6 +1,13 @@
 import { randomUUID } from "node:crypto";
+import {
+  ALBUM_PHOTO_SORT_MODES,
+  DEFAULT_ALBUM_PHOTO_SORT_MODE,
+  normalizeAlbumPhotoSortMode,
+} from "../../../album-photo-order.mjs";
 import { sendAdminJson } from "../admin/auth.mjs";
 import { readAdminJson, requireAdmin } from "../admin/request.mjs";
+
+const PHOTO_SORT_MODE_SET = new Set(ALBUM_PHOTO_SORT_MODES);
 
 function normalizeText(value, maxCharacters, { required = false } = {}) {
   const normalized = String(value ?? "")
@@ -23,6 +30,17 @@ function normalizeText(value, maxCharacters, { required = false } = {}) {
   return normalized;
 }
 
+function normalizePhotoSortMode(value, fallback = DEFAULT_ALBUM_PHOTO_SORT_MODE) {
+  const candidate = String(value ?? fallback).trim();
+  if (!PHOTO_SORT_MODE_SET.has(candidate)) {
+    const error = new Error("Invalid album photo sort mode");
+    error.status = 422;
+    error.code = "INVALID_ALBUM_SORT";
+    throw error;
+  }
+  return normalizeAlbumPhotoSortMode(candidate);
+}
+
 function albumPayload(album) {
   return {
     id: album.id,
@@ -34,6 +52,7 @@ function albumPayload(album) {
     isVisible: album.isVisible,
     isSystem: album.isSystem,
     showSummary: album.showSummary !== false,
+    photoSortMode: normalizeAlbumPhotoSortMode(album.photoSortMode),
   };
 }
 
@@ -59,6 +78,10 @@ function inputFrom(body, existing = null) {
       typeof body.showSummary === "boolean"
         ? body.showSummary
         : existing?.showSummary !== false,
+    photoSortMode: normalizePhotoSortMode(
+      body.photoSortMode,
+      existing?.photoSortMode ?? DEFAULT_ALBUM_PHOTO_SORT_MODE,
+    ),
   };
 }
 

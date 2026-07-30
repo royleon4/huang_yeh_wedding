@@ -2,6 +2,11 @@ import { Readable } from "node:stream";
 
 const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const SORT_RANK_CACHE_MS = 2_000;
+const collator = new Intl.Collator(["zh-Hant", "en"], {
+  numeric: true,
+  sensitivity: "base",
+});
 
 function json(response, status, body) {
   response.writeHead(status, {
@@ -12,7 +17,25 @@ function json(response, status, body) {
   response.end(JSON.stringify(body));
 }
 
-export function toPublicPhoto(photo) {
+function normalizedText(value) {
+  return String(value ?? "")
+    .normalize("NFKC")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function rankPhotos(photos, valueOf) {
+  return new Map(
+    [...photos]
+      .sort((left, right) => {
+        const compared = collator.compare(valueOf(left), valueOf(right));
+        return compared || String(left.id).localeCompare(String(right.id));
+      })
+      .map((photo, index) => [photo.id, index + 1]),
+  );
+}
+
+export function toPublicPhoto(photo, sortRanks = null) {
   return {
     id: photo.id,
     thumbnailUrl: `/Memories/api/photos/${photo.id}/thumbnail`,
@@ -24,6 +47,8 @@ export function toPublicPhoto(photo) {
       photo.collection ?? (photo.source === "guest" ? "guest" : "wedding"),
     albumIds: [...(photo.albumIds ?? [])],
     uploaderName: photo.uploaderName ?? null,
+    nameSortRank: sortRanks?.name?.get(photo.id) ?? null,
+    authorSortRank: sortRanks?.author?.get(photo.id) ?? null,
     processIds: photo.processIds ?? [],
     createdAt: photo.createdAt,
   };
@@ -147,6 +172,40 @@ export function createMemoriesPhotoApi({
     throw new Error("Photo repository and Drive storage are required");
   }
 
+  let sortRankCache = null;
+  const loadSortRanks = async () => {
+    const now = Date.now();
+    if (sortRankCache && sortRankCache.expiresAt > now) {
+      return sortRankCache.ranks;
+    }
+
+    const photos = [];
+    const seenCursors = new Set();
+    let cursor = null;
+    let pages = 0;
+    do {
+      const page = await repository.listPublicPhotos({ cursor, limit: 100 });
+      photos.push(...page.items);
+      const nextCursor = page.nextCursor ?? null;
+      if (!nextCursor || seenCursors.has(nextCursor)) {
+        cursor = null;
+      } else {
+        seenCursors.add(nextCursor);
+        cursor = nextCursor;
+      }
+      pages += 1;
+    } while (cursor && pages < 100);
+
+    const ranks = {
+      name: rankPhotos(photos, (photo) =>
+        normalizedText(photo.displayName || photo.originalFilename),
+      ),
+      author: rankPhotos(photos, (photo) => normalizedText(photo.uploaderName)),
+    };
+    sortRankCache = { ranks, expiresAt: now + SORT_RANK_CACHE_MS };
+    return ranks;
+  };
+
   return async function handlePhotoApi(
     request,
     response,
@@ -156,6 +215,7 @@ export function createMemoriesPhotoApi({
       try {
         const collection = url.searchParams.get("collection");
         const albumId = url.searchParams.get("albumId");
+        const includeSortRanks = url.searchParams.get("includeSortRanks") === "1";
         if (
           collection &&
           !new Set(["wedding", "guest", "life"]).has(collection)
@@ -166,7 +226,7 @@ export function createMemoriesPhotoApi({
           });
           return true;
         }
-        const page = await repository.listPublicPhotos({
+        const pagePromise = repository.listPublicPhotos({
           cursor: url.searchParams.get("cursor"),
           limit: Number(url.searchParams.get("limit") ?? 24),
           processId: url.searchParams.get("process"),
@@ -174,8 +234,12 @@ export function createMemoriesPhotoApi({
           collection,
           albumId,
         });
+        const [page, sortRanks] = await Promise.all([
+          pagePromise,
+          includeSortRanks ? loadSortRanks() : Promise.resolve(null),
+        ]);
         json(response, 200, {
-          photos: page.items.map(toPublicPhoto),
+          photos: page.items.map((photo) => toPublicPhoto(photo, sortRanks)),
           nextCursor: page.nextCursor,
         });
       } catch (error) {
