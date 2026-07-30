@@ -137,31 +137,35 @@ test("UI transform integrates optional selector, admin tab, editor, and public c
   assert.match(admin, /!upload\.albumIds\.includes\("wedding"\)/);
 });
 
-test("selector preserves traditional buttons and enables wheel from settings", async () => {
+test("selector preserves traditional buttons and passes wheel settings", async () => {
   const selector = await readFile(
     new URL("../src/client/ProcessSelector.jsx", import.meta.url),
     "utf8",
   );
   assert.match(selector, /processWheelEnabled/);
-  assert.match(selector, /settings\.processWheelEnabled === true/);
-  assert.match(selector, /<ProcessWheel \{\.\.\.props\} \/>/);
+  assert.match(selector, /processWheelVisibleCount/);
+  assert.match(selector, /visibleCount=\{settings\.processWheelVisibleCount\}/);
   assert.match(selector, /className="process-strip"/);
-  assert.match(selector, /className={`process-chip/);
-  assert.match(selector, /useState\(false\)/);
+  assert.match(selector, /className=\{`process-chip/);
+  assert.match(selector, /DEFAULT_SETTINGS/);
 });
 
-test("process wheel keeps several options visible and selects the centered item", async () => {
-  const [component, styles] = await Promise.all([
+test("process wheel auto-scrolls to media and supports configurable mobile density", async () => {
+  const [component, styles, settings] = await Promise.all([
     readFile(new URL("../src/client/ProcessWheel.jsx", import.meta.url), "utf8"),
     readFile(new URL("../src/client/process-wheel.css", import.meta.url), "utf8"),
+    readFile(new URL("../src/client/ProcessSelectorSettings.jsx", import.meta.url), "utf8"),
   ]);
   assert.match(component, /closestItem/);
   assert.match(component, /setTimeout\(selectCenteredItem, 90\)/);
-  assert.match(component, /onWheel=\{handleWheel\}/);
-  assert.match(component, /scrollIntoView\(\{ behavior: "smooth"/);
-  assert.match(styles, /--wheel-item-width: clamp\(6rem, 27vw, 11rem\)/);
+  assert.match(component, /firstSelectedContent/);
+  assert.match(component, /\.process-video-block/);
+  assert.match(component, /\.masonry-grid \.photo-card/);
+  assert.match(component, /processWheelVisibleCount|visibleCount/);
+  assert.match(styles, /--wheel-mobile-item-width/);
   assert.match(styles, /scroll-snap-align: center/);
   assert.match(styles, /scroll-snap-type: x mandatory/);
+  assert.match(settings, /VISIBLE_COUNT_OPTIONS = \[3, 4, 5, 6, 7, 8\]/);
 });
 
 test("rich content migration is additive only", async () => {
