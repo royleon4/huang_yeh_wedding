@@ -4,6 +4,7 @@ const ALBUM_FIELDS = [
   "descriptionZh",
   "descriptionEn",
   "isVisible",
+  "showSummary",
 ];
 const CATEGORY_FIELDS = ["labelZh", "labelEn"];
 const PHOTO_FIELDS = [
@@ -45,6 +46,7 @@ export function albumDraft(album) {
     descriptionZh: album.descriptionZh,
     descriptionEn: album.descriptionEn,
     isVisible: album.isVisible,
+    showSummary: album.showSummary !== false,
   };
 }
 
