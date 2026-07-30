@@ -9,81 +9,87 @@ import {
   routeSurface,
 } from "../src/client/route-state.mjs";
 
-test("public album, process, guest, generic, and photo routes round-trip", () => {
+test("public group, subgroup, language, and photo routes round-trip", () => {
   const routes = [
-    ["/Memories/albums/wedding", "wedding", "all", null],
+    ["/Memories/group1", "zh", 0, null, null],
+    ["/Memories/group1/subgroup2", "zh", 0, 1, null],
+    ["/Memories/en/group2/subgroup3", "en", 1, 2, null],
     [
-      "/Memories/albums/wedding/processes/ceremony-01",
-      "wedding",
-      "ceremony-01",
-      null,
-    ],
-    [
-      "/Memories/albums/guest/guests/%E9%BB%83%E5%BF%97%E5%8B%A4",
-      "guest",
-      "黃志勤",
-      null,
-    ],
-    [
-      "/Memories/albums/life/filters/family/photos/photo-9",
-      "life",
-      "family",
-      "photo-9",
+      "/Memories/en/group3/subgroup1/photos/drive%3A123%2F456",
+      "en",
+      2,
+      0,
+      "drive:123/456",
     ],
   ];
 
-  for (const [path, albumId, filterId, photoId] of routes) {
+  for (const [path, language, groupIndex, subgroupIndex, photoId] of routes) {
     const parsed = readPublicRoute(path);
     assert.equal(parsed.kind, "gallery");
-    assert.equal(parsed.albumId, albumId);
-    assert.equal(parsed.filterId, filterId);
+    assert.equal(parsed.language, language);
+    assert.equal(parsed.groupIndex, groupIndex);
+    assert.equal(parsed.subgroupIndex, subgroupIndex);
     assert.equal(parsed.photoId, photoId);
     assert.equal(parsed.canonicalPath, path);
   }
 });
 
-test("route builders encode identifiers safely", () => {
+test("route builders use logical ordinal groups and encode photo identifiers", () => {
   assert.equal(
     publicGalleryPath({
-      albumId: "guest",
-      filterId: "葉 藝慧/家人",
+      language: "en",
+      groupNumber: 2,
+      subgroupNumber: 3,
       photoId: "drive:123/456",
     }),
-    "/Memories/albums/guest/guests/%E8%91%89%20%E8%97%9D%E6%85%A7%2F%E5%AE%B6%E4%BA%BA/photos/drive%3A123%2F456",
+    "/Memories/en/group2/subgroup3/photos/drive%3A123%2F456",
   );
-  assert.equal(publicModalPath("upload"), "/Memories/upload");
+  assert.equal(publicModalPath("upload", "en"), "/Memories/en/upload");
   assert.equal(publicModalPath("people"), "/Memories/people");
 });
 
-test("root aliases and malformed paths recover to the canonical album", () => {
+test("Chinese and English roots recover to their first logical group", () => {
+  assert.equal(readPublicRoute("/Memories/").canonicalPath, "/Memories/group1");
   assert.equal(
-    readPublicRoute("/Memories/").canonicalPath,
-    "/Memories/albums/wedding",
+    readPublicRoute("/Memories/en/").canonicalPath,
+    "/Memories/en/group1",
   );
-  const invalid = readPublicRoute("/Memories/albums/wedding/processes");
+  const invalid = readPublicRoute("/Memories/en/group1/subgroup0");
   assert.equal(invalid.kind, "invalid");
-  assert.equal(invalid.canonicalPath, "/Memories/albums/wedding");
+  assert.equal(invalid.canonicalPath, "/Memories/en/group1");
 });
 
-test("all current administrator tabs have stable deep links", () => {
-  for (const tab of [
+test("semantic routes from the previous release remain readable for migration", () => {
+  const parsed = readPublicRoute(
+    "/Memories/albums/wedding/processes/ceremony-01/photos/photo-9",
+  );
+  assert.equal(parsed.kind, "legacyGallery");
+  assert.equal(parsed.language, "zh");
+  assert.equal(parsed.albumId, "wedding");
+  assert.equal(parsed.filterId, "ceremony-01");
+  assert.equal(parsed.photoId, "photo-9");
+});
+
+test("all administrator tabs use logical group numbers", () => {
+  const tabs = [
     "general",
     "albums",
     "photos",
     "categories",
     "subcategory-ui",
-  ]) {
+  ];
+  tabs.forEach((tab, index) => {
     const path = adminTabPath(tab);
-    assert.equal(path, `/Memories/admin/${tab}`);
+    assert.equal(path, `/Memories/admin/group${index + 1}`);
     assert.equal(readAdminTab(path), tab);
-  }
-  assert.equal(readAdminTab("/Memories/admin/unknown"), "albums");
+  });
+  assert.equal(readAdminTab("/Memories/admin/photos"), "photos");
+  assert.equal(readAdminTab("/Memories/admin/group99"), "albums");
   assert.equal(readAdminTab("/Memories/admin/"), "albums");
 });
 
-test("deep administrator paths select the administrator React surface", () => {
+test("deep logical paths select the correct React surface", () => {
   assert.equal(routeSurface("/Memories/admin/login"), "login");
-  assert.equal(routeSurface("/Memories/admin/photos"), "admin");
-  assert.equal(routeSurface("/Memories/admin/subcategory-ui"), "admin");
-  assert.equal(routeSurface("/Memories/albums/wedding"), "memories");
+  assert.equal(routeSurface("/Memories/admin/group3"), "admin");
+  assert.equal(routeSurface("/Memories/en/group1/subgroup2"), "memories");
 });
