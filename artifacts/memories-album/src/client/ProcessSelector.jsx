@@ -33,7 +33,7 @@ function scrollToGalleryStart() {
   window.scrollTo({ top: Math.max(0, top), behavior: "smooth" });
 }
 
-function requestGalleryStartScroll() {
+export function requestGalleryStartScroll() {
   window.requestAnimationFrame(() =>
     window.requestAnimationFrame(scrollToGalleryStart),
   );
@@ -72,11 +72,12 @@ export default function ProcessSelector(props) {
     };
   }, []);
 
+  const selectWithTraditionalPositioning = (id) => {
+    props.onSelect(id);
+    requestGalleryStartScroll();
+  };
+
   if (settings.processWheelEnabled) {
-    const selectWithTraditionalPositioning = (id) => {
-      props.onSelect(id);
-      requestGalleryStartScroll();
-    };
     return (
       <ProcessWheel
         {...props}
@@ -86,5 +87,10 @@ export default function ProcessSelector(props) {
     );
   }
 
-  return <TraditionalSelector {...props} />;
+  return (
+    <TraditionalSelector
+      {...props}
+      onSelect={selectWithTraditionalPositioning}
+    />
+  );
 }
