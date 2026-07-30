@@ -18,6 +18,20 @@ test("legacy admin request paths are sent beneath /Memories/admin", async () => 
   const payload = await adminRequest("/admin/api/photos", {
     fetchImpl: async (path) => {
       requested.push(path);
+      if (String(path).includes("photo-uploaders")) {
+        return {
+          ok: true,
+          json: async () => ({
+            uploaders: [
+              {
+                id: "photo-1",
+                uploaderName: "婚禮攝影",
+                deleteProtected: true,
+              },
+            ],
+          }),
+        };
+      }
       return {
         ok: true,
         json: async () => ({
@@ -32,11 +46,16 @@ test("legacy admin request paths are sent beneath /Memories/admin", async () => 
     },
   });
 
-  assert.deepEqual(requested, ["/Memories/admin/api/photos"]);
+  assert.deepEqual(requested, [
+    "/Memories/admin/api/photos",
+    "/Memories/admin/api/photo-uploaders?ids=photo-1",
+  ]);
   assert.equal(
     payload.photos[0].thumbnailUrl,
     "/Memories/admin/api/photos/photo-1/thumbnail",
   );
+  assert.equal(payload.photos[0].uploaderName, "婚禮攝影");
+  assert.equal(payload.photos[0].deleteProtected, true);
 });
 
 test("a successful login and logout replace the browser route", async () => {
