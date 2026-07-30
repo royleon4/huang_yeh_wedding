@@ -98,7 +98,7 @@
   justify-content: center;
   gap: 0.18rem;
   scroll-snap-align: center;
-  scroll-snap-stop: always;
+  scroll-snap-stop: normal;
   border: 1px solid var(--line);
   border-radius: 1.05rem;
   background: rgba(247, 242, 232, 0.84);
