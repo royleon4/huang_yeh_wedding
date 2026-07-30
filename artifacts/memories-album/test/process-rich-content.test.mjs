@@ -148,7 +148,8 @@ test("UI transform integrates selector, general settings, ordered media, and ric
   assert.match(admin, /\["subcategory-ui", "子分類操作"\]/);
   assert.match(admin, /tab === "subcategory-ui"/);
   assert.match(admin, /categories\.length \+ 1/);
-  assert.match(admin, /!upload\.albumIds\.includes\("wedding"\)/);
+  assert.match(admin, /data-admin-photo-workspace-placeholder/);
+  assert.doesNotMatch(admin, /upload\.albumIds/);
 });
 
 test("selector preserves traditional buttons and passes wheel settings", async () => {
