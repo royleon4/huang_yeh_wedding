@@ -1,0 +1,161 @@
+.general-settings {
+  display: grid;
+  gap: 1rem;
+}
+
+.general-setting-card,
+.general-settings .admin-feature-settings {
+  display: grid;
+  gap: 1rem;
+  border: 1px solid var(--admin-line);
+  border-radius: 1.25rem;
+  background: rgba(255, 252, 245, 0.78);
+  padding: clamp(1rem, 2.5vw, 1.4rem);
+}
+
+.general-setting-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.general-setting-heading h3 {
+  margin: 0.15rem 0 0;
+  color: var(--admin-ink);
+  font-size: 1.15rem;
+}
+
+.general-setting-heading > span {
+  border-radius: 999px;
+  background: rgba(53, 95, 77, 0.1);
+  padding: 0.35rem 0.65rem;
+  color: var(--leaf);
+  font-size: 0.75rem;
+  white-space: nowrap;
+}
+
+.media-order-list {
+  display: grid;
+  gap: 0.7rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.media-order-list li {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.8rem;
+  border: 1px solid rgba(53, 95, 77, 0.16);
+  border-radius: 1rem;
+  background: #fffdf8;
+  padding: 0.8rem;
+}
+
+.media-order-number {
+  display: grid;
+  width: 2.25rem;
+  height: 2.25rem;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--leaf);
+  color: #fffaf1;
+  font-family: "Playfair Display", serif;
+  font-size: 0.78rem;
+}
+
+.media-order-list strong {
+  color: var(--admin-ink);
+}
+
+.media-order-list p {
+  margin: 0.2rem 0 0;
+  color: var(--admin-muted);
+  font-size: 0.78rem;
+  line-height: 1.55;
+}
+
+.media-order-actions {
+  display: flex;
+  gap: 0.35rem;
+}
+
+.media-order-actions button {
+  width: 2.25rem;
+  min-width: 0;
+  height: 2.25rem;
+  border: 1px solid var(--admin-line);
+  border-radius: 0.7rem;
+  background: #fffaf1;
+  padding: 0;
+  color: var(--leaf);
+  cursor: pointer;
+}
+
+.media-order-actions button:disabled {
+  cursor: not-allowed;
+  opacity: 0.35;
+}
+
+.general-setting-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+}
+
+.general-setting-actions button,
+.general-settings .admin-feature-control button {
+  border: 0;
+  border-radius: 999px;
+  background: var(--leaf);
+  padding: 0.72rem 1.15rem;
+  color: #fffaf1;
+  cursor: pointer;
+}
+
+.general-setting-actions button:disabled,
+.general-settings .admin-feature-control button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.general-setting-actions span,
+.general-setting-status {
+  color: var(--admin-muted);
+  font-size: 0.8rem;
+}
+
+.general-setting-status.error {
+  color: #9e3f32;
+}
+
+@media (max-width: 560px) {
+  .general-setting-heading {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .general-setting-heading > span {
+    align-self: flex-start;
+  }
+
+  .media-order-list li {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .media-order-actions {
+    grid-column: 1 / -1;
+    justify-content: flex-end;
+  }
+
+  .general-setting-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .general-setting-actions button {
+    width: 100%;
+  }
+}
