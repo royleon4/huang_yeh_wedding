@@ -63,12 +63,30 @@ jobs:
           PORT=19316 pnpm --filter @workspace/memories-album run start &
           server_pid=$!
           trap 'kill $server_pid' EXIT
+          healthy=0
           for attempt in $(seq 1 20); do
             if curl --fail --silent http://127.0.0.1:19316/Memories/api/health >/tmp/memories-health.json; then
-              cat /tmp/memories-health.json
-              exit 0
+              healthy=1
+              break
             fi
             sleep 1
           done
-          echo "Memories production server did not become healthy" >&2
-          exit 1
+          if [ "$healthy" -ne 1 ]; then
+            echo "Memories production server did not become healthy" >&2
+            exit 1
+          fi
+          cat /tmp/memories-health.json
+
+          public_status=$(curl --silent --output /tmp/memories-public.html --write-out '%{http_code}' \
+            http://127.0.0.1:19316/Memories/)
+          test "$public_status" = "200"
+          grep -q '<div id="root"' /tmp/memories-public.html
+
+          admin_status=$(curl --silent --output /dev/null --write-out '%{http_code}' \
+            http://127.0.0.1:19316/Memories/admin)
+          test "$admin_status" = "303"
+
+          login_status=$(curl --silent --output /tmp/memories-admin-login.html --write-out '%{http_code}' \
+            http://127.0.0.1:19316/Memories/admin/login)
+          test "$login_status" = "200"
+          grep -q '<div id="root"' /tmp/memories-admin-login.html
