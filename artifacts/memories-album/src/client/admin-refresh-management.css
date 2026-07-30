@@ -1,0 +1,109 @@
+.admin-refresh-management {
+  display: grid;
+  gap: 18px;
+  margin-top: 22px;
+  padding: 22px;
+  border: 1px solid rgba(112, 77, 52, 0.18);
+  border-radius: 22px;
+  background: rgba(255, 252, 247, 0.92);
+}
+
+.admin-refresh-warning {
+  display: grid;
+  gap: 4px;
+  padding: 14px 16px;
+  border: 1px solid rgba(173, 88, 57, 0.28);
+  border-radius: 14px;
+  background: rgba(255, 242, 234, 0.78);
+}
+
+.admin-refresh-warning p {
+  margin: 0;
+  line-height: 1.55;
+}
+
+.admin-refresh-management-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.admin-refresh-management-grid > section {
+  min-width: 0;
+}
+
+.admin-refresh-list-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.admin-refresh-list-heading h3 {
+  margin: 0;
+}
+
+.admin-refresh-list {
+  display: grid;
+  gap: 10px;
+}
+
+.admin-refresh-list article {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid rgba(45, 67, 56, 0.13);
+  border-radius: 14px;
+  background: #fff;
+}
+
+.admin-refresh-list article > div:first-child {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.admin-refresh-list article strong,
+.admin-refresh-list article small {
+  overflow-wrap: anywhere;
+}
+
+.admin-refresh-list .admin-refresh-control {
+  justify-items: end;
+  max-width: 260px;
+}
+
+.admin-refresh-list .admin-refresh-status {
+  text-align: right;
+}
+
+/* The fixed “全部流程” card previously exposed a duplicate wedding-album refresh button. */
+.all-process-actions > .admin-refresh-control {
+  display: none !important;
+}
+
+@media (max-width: 760px) {
+  .admin-refresh-management {
+    padding: 16px;
+  }
+
+  .admin-refresh-management-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-refresh-list article {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-refresh-list .admin-refresh-control {
+    justify-items: start;
+    max-width: none;
+  }
+
+  .admin-refresh-list .admin-refresh-status {
+    text-align: left;
+  }
+}

@@ -126,9 +126,15 @@ test("UI transform integrates selector, general settings, ordered media, and ric
   assert.match(gallery, /ProcessRichContent/);
   assert.match(gallery, /ProcessSelector/);
   assert.match(gallery, /PhotoGroupGrid/);
-  assert.match(gallery, /galleryMediaOrder\.map/);
-  assert.match(gallery, /visibleWeddingPhotos/);
-  assert.match(gallery, /visibleGuestPhotos/);
+  assert.match(gallery, /mediaSequence\.map/);
+  assert.match(gallery, /mediaKey === "photos"/);
+  assert.match(gallery, /photos=\{visible\}/);
+  assert.match(gallery, /index > 0/);
+  assert.equal((gallery.match(/<PhotoGroupGrid/g) ?? []).length, 1);
+  assert.doesNotMatch(gallery, /visibleWeddingPhotos/);
+  assert.doesNotMatch(gallery, /visibleGuestPhotos/);
+  assert.doesNotMatch(gallery, /mediaKey === "weddingPhotos"/);
+  assert.doesNotMatch(gallery, /mediaKey === "guestPhotos"/);
   assert.match(gallery, /variant="guest"/);
   assert.match(gallery, /number: "00"/);
   assert.match(gallery, /photosSuppressed/);
@@ -136,6 +142,7 @@ test("UI transform integrates selector, general settings, ordered media, and ric
   assert.match(admin, /ProcessContentEditor processKey=\{category\.id\}/);
   assert.match(admin, /ProcessSelectorSettings/);
   assert.match(admin, /GeneralSettings/);
+  assert.match(admin, /AdminRefreshManagement/);
   assert.match(admin, /\["general", "通用"\]/);
   assert.match(admin, /tab === "general"/);
   assert.match(admin, /\["subcategory-ui", "子分類操作"\]/);

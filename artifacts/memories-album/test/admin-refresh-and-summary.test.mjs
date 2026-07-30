@@ -120,12 +120,20 @@ test("scoped refresh deletes only derivatives and rebuilds them from originals",
   assert.ok(!deleted.includes("original-a"), "original photo must never be deleted");
 });
 
-test("UI exposes summary visibility and refresh controls without leaving a hidden block", async () => {
+test("UI exposes summary visibility and centralizes every refresh control in General settings", async () => {
   const transform = processContentUiTransform();
-  const [appSource, adminSource, refreshButton] = await Promise.all([
+  const [
+    appSource,
+    adminSource,
+    refreshButton,
+    refreshManagement,
+    refreshManagementStyles,
+  ] = await Promise.all([
     readFile(new URL("../src/client/App.jsx", import.meta.url), "utf8"),
     readFile(new URL("../src/client/AdminApp.jsx", import.meta.url), "utf8"),
     readFile(new URL("../src/client/AdminRefreshButton.jsx", import.meta.url), "utf8"),
+    readFile(new URL("../src/client/AdminRefreshManagement.jsx", import.meta.url), "utf8"),
+    readFile(new URL("../src/client/admin-refresh-management.css", import.meta.url), "utf8"),
   ]);
   const gallery = transform.transform(
     appSource,
@@ -139,9 +147,19 @@ test("UI exposes summary visibility and refresh controls without leaving a hidde
   assert.match(gallery, /activeCollectionDefinition\?\.showSummary !== false/);
   assert.match(gallery, /showSummary: true/);
   assert.match(admin, /在子流程上方顯示相簿名稱與介紹/);
-  assert.match(admin, /scopeType="album"/);
-  assert.match(admin, /scopeType="process"/);
+  assert.match(admin, /AdminRefreshManagement/);
+  assert.match(admin, /albums=\{albums\}/);
+  assert.match(admin, /categories=\{orderedCategories\}/);
+  assert.doesNotMatch(admin, /scopeType="album"/);
+  assert.doesNotMatch(admin, /scopeType="process"/);
   assert.match(admin, /showSummary: true/);
+  assert.match(refreshManagement, /scopeType="album"/);
+  assert.match(refreshManagement, /scopeType="process"/);
+  assert.match(refreshManagement, /高風險操作集中區/);
+  assert.match(refreshManagement, /避免誤按/);
+  assert.match(refreshManagementStyles, /\.all-process-actions > \.admin-refresh-control/);
+  assert.match(refreshManagementStyles, /display: none !important/);
   assert.match(refreshButton, /原始照片不會被刪除/);
+  assert.match(refreshButton, /window\.confirm/);
   assert.match(refreshButton, /refresh-jobs/);
 });
