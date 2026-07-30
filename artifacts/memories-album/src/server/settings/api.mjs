@@ -1,4 +1,5 @@
 import { isValidGalleryMediaOrder } from "./media-order.mjs";
+import { isValidPinnedPhotosByProcess } from "../../pinned-photo-settings.mjs";
 
 function json(response, status, body) {
   response.writeHead(status, {
@@ -73,6 +74,10 @@ export function createAdminSettingsApi({ repository }) {
         "processWheelVisibleCount",
       );
       const hasGalleryMediaOrder = Object.hasOwn(body, "galleryMediaOrder");
+      const hasPinnedPhotoIds = Object.hasOwn(
+        body,
+        "pinnedPhotoIdsByProcess",
+      );
 
       if (hasWheelEnabled && typeof body.processWheelEnabled !== "boolean") {
         json(response, 422, {
@@ -93,6 +98,24 @@ export function createAdminSettingsApi({ repository }) {
           error: "processWheelVisibleCount must be an integer from 3 to 8",
           code: "INVALID_SETTING",
         });
+        return true;
+      }
+
+      if (hasPinnedPhotoIds) {
+        if (!isValidPinnedPhotosByProcess(body.pinnedPhotoIdsByProcess)) {
+          json(response, 422, {
+            error: "pinnedPhotoIdsByProcess must contain up to three unique photo IDs per process",
+            code: "INVALID_SETTING",
+          });
+          return true;
+        }
+        json(
+          response,
+          200,
+          await repository.setPinnedPhotoIdsByProcess(
+            body.pinnedPhotoIdsByProcess,
+          ),
+        );
         return true;
       }
 
