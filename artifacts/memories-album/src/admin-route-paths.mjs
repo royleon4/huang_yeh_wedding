@@ -27,14 +27,6 @@ export function internalAdminUrl(url) {
   const translated = new URL(url);
   const pathname = translated.pathname;
 
-  if (pathname === MEMORIES_ADMIN_PATH) {
-    translated.pathname = `${LEGACY_ADMIN_PATH}/`;
-    return translated;
-  }
-  if (pathname === MEMORIES_ADMIN_PAGE_PATH) {
-    translated.pathname = LEGACY_ADMIN_PATH;
-    return translated;
-  }
   if (
     pathname === MEMORIES_ADMIN_LOGIN_PATH ||
     pathname === `${MEMORIES_ADMIN_LOGIN_PATH}/`
@@ -47,6 +39,18 @@ export function internalAdminUrl(url) {
     pathname.startsWith(`${MEMORIES_ADMIN_API_PATH}/`)
   ) {
     translated.pathname = pathname.slice(MEMORIES_BASE_PATH.length);
+    return translated;
+  }
+  if (pathname === MEMORIES_ADMIN_PATH) {
+    translated.pathname = `${LEGACY_ADMIN_PATH}/`;
+    return translated;
+  }
+  if (pathname === MEMORIES_ADMIN_PAGE_PATH) {
+    translated.pathname = LEGACY_ADMIN_PATH;
+    return translated;
+  }
+  if (pathname.startsWith(`${MEMORIES_ADMIN_PATH}/`)) {
+    translated.pathname = LEGACY_ADMIN_PATH;
   }
   return translated;
 }
