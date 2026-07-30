@@ -40,6 +40,7 @@ export function normalizePublicAlbums(albums) {
     ...album,
     zh: album.titleZh,
     en: album.titleEn || album.titleZh,
+    showSummary: album.showSummary !== false,
   }));
 }
 

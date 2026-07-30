@@ -1,5 +1,5 @@
 function clone(album) {
-  return { ...album };
+  return { ...album, showSummary: album.showSummary !== false };
 }
 
 export class MemoryAlbumRepository {
@@ -39,6 +39,7 @@ export class MemoryAlbumRepository {
       displayOrder: nextOrder,
       isVisible: album.isVisible !== false,
       isSystem: album.isSystem === true,
+      showSummary: album.showSummary !== false,
     };
     this.#albums.push(stored);
     return clone(stored);
@@ -47,7 +48,11 @@ export class MemoryAlbumRepository {
   async updateAlbum(album) {
     const index = this.#albums.findIndex((item) => item.id === album.id);
     if (index < 0) return null;
-    this.#albums[index] = { ...this.#albums[index], ...album };
+    this.#albums[index] = {
+      ...this.#albums[index],
+      ...album,
+      showSummary: album.showSummary !== false,
+    };
     return clone(this.#albums[index]);
   }
 }

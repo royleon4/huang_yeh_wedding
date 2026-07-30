@@ -8,6 +8,7 @@ function publicAlbum(album) {
     descriptionZh: album.descriptionZh,
     descriptionEn: album.descriptionEn,
     displayOrder: album.displayOrder,
+    showSummary: album.showSummary !== false,
   };
 }
 

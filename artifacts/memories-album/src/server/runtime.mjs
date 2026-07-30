@@ -2,6 +2,7 @@ import { createMemoriesPhotoApi } from "./photos/api.mjs";
 import { createAdminPhotoApi } from "./photos/admin-with-changes-api.mjs";
 import { PostgresPhotoRepository } from "./photos/postgres-repository.mjs";
 import { ThumbnailService } from "./photos/thumbnail-service.mjs";
+import { AdminRefreshService } from "./refresh/service.mjs";
 import { createReplitDriveStorage } from "./storage/replit-drive.mjs";
 import { createGuestUploadApi } from "./uploads/api.mjs";
 import { PostgresDurableUploadRepository } from "./uploads/durable-repository.mjs";
@@ -66,13 +67,13 @@ async function createRuntime(env) {
       [photoId, expectedFileId],
     );
     if (!result.rows[0]) {
-      const current = await repository.findPublicPhoto(photoId);
+      const current = await repository.findPhotoForAdmin(photoId);
       if (current && !current.thumbnailDriveFileId) return current;
       const error = new Error("Thumbnail reference changed during repair");
       error.code = "THUMBNAIL_REPAIR_CONFLICT";
       throw error;
     }
-    return repository.findPublicPhoto(photoId);
+    return repository.findPhotoForAdmin(photoId);
   };
   const durableUploadRepository = new PostgresDurableUploadRepository(pool);
   const processRepository = new PostgresProcessRepository(pool);
@@ -110,6 +111,12 @@ async function createRuntime(env) {
     imageProcessor,
     thumbnailFolderId: drive.thumbnailFolderId,
     batchSize: Number(env.MEMORIES_THUMBNAIL_BATCH_SIZE ?? 12),
+  });
+  const refreshService = new AdminRefreshService({
+    repository,
+    drive,
+    synchronizer,
+    thumbnailService,
   });
 
   let backfillPromise = null;
@@ -155,6 +162,7 @@ async function createRuntime(env) {
     albumRepository,
     synchronizer,
     thumbnailService,
+    refreshService,
     drive,
     imageProcessor,
     photoApi: createMemoriesPhotoApi({
@@ -187,6 +195,7 @@ async function createRuntime(env) {
       drive,
       imageProcessor,
       synchronizer,
+      refreshService,
       adminToken: env.MEMORIES_ADMIN_TOKEN,
     }),
     adminSettingsApi: createAdminSettingsApi({
