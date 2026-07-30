@@ -158,13 +158,14 @@ test("admin transforms expose multi-select controls and preserve protected delet
 });
 
 test("new albums persist their selected photo order setting in PostgreSQL", async () => {
-  const [repository, adminClient, bulkComponent] = await Promise.all([
+  const [repository, adminClient, bulkComponent, bulkCss] = await Promise.all([
     readFile(
       new URL("../src/server/albums/postgres-repository.mjs", import.meta.url),
       "utf8",
     ),
     readFile(new URL("../src/client/admin-client.mjs", import.meta.url), "utf8"),
     readFile(new URL("../src/client/AdminPhotoBulkActions.jsx", import.meta.url), "utf8"),
+    readFile(new URL("../src/client/admin-photo-bulk-actions.css", import.meta.url), "utf8"),
   ]);
   const createAlbumBody = repository.slice(
     repository.indexOf("async createAlbum"),
@@ -176,4 +177,14 @@ test("new albums persist their selected photo order setting in PostgreSQL", asyn
   assert.match(adminClient, /persistAlbumPhotoSortChanges/);
   assert.match(bulkComponent, /method: "DELETE"/);
   assert.match(bulkComponent, /isWeddingPhotographerProtected/);
+  assert.match(
+    bulkCss,
+    /\.admin-photo-selectable:has\(> \.admin-photo-card\[open\]\)\s*\{[\s\S]*grid-column:\s*1 \/ -1/,
+  );
+  assert.match(
+    bulkCss,
+    /\.admin-photo-select-control\s*\{[\s\S]*position:\s*absolute[\s\S]*width:\s*2\.35rem/,
+  );
+  assert.match(bulkCss, /min-height:\s*1\.18rem !important/);
+  assert.match(bulkCss, /> \.admin-photo-card\s*\{[\s\S]*width:\s*100%/);
 });
