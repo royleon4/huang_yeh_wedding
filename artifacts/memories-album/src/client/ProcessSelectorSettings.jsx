@@ -84,8 +84,8 @@ export default function ProcessSelectorSettings() {
       setDraftVisibleCount(visibleCount);
       setMessage(
         mode === "wheel"
-          ? `前台已切換為輪盤模式；手機同時顯示約 ${visibleCount} 個選項。`
-          : `前台已切換回傳統按鈕；輪盤顯示數量保留為 ${visibleCount} 個。`,
+          ? `前台已切換為輪盤模式；手機目標顯示約 ${visibleCount} 個選項，並優先保持文字可讀。`
+          : `前台已切換回傳統按鈕；輪盤目標數量保留為 ${visibleCount} 個。`,
       );
     } catch (saveError) {
       if (saveError?.status === 401) {
@@ -148,13 +148,13 @@ export default function ProcessSelectorSettings() {
 
           <div className={`selector-density-card ${draftMode === "wheel" ? "enabled" : ""}`}>
             <div>
-              <strong>手機同時顯示的選項數量</strong>
+              <strong>手機目標顯示的選項數量</strong>
               <p>
-                數量越多，每個選項會越窄；桌面版仍會自動使用較寬、較容易閱讀的尺寸。
+                此數值控制輪盤密度；小螢幕會優先保留原本較寬、可讀且容易點選的尺寸，因此實際同時可見數量可能較少。
               </p>
             </div>
             <label>
-              顯示數量
+              目標數量
               <select
                 value={draftVisibleCount}
                 onChange={(event) => {
@@ -166,7 +166,7 @@ export default function ProcessSelectorSettings() {
               >
                 {VISIBLE_COUNT_OPTIONS.map((count) => (
                   <option key={count} value={count}>
-                    {count} 個
+                    約 {count} 個
                   </option>
                 ))}
               </select>
