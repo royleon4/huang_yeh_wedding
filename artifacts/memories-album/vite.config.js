@@ -127,6 +127,7 @@ function memoriesDevelopmentRoutes() {
             if (await runtime.adminProcessContentApi(request, response, url)) return;
             if (await runtime.adminCategoryApi(request, response, url)) return;
             if (await runtime.adminPhotoApi(request, response, url)) return;
+            if (await runtime.adminSettingsApi(request, response, url)) return;
             sendJson(response, 404, { error: "Not found" });
           } catch (error) {
             console.warn("Memories development administrator API unavailable", {

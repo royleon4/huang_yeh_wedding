@@ -3,6 +3,7 @@ import {
   normalizeGalleryMediaOrder,
 } from "./media-order.mjs";
 import { normalizePinnedPhotosByProcess } from "../../pinned-photo-settings.mjs";
+import { normalizeSiteCopy } from "../../site-copy.mjs";
 import {
   DEFAULT_DRIVE_UPLOAD_MODE,
   normalizeDriveUploadMode,
@@ -16,6 +17,7 @@ const PROCESS_WHEEL_VISIBLE_COUNT_KEY = "process_wheel_visible_count";
 const GALLERY_MEDIA_ORDER_KEY = "gallery_media_order";
 const PINNED_PHOTOS_BY_PROCESS_KEY = "pinned_photos_by_process";
 const DRIVE_UPLOAD_MODE_KEY = "drive_upload_mode";
+const SITE_COPY_KEY = "site_copy";
 
 function booleanSetting(rows, key, fallback) {
   const row = rows.find((item) => item.key === key);
@@ -43,6 +45,11 @@ function driveUploadModeSetting(rows) {
   return normalizeDriveUploadMode(row?.value ?? DEFAULT_DRIVE_UPLOAD_MODE);
 }
 
+function siteCopySetting(rows) {
+  const row = rows.find((item) => item.key === SITE_COPY_KEY);
+  return normalizeSiteCopy(row?.value);
+}
+
 export class PostgresSettingsRepository {
   constructor(pool) {
     if (!pool?.query) throw new Error("A PostgreSQL pool is required");
@@ -62,6 +69,7 @@ export class PostgresSettingsRepository {
         GALLERY_MEDIA_ORDER_KEY,
         PINNED_PHOTOS_BY_PROCESS_KEY,
         DRIVE_UPLOAD_MODE_KEY,
+        SITE_COPY_KEY,
       ]],
     );
     return {
@@ -88,6 +96,7 @@ export class PostgresSettingsRepository {
       galleryMediaOrder: mediaOrderSetting(result.rows),
       pinnedPhotoIdsByProcess: pinnedPhotosSetting(result.rows),
       driveUploadMode: driveUploadModeSetting(result.rows),
+      siteCopy: siteCopySetting(result.rows),
     };
   }
 
@@ -156,6 +165,10 @@ export class PostgresSettingsRepository {
       "driveUploadMode",
       normalizeDriveUploadMode(value),
     );
+  }
+
+  async setSiteCopy(value) {
+    return this.setJson(SITE_COPY_KEY, "siteCopy", normalizeSiteCopy(value));
   }
 
   async setBoolean(key, responseKey, value) {
