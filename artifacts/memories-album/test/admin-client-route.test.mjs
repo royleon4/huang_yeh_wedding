@@ -58,6 +58,109 @@ test("legacy admin request paths are sent beneath /Memories/admin", async () => 
   assert.equal(payload.photos[0].deleteProtected, true);
 });
 
+test("batch saves persist a false album summary setting through the album API", async () => {
+  const requests = [];
+  const payload = await adminRequest("/admin/api/changes", {
+    method: "PATCH",
+    body: {
+      albums: {
+        update: [
+          {
+            id: "wedding",
+            changes: { showSummary: false },
+          },
+        ],
+      },
+      categories: { update: [] },
+      photos: { update: [] },
+    },
+    fetchImpl: async (path, options) => {
+      requests.push({ path, options });
+      if (path === "/Memories/admin/api/changes") {
+        return {
+          ok: true,
+          json: async () => ({
+            results: [
+              {
+                key: "album:update:wedding",
+                id: "wedding",
+                type: "album.update",
+                status: "ok",
+              },
+            ],
+            summary: { attempted: 1, succeeded: 1, failed: 0 },
+          }),
+        };
+      }
+      assert.equal(path, "/Memories/admin/api/albums/wedding");
+      assert.equal(options.method, "PATCH");
+      assert.deepEqual(JSON.parse(options.body), { showSummary: false });
+      return {
+        ok: true,
+        json: async () => ({ album: { id: "wedding", showSummary: false } }),
+      };
+    },
+  });
+
+  assert.deepEqual(
+    requests.map((request) => request.path),
+    [
+      "/Memories/admin/api/changes",
+      "/Memories/admin/api/albums/wedding",
+    ],
+  );
+  assert.equal(payload.results[0].status, "ok");
+  assert.deepEqual(payload.summary, { attempted: 1, succeeded: 1, failed: 0 });
+});
+
+test("a failed album summary follow-up remains an unsaved batch result", async () => {
+  const payload = await adminRequest("/admin/api/changes", {
+    method: "PATCH",
+    body: {
+      albums: {
+        update: [
+          {
+            id: "wedding",
+            changes: { showSummary: false },
+          },
+        ],
+      },
+      categories: { update: [] },
+      photos: { update: [] },
+    },
+    fetchImpl: async (path) => {
+      if (path === "/Memories/admin/api/changes") {
+        return {
+          ok: true,
+          json: async () => ({
+            results: [
+              {
+                key: "album:update:wedding",
+                id: "wedding",
+                type: "album.update",
+                status: "ok",
+              },
+            ],
+            summary: { attempted: 1, succeeded: 1, failed: 0 },
+          }),
+        };
+      }
+      return {
+        ok: false,
+        status: 503,
+        json: async () => ({
+          error: "temporary failure",
+          code: "ALBUM_UPDATE_FAILED",
+        }),
+      };
+    },
+  });
+
+  assert.equal(payload.results[0].status, "error");
+  assert.equal(payload.results[0].code, "ALBUM_UPDATE_FAILED");
+  assert.deepEqual(payload.summary, { attempted: 1, succeeded: 0, failed: 1 });
+});
+
 test("a successful login and logout replace the browser route", async () => {
   const requests = [];
   const destinations = [];
