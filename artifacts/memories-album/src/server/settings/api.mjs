@@ -65,41 +65,48 @@ export function createAdminSettingsApi({ repository }) {
 
     try {
       const body = await readJson(request);
-      const wheelUpdates = {};
-      let hasWheelUpdate = false;
+      const hasWheelEnabled = Object.hasOwn(body, "processWheelEnabled");
+      const hasWheelVisibleCount = Object.hasOwn(
+        body,
+        "processWheelVisibleCount",
+      );
 
-      if (Object.hasOwn(body, "processWheelEnabled")) {
-        if (typeof body.processWheelEnabled !== "boolean") {
-          json(response, 422, {
-            error: "processWheelEnabled must be a boolean",
-            code: "INVALID_SETTING",
-          });
-          return true;
-        }
-        Object.assign(
-          wheelUpdates,
-          await repository.setProcessWheelEnabled(body.processWheelEnabled),
-        );
-        hasWheelUpdate = true;
+      if (hasWheelEnabled && typeof body.processWheelEnabled !== "boolean") {
+        json(response, 422, {
+          error: "processWheelEnabled must be a boolean",
+          code: "INVALID_SETTING",
+        });
+        return true;
       }
 
-      if (Object.hasOwn(body, "processWheelVisibleCount")) {
-        const count = Number(body.processWheelVisibleCount);
-        if (!Number.isInteger(count) || count < 3 || count > 8) {
-          json(response, 422, {
-            error: "processWheelVisibleCount must be an integer from 3 to 8",
-            code: "INVALID_SETTING",
-          });
-          return true;
-        }
-        Object.assign(
-          wheelUpdates,
-          await repository.setProcessWheelVisibleCount(count),
-        );
-        hasWheelUpdate = true;
+      const wheelVisibleCount = Number(body.processWheelVisibleCount);
+      if (
+        hasWheelVisibleCount &&
+        (!Number.isInteger(wheelVisibleCount) ||
+          wheelVisibleCount < 3 ||
+          wheelVisibleCount > 8)
+      ) {
+        json(response, 422, {
+          error: "processWheelVisibleCount must be an integer from 3 to 8",
+          code: "INVALID_SETTING",
+        });
+        return true;
       }
 
-      if (hasWheelUpdate) {
+      if (hasWheelEnabled || hasWheelVisibleCount) {
+        const wheelUpdates = {};
+        if (hasWheelEnabled) {
+          Object.assign(
+            wheelUpdates,
+            await repository.setProcessWheelEnabled(body.processWheelEnabled),
+          );
+        }
+        if (hasWheelVisibleCount) {
+          Object.assign(
+            wheelUpdates,
+            await repository.setProcessWheelVisibleCount(wheelVisibleCount),
+          );
+        }
         json(response, 200, wheelUpdates);
         return true;
       }
