@@ -1,3 +1,5 @@
+import "./rich-text-formatting.css";
+
 const ALLOWED_TAGS = new Set([
   "P",
   "BR",
@@ -23,6 +25,10 @@ const ALLOWED_TAGS = new Set([
 const SAFE_CLASSES = new Set([
   "process-inline-image",
   "process-attachment-line",
+  "process-align-left",
+  "process-align-center",
+  "process-align-right",
+  "process-align-justify",
 ]);
 
 function safeUrl(value, { image = false } = {}) {
