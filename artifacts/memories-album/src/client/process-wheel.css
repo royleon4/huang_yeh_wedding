@@ -1,0 +1,191 @@
+.process-wheel-shell {
+  position: relative;
+  width: 100%;
+  margin-top: 0.1rem;
+  overflow: hidden;
+  --wheel-item-width: clamp(6rem, 27vw, 11rem);
+}
+
+.process-wheel-shell::before,
+.process-wheel-shell::after {
+  content: "";
+  pointer-events: none;
+  position: absolute;
+  top: 0;
+  bottom: 1.55rem;
+  z-index: 3;
+  width: clamp(1.2rem, 7vw, 4rem);
+}
+
+.process-wheel-shell::before {
+  left: 0;
+  background: linear-gradient(90deg, rgba(248, 244, 236, 0.98), transparent);
+}
+
+.process-wheel-shell::after {
+  right: 0;
+  background: linear-gradient(270deg, rgba(248, 244, 236, 0.98), transparent);
+}
+
+.process-wheel-focus {
+  pointer-events: none;
+  position: absolute;
+  left: 50%;
+  top: 0.08rem;
+  z-index: 2;
+  width: calc(var(--wheel-item-width) + 0.35rem);
+  height: 4.25rem;
+  transform: translateX(-50%);
+  border: 1px solid rgba(53, 95, 77, 0.25);
+  border-radius: 1.25rem;
+  box-shadow:
+    0 10px 24px rgba(42, 61, 51, 0.08),
+    inset 0 0 0 3px rgba(255, 250, 241, 0.48);
+}
+
+.process-wheel-focus::before,
+.process-wheel-focus::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  width: 2rem;
+  height: 1px;
+  transform: translateX(-50%);
+  background: linear-gradient(90deg, transparent, var(--gold), transparent);
+}
+
+.process-wheel-focus::before {
+  top: -0.18rem;
+}
+
+.process-wheel-focus::after {
+  bottom: -0.18rem;
+}
+
+.process-wheel {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  gap: 0.55rem;
+  width: 100%;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  padding:
+    0.2rem
+    calc(50% - var(--wheel-item-width) / 2)
+    0.7rem;
+  scroll-padding-inline: calc(50% - var(--wheel-item-width) / 2);
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-x pan-y;
+}
+
+.process-wheel::-webkit-scrollbar {
+  display: none;
+}
+
+.process-wheel-item {
+  flex: 0 0 var(--wheel-item-width);
+  min-width: 0;
+  min-height: 4rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.18rem;
+  scroll-snap-align: center;
+  scroll-snap-stop: always;
+  border: 1px solid var(--line);
+  border-radius: 1.05rem;
+  background: rgba(247, 242, 232, 0.84);
+  padding: 0.55rem 0.65rem;
+  color: var(--leaf);
+  cursor: pointer;
+  opacity: 0.64;
+  transform: scale(0.92);
+  transition:
+    opacity 0.18s ease,
+    transform 0.18s ease,
+    background 0.18s ease,
+    border-color 0.18s ease,
+    box-shadow 0.18s ease;
+}
+
+.process-wheel-item span {
+  color: var(--gold);
+  font-family: "Playfair Display", serif;
+  font-size: 0.68rem;
+  letter-spacing: 0.08em;
+}
+
+.process-wheel-item strong {
+  width: 100%;
+  overflow: hidden;
+  color: inherit;
+  font-size: 0.82rem;
+  font-weight: 600;
+  line-height: 1.35;
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.process-wheel-item:hover {
+  opacity: 0.9;
+  transform: scale(0.97);
+}
+
+.process-wheel-item.active {
+  z-index: 2;
+  border-color: var(--leaf);
+  background: var(--leaf);
+  color: #fffaf1;
+  box-shadow: 0 10px 25px rgba(42, 61, 51, 0.18);
+  opacity: 1;
+  transform: scale(1);
+}
+
+.process-wheel-item.active span {
+  color: #f0d596;
+}
+
+.process-wheel-shell.guest .process-wheel-focus {
+  border-color: rgba(185, 110, 93, 0.3);
+}
+
+.process-wheel-shell.guest .process-wheel-item {
+  color: var(--coral);
+}
+
+.process-wheel-shell.guest .process-wheel-item.active {
+  border-color: var(--coral);
+  background: var(--coral);
+  color: #fff;
+}
+
+.process-wheel-hint {
+  margin: 0.1rem 0 0;
+  color: var(--muted);
+  font-family: Arial, sans-serif;
+  font-size: 0.61rem;
+  letter-spacing: 0.13em;
+  text-align: center;
+  opacity: 0.72;
+}
+
+@media (min-width: 700px) {
+  .process-wheel-shell {
+    --wheel-item-width: clamp(8.5rem, 15vw, 11rem);
+  }
+
+  .process-wheel-item strong {
+    font-size: 0.88rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .process-wheel-item {
+    transition: none;
+  }
+}
