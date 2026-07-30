@@ -4,6 +4,17 @@ import "./process-wheel.css";
 const DEFAULT_VISIBLE_COUNT = 6;
 const MIN_VISIBLE_COUNT = 3;
 const MAX_VISIBLE_COUNT = 8;
+const PROGRAMMATIC_SCROLL_TIMEOUT_MS = 1200;
+
+function itemCenterOffset(container, item) {
+  if (!container || !item) return 0;
+  const containerRect = container.getBoundingClientRect();
+  const itemRect = item.getBoundingClientRect();
+  return (
+    itemRect.left + itemRect.width / 2 -
+    (containerRect.left + containerRect.width / 2)
+  );
+}
 
 function closestItem(container) {
   if (!container) return null;
@@ -38,11 +49,31 @@ export default function ProcessWheel({
   const wheelRef = useRef(null);
   const selectTimerRef = useRef(null);
   const frameRef = useRef(null);
+  const programmaticTargetRef = useRef(null);
+  const programmaticTimerRef = useRef(null);
   const mobileVisibleCount = normalizedVisibleCount(visibleCount);
   const mobileItemWidth = `calc(${100 / mobileVisibleCount}% - 0.46rem)`;
 
+  const cancelProgrammaticScroll = () => {
+    globalThis.clearTimeout(programmaticTimerRef.current);
+    programmaticTimerRef.current = null;
+    programmaticTargetRef.current = null;
+  };
+
   const selectCenteredItem = () => {
-    const item = closestItem(wheelRef.current);
+    const wheel = wheelRef.current;
+    if (!wheel) return;
+
+    const targetId = programmaticTargetRef.current;
+    if (targetId) {
+      const target = wheel.querySelector(
+        `[data-wheel-id="${CSS.escape(targetId)}"]`,
+      );
+      if (!target || Math.abs(itemCenterOffset(wheel, target)) > 3) return;
+      cancelProgrammaticScroll();
+    }
+
+    const item = closestItem(wheel);
     const id = item?.dataset.wheelId;
     if (id && id !== activeId) onSelect(id);
   };
@@ -52,6 +83,32 @@ export default function ProcessWheel({
     selectTimerRef.current = globalThis.setTimeout(selectCenteredItem, 90);
   };
 
+  const startProgrammaticScroll = (id, element, behavior = "smooth") => {
+    const wheel = wheelRef.current;
+    if (!wheel || !element) return;
+
+    globalThis.clearTimeout(selectTimerRef.current);
+    globalThis.clearTimeout(programmaticTimerRef.current);
+    const targetId = String(id);
+    const offset = itemCenterOffset(wheel, element);
+    programmaticTargetRef.current = targetId;
+
+    if (Math.abs(offset) <= 2) {
+      cancelProgrammaticScroll();
+      return;
+    }
+
+    wheel.scrollTo({
+      left: wheel.scrollLeft + offset,
+      behavior,
+    });
+    programmaticTimerRef.current = globalThis.setTimeout(() => {
+      if (programmaticTargetRef.current !== targetId) return;
+      cancelProgrammaticScroll();
+      scheduleSelection();
+    }, PROGRAMMATIC_SCROLL_TIMEOUT_MS);
+  };
+
   useEffect(() => {
     const wheel = wheelRef.current;
     const active = wheel?.querySelector(
@@ -59,12 +116,15 @@ export default function ProcessWheel({
     );
     if (!wheel || !active) return;
     frameRef.current = globalThis.requestAnimationFrame(() => {
-      const wheelRect = wheel.getBoundingClientRect();
-      const activeRect = active.getBoundingClientRect();
-      const offset =
-        activeRect.left + activeRect.width / 2 -
-        (wheelRect.left + wheelRect.width / 2);
-      if (Math.abs(offset) > 2) wheel.scrollBy({ left: offset, behavior: "smooth" });
+      const targetId = String(activeId);
+      const offset = itemCenterOffset(wheel, active);
+      if (Math.abs(offset) <= 2) {
+        if (programmaticTargetRef.current === targetId) cancelProgrammaticScroll();
+        return;
+      }
+      if (programmaticTargetRef.current !== targetId) {
+        startProgrammaticScroll(targetId, active);
+      }
     });
     return () => globalThis.cancelAnimationFrame(frameRef.current);
   }, [activeId, items]);
@@ -72,14 +132,15 @@ export default function ProcessWheel({
   useEffect(
     () => () => {
       globalThis.clearTimeout(selectTimerRef.current);
+      globalThis.clearTimeout(programmaticTimerRef.current);
       globalThis.cancelAnimationFrame(frameRef.current);
     },
     [],
   );
 
   const choose = (id, element) => {
+    startProgrammaticScroll(id, element);
     onSelect(id);
-    element?.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
   };
 
   const handleWheel = (event) => {
@@ -91,6 +152,7 @@ export default function ProcessWheel({
     const canMoveForward = wheel.scrollLeft < wheel.scrollWidth - wheel.clientWidth - 1;
     if ((delta < 0 && !canMoveBackward) || (delta > 0 && !canMoveForward)) return;
     event.preventDefault();
+    cancelProgrammaticScroll();
     wheel.scrollBy({ left: delta, behavior: "auto" });
     scheduleSelection();
   };
@@ -124,6 +186,7 @@ export default function ProcessWheel({
         className="process-wheel"
         role="tablist"
         aria-label={ariaLabel}
+        onPointerDown={cancelProgrammaticScroll}
         onScroll={scheduleSelection}
         onWheel={handleWheel}
         onKeyDown={handleKeyDown}
