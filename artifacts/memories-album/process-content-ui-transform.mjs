@@ -28,8 +28,8 @@ function transformGallery(source) {
   code = replaceOnce(
     code,
     `import BottomCollectionNav from "./BottomCollectionNav.jsx";`,
-    `import BottomCollectionNav from "./BottomCollectionNav.jsx";\nimport PhotoGroupGrid from "./PhotoGroupGrid.jsx";\nimport ProcessSelector from "./ProcessSelector.jsx";\nimport ProcessRichContent, {\n  ProcessDivider,\n  hasRichContent,\n} from "./ProcessRichContent.jsx";\nimport {\n  DEFAULT_GALLERY_MEDIA_ORDER,\n  normalizeGalleryMediaOrder,\n  photoMediaKey,\n  sortPhotosByMediaOrder,\n} from "../gallery-media-order.mjs";\nimport "./gallery-media-order.css";`,
-    "process rich content and media order imports",
+    `import BottomCollectionNav from "./BottomCollectionNav.jsx";\nimport PhotoGroupGrid from "./PhotoGroupGrid.jsx";\nimport PinnedPhotoStrip from "./PinnedPhotoStrip.jsx";\nimport ProcessSelector from "./ProcessSelector.jsx";\nimport ProcessRichContent, {\n  ProcessDivider,\n  hasRichContent,\n} from "./ProcessRichContent.jsx";\nimport {\n  DEFAULT_GALLERY_MEDIA_ORDER,\n  normalizeGalleryMediaOrder,\n  photoMediaKey,\n  sortPhotosByMediaOrder,\n} from "../gallery-media-order.mjs";\nimport { normalizePinnedPhotosByProcess } from "../pinned-photo-settings.mjs";\nimport "./gallery-media-order.css";`,
+    "process rich content, pinned photo, and media order imports",
   );
 
   code = replaceOnce(
@@ -42,15 +42,15 @@ function transformGallery(source) {
   code = replaceOnce(
     code,
     `  const [galleryError, setGalleryError] = useState(false);`,
-    `  const [galleryError, setGalleryError] = useState(false);\n  const [galleryMediaOrder, setGalleryMediaOrder] = useState(() => [\n    ...DEFAULT_GALLERY_MEDIA_ORDER,\n  ]);`,
-    "gallery media order state",
+    `  const [galleryError, setGalleryError] = useState(false);\n  const [galleryMediaOrder, setGalleryMediaOrder] = useState(() => [\n    ...DEFAULT_GALLERY_MEDIA_ORDER,\n  ]);\n  const [pinnedPhotoIdsByProcess, setPinnedPhotoIdsByProcess] = useState({});`,
+    "gallery settings state",
   );
 
   code = replaceOnce(
     code,
     `  const sourcePhotos = remotePhotos ?? (useMockFallback ? MOCK_PHOTOS : []);`,
-    `  useEffect(() => {\n    let cancelled = false;\n    void fetch("/Memories/api/settings", {\n      headers: { Accept: "application/json" },\n    })\n      .then((response) => (response.ok ? response.json() : {}))\n      .then((settings) => {\n        if (!cancelled) {\n          setGalleryMediaOrder(\n            normalizeGalleryMediaOrder(settings.galleryMediaOrder),\n          );\n        }\n      })\n      .catch(() => {\n        // The default order remains available while settings recover.\n      });\n    return () => {\n      cancelled = true;\n    };\n  }, []);\n\n  const sourcePhotos = remotePhotos ?? (useMockFallback ? MOCK_PHOTOS : []);`,
-    "public gallery media order hydration",
+    `  useEffect(() => {\n    let cancelled = false;\n    void fetch("/Memories/api/settings", {\n      headers: { Accept: "application/json" },\n    })\n      .then((response) => (response.ok ? response.json() : {}))\n      .then((settings) => {\n        if (!cancelled) {\n          setGalleryMediaOrder(\n            normalizeGalleryMediaOrder(settings.galleryMediaOrder),\n          );\n          setPinnedPhotoIdsByProcess(\n            normalizePinnedPhotosByProcess(settings.pinnedPhotoIdsByProcess),\n          );\n        }\n      })\n      .catch(() => {\n        // The defaults remain available while settings recover.\n      });\n    return () => {\n      cancelled = true;\n    };\n  }, []);\n\n  const sourcePhotos = remotePhotos ?? (useMockFallback ? MOCK_PHOTOS : []);`,
+    "public gallery settings hydration",
   );
 
   code = replaceOnce(
@@ -62,9 +62,16 @@ function transformGallery(source) {
 
   code = replaceOnce(
     code,
+    `  const visible = useMemo(\n    () => pagePhotos(filtered, pageSize, 0).items,\n    [filtered, pageSize],\n  );\n  const selectedIndex = selectedPhotoId\n    ? filtered.findIndex((photo) => photo.id === selectedPhotoId)\n    : -1;`,
+    `  const activePinnedPhotoIds =\n    activeCollection === "wedding"\n      ? pinnedPhotoIdsByProcess[activeFilter] ?? []\n      : [];\n  const pinnedPhotos = useMemo(\n    () =>\n      activePinnedPhotoIds\n        .map((id) => filtered.find((photo) => photo.id === id))\n        .filter(Boolean),\n    [activePinnedPhotoIds, filtered],\n  );\n  const pinnedPhotoIdSet = useMemo(\n    () => new Set(pinnedPhotos.map((photo) => photo.id)),\n    [pinnedPhotos],\n  );\n  const regularFiltered = useMemo(\n    () => filtered.filter((photo) => !pinnedPhotoIdSet.has(photo.id)),\n    [filtered, pinnedPhotoIdSet],\n  );\n  const visible = useMemo(\n    () => pagePhotos(regularFiltered, pageSize, 0).items,\n    [regularFiltered, pageSize],\n  );\n  const displayedPhotos = useMemo(\n    () => [...pinnedPhotos, ...visible],\n    [pinnedPhotos, visible],\n  );\n  const lightboxPhotos = useMemo(\n    () => [...pinnedPhotos, ...regularFiltered],\n    [pinnedPhotos, regularFiltered],\n  );\n  const selectedIndex = selectedPhotoId\n    ? lightboxPhotos.findIndex((photo) => photo.id === selectedPhotoId)\n    : -1;`,
+    "pinned and regular photo paging",
+  );
+
+  code = replaceOnce(
+    code,
     `  const activeProcess =\n    activeCollection === "wedding" && activeFilter !== "all"\n      ? processes.find((process) => process.id === activeFilter)\n      : null;\n  const hasProcessVideo = Boolean(activeProcess?.youtubeVideoId);`,
-    `  const activeProcess =\n    activeCollection === "wedding"\n      ? activeFilter === "all"\n        ? ALL_PROCESS_DEFINITION\n        : processes.find((process) => process.id === activeFilter)\n      : null;\n  const activeProcessHtml =\n    activeProcess?.[lang === "zh" ? "contentHtmlZh" : "contentHtmlEn"] ?? "";\n  const hasProcessVideo = Boolean(activeProcess?.youtubeVideoId);\n  const hasProcessContent = hasRichContent(activeProcessHtml);\n  const photosSuppressed =\n    activeCollection === "wedding" &&\n    activeFilter === "all" &&\n    !ALL_PROCESS_DEFINITION.showAllPhotos;\n  const visibleWeddingPhotos = visible.filter(\n    (photo) => photoMediaKey(photo) === "weddingPhotos",\n  );\n  const visibleGuestPhotos = visible.filter(\n    (photo) => photoMediaKey(photo) === "guestPhotos",\n  );\n  const mediaAvailability = {\n    video: hasProcessVideo,\n    text: hasProcessContent,\n    weddingPhotos: visibleWeddingPhotos.length > 0,\n    guestPhotos: visibleGuestPhotos.length > 0,\n  };\n  const orderedAvailableMediaKeys = galleryMediaOrder.filter(\n    (key) => mediaAvailability[key],\n  );`,
-    "active process content and photo group state",
+    `  const activeProcess =\n    activeCollection === "wedding"\n      ? activeFilter === "all"\n        ? ALL_PROCESS_DEFINITION\n        : processes.find((process) => process.id === activeFilter)\n      : null;\n  const activeProcessHtml =\n    activeProcess?.[lang === "zh" ? "contentHtmlZh" : "contentHtmlEn"] ?? "";\n  const hasProcessVideo = Boolean(activeProcess?.youtubeVideoId);\n  const hasProcessContent = hasRichContent(activeProcessHtml);\n  const photosSuppressed =\n    activeCollection === "wedding" &&\n    activeFilter === "all" &&\n    !ALL_PROCESS_DEFINITION.showAllPhotos;\n  const visibleWeddingPhotos = visible.filter(\n    (photo) => photoMediaKey(photo) === "weddingPhotos",\n  );\n  const visibleGuestPhotos = visible.filter(\n    (photo) => photoMediaKey(photo) === "guestPhotos",\n  );\n  const pinnedWeddingPhotos = pinnedPhotos.filter(\n    (photo) => photoMediaKey(photo) === "weddingPhotos",\n  );\n  const pinnedGuestPhotos = pinnedPhotos.filter(\n    (photo) => photoMediaKey(photo) === "guestPhotos",\n  );\n  const mediaAvailability = {\n    video: hasProcessVideo,\n    text: hasProcessContent,\n    weddingPhotos:\n      visibleWeddingPhotos.length > 0 || pinnedWeddingPhotos.length > 0,\n    guestPhotos: visibleGuestPhotos.length > 0 || pinnedGuestPhotos.length > 0,\n  };\n  const orderedAvailableMediaKeys = galleryMediaOrder.filter(\n    (key) => mediaAvailability[key],\n  );\n  const firstPhotoMediaKey = galleryMediaOrder.find(\n    (key) =>\n      (key === "weddingPhotos" || key === "guestPhotos") &&\n      mediaAvailability[key],\n  );`,
+    "active process content and pinned photo group state",
   );
 
   code = replaceOnce(
@@ -88,7 +95,86 @@ function transformGallery(source) {
     "photo all-process label",
   );
 
-  const mediaBody = `          {stateView ??\n            (orderedAvailableMediaKeys.length === 0 && !photosSuppressed ? (\n              <StateCard icon="✦" title={t.emptyTitle} body={t.emptyBody} />\n            ) : (\n              <>\n                <div className="process-media-sequence">\n                  {galleryMediaOrder.map((mediaKey) => {\n                    if (!mediaAvailability[mediaKey]) return null;\n                    const showDivider =\n                      orderedAvailableMediaKeys[0] !== mediaKey;\n                    return (\n                      <div\n                        key={mediaKey}\n                        className={"process-media-item " + mediaKey}\n                        data-media-block={mediaKey}\n                      >\n                        {showDivider && (\n                          <ProcessDivider\n                            paddingTop={activeProcess?.dividerPaddingTop}\n                            paddingBottom={activeProcess?.dividerPaddingBottom}\n                          />\n                        )}\n                        {mediaKey === "video" && (\n                          <ProcessVideo process={activeProcess} lang={lang} />\n                        )}\n                        {mediaKey === "text" && (\n                          <ProcessRichContent html={activeProcessHtml} />\n                        )}\n                        {mediaKey === "weddingPhotos" && (\n                          <PhotoGroupGrid\n                            photos={visibleWeddingPhotos}\n                            allVisiblePhotos={visible}\n                            copy={t}\n                            getCollectionLabel={photoCollectionLabel}\n                            mediaKey={mediaKey}\n                            onOpen={(photo, opener) => {\n                              openerRef.current = opener;\n                              setSelectedPhotoId(photo.id);\n                            }}\n                          />\n                        )}\n                        {mediaKey === "guestPhotos" && (\n                          <PhotoGroupGrid\n                            photos={visibleGuestPhotos}\n                            allVisiblePhotos={visible}\n                            copy={t}\n                            getCollectionLabel={photoCollectionLabel}\n                            mediaKey={mediaKey}\n                            onOpen={(photo, opener) => {\n                              openerRef.current = opener;\n                              setSelectedPhotoId(photo.id);\n                            }}\n                          />\n                        )}\n                      </div>\n                    );\n                  })}\n                </div>\n                {visible.length < filtered.length && (\n                  <button\n                    className="load-more"\n                    type="button"\n                    onClick={() => setPageSize((size) => size + 12)}\n                  >\n                    {t.loadMore}\n                    <span>↓</span>\n                  </button>\n                )}\n              </>\n            ))}`;
+  const mediaBody = `          {stateView ??
+            (orderedAvailableMediaKeys.length === 0 && !photosSuppressed ? (
+              <StateCard icon="✦" title={t.emptyTitle} body={t.emptyBody} />
+            ) : (
+              <>
+                <div className="process-media-sequence">
+                  {galleryMediaOrder.map((mediaKey) => {
+                    if (!mediaAvailability[mediaKey]) return null;
+                    const showDivider =
+                      orderedAvailableMediaKeys[0] !== mediaKey;
+                    return (
+                      <div
+                        key={mediaKey}
+                        className={"process-media-item " + mediaKey}
+                        data-media-block={mediaKey}
+                      >
+                        {showDivider && (
+                          <ProcessDivider
+                            paddingTop={activeProcess?.dividerPaddingTop}
+                            paddingBottom={activeProcess?.dividerPaddingBottom}
+                          />
+                        )}
+                        {mediaKey === "video" && (
+                          <ProcessVideo process={activeProcess} lang={lang} />
+                        )}
+                        {mediaKey === "text" && (
+                          <ProcessRichContent html={activeProcessHtml} />
+                        )}
+                        {mediaKey === firstPhotoMediaKey && pinnedPhotos.length > 0 && (
+                          <PinnedPhotoStrip
+                            photos={pinnedPhotos}
+                            copy={t}
+                            onOpen={(photo, opener) => {
+                              openerRef.current = opener;
+                              setSelectedPhotoId(photo.id);
+                            }}
+                          />
+                        )}
+                        {mediaKey === "weddingPhotos" && (
+                          <PhotoGroupGrid
+                            photos={visibleWeddingPhotos}
+                            allVisiblePhotos={displayedPhotos}
+                            copy={t}
+                            getCollectionLabel={photoCollectionLabel}
+                            mediaKey={mediaKey}
+                            onOpen={(photo, opener) => {
+                              openerRef.current = opener;
+                              setSelectedPhotoId(photo.id);
+                            }}
+                          />
+                        )}
+                        {mediaKey === "guestPhotos" && (
+                          <PhotoGroupGrid
+                            photos={visibleGuestPhotos}
+                            allVisiblePhotos={displayedPhotos}
+                            copy={t}
+                            getCollectionLabel={photoCollectionLabel}
+                            mediaKey={mediaKey}
+                            onOpen={(photo, opener) => {
+                              openerRef.current = opener;
+                              setSelectedPhotoId(photo.id);
+                            }}
+                          />
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+                {visible.length < regularFiltered.length && (
+                  <button
+                    className="load-more"
+                    type="button"
+                    onClick={() => setPageSize((size) => size + 12)}
+                  >
+                    {t.loadMore}
+                    <span>↓</span>
+                  </button>
+                )}
+              </>
+            ))}`;
 
   code = replaceBetween(
     code,
@@ -96,6 +182,19 @@ function transformGallery(source) {
     `\n        </section>`,
     mediaBody,
     "gallery media body",
+  );
+
+  code = replaceOnce(
+    code,
+    `          photos={filtered}`,
+    `          photos={lightboxPhotos}`,
+    "pinned photo lightbox collection",
+  );
+  code = replaceOnce(
+    code,
+    `            setSelectedPhotoId(filtered[index]?.id ?? null)`,
+    `            setSelectedPhotoId(lightboxPhotos[index]?.id ?? null)`,
+    "pinned photo lightbox selection",
   );
 
   return code;
