@@ -41,8 +41,16 @@ test("album photo order supports time, name, author and stable random modes", ()
   assert.deepEqual(ids(sortAlbumPhotos(photos, "time-desc")), ["c", "b", "a"]);
   assert.deepEqual(ids(sortAlbumPhotos(photos, "name-asc")), ["a", "b", "c"]);
   assert.deepEqual(ids(sortAlbumPhotos(photos, "name-desc")), ["c", "b", "a"]);
-  assert.deepEqual(ids(sortAlbumPhotos(photos, "author-asc")), ["c", "a", "b"]);
-  assert.deepEqual(ids(sortAlbumPhotos(photos, "author-desc")), ["b", "a", "c"]);
+  assert.deepEqual(ids(sortAlbumPhotos(photos, "author-asc")), ["a", "b", "c"]);
+  assert.deepEqual(ids(sortAlbumPhotos(photos, "author-desc")), ["c", "b", "a"]);
+
+  const ranked = photos.map((photo, index) => ({
+    ...photo,
+    nameSortRank: index + 1,
+    authorSortRank: photos.length - index,
+  }));
+  assert.deepEqual(ids(sortAlbumPhotos(ranked, "name-asc")), ["b", "a", "c"]);
+  assert.deepEqual(ids(sortAlbumPhotos(ranked, "author-asc")), ["c", "a", "b"]);
 
   const first = ids(sortAlbumPhotos(photos, "random", "page-load-one"));
   const repeated = ids(sortAlbumPhotos(photos, "random", "page-load-one"));
@@ -73,6 +81,8 @@ test("album photo ordering is selectable in admin and applied after filtering", 
   assert.match(transform, /sortAlbumPhotos\(/);
   assert.match(transform, /albumRandomSeedRef\.current/);
   assert.match(changeSet, /"photoSortMode"/);
-  assert.match(photoApi, /displayName: photo\.displayName/);
-  assert.match(photoApi, /originalFilename: photo\.originalFilename/);
+  assert.match(photoApi, /nameSortRank:/);
+  assert.match(photoApi, /authorSortRank:/);
+  assert.doesNotMatch(photoApi, /displayName: photo\.displayName/);
+  assert.doesNotMatch(photoApi, /originalFilename: photo\.originalFilename/);
 });
