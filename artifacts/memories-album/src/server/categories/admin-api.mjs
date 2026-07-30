@@ -1,5 +1,9 @@
 import { sendAdminJson } from "../admin/auth.mjs";
 import { readAdminJson, requireAdmin } from "../admin/request.mjs";
+import {
+  normalizeYoutubeVideoId,
+  youtubeWatchUrl,
+} from "../processes/youtube.mjs";
 
 function categoryPayload(category) {
   return {
@@ -7,6 +11,9 @@ function categoryPayload(category) {
     labelZh: category.labelZh,
     labelEn: category.labelEn,
     displayOrder: category.displayOrder,
+    youtubeUrl: youtubeWatchUrl(category.youtubeVideoId),
+    youtubeVideoId: category.youtubeVideoId ?? null,
+    youtubeAutoplay: Boolean(category.youtubeAutoplay),
     syncState: category.syncState,
     lastSyncedAt: category.lastSyncedAt,
   };
@@ -26,6 +33,18 @@ function normalizeLabel(value, { required = false } = {}) {
     throw error;
   }
   return label;
+}
+
+function videoSettings(body, existing = null) {
+  const youtubeVideoId = Object.hasOwn(body, "youtubeUrl")
+    ? normalizeYoutubeVideoId(body.youtubeUrl)
+    : (existing?.youtubeVideoId ?? null);
+  const youtubeAutoplay = youtubeVideoId
+    ? Object.hasOwn(body, "youtubeAutoplay")
+      ? Boolean(body.youtubeAutoplay)
+      : Boolean(existing?.youtubeAutoplay)
+    : false;
+  return { youtubeVideoId, youtubeAutoplay };
 }
 
 export function createAdminCategoryApi({
@@ -68,10 +87,14 @@ export function createAdminCategoryApi({
 
       if (request.method === "POST" && collectionPath) {
         const body = await readAdminJson(request);
-        const category = await synchronizer.createProcess({
+        let category = await synchronizer.createProcess({
           labelZh: normalizeLabel(body.labelZh, { required: true }),
           labelEn: normalizeLabel(body.labelEn),
         });
+        category = await repository.updateProcessVideo(
+          category.id,
+          videoSettings(body),
+        );
         sendAdminJson(response, 201, {
           category: categoryPayload(category),
         });
@@ -90,10 +113,21 @@ export function createAdminCategoryApi({
           return true;
         }
         const body = await readAdminJson(request);
-        const category = await synchronizer.renameProcess(
-          existing,
-          normalizeLabel(body.labelZh ?? existing.labelZh, { required: true }),
-          normalizeLabel(body.labelEn ?? existing.labelEn),
+        const labelZh = normalizeLabel(body.labelZh ?? existing.labelZh, {
+          required: true,
+        });
+        const labelEn = normalizeLabel(body.labelEn ?? existing.labelEn);
+        let category = existing;
+        if (labelZh !== existing.labelZh || labelEn !== existing.labelEn) {
+          category = await synchronizer.renameProcess(
+            existing,
+            labelZh,
+            labelEn,
+          );
+        }
+        category = await repository.updateProcessVideo(
+          id,
+          videoSettings(body, category),
         );
         sendAdminJson(response, 200, {
           category: categoryPayload(category),
