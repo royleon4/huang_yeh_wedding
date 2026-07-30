@@ -32,6 +32,115 @@ function canonicalAdminPayload(payload) {
   };
 }
 
+async function fetchAdminJson(
+  path,
+  {
+    method = "GET",
+    body,
+    form,
+    password,
+    fetchImpl,
+    signal,
+  },
+) {
+  const response = await fetchImpl(canonicalAdminRequestPath(path), {
+    method,
+    credentials: "same-origin",
+    signal,
+    headers: {
+      Accept: "application/json",
+      ...(body ? { "Content-Type": "application/json" } : {}),
+      ...(method !== "GET" ? { "X-Memories-Admin": "1" } : {}),
+      ...(password ? { Authorization: `Bearer ${password}` } : {}),
+    },
+    ...(body ? { body: JSON.stringify(body) } : {}),
+    ...(form ? { body: form } : {}),
+  });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const error = new Error(payload.error || `Request failed (${response.status})`);
+    error.status = response.status;
+    error.code = payload.code;
+    throw error;
+  }
+  return canonicalAdminPayload(payload);
+}
+
+async function enrichPhotoUploaders(payload, options) {
+  if (!Array.isArray(payload?.photos) || payload.photos.length === 0) return payload;
+  const ids = payload.photos.map((photo) => photo.id).filter(Boolean);
+  if (ids.length === 0) return payload;
+  const uploaderPayload = await fetchAdminJson(
+    `/admin/api/photo-uploaders?ids=${encodeURIComponent(ids.join(","))}`,
+    { ...options, method: "GET", body: undefined, form: undefined },
+  );
+  const byId = new Map(
+    (uploaderPayload.uploaders ?? []).map((uploader) => [uploader.id, uploader]),
+  );
+  return {
+    ...payload,
+    photos: payload.photos.map((photo) => ({
+      ...photo,
+      uploaderName: byId.get(photo.id)?.uploaderName ?? "",
+      deleteProtected: Boolean(byId.get(photo.id)?.deleteProtected),
+    })),
+  };
+}
+
+async function persistUploaderChanges(payload, body, options) {
+  const uploaderChanges = new Map(
+    (body?.photos?.update ?? [])
+      .filter((item) => Object.hasOwn(item?.changes ?? {}, "uploaderName"))
+      .map((item) => [String(item.id), item.changes.uploaderName]),
+  );
+  if (uploaderChanges.size === 0) return payload;
+
+  const results = [...(payload.results ?? [])];
+  let failed = 0;
+  for (let index = 0; index < results.length; index += 1) {
+    const result = results[index];
+    if (
+      result?.status !== "ok" ||
+      result?.type !== "photo.update" ||
+      !uploaderChanges.has(String(result.id))
+    ) {
+      continue;
+    }
+    try {
+      await fetchAdminJson(
+        `/admin/api/photos/${encodeURIComponent(result.id)}/uploader`,
+        {
+          ...options,
+          method: "PATCH",
+          body: { uploaderName: uploaderChanges.get(String(result.id)) },
+          form: undefined,
+        },
+      );
+    } catch (error) {
+      failed += 1;
+      results[index] = {
+        ...result,
+        status: "error",
+        error: error?.message || "上傳者儲存失敗",
+        code: error?.code || "UPLOADER_UPDATE_FAILED",
+      };
+    }
+  }
+
+  if (failed === 0) return payload;
+  return {
+    ...payload,
+    results,
+    summary: payload.summary
+      ? {
+          ...payload.summary,
+          succeeded: Math.max(0, Number(payload.summary.succeeded ?? 0) - failed),
+          failed: Number(payload.summary.failed ?? 0) + failed,
+        }
+      : payload.summary,
+  };
+}
+
 export function adminSurface(pathname) {
   if (
     pathname === MEMORIES_ADMIN_LOGIN_PATH ||
@@ -65,30 +174,23 @@ export async function adminRequest(
 ) {
   const controller = new AbortController();
   let timer;
+  const options = {
+    method,
+    body,
+    form,
+    password,
+    fetchImpl,
+    signal: controller.signal,
+  };
   const request = (async () => {
-    const response = await fetchImpl(canonicalAdminRequestPath(path), {
-      method,
-      credentials: "same-origin",
-      signal: controller.signal,
-      headers: {
-        Accept: "application/json",
-        ...(body ? { "Content-Type": "application/json" } : {}),
-        ...(method !== "GET" ? { "X-Memories-Admin": "1" } : {}),
-        ...(password ? { Authorization: `Bearer ${password}` } : {}),
-      },
-      ...(body ? { body: JSON.stringify(body) } : {}),
-      ...(form ? { body: form } : {}),
-    });
-    const payload = await response.json().catch(() => ({}));
-    if (!response.ok) {
-      const error = new Error(
-        payload.error || `Request failed (${response.status})`,
-      );
-      error.status = response.status;
-      error.code = payload.code;
-      throw error;
+    let payload = await fetchAdminJson(path, options);
+    if (method === "GET" && /^\/admin\/api\/photos(?:\?|$)/.test(path)) {
+      payload = await enrichPhotoUploaders(payload, options);
     }
-    return canonicalAdminPayload(payload);
+    if (method === "PATCH" && path === "/admin/api/changes") {
+      payload = await persistUploaderChanges(payload, body, options);
+    }
+    return payload;
   })();
   const timeout = new Promise((_, reject) => {
     timer = globalThis.setTimeout(
