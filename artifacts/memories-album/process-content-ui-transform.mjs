@@ -252,19 +252,6 @@ function transformAdmin(source) {
     "fixed all-process editor",
   );
 
-  code = replaceOnce(
-    code,
-    `                    value={upload.categoryId}\n                    onChange={(event) =>\n                      setUpload((current) => ({ ...current, categoryId: event.target.value }))\n                    }\n                    disabled={busy}`,
-    `                    value={upload.categoryId}\n                    onChange={(event) =>\n                      setUpload((current) => ({ ...current, categoryId: event.target.value }))\n                    }\n                    disabled={busy || !upload.albumIds.includes("wedding")}`,
-    "new-photo wedding category guard",
-  );
-
-  code = replaceOnce(
-    code,
-    `                  onChange={(albumIds) =>\n                    setUpload((current) => ({ ...current, albumIds }))\n                  }`,
-    `                  onChange={(albumIds) =>\n                    setUpload((current) => ({\n                      ...current,\n                      albumIds,\n                      categoryId: albumIds.includes("wedding") ? current.categoryId : "",\n                    }))\n                  }`,
-    "new-photo category clearing",
-  );
 
   return code;
 }
