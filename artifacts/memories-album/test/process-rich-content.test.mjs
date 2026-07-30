@@ -104,7 +104,7 @@ test("public process API includes fixed all-process and rich content", async () 
   assert.equal(payload.processes[0].dividerPaddingBottom, 11);
 });
 
-test("UI transform integrates optional selector, admin tab, editor, and public content", async () => {
+test("UI transform integrates selector, general settings, ordered media, and rich content", async () => {
   const transform = processContentUiTransform();
   const appSource = await readFile(
     new URL("../src/client/App.jsx", import.meta.url),
@@ -125,12 +125,19 @@ test("UI transform integrates optional selector, admin tab, editor, and public c
   assert.match(gallery, /ALL_PROCESS_DEFINITION/);
   assert.match(gallery, /ProcessRichContent/);
   assert.match(gallery, /ProcessSelector/);
+  assert.match(gallery, /PhotoGroupGrid/);
+  assert.match(gallery, /galleryMediaOrder\.map/);
+  assert.match(gallery, /visibleWeddingPhotos/);
+  assert.match(gallery, /visibleGuestPhotos/);
   assert.match(gallery, /variant="guest"/);
   assert.match(gallery, /number: "00"/);
   assert.match(gallery, /photosSuppressed/);
   assert.match(admin, /<AllProcessEditor \/>/);
   assert.match(admin, /ProcessContentEditor processKey=\{category\.id\}/);
   assert.match(admin, /ProcessSelectorSettings/);
+  assert.match(admin, /GeneralSettings/);
+  assert.match(admin, /\["general", "通用"\]/);
+  assert.match(admin, /tab === "general"/);
   assert.match(admin, /\["subcategory-ui", "子分類操作"\]/);
   assert.match(admin, /tab === "subcategory-ui"/);
   assert.match(admin, /categories\.length \+ 1/);
