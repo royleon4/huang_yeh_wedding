@@ -69,7 +69,7 @@ test("administrator settings accept a per-process pinned photo map", async () =>
   assert.deepEqual(stored, { vows: ["one", "two"] });
 });
 
-test("gallery transform places pinned photos before regular photo grids", async () => {
+test("gallery transform places pinned photos before the single continuous photo grid", async () => {
   const source = await readFile(
     new URL("../src/client/App.jsx", import.meta.url),
     "utf8",
@@ -82,8 +82,9 @@ test("gallery transform places pinned photos before regular photo grids", async 
   assert.match(gallery, /pinnedPhotoIdsByProcess/);
   assert.match(gallery, /regularFiltered/);
   assert.match(gallery, /lightboxPhotos/);
-  assert.match(gallery, /mediaKey === firstPhotoMediaKey/);
+  assert.match(gallery, /mediaKey === "photos"/);
   assert.match(gallery, /<PinnedPhotoStrip[\s\S]*<PhotoGroupGrid/);
+  assert.equal((gallery.match(/<PhotoGroupGrid/g) ?? []).length, 1);
   assert.match(gallery, /visible\.length < regularFiltered\.length/);
 });
 
