@@ -3,6 +3,7 @@ import { createRoot } from "react-dom/client";
 import App from "./App.jsx";
 import AdminApp from "./AdminApp.jsx";
 import AdminLoginPage from "./AdminLoginPage.jsx";
+import BatchManagementPage from "./BatchManagementPage.jsx";
 import GalleryEnhancements from "./GalleryEnhancements.jsx";
 import { adminSurface } from "./admin-client.mjs";
 import {
@@ -19,6 +20,7 @@ import "./admin.css";
 import "./admin-feature-settings.css";
 import "./gallery-tweaks.css";
 import "./process-rich-content.css";
+import "./batch-management.css";
 
 class MemoriesErrorBoundary extends Component {
   constructor(props) {
@@ -176,15 +178,19 @@ function MemoriesRoot() {
   );
 }
 
+const isBatchManagement = /^\/Memories\/manage\/[^/]+\/?$/.test(
+  window.location.pathname,
+);
 const surface = adminSurface(window.location.pathname);
-const content =
-  surface === "login" ? (
-    <AdminLoginPage />
-  ) : surface === "admin" ? (
-    <AdminApp />
-  ) : (
-    <MemoriesRoot />
-  );
+const content = isBatchManagement ? (
+  <BatchManagementPage />
+) : surface === "login" ? (
+  <AdminLoginPage />
+) : surface === "admin" ? (
+  <AdminApp />
+) : (
+  <MemoriesRoot />
+);
 
 createRoot(document.getElementById("root")).render(
   <React.StrictMode>
