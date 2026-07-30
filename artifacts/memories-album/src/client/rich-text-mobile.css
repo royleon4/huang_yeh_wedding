@@ -1,11 +1,31 @@
 @media (max-width: 720px) {
+  .process-content-details,
+  .process-content-expanded,
+  .process-content-inline-editor,
+  .process-rich-editor,
   .tiptap-rich-editor,
   .tiptap-editor-header,
-  .tiptap-toolbar {
+  .tiptap-toolbar,
+  .tiptap-editor-frame,
+  .tiptap-editor-frame > div,
+  .process-attachment-library,
+  .process-attachment-library-grid {
     width: 100%;
     max-width: 100%;
     min-width: 0;
     box-sizing: border-box;
+  }
+
+  .process-content-details,
+  .process-content-expanded,
+  .process-content-inline-editor,
+  .process-rich-editor,
+  .tiptap-rich-editor {
+    overflow: visible;
+  }
+
+  .process-content-expanded {
+    padding-inline: clamp(0.65rem, 3vw, 1rem);
   }
 
   .tiptap-editor-header {
@@ -43,10 +63,12 @@
 
   .tiptap-block-select select {
     width: 100%;
+    max-width: 100%;
     min-width: 0;
     min-height: clamp(2.5rem, 10vw, 2.9rem);
     padding-inline: 0.65rem 1.8rem;
     font-size: clamp(0.88rem, 3.5vw, 1rem);
+    box-sizing: border-box;
   }
 
   .tiptap-toolbar-divider {
@@ -68,6 +90,7 @@
     border: 1px solid var(--editor-line);
     background: #fff;
     line-height: 1;
+    box-sizing: border-box;
   }
 
   .tiptap-toolbar-button > span {
@@ -91,17 +114,64 @@
   }
 
   .tiptap-editor-hint {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
     padding-inline: 0;
     overflow-wrap: anywhere;
+    box-sizing: border-box;
+  }
+
+  .tiptap-editor-frame {
+    overflow: visible;
   }
 
   .process-rich-editable.tiptap-editor-surface,
   .tiptap-editor-frame .ProseMirror {
-    height: clamp(16rem, 50dvh, 34rem);
-    min-height: 14rem;
-    max-height: 72dvh;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    height: clamp(14rem, 48dvh, 34rem);
+    min-height: clamp(12rem, 38dvh, 16rem);
+    max-height: min(72dvh, 42rem);
+    padding: clamp(0.8rem, 3vw, 1rem);
+    overflow-x: hidden;
+    overflow-y: auto;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+    white-space: pre-wrap;
     resize: vertical;
     overscroll-behavior: contain;
+    box-sizing: border-box;
+  }
+
+  .tiptap-editor-frame .ProseMirror > *,
+  .tiptap-media-node,
+  .tiptap-media-content,
+  .tiptap-image-node img,
+  .tiptap-attachment-node,
+  .tiptap-attachment-node a,
+  .process-attachment-library-grid article {
+    max-width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+  }
+
+  .tiptap-editor-frame .ProseMirror a,
+  .process-attachment-name,
+  .process-attachment-meta,
+  .process-attachment-library-grid article span,
+  .process-attachment-library-grid article a {
+    max-width: 100%;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+  }
+
+  .tiptap-media-controls {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
   }
 
   .tiptap-bubble-menu {
@@ -139,5 +209,14 @@
 
   .tiptap-toolbar-button.is-wide {
     width: max-content;
+  }
+}
+
+@media (max-height: 520px) and (orientation: landscape) {
+  .process-rich-editable.tiptap-editor-surface,
+  .tiptap-editor-frame .ProseMirror {
+    height: 46dvh;
+    min-height: 9rem;
+    max-height: 58dvh;
   }
 }
