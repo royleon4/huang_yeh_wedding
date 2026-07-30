@@ -197,5 +197,5 @@ export function isValidSiteCopy(value) {
     }
     if (Object.keys(copy).some((key) => !FIELD_LIMITS.has(key))) return false;
   }
-  return Buffer.byteLength(JSON.stringify(value), "utf8") <= 24 * 1024;
+  return new TextEncoder().encode(JSON.stringify(value)).byteLength <= 24 * 1024;
 }
