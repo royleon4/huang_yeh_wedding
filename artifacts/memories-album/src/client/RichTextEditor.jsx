@@ -1,4 +1,10 @@
+import Placeholder from "@tiptap/extension-placeholder";
+import TextAlign from "@tiptap/extension-text-align";
+import { EditorContent, useEditor } from "@tiptap/react";
+import { BubbleMenu } from "@tiptap/react/menus";
+import StarterKit from "@tiptap/starter-kit";
 import { useEffect, useRef, useState } from "react";
+import { AttachmentCard, WeddingImage } from "./TiptapMediaNodes.jsx";
 import "./rich-text-formatting.css";
 
 const ATTACHMENT_ACCEPT = [
@@ -17,111 +23,83 @@ const ATTACHMENT_ACCEPT = [
   ".zip",
 ].join(",");
 
-const ALIGNMENT_CLASSES = [
-  "process-align-left",
-  "process-align-center",
-  "process-align-right",
-  "process-align-justify",
-];
-
-const ALIGNMENT_BY_COMMAND = {
-  justifyLeft: "process-align-left",
-  justifyCenter: "process-align-center",
-  justifyRight: "process-align-right",
-  justifyFull: "process-align-justify",
+const ALIGNMENT_BY_CLASS = {
+  "process-align-left": "left",
+  "process-align-center": "center",
+  "process-align-right": "right",
+  "process-align-justify": "justify",
 };
 
-const ALIGNMENT_BY_VALUE = {
-  left: "process-align-left",
-  start: "process-align-left",
-  center: "process-align-center",
-  right: "process-align-right",
-  end: "process-align-right",
-  justify: "process-align-justify",
-};
-
-const EDITABLE_BLOCK_SELECTOR = "p,h2,h3,blockquote,li,div,figcaption";
-
-function escapeHtml(value) {
-  return String(value ?? "")
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#039;");
+function prepareEditorHtml(value) {
+  const html = String(value ?? "").trim();
+  if (!html || typeof DOMParser === "undefined") return html || "<p></p>";
+  const documentNode = new DOMParser().parseFromString(`<div>${html}</div>`, "text/html");
+  const root = documentNode.body.firstElementChild;
+  if (!root) return html;
+  for (const element of root.querySelectorAll(Object.keys(ALIGNMENT_BY_CLASS).map((name) => `.${name}`).join(","))) {
+    const className = Object.keys(ALIGNMENT_BY_CLASS).find((name) => element.classList.contains(name));
+    if (className) element.style.textAlign = ALIGNMENT_BY_CLASS[className];
+  }
+  return root.innerHTML || "<p></p>";
 }
 
 function formatBytes(value) {
   const bytes = Number(value ?? 0);
+  if (!Number.isFinite(bytes) || bytes <= 0) return "";
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
   return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
 }
 
-function selectionNodeInside(editor, node) {
-  const element = node?.nodeType === Node.ELEMENT_NODE ? node : node?.parentElement;
-  return Boolean(element && (element === editor || editor.contains(element)));
-}
-
-function selectedBlocks(editor, range) {
-  if (!editor || !range) return [];
-  const blocks = [...editor.querySelectorAll(EDITABLE_BLOCK_SELECTOR)].filter((element) => {
-    try {
-      return range.intersectsNode(element);
-    } catch {
-      return false;
-    }
-  });
-  if (blocks.length > 0) {
-    return blocks.filter(
-      (candidate) => !blocks.some((other) => other !== candidate && candidate.contains(other)),
-    );
-  }
-
-  let current =
-    range.startContainer.nodeType === Node.ELEMENT_NODE
-      ? range.startContainer
-      : range.startContainer.parentElement;
-  while (current && current !== editor) {
-    if (current.matches?.(EDITABLE_BLOCK_SELECTOR)) return [current];
-    current = current.parentElement;
-  }
-  return [];
-}
-
-function normalizeAlignmentMarkup(editor) {
-  if (!editor) return;
-  const selector = ["[style]", "[align]", ...ALIGNMENT_CLASSES.map((name) => `.${name}`)].join(",");
-  for (const element of editor.querySelectorAll(selector)) {
-    const styleAlignment = element.style?.textAlign?.trim().toLowerCase();
-    const legacyAlignment = element.getAttribute("align")?.trim().toLowerCase();
-    const existingClass = ALIGNMENT_CLASSES.find((name) => element.classList.contains(name));
-    const alignmentClass =
-      ALIGNMENT_BY_VALUE[styleAlignment] || ALIGNMENT_BY_VALUE[legacyAlignment] || existingClass;
-
-    element.classList.remove(...ALIGNMENT_CLASSES);
-    if (alignmentClass) element.classList.add(alignmentClass);
-    element.removeAttribute("align");
-    if (element.style) {
-      element.style.removeProperty("text-align");
-      if (!element.getAttribute("style")?.trim()) element.removeAttribute("style");
-    }
+function safeHttpUrl(raw) {
+  try {
+    const url = new URL(raw, window.location.origin);
+    return /^https?:$/.test(url.protocol) ? url.href : "";
+  } catch {
+    return "";
   }
 }
 
-function ToolbarButton({ label, children, disabled, onClick, pressed }) {
+function ToolbarButton({ label, icon, active = false, disabled = false, onClick, wide = false }) {
   return (
     <button
       type="button"
+      className={`tiptap-toolbar-button ${active ? "is-active" : ""} ${wide ? "is-wide" : ""}`}
       aria-label={label}
       title={label}
-      aria-pressed={typeof pressed === "boolean" ? pressed : undefined}
+      aria-pressed={active}
       disabled={disabled}
-      onMouseDown={(event) => event.preventDefault()}
       onClick={onClick}
     >
-      {children}
+      <span aria-hidden="true">{icon}</span>
+      {wide && <small>{label}</small>}
     </button>
+  );
+}
+
+function TextBubbleMenu({ editor }) {
+  if (!editor) return null;
+  return (
+    <BubbleMenu
+      editor={editor}
+      className="tiptap-bubble-menu"
+      options={{ placement: "top", offset: 8 }}
+      shouldShow={({ editor: current, from, to }) =>
+        from !== to && !current.isActive("weddingImage") && !current.isActive("attachmentCard")
+      }
+    >
+      <ToolbarButton label="粗體" icon="B" active={editor.isActive("bold")} onClick={() => editor.chain().focus().toggleBold().run()} />
+      <ToolbarButton label="斜體" icon="I" active={editor.isActive("italic")} onClick={() => editor.chain().focus().toggleItalic().run()} />
+      <ToolbarButton label="底線" icon="U" active={editor.isActive("underline")} onClick={() => editor.chain().focus().toggleUnderline().run()} />
+      <ToolbarButton label="刪除線" icon="S" active={editor.isActive("strike")} onClick={() => editor.chain().focus().toggleStrike().run()} />
+      <ToolbarButton label="連結" icon="↗" active={editor.isActive("link")} onClick={() => {
+        const current = editor.getAttributes("link").href || "https://";
+        const raw = window.prompt("請輸入連結網址", current);
+        if (raw === null) return;
+        const href = safeHttpUrl(raw);
+        if (href) editor.chain().focus().extendMarkRange("link").setLink({ href }).run();
+      }} />
+    </BubbleMenu>
   );
 }
 
@@ -134,104 +112,113 @@ export default function RichTextEditor({
   onDeleteAttachment,
   ariaLabel,
 }) {
-  const editorRef = useRef(null);
   const fileInputRef = useRef(null);
-  const selectionRef = useRef(null);
+  const onChangeRef = useRef(onChange);
+  const lastEmittedRef = useRef("");
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState("");
-  const [activeFormats, setActiveFormats] = useState({});
+  const [, setRevision] = useState(0);
 
   useEffect(() => {
-    const editor = editorRef.current;
-    if (!editor || document.activeElement === editor) return;
-    if (editor.innerHTML !== (value || "")) editor.innerHTML = value || "";
-    normalizeAlignmentMarkup(editor);
-  }, [value]);
+    onChangeRef.current = onChange;
+  }, [onChange]);
 
-  const captureSelection = () => {
-    const editor = editorRef.current;
-    const selection = window.getSelection();
-    if (!editor || !selection?.rangeCount) return;
-    const range = selection.getRangeAt(0);
-    if (!selectionNodeInside(editor, range.commonAncestorContainer)) return;
-    selectionRef.current = range.cloneRange();
-    setActiveFormats({
-      bold: document.queryCommandState("bold"),
-      italic: document.queryCommandState("italic"),
-      underline: document.queryCommandState("underline"),
-      strikeThrough: document.queryCommandState("strikeThrough"),
-    });
-  };
+  const editor = useEditor({
+    immediatelyRender: false,
+    editable: !disabled,
+    extensions: [
+      StarterKit.configure({
+        heading: { levels: [2, 3] },
+        link: {
+          openOnClick: false,
+          autolink: true,
+          linkOnPaste: true,
+          HTMLAttributes: { target: "_blank", rel: "noopener noreferrer" },
+        },
+      }),
+      TextAlign.configure({
+        types: ["heading", "paragraph"],
+        alignments: ["left", "center", "right", "justify"],
+      }),
+      Placeholder.configure({
+        placeholder: "在這裡輸入文字，或加入可拖曳的圖片與附件…",
+      }),
+      WeddingImage,
+      AttachmentCard,
+    ],
+    content: prepareEditorHtml(value),
+    editorProps: {
+      attributes: {
+        class: "process-rich-editable tiptap-editor-surface",
+        role: "textbox",
+        "aria-multiline": "true",
+        "aria-label": ariaLabel || "文章內容",
+      },
+    },
+    onUpdate: ({ editor: current }) => {
+      const html = current.getHTML();
+      lastEmittedRef.current = html;
+      onChangeRef.current?.(html);
+      setRevision((revision) => revision + 1);
+    },
+    onSelectionUpdate: () => setRevision((revision) => revision + 1),
+    onTransaction: () => setRevision((revision) => revision + 1),
+  });
 
-  const restoreSelection = () => {
-    const editor = editorRef.current;
-    if (!editor) return null;
-    editor.focus({ preventScroll: true });
-    const saved = selectionRef.current;
-    if (!saved || !selectionNodeInside(editor, saved.commonAncestorContainer)) return null;
-    const selection = window.getSelection();
-    selection?.removeAllRanges();
-    selection?.addRange(saved);
-    return saved;
-  };
-
-  const emit = () => {
-    const editor = editorRef.current;
-    normalizeAlignmentMarkup(editor);
-    onChange(editor?.innerHTML ?? "");
-    captureSelection();
-  };
-
-  const run = (command, commandValue = null) => {
-    if (disabled) return;
-    restoreSelection();
-    document.execCommand(command, false, commandValue);
-    emit();
-  };
-
-  const align = (command) => {
-    if (disabled) return;
-    const editor = editorRef.current;
-    const range = restoreSelection();
+  useEffect(() => {
     if (!editor) return;
-    const before = selectedBlocks(editor, range);
-    for (const block of before) block.classList.remove(...ALIGNMENT_CLASSES);
-    document.execCommand(command, false, null);
-    const selection = window.getSelection();
-    const activeRange = selection?.rangeCount ? selection.getRangeAt(0) : range;
-    const blocks = selectedBlocks(editor, activeRange);
-    const alignmentClass = ALIGNMENT_BY_COMMAND[command];
-    for (const block of blocks) {
-      block.classList.remove(...ALIGNMENT_CLASSES);
-      if (alignmentClass) block.classList.add(alignmentClass);
-    }
-    emit();
-  };
+    editor.setEditable(!disabled);
+  }, [disabled, editor]);
 
-  const addLink = () => {
-    const raw = window.prompt("請輸入連結網址（https://…）");
-    if (!raw) return;
-    try {
-      const url = new URL(raw, window.location.origin);
-      if (!/^https?:$/.test(url.protocol)) throw new Error("invalid protocol");
-      run("createLink", url.href);
-    } catch {
-      setUploadError("連結必須是有效的 http 或 https 網址。");
-    }
-  };
+  useEffect(() => {
+    if (!editor) return;
+    const next = prepareEditorHtml(value);
+    if (value === lastEmittedRef.current || editor.getHTML() === next) return;
+    editor.commands.setContent(next, { emitUpdate: false });
+  }, [editor, value]);
+
+  useEffect(() => {
+    if (!editor) return;
+    editor.setOptions({
+      editorProps: {
+        ...editor.options.editorProps,
+        attributes: {
+          ...editor.options.editorProps?.attributes,
+          "aria-label": ariaLabel || "文章內容",
+        },
+      },
+    });
+  }, [ariaLabel, editor]);
 
   const insertAttachment = (attachment) => {
-    const name = escapeHtml(attachment.name);
-    const url = escapeHtml(attachment.url);
-    const downloadUrl = escapeHtml(attachment.downloadUrl || attachment.url);
-    const html = attachment.isImage
-      ? `<figure class="process-inline-image"><img src="${url}" alt="${name}" loading="lazy"><figcaption>${name}</figcaption></figure><p><br></p>`
-      : `<p class="process-attachment-line"><a href="${downloadUrl}" target="_blank" rel="noopener" download>📎 ${name}</a></p>`;
-    run("insertHTML", html);
+    if (!editor || !attachment) return;
+    const node = attachment.isImage
+      ? {
+          type: "weddingImage",
+          attrs: {
+            src: attachment.url,
+            alt: attachment.name || "",
+            caption: attachment.name || "",
+            width: 100,
+          },
+        }
+      : {
+          type: "attachmentCard",
+          attrs: {
+            attachmentId: attachment.id || "",
+            name: attachment.name || "附件",
+            href: attachment.url || attachment.downloadUrl || "",
+            downloadUrl: attachment.downloadUrl || attachment.url || "",
+            mimeType: attachment.mimeType || "",
+            byteSize: Number(attachment.byteSize || 0),
+            width: 100,
+          },
+        };
+    editor.chain().focus().insertContent([node, { type: "paragraph" }]).run();
   };
 
   const upload = async (file) => {
-    if (!file || !onUploadAttachment) return;
+    if (!file || !onUploadAttachment || !editor) return;
     setUploading(true);
     setUploadError("");
     try {
@@ -245,108 +232,87 @@ export default function RichTextEditor({
     }
   };
 
+  const setBlock = (value) => {
+    if (!editor) return;
+    const chain = editor.chain().focus();
+    if (value === "h2") chain.setHeading({ level: 2 }).run();
+    else if (value === "h3") chain.setHeading({ level: 3 }).run();
+    else if (value === "blockquote") chain.toggleBlockquote().run();
+    else chain.setParagraph().run();
+  };
+
+  const addLink = () => {
+    if (!editor) return;
+    const current = editor.getAttributes("link").href || "https://";
+    const raw = window.prompt("請輸入連結網址", current);
+    if (raw === null) return;
+    if (!raw.trim()) {
+      editor.chain().focus().extendMarkRange("link").unsetLink().run();
+      return;
+    }
+    const href = safeHttpUrl(raw);
+    if (!href) {
+      setUploadError("連結必須是有效的 http 或 https 網址。");
+      return;
+    }
+    editor.chain().focus().extendMarkRange("link").setLink({ href }).run();
+  };
+
+  const blockValue = editor?.isActive("heading", { level: 2 })
+    ? "h2"
+    : editor?.isActive("heading", { level: 3 })
+      ? "h3"
+      : editor?.isActive("blockquote")
+        ? "blockquote"
+        : "p";
+
   return (
-    <div className="process-rich-editor">
-      <div className="process-rich-toolbar" role="toolbar" aria-label="文字格式工具列">
-        <div className="process-rich-toolbar-group wide" role="group" aria-label="段落格式">
-          <span className="process-rich-toolbar-label">段落</span>
-          <select
-            aria-label="段落格式"
-            defaultValue="p"
-            disabled={disabled}
-            onMouseDown={captureSelection}
-            onChange={(event) => run("formatBlock", event.target.value)}
-          >
-            <option value="p">內文</option>
-            <option value="h2">大標題</option>
-            <option value="h3">小標題</option>
-            <option value="blockquote">引言</option>
-          </select>
-        </div>
+    <div className="process-rich-editor tiptap-rich-editor">
+      <div className="tiptap-editor-header">
+        <div className="tiptap-toolbar" role="toolbar" aria-label="文章格式工具列">
+          <label className="tiptap-block-select">
+            <span className="sr-only">段落格式</span>
+            <select value={blockValue} disabled={disabled || !editor} onChange={(event) => setBlock(event.target.value)}>
+              <option value="p">內文</option>
+              <option value="h2">大標題</option>
+              <option value="h3">小標題</option>
+              <option value="blockquote">引言</option>
+            </select>
+          </label>
 
-        <div className="process-rich-toolbar-group" role="group" aria-label="文字樣式">
-          <span className="process-rich-toolbar-label">文字</span>
-          {[
-            ["bold", "粗體", "B"],
-            ["italic", "斜體", "I"],
-            ["underline", "底線", "U"],
-            ["strikeThrough", "刪除線", "S"],
-          ].map(([command, label, text]) => (
-            <ToolbarButton
-              key={command}
-              label={label}
-              disabled={disabled}
-              pressed={Boolean(activeFormats[command])}
-              onClick={() => run(command)}
-            >
-              {text}
-            </ToolbarButton>
-          ))}
-        </div>
+          <span className="tiptap-toolbar-divider" />
+          <ToolbarButton label="粗體" icon="B" active={Boolean(editor?.isActive("bold"))} disabled={disabled || !editor} onClick={() => editor?.chain().focus().toggleBold().run()} />
+          <ToolbarButton label="斜體" icon="I" active={Boolean(editor?.isActive("italic"))} disabled={disabled || !editor} onClick={() => editor?.chain().focus().toggleItalic().run()} />
+          <ToolbarButton label="底線" icon="U" active={Boolean(editor?.isActive("underline"))} disabled={disabled || !editor} onClick={() => editor?.chain().focus().toggleUnderline().run()} />
+          <ToolbarButton label="刪除線" icon="S" active={Boolean(editor?.isActive("strike"))} disabled={disabled || !editor} onClick={() => editor?.chain().focus().toggleStrike().run()} />
 
-        <div className="process-rich-toolbar-group wide" role="group" aria-label="段落對齊">
-          <span className="process-rich-toolbar-label">對齊</span>
-          {[
-            ["justifyLeft", "置左", "左"],
-            ["justifyCenter", "置中", "中"],
-            ["justifyRight", "置右", "右"],
-            ["justifyFull", "左右對齊（等寬）", "等寬"],
-          ].map(([command, label, text]) => (
-            <ToolbarButton
-              key={command}
-              label={label}
-              disabled={disabled}
-              onClick={() => align(command)}
-            >
-              {text}
-            </ToolbarButton>
-          ))}
-        </div>
+          <span className="tiptap-toolbar-divider" />
+          <ToolbarButton label="置左" icon="≡" active={Boolean(editor?.isActive({ textAlign: "left" }))} disabled={disabled || !editor} onClick={() => editor?.chain().focus().setTextAlign("left").run()} />
+          <ToolbarButton label="置中" icon="≣" active={Boolean(editor?.isActive({ textAlign: "center" }))} disabled={disabled || !editor} onClick={() => editor?.chain().focus().setTextAlign("center").run()} />
+          <ToolbarButton label="置右" icon="≡›" active={Boolean(editor?.isActive({ textAlign: "right" }))} disabled={disabled || !editor} onClick={() => editor?.chain().focus().setTextAlign("right").run()} />
+          <ToolbarButton label="左右等寬" icon="☰" active={Boolean(editor?.isActive({ textAlign: "justify" }))} disabled={disabled || !editor} onClick={() => editor?.chain().focus().setTextAlign("justify").run()} />
 
-        <div className="process-rich-toolbar-group wide" role="group" aria-label="清單與縮排">
-          <span className="process-rich-toolbar-label">清單與縮排</span>
-          <ToolbarButton label="項目清單" disabled={disabled} onClick={() => run("insertUnorderedList")}>
-            項目
-          </ToolbarButton>
-          <ToolbarButton label="編號清單" disabled={disabled} onClick={() => run("insertOrderedList")}>
-            編號
-          </ToolbarButton>
-          <ToolbarButton label="減少縮排" disabled={disabled} onClick={() => run("outdent")}>
-            ←縮排
-          </ToolbarButton>
-          <ToolbarButton label="增加縮排" disabled={disabled} onClick={() => run("indent")}>
-            縮排→
-          </ToolbarButton>
-        </div>
+          <span className="tiptap-toolbar-divider" />
+          <ToolbarButton label="項目清單" icon="•≡" active={Boolean(editor?.isActive("bulletList"))} disabled={disabled || !editor} onClick={() => editor?.chain().focus().toggleBulletList().run()} />
+          <ToolbarButton label="編號清單" icon="1≡" active={Boolean(editor?.isActive("orderedList"))} disabled={disabled || !editor} onClick={() => editor?.chain().focus().toggleOrderedList().run()} />
+          <ToolbarButton label="減少縮排" icon="⇤" disabled={disabled || !editor} onClick={() => editor?.chain().focus().liftListItem("listItem").run()} />
+          <ToolbarButton label="增加縮排" icon="⇥" disabled={disabled || !editor} onClick={() => editor?.chain().focus().sinkListItem("listItem").run()} />
 
-        <div className="process-rich-toolbar-group wide" role="group" aria-label="連結與編輯">
-          <span className="process-rich-toolbar-label">連結與編輯</span>
-          <ToolbarButton label="新增連結" disabled={disabled} onClick={addLink}>
-            連結
-          </ToolbarButton>
-          <ToolbarButton label="移除連結" disabled={disabled} onClick={() => run("unlink")}>
-            取消連結
-          </ToolbarButton>
-          <ToolbarButton label="復原" disabled={disabled} onClick={() => run("undo")}>
-            復原
-          </ToolbarButton>
-          <ToolbarButton label="重做" disabled={disabled} onClick={() => run("redo")}>
-            重做
-          </ToolbarButton>
-          <ToolbarButton label="清除所選文字格式" disabled={disabled} onClick={() => run("removeFormat")}>
-            清除格式
-          </ToolbarButton>
-        </div>
+          <span className="tiptap-toolbar-divider" />
+          <ToolbarButton label="新增或編輯連結" icon="↗" active={Boolean(editor?.isActive("link"))} disabled={disabled || !editor} onClick={addLink} />
+          <ToolbarButton label="取消連結" icon="⊘" disabled={disabled || !editor || !editor?.isActive("link")} onClick={() => editor?.chain().focus().unsetLink().run()} />
+          <ToolbarButton label="復原" icon="↶" disabled={disabled || !editor || !editor.can().chain().focus().undo().run()} onClick={() => editor?.chain().focus().undo().run()} />
+          <ToolbarButton label="重做" icon="↷" disabled={disabled || !editor || !editor.can().chain().focus().redo().run()} onClick={() => editor?.chain().focus().redo().run()} />
+          <ToolbarButton label="清除格式" icon="Tx" disabled={disabled || !editor} onClick={() => editor?.chain().focus().unsetAllMarks().clearNodes().run()} />
 
-        <div className="process-rich-toolbar-group" role="group" aria-label="附件">
-          <span className="process-rich-toolbar-label">附件</span>
+          <span className="tiptap-toolbar-spacer" />
           <ToolbarButton
-            label="插入圖片或附件"
-            disabled={disabled || uploading}
+            label={uploading ? "上傳中" : "加入圖片或附件"}
+            icon={uploading ? "…" : "＋"}
+            wide
+            disabled={disabled || uploading || !editor}
             onClick={() => fileInputRef.current?.click()}
-          >
-            {uploading ? "上傳中…" : "圖片／附件"}
-          </ToolbarButton>
+          />
           <input
             ref={fileInputRef}
             className="process-rich-file-input"
@@ -357,48 +323,46 @@ export default function RichTextEditor({
           />
         </div>
       </div>
-      <p className="process-rich-selection-hint">
-        先反白選取文字或多個段落，或把游標放在該行，再按上方格式；對齊與段落格式會套用到所選行。
+
+      <p className="tiptap-editor-hint">
+        反白文字可快速套用格式。圖片與附件可按住 ⠿ 拖曳位置，或使用上下鍵；拉動右側把手或寬度滑桿即可調整大小。
       </p>
-      <div
-        ref={editorRef}
-        className="process-rich-editable"
-        contentEditable={!disabled}
-        suppressContentEditableWarning
-        role="textbox"
-        aria-multiline="true"
-        aria-label={ariaLabel}
-        data-placeholder="在這裡輸入文字，或插入圖片與附件…"
-        onInput={emit}
-        onBlur={emit}
-        onKeyUp={captureSelection}
-        onMouseUp={captureSelection}
-        onTouchEnd={captureSelection}
-        onFocus={captureSelection}
-      />
+
+      <div className="tiptap-editor-frame">
+        <TextBubbleMenu editor={editor} />
+        <EditorContent editor={editor} />
+      </div>
+
       {uploadError && <p className="admin-form-error">{uploadError}</p>}
+
       {attachments.length > 0 && (
-        <div className="process-attachment-library">
-          <strong>已上傳附件</strong>
-          <div>
+        <details className="process-attachment-library">
+          <summary>已上傳素材（{attachments.length}）</summary>
+          <div className="process-attachment-library-grid">
             {attachments.map((attachment) => (
-              <span key={attachment.id}>
-                <a href={attachment.downloadUrl || attachment.url} target="_blank" rel="noreferrer">
-                  {attachment.isImage ? "圖片" : "附件"} · {attachment.name}（{formatBytes(attachment.byteSize)}）
-                </a>
-                {onDeleteAttachment && (
-                  <button
-                    type="button"
-                    disabled={disabled}
-                    onClick={() => onDeleteAttachment(attachment)}
-                  >
-                    移除
+              <article key={attachment.id}>
+                <div>
+                  <strong>{attachment.isImage ? "圖片" : "附件"}</strong>
+                  <span>{attachment.name}</span>
+                  <small>{formatBytes(attachment.byteSize)}</small>
+                </div>
+                <div className="process-attachment-library-actions">
+                  <button type="button" disabled={disabled || !editor} onClick={() => insertAttachment(attachment)}>
+                    插入文章
                   </button>
-                )}
-              </span>
+                  <a href={attachment.downloadUrl || attachment.url} target="_blank" rel="noreferrer">
+                    開啟
+                  </a>
+                  {onDeleteAttachment && (
+                    <button type="button" className="danger" disabled={disabled} onClick={() => onDeleteAttachment(attachment)}>
+                      移除檔案
+                    </button>
+                  )}
+                </div>
+              </article>
             ))}
           </div>
-        </div>
+        </details>
       )}
     </div>
   );
