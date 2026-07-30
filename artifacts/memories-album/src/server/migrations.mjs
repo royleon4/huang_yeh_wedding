@@ -61,8 +61,16 @@ function pendingMigrations(migrations, applied) {
 }
 
 export function shouldRunProductionMigrations(env = process.env) {
-  if (env.MEMORIES_SKIP_MIGRATIONS === "1") return false;
-  return Boolean(env.DATABASE_URL);
+  if (!env.DATABASE_URL) return false;
+
+  // Published/production instances must never serve a newer application against
+  // an older schema. A stale diagnostic secret must not disable migrations in a
+  // live deployment, because that turns missing columns into generic API 503s.
+  const production =
+    env.REPLIT_DEPLOYMENT === "1" || env.NODE_ENV === "production";
+  if (production) return true;
+
+  return env.MEMORIES_SKIP_MIGRATIONS !== "1";
 }
 
 export async function runMemoriesMigrations({
