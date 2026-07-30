@@ -33,6 +33,7 @@ function albumPayload(album) {
     displayOrder: album.displayOrder,
     isVisible: album.isVisible,
     isSystem: album.isSystem,
+    showSummary: album.showSummary !== false,
   };
 }
 
@@ -54,6 +55,10 @@ function inputFrom(body, existing = null) {
       typeof body.isVisible === "boolean"
         ? body.isVisible
         : existing?.isVisible !== false,
+    showSummary:
+      typeof body.showSummary === "boolean"
+        ? body.showSummary
+        : existing?.showSummary !== false,
   };
 }
 
