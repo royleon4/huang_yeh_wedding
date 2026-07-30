@@ -1,9 +1,14 @@
 import { createAdminChangesApi } from "../admin/changes-api.mjs";
 import { createAdminPhotoApi as createPhotoApi } from "./admin-api.mjs";
 import { createPermanentPhotoDeleteApi } from "./permanent-delete-api.mjs";
+import { createAdminPhotoUploaderApi } from "./uploader-admin-api.mjs";
 
 export function createAdminPhotoApi(options) {
   const photoApi = createPhotoApi(options);
+  const uploaderApi = createAdminPhotoUploaderApi({
+    repository: options.repository,
+    adminToken: options.adminToken,
+  });
   const deleteApi = createPermanentPhotoDeleteApi({
     repository: options.repository,
     drive: options.drive,
@@ -20,6 +25,7 @@ export function createAdminPhotoApi(options) {
   });
 
   return async function handleAdminPhotoAndChangesApi(request, response, url) {
+    if (await uploaderApi(request, response, url)) return true;
     if (await changesApi(request, response, url)) return true;
     if (await deleteApi(request, response, url)) return true;
     return photoApi(request, response, url);
