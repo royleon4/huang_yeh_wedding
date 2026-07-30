@@ -9,12 +9,14 @@ import {
 async function withApis(run) {
   let guestUploadCategorySelectionEnabled = true;
   let processWheelEnabled = false;
+  let processWheelVisibleCount = 6;
   const repository = {
     async getPublicSettings() {
       return {
         primaryNavigationVisible: false,
         guestUploadCategorySelectionEnabled,
         processWheelEnabled,
+        processWheelVisibleCount,
       };
     },
     async setGuestUploadCategorySelectionEnabled(value) {
@@ -24,6 +26,10 @@ async function withApis(run) {
     async setProcessWheelEnabled(value) {
       processWheelEnabled = value === true;
       return { processWheelEnabled };
+    },
+    async setProcessWheelVisibleCount(value) {
+      processWheelVisibleCount = Number(value);
+      return { processWheelVisibleCount };
     },
   };
   const publicApi = createSettingsApi({ repository });
@@ -48,7 +54,7 @@ async function withApis(run) {
   }
 }
 
-test("public settings default to traditional subcategory buttons", async () => {
+test("public settings default to traditional buttons and six mobile wheel items", async () => {
   await withApis(async (origin) => {
     const response = await fetch(`${origin}/Memories/api/settings`);
     assert.equal(response.status, 200);
@@ -56,6 +62,7 @@ test("public settings default to traditional subcategory buttons", async () => {
       primaryNavigationVisible: false,
       guestUploadCategorySelectionEnabled: true,
       processWheelEnabled: false,
+      processWheelVisibleCount: 6,
     });
   });
 });
@@ -81,32 +88,32 @@ test("administrator can disable visitor category selection", async () => {
   });
 });
 
-test("administrator can switch between traditional and wheel selectors", async () => {
+test("administrator can enable the wheel and choose its mobile visible count", async () => {
   await withApis(async (origin) => {
     const update = await fetch(`${origin}/admin/api/settings`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ processWheelEnabled: true }),
+      body: JSON.stringify({
+        processWheelEnabled: true,
+        processWheelVisibleCount: 7,
+      }),
     });
     assert.equal(update.status, 200);
-    assert.deepEqual(await update.json(), { processWheelEnabled: true });
+    assert.deepEqual(await update.json(), {
+      processWheelEnabled: true,
+      processWheelVisibleCount: 7,
+    });
 
     const publicResponse = await fetch(`${origin}/Memories/api/settings`);
     assert.equal(publicResponse.status, 200);
-    assert.equal((await publicResponse.json()).processWheelEnabled, true);
+    const settings = await publicResponse.json();
+    assert.equal(settings.processWheelEnabled, true);
+    assert.equal(settings.processWheelVisibleCount, 7);
   });
 });
 
-test("administrator settings reject non-boolean values", async () => {
+test("administrator settings reject invalid wheel values", async () => {
   await withApis(async (origin) => {
-    const guestResponse = await fetch(`${origin}/admin/api/settings`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ guestUploadCategorySelectionEnabled: "yes" }),
-    });
-    assert.equal(guestResponse.status, 422);
-    assert.equal((await guestResponse.json()).code, "INVALID_SETTING");
-
     const wheelResponse = await fetch(`${origin}/admin/api/settings`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
@@ -114,5 +121,15 @@ test("administrator settings reject non-boolean values", async () => {
     });
     assert.equal(wheelResponse.status, 422);
     assert.equal((await wheelResponse.json()).code, "INVALID_SETTING");
+
+    for (const invalidCount of [2, 9, 4.5, "six"]) {
+      const countResponse = await fetch(`${origin}/admin/api/settings`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ processWheelVisibleCount: invalidCount }),
+      });
+      assert.equal(countResponse.status, 422);
+      assert.equal((await countResponse.json()).code, "INVALID_SETTING");
+    }
   });
 });
