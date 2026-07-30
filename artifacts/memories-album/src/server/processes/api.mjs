@@ -7,7 +7,7 @@ function json(response, status, body) {
   response.end(JSON.stringify(body));
 }
 
-function publicProcess(process) {
+function publicProcess(process, content = null) {
   return {
     id: process.id,
     labelZh: process.labelZh,
@@ -15,12 +15,32 @@ function publicProcess(process) {
     displayOrder: process.displayOrder,
     youtubeVideoId: process.youtubeVideoId ?? null,
     youtubeAutoplay: Boolean(process.youtubeAutoplay),
+    contentHtmlZh: content?.contentHtmlZh ?? "",
+    contentHtmlEn: content?.contentHtmlEn ?? "",
+    dividerPaddingTop: content?.dividerPaddingTop ?? 12,
+    dividerPaddingBottom: content?.dividerPaddingBottom ?? 12,
     syncState: process.syncState,
     lastSyncedAt: process.lastSyncedAt,
   };
 }
 
-export function createProcessApi({ repository }) {
+function publicAllProcess(content) {
+  return {
+    id: "all",
+    labelZh: content?.labelZh || "全部流程",
+    labelEn: content?.labelEn || "All moments",
+    displayOrder: 0,
+    youtubeVideoId: content?.youtubeVideoId ?? null,
+    youtubeAutoplay: Boolean(content?.youtubeAutoplay),
+    showAllPhotos: content?.showAllPhotos !== false,
+    contentHtmlZh: content?.contentHtmlZh ?? "",
+    contentHtmlEn: content?.contentHtmlEn ?? "",
+    dividerPaddingTop: content?.dividerPaddingTop ?? 12,
+    dividerPaddingBottom: content?.dividerPaddingBottom ?? 12,
+  };
+}
+
+export function createProcessApi({ repository, contentRepository = null }) {
   if (!repository) throw new Error("Process repository is required");
 
   return async function handleProcessApi(
@@ -34,8 +54,19 @@ export function createProcessApi({ repository }) {
     ) {
       return false;
     }
-    const processes = await repository.listProcesses();
-    json(response, 200, { processes: processes.map(publicProcess) });
+    const [processes, contentRows] = await Promise.all([
+      repository.listProcesses(),
+      contentRepository?.listContent?.() ?? [],
+    ]);
+    const contentByKey = new Map(
+      contentRows.map((content) => [content.processKey, content]),
+    );
+    json(response, 200, {
+      allProcess: publicAllProcess(contentByKey.get("all")),
+      processes: processes.map((process) =>
+        publicProcess(process, contentByKey.get(process.id)),
+      ),
+    });
     return true;
   };
 }
