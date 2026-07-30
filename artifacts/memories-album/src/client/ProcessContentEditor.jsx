@@ -1,6 +1,11 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { adminErrorMessage, adminRequest } from "./admin-client.mjs";
 import RichTextEditor from "./RichTextEditor.jsx";
+import PinnedPhotoPicker from "./PinnedPhotoPicker.jsx";
+import {
+  normalizePinnedPhotoIds,
+  normalizePinnedPhotosByProcess,
+} from "../pinned-photo-settings.mjs";
 
 const EMPTY_CONTENT = {
   processKey: "",
@@ -14,7 +19,32 @@ const EMPTY_CONTENT = {
   dividerPaddingTop: 12,
   dividerPaddingBottom: 12,
   attachments: [],
+  pinnedPhotoIds: [],
 };
+
+let adminPhotosPromise = null;
+
+async function loadAllAdminPhotos() {
+  if (adminPhotosPromise) return adminPhotosPromise;
+  adminPhotosPromise = (async () => {
+    const photos = [];
+    let cursor = null;
+    let pages = 0;
+    do {
+      const query = new URLSearchParams({ limit: "100" });
+      if (cursor) query.set("cursor", cursor);
+      const payload = await adminRequest(`/admin/api/photos?${query}`);
+      photos.push(...(payload.photos ?? []));
+      cursor = payload.nextCursor ?? null;
+      pages += 1;
+    } while (cursor && pages < 30);
+    return photos;
+  })().catch((error) => {
+    adminPhotosPromise = null;
+    throw error;
+  });
+  return adminPhotosPromise;
+}
 
 function youtubeInput(content) {
   return content.youtubeVideoId
@@ -22,7 +52,7 @@ function youtubeInput(content) {
     : "";
 }
 
-function normalizeLoaded(content, processKey) {
+function normalizeLoaded(content, processKey, pinnedPhotoIds = []) {
   return {
     ...EMPTY_CONTENT,
     ...content,
@@ -31,11 +61,11 @@ function normalizeLoaded(content, processKey) {
     labelEn: content?.labelEn ?? (processKey === "all" ? "All moments" : ""),
     youtubeUrl: youtubeInput(content ?? {}),
     attachments: Array.isArray(content?.attachments) ? content.attachments : [],
+    pinnedPhotoIds: normalizePinnedPhotoIds(pinnedPhotoIds),
   };
 }
 
 function ContentFields({
-  processKey,
   content,
   setContent,
   busy,
@@ -127,19 +157,39 @@ function ContentFields({
 
 function ProcessContentPanel({ processKey, special = false }) {
   const [content, setContent] = useState(() => normalizeLoaded({}, processKey));
+  const [photos, setPhotos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
 
+  const candidatePhotos = useMemo(
+    () =>
+      photos.filter(
+        (photo) =>
+          photo.visibility === "public" &&
+          photo.albumIds?.includes("wedding") &&
+          (processKey === "all" || photo.categoryIds?.includes(processKey)),
+      ),
+    [photos, processKey],
+  );
+
   const load = useCallback(async () => {
     setLoading(true);
     setError("");
     try {
-      const payload = await adminRequest(
-        `/admin/api/process-content/${encodeURIComponent(processKey)}`,
+      const [payload, settings, loadedPhotos] = await Promise.all([
+        adminRequest(`/admin/api/process-content/${encodeURIComponent(processKey)}`),
+        adminRequest("/admin/api/settings"),
+        loadAllAdminPhotos(),
+      ]);
+      const pinnedMap = normalizePinnedPhotosByProcess(
+        settings.pinnedPhotoIdsByProcess,
       );
-      setContent(normalizeLoaded(payload.content, processKey));
+      setContent(
+        normalizeLoaded(payload.content, processKey, pinnedMap[processKey]),
+      );
+      setPhotos(loadedPhotos);
     } catch (loadError) {
       setError(adminErrorMessage(loadError));
     } finally {
@@ -209,8 +259,28 @@ function ProcessContentPanel({ processKey, special = false }) {
           },
         },
       );
-      setContent(normalizeLoaded(payload.content, processKey));
-      setMessage("流程內容已儲存。");
+
+      const latestSettings = await adminRequest("/admin/api/settings");
+      const pinnedMap = normalizePinnedPhotosByProcess(
+        latestSettings.pinnedPhotoIdsByProcess,
+      );
+      const pinnedPhotoIds = normalizePinnedPhotoIds(content.pinnedPhotoIds);
+      if (pinnedPhotoIds.length > 0) {
+        pinnedMap[processKey] = pinnedPhotoIds;
+      } else {
+        delete pinnedMap[processKey];
+      }
+      const savedSettings = await adminRequest("/admin/api/settings", {
+        method: "PATCH",
+        body: { pinnedPhotoIdsByProcess: pinnedMap },
+      });
+      const savedPinnedMap = normalizePinnedPhotosByProcess(
+        savedSettings.pinnedPhotoIdsByProcess,
+      );
+      setContent(
+        normalizeLoaded(payload.content, processKey, savedPinnedMap[processKey]),
+      );
+      setMessage("流程內容與置頂圖已儲存。");
     } catch (saveError) {
       setError(adminErrorMessage(saveError));
     } finally {
@@ -219,18 +289,28 @@ function ProcessContentPanel({ processKey, special = false }) {
   };
 
   if (loading) {
-    return <div className="process-content-loading">正在載入文字與附件…</div>;
+    return <div className="process-content-loading">正在載入文字、附件與置頂圖…</div>;
   }
 
   const fields = (
-    <ContentFields
-      processKey={processKey}
-      content={content}
-      setContent={setContent}
-      busy={busy}
-      onUploadAttachment={uploadAttachment}
-      onDeleteAttachment={deleteAttachment}
-    />
+    <>
+      <ContentFields
+        content={content}
+        setContent={setContent}
+        busy={busy}
+        onUploadAttachment={uploadAttachment}
+        onDeleteAttachment={deleteAttachment}
+      />
+      <PinnedPhotoPicker
+        photos={candidatePhotos}
+        selectedIds={content.pinnedPhotoIds}
+        onChange={(pinnedPhotoIds) =>
+          setContent((current) => ({ ...current, pinnedPhotoIds }))
+        }
+        busy={busy}
+        processKey={processKey}
+      />
+    </>
   );
 
   if (!special) {
@@ -248,7 +328,7 @@ function ProcessContentPanel({ processKey, special = false }) {
           onClick={() => void save()}
           disabled={busy}
         >
-          {busy ? "儲存中…" : "儲存文字與附件設定"}
+          {busy ? "儲存中…" : "儲存文字、附件與置頂圖"}
         </button>
       </div>
     );
