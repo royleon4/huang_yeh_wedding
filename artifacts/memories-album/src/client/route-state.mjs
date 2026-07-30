@@ -1,5 +1,6 @@
 const MEMORIES_ROOT = "/Memories";
-const DEFAULT_ALBUM_ID = "wedding";
+const DEFAULT_LANGUAGE = "zh";
+const DEFAULT_GROUP_NUMBER = 1;
 const DEFAULT_ADMIN_TAB = "albums";
 
 export const ADMIN_TAB_IDS = Object.freeze([
@@ -33,77 +34,57 @@ function encodeSegment(value) {
   return encodeURIComponent(String(value ?? "").trim());
 }
 
-function filterKindForAlbum(albumId) {
-  if (albumId === "wedding") return "processes";
-  if (albumId === "guest") return "guests";
-  return "filters";
+function positiveNumber(value, fallback = null) {
+  const number = Number(value);
+  return Number.isInteger(number) && number > 0 ? number : fallback;
+}
+
+function numberedSegment(value, prefix) {
+  const match = new RegExp(`^${prefix}([1-9]\\d*)$`).exec(String(value || ""));
+  return match ? Number(match[1]) : null;
+}
+
+function languageParts(pathname) {
+  const normalized = normalizedPathname(pathname);
+  if (!normalized.startsWith(MEMORIES_ROOT)) {
+    return { normalized, language: DEFAULT_LANGUAGE, parts: [], validRoot: false };
+  }
+  const suffix = normalized.slice(MEMORIES_ROOT.length).replace(/^\/+/, "");
+  const parts = suffix ? suffix.split("/") : [];
+  const language = parts[0] === "en" ? "en" : DEFAULT_LANGUAGE;
+  if (language === "en") parts.shift();
+  return { normalized, language, parts, validRoot: true };
+}
+
+function languageRoot(language = DEFAULT_LANGUAGE) {
+  return language === "en" ? `${MEMORIES_ROOT}/en` : MEMORIES_ROOT;
 }
 
 export function publicGalleryPath({
-  albumId = DEFAULT_ALBUM_ID,
-  filterId = "all",
-  filterKind,
+  language = DEFAULT_LANGUAGE,
+  groupNumber = DEFAULT_GROUP_NUMBER,
+  subgroupNumber = null,
   photoId = null,
 } = {}) {
-  const normalizedAlbumId = String(albumId || DEFAULT_ALBUM_ID);
-  const normalizedFilterId = String(filterId || "all");
-  let path = `${MEMORIES_ROOT}/albums/${encodeSegment(normalizedAlbumId)}`;
-
-  if (normalizedFilterId !== "all") {
-    path += `/${filterKind || filterKindForAlbum(normalizedAlbumId)}/${encodeSegment(
-      normalizedFilterId,
-    )}`;
-  }
+  const safeGroupNumber = positiveNumber(groupNumber, DEFAULT_GROUP_NUMBER);
+  const safeSubgroupNumber = positiveNumber(subgroupNumber);
+  let path = `${languageRoot(language)}/group${safeGroupNumber}`;
+  if (safeSubgroupNumber) path += `/subgroup${safeSubgroupNumber}`;
   if (photoId) path += `/photos/${encodeSegment(photoId)}`;
   return path;
 }
 
-export function publicModalPath(routeId) {
+export function publicModalPath(routeId, language = DEFAULT_LANGUAGE) {
   const normalized = String(routeId ?? "");
   return PUBLIC_MODAL_ROUTES.has(normalized)
-    ? `${MEMORIES_ROOT}/${normalized}`
-    : publicGalleryPath();
+    ? `${languageRoot(language)}/${normalized}`
+    : publicGalleryPath({ language });
 }
 
-export function readPublicRoute(pathname) {
-  const normalized = normalizedPathname(pathname);
-  if (normalized === MEMORIES_ROOT || normalized === `${MEMORIES_ROOT}/`) {
-    const canonicalPath = publicGalleryPath();
-    return {
-      kind: "gallery",
-      albumId: DEFAULT_ALBUM_ID,
-      filterId: "all",
-      filterKind: null,
-      photoId: null,
-      canonicalPath,
-    };
-  }
-
-  if (!normalized.startsWith(`${MEMORIES_ROOT}/`)) {
-    return { kind: "invalid", canonicalPath: publicGalleryPath() };
-  }
-
-  const parts = normalized.slice(MEMORIES_ROOT.length + 1).split("/");
-  const modalState = parts.length === 1 ? PUBLIC_MODAL_ROUTES.get(parts[0]) : null;
-  if (modalState) {
-    return {
-      kind: "modal",
-      routeId: parts[0],
-      modal: modalState,
-      albumId: DEFAULT_ALBUM_ID,
-      filterId: "all",
-      filterKind: null,
-      photoId: null,
-      canonicalPath: publicModalPath(parts[0]),
-    };
-  }
-
-  if (parts[0] !== "albums" || !parts[1]) {
-    return { kind: "invalid", canonicalPath: publicGalleryPath() };
-  }
-
+function legacyGalleryRoute(parts, language, normalized) {
+  if (parts[0] !== "albums" || !parts[1]) return null;
   const albumId = decodeSegment(parts[1]);
-  if (!albumId) return { kind: "invalid", canonicalPath: publicGalleryPath() };
+  if (!albumId) return null;
 
   let index = 2;
   let filterId = "all";
@@ -113,39 +94,127 @@ export function readPublicRoute(pathname) {
   if (["processes", "guests", "filters"].includes(parts[index])) {
     filterKind = parts[index];
     filterId = decodeSegment(parts[index + 1]);
-    if (!filterId) return { kind: "invalid", canonicalPath: publicGalleryPath() };
+    if (!filterId) return null;
     index += 2;
   }
-
   if (parts[index] === "photos") {
     photoId = decodeSegment(parts[index + 1]);
-    if (!photoId) return { kind: "invalid", canonicalPath: publicGalleryPath() };
+    if (!photoId) return null;
     index += 2;
   }
+  if (index !== parts.length) return null;
 
-  if (index !== parts.length) {
-    return { kind: "invalid", canonicalPath: publicGalleryPath() };
+  return {
+    kind: "legacyGallery",
+    language,
+    albumId,
+    filterId,
+    filterKind,
+    photoId,
+    canonicalPath: normalized,
+  };
+}
+
+export function readPublicRoute(pathname) {
+  const { normalized, language, parts, validRoot } = languageParts(pathname);
+  if (!validRoot) {
+    return {
+      kind: "invalid",
+      language: DEFAULT_LANGUAGE,
+      canonicalPath: publicGalleryPath(),
+    };
   }
 
-  const canonicalPath = publicGalleryPath({
-    albumId,
-    filterId,
-    filterKind,
-    photoId,
-  });
+  if (parts.length === 0) {
+    return {
+      kind: "gallery",
+      language,
+      groupIndex: 0,
+      subgroupIndex: null,
+      photoId: null,
+      canonicalPath: publicGalleryPath({ language }),
+    };
+  }
+
+  const modalState = parts.length === 1 ? PUBLIC_MODAL_ROUTES.get(parts[0]) : null;
+  if (modalState) {
+    return {
+      kind: "modal",
+      language,
+      routeId: parts[0],
+      modal: modalState,
+      groupIndex: 0,
+      subgroupIndex: null,
+      photoId: null,
+      canonicalPath: publicModalPath(parts[0], language),
+    };
+  }
+
+  const groupNumber = numberedSegment(parts[0], "group");
+  if (!groupNumber) {
+    const legacy = legacyGalleryRoute(parts, language, normalized);
+    return (
+      legacy ?? {
+        kind: "invalid",
+        language,
+        canonicalPath: publicGalleryPath({ language }),
+      }
+    );
+  }
+
+  let index = 1;
+  let subgroupNumber = null;
+  let photoId = null;
+  if (parts[index]?.startsWith("subgroup")) {
+    subgroupNumber = numberedSegment(parts[index], "subgroup");
+    if (!subgroupNumber) {
+      return {
+        kind: "invalid",
+        language,
+        canonicalPath: publicGalleryPath({ language, groupNumber }),
+      };
+    }
+    index += 1;
+  }
+  if (parts[index] === "photos") {
+    photoId = decodeSegment(parts[index + 1]);
+    if (!photoId) {
+      return {
+        kind: "invalid",
+        language,
+        canonicalPath: publicGalleryPath({ language, groupNumber, subgroupNumber }),
+      };
+    }
+    index += 2;
+  }
+  if (index !== parts.length) {
+    return {
+      kind: "invalid",
+      language,
+      canonicalPath: publicGalleryPath({ language, groupNumber }),
+    };
+  }
+
   return {
     kind: "gallery",
-    albumId,
-    filterId,
-    filterKind,
+    language,
+    groupIndex: groupNumber - 1,
+    subgroupIndex: subgroupNumber ? subgroupNumber - 1 : null,
     photoId,
-    canonicalPath,
+    canonicalPath: publicGalleryPath({
+      language,
+      groupNumber,
+      subgroupNumber,
+      photoId,
+    }),
   };
 }
 
 export function adminTabPath(tabId = DEFAULT_ADMIN_TAB) {
-  const normalized = ADMIN_TAB_IDS.includes(tabId) ? tabId : DEFAULT_ADMIN_TAB;
-  return `${MEMORIES_ROOT}/admin/${normalized}`;
+  const index = ADMIN_TAB_IDS.indexOf(tabId);
+  const groupNumber =
+    (index >= 0 ? index : ADMIN_TAB_IDS.indexOf(DEFAULT_ADMIN_TAB)) + 1;
+  return `${MEMORIES_ROOT}/admin/group${groupNumber}`;
 }
 
 export function readAdminTab(pathname) {
@@ -153,8 +222,13 @@ export function readAdminTab(pathname) {
   if (normalized === `${MEMORIES_ROOT}/admin`) return DEFAULT_ADMIN_TAB;
   const prefix = `${MEMORIES_ROOT}/admin/`;
   if (!normalized.startsWith(prefix)) return DEFAULT_ADMIN_TAB;
-  const tabId = decodeSegment(normalized.slice(prefix.length).split("/")[0]);
-  return ADMIN_TAB_IDS.includes(tabId) ? tabId : DEFAULT_ADMIN_TAB;
+  const segment = normalized.slice(prefix.length).split("/")[0];
+  const groupNumber = numberedSegment(segment, "group");
+  if (groupNumber && ADMIN_TAB_IDS[groupNumber - 1]) {
+    return ADMIN_TAB_IDS[groupNumber - 1];
+  }
+  const legacyTabId = decodeSegment(segment);
+  return ADMIN_TAB_IDS.includes(legacyTabId) ? legacyTabId : DEFAULT_ADMIN_TAB;
 }
 
 export function routeSurface(pathname) {
