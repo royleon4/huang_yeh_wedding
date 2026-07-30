@@ -317,14 +317,6 @@ export default function AdminApp() {
   const [categoryOrder, setCategoryOrder] = useState([]);
   const [newAlbum, setNewAlbum] = useState(EMPTY_ALBUM);
   const [newCategory, setNewCategory] = useState(EMPTY_CATEGORY);
-  const [uploadInputKey, setUploadInputKey] = useState(0);
-  const [upload, setUpload] = useState({
-    file: null,
-    displayName: "",
-    capturedAt: toLocalDateTime(new Date()),
-    albumIds: [],
-    categoryId: "",
-  });
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
@@ -388,8 +380,7 @@ export default function AdminApp() {
     [categories, categoryVideoDrafts],
   );
 
-  const pendingCount =
-    changeSet.count + categoryVideoChanges.length + (upload.file ? 1 : 0);
+  const pendingCount = changeSet.count + categoryVideoChanges.length;
 
   const replaceUnauthorized = (loadError) => {
     if (loadError?.status !== 401) return false;
@@ -410,17 +401,6 @@ export default function AdminApp() {
     if (!preserveCategoryOrder) {
       setCategoryOrder(categoryData.categories.map((category) => category.id));
     }
-    setUpload((current) => ({
-      ...current,
-      albumIds:
-        current.albumIds.length > 0
-          ? current.albumIds.filter((id) =>
-              albumData.albums.some((album) => album.id === id),
-            )
-          : albumData.albums[0]?.id
-            ? [albumData.albums[0].id]
-            : [],
-    }));
   };
 
   useEffect(() => {
@@ -577,38 +557,6 @@ export default function AdminApp() {
         }
       }
 
-      if (upload.file) {
-        const form = new FormData();
-        form.append("photo", upload.file);
-        form.append(
-          "metadata",
-          JSON.stringify({
-            displayName: upload.displayName || upload.file.name,
-            capturedAt: toIso(upload.capturedAt),
-            albumIds: upload.albumIds,
-            categoryIds: upload.categoryId ? [upload.categoryId] : [],
-            visibility: "public",
-          }),
-        );
-        try {
-          await adminRequest("/admin/api/photos", {
-            method: "POST",
-            form,
-            timeoutMs: 120_000,
-          });
-          succeeded += 1;
-          setUpload((current) => ({
-            ...current,
-            file: null,
-            displayName: "",
-            capturedAt: toLocalDateTime(new Date()),
-          }));
-          setUploadInputKey((current) => current + 1);
-        } catch (uploadError) {
-          if (replaceUnauthorized(uploadError)) return;
-          failures.push(adminErrorMessage(uploadError));
-        }
-      }
 
       await loadCanonical({ preserveCategoryOrder });
       if (failedCreatedVideo) {
@@ -662,23 +610,6 @@ export default function AdminApp() {
     }
   };
 
-  const loadMorePhotos = async () => {
-    if (!nextCursor || busy) return;
-    setBusy(true);
-    setError("");
-    try {
-      const payload = await adminRequest(
-        `/admin/api/photos?limit=50&cursor=${encodeURIComponent(nextCursor)}`,
-      );
-      setPhotos((current) => [...current, ...payload.photos]);
-      setNextCursor(payload.nextCursor);
-      setMessage("已載入更多照片。");
-    } catch (loadError) {
-      if (!replaceUnauthorized(loadError)) setError(adminErrorMessage(loadError));
-    } finally {
-      setBusy(false);
-    }
-  };
 
   const logout = async () => {
     if (busy || !confirmDiscard()) return;
@@ -908,113 +839,7 @@ export default function AdminApp() {
         )}
 
         {tab === "photos" && (
-          <section aria-labelledby="photos-title">
-            <div className="admin-section-heading">
-              <div>
-                <p className="admin-kicker">PHOTOS</p>
-                <h2 id="photos-title">照片</h2>
-              </div>
-              <span>{photos.length} 張已載入</span>
-            </div>
-            <form className="admin-create-card" onSubmit={(event) => event.preventDefault()}>
-              <h3>新增照片</h3>
-              <p className="admin-section-note">
-                選好照片與資料後，會在按下「儲存所有變更」時上傳。
-              </p>
-              <div className="admin-field-grid">
-                <label className="admin-wide-field">
-                  選擇照片
-                  <input
-                    key={uploadInputKey}
-                    type="file"
-                    accept="image/jpeg,image/png,image/webp,image/heic,image/heif"
-                    onChange={(event) => {
-                      const file = event.target.files?.[0] ?? null;
-                      setUpload((current) => ({
-                        ...current,
-                        file,
-                        displayName: current.displayName || file?.name || "",
-                      }));
-                    }}
-                    disabled={busy}
-                  />
-                </label>
-                <label>
-                  顯示名稱
-                  <input
-                    value={upload.displayName}
-                    onChange={(event) =>
-                      setUpload((current) => ({ ...current, displayName: event.target.value }))
-                    }
-                    disabled={busy}
-                  />
-                </label>
-                <label>
-                  拍攝時間
-                  <input
-                    type="datetime-local"
-                    value={upload.capturedAt}
-                    onChange={(event) =>
-                      setUpload((current) => ({ ...current, capturedAt: event.target.value }))
-                    }
-                    disabled={busy}
-                  />
-                </label>
-                <label>
-                  流程分類
-                  <select
-                    value={upload.categoryId}
-                    onChange={(event) =>
-                      setUpload((current) => ({ ...current, categoryId: event.target.value }))
-                    }
-                    disabled={busy}
-                  >
-                    <option value="">不指定流程</option>
-                    {orderedCategories.map((category) => (
-                      <option key={category.id} value={category.id}>
-                        {String(category.displayOrder).padStart(2, "0")} {category.labelZh}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <AlbumChoices
-                  albums={albums}
-                  selected={upload.albumIds}
-                  onChange={(albumIds) =>
-                    setUpload((current) => ({ ...current, albumIds }))
-                  }
-                  disabled={busy}
-                />
-              </div>
-              {upload.file && upload.albumIds.length === 0 && (
-                <p className="admin-form-error">照片至少必須屬於一個相簿。</p>
-              )}
-            </form>
-            <div className="admin-photo-list">
-              {photos.map((photo) => (
-                <PhotoEditor
-                  key={photo.id}
-                  photo={photo}
-                  draft={photoDrafts[photo.id] ?? photoDraft(photo)}
-                  albums={albums}
-                  categories={orderedCategories}
-                  busy={busy}
-                  onChange={(changes) => updatePhotoDraft(photo, changes)}
-                  onDelete={() => void deletePhoto(photo)}
-                />
-              ))}
-            </div>
-            {nextCursor && (
-              <button
-                className="admin-load-more"
-                type="button"
-                onClick={() => void loadMorePhotos()}
-                disabled={busy}
-              >
-                載入更多照片
-              </button>
-            )}
-          </section>
+          <div data-admin-photo-workspace-placeholder />
         )}
       </main>
 
@@ -1030,8 +855,7 @@ export default function AdminApp() {
           onClick={() => void saveAll()}
           disabled={
             busy ||
-            pendingCount === 0 ||
-            Boolean(upload.file && upload.albumIds.length === 0)
+            pendingCount === 0
           }
         >
           {busy ? "儲存中…" : `儲存所有變更${pendingCount ? `（${pendingCount}）` : ""}`}

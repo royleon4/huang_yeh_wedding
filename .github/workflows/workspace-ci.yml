@@ -1,0 +1,58 @@
+name: Workspace CI
+
+on:
+  pull_request:
+    paths:
+      - "package.json"
+      - "pnpm-workspace.yaml"
+      - "pnpm-lock.yaml"
+      - "tsconfig*.json"
+      - "artifacts/api-server/**"
+      - "artifacts/wedding-invitation/**"
+      - "artifacts/mockup-sandbox/**"
+      - "lib/**"
+      - "scripts/**"
+      - ".github/workflows/workspace-ci.yml"
+  push:
+    branches: [main]
+    paths:
+      - "package.json"
+      - "pnpm-workspace.yaml"
+      - "pnpm-lock.yaml"
+      - "tsconfig*.json"
+      - "artifacts/api-server/**"
+      - "artifacts/wedding-invitation/**"
+      - "artifacts/mockup-sandbox/**"
+      - "lib/**"
+      - "scripts/**"
+      - ".github/workflows/workspace-ci.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  typecheck-and-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.15.1
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install frozen workspace
+        run: pnpm install --frozen-lockfile
+
+      - name: Typecheck and build workspace
+        env:
+          PORT: 19315
+        run: pnpm run build
