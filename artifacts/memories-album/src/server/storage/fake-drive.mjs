@@ -1,3 +1,5 @@
+import { readFile } from "node:fs/promises";
+
 export class FakeDriveStorage {
   constructor(seed = []) {
     this.originalFolderId = "fake-original-folder";
@@ -45,16 +47,22 @@ export class FakeDriveStorage {
         reused: true,
       };
     }
+    const bytes = input.filePath ? await readFile(input.filePath) : Buffer.from(input.bytes);
     const fileId = `drive-${kind}-${this.nextId++}`;
     this.calls.push({ operation: "upload", kind, filename: input.filename });
     this.files.set(fileId, {
       fileId,
-      bytes: Buffer.from(input.bytes),
+      bytes,
       contentType: input.contentType,
       filename: input.filename,
       parentId: input.parentId,
     });
-    return { fileId, name: input.filename, size: input.bytes.length, reused: false };
+    await input.onSession?.({ sessionUri: `fake://${fileId}`, uploadedBytes: 0 });
+    await input.onProgress?.({
+      sessionUri: `fake://${fileId}`,
+      uploadedBytes: bytes.length,
+    });
+    return { fileId, name: input.filename, size: bytes.length, reused: false };
   }
 
   async download(fileId) {
