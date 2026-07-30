@@ -1,0 +1,257 @@
+.admin-photo-workspace {
+  display: grid;
+  gap: 1.2rem;
+}
+
+.admin-photo-filter-card,
+.admin-photo-batch-card {
+  border: 1px solid rgba(53, 95, 77, 0.2);
+  border-radius: 1.25rem;
+  background: rgba(255, 252, 245, 0.84);
+  padding: 1.1rem;
+  box-shadow: 0 12px 34px rgba(42, 61, 51, 0.06);
+}
+
+.admin-photo-filter-heading,
+.admin-photo-batch-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.95rem;
+}
+
+.admin-photo-filter-heading strong,
+.admin-photo-batch-heading h3 {
+  margin: 0;
+  color: var(--ink);
+  font-size: 1.08rem;
+}
+
+.admin-photo-filter-heading p,
+.admin-photo-batch-heading p {
+  margin: 0.35rem 0 0;
+  color: var(--muted);
+  font-size: 0.82rem;
+  line-height: 1.7;
+}
+
+.admin-photo-filter-heading button {
+  flex: 0 0 auto;
+  border: 1px solid rgba(53, 95, 77, 0.28);
+  border-radius: 999px;
+  background: transparent;
+  padding: 0.55rem 0.85rem;
+  color: var(--leaf);
+  cursor: pointer;
+}
+
+.admin-photo-filter-heading button:disabled {
+  cursor: not-allowed;
+  opacity: 0.42;
+}
+
+.admin-photo-filter-grid,
+.admin-photo-upload-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.8rem;
+}
+
+.admin-photo-upload-grid {
+  grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr);
+}
+
+.admin-photo-filter-grid label,
+.admin-photo-upload-grid label,
+.admin-photo-process-field {
+  display: grid;
+  gap: 0.38rem;
+  color: var(--ink);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.admin-photo-filter-grid select,
+.admin-photo-upload-grid input,
+.admin-photo-process-field select {
+  width: 100%;
+  min-height: 2.85rem;
+  border: 1px solid rgba(53, 95, 77, 0.24);
+  border-radius: 0.75rem;
+  background: #fffdf7;
+  padding: 0.65rem 0.72rem;
+  color: var(--ink);
+}
+
+.admin-photo-file-field small,
+.admin-photo-process-field small {
+  color: var(--muted);
+  font-size: 0.7rem;
+  font-weight: 400;
+  line-height: 1.55;
+}
+
+.admin-photo-batch-heading > strong {
+  min-width: 3.2rem;
+  border-radius: 999px;
+  background: var(--leaf-soft);
+  padding: 0.45rem 0.65rem;
+  color: var(--leaf);
+  text-align: center;
+}
+
+.admin-photo-upload-albums {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem 1rem;
+  margin: 1rem 0;
+  border: 1px solid rgba(53, 95, 77, 0.15);
+  border-radius: 0.85rem;
+  padding: 0.8rem 0.9rem 0.9rem;
+}
+
+.admin-photo-upload-albums legend {
+  padding: 0 0.35rem;
+  color: var(--ink);
+  font-size: 0.76rem;
+  font-weight: 700;
+}
+
+.admin-photo-process-field {
+  max-width: 30rem;
+}
+
+.admin-photo-upload-queue {
+  display: grid;
+  gap: 0.7rem;
+  margin-top: 1rem;
+  border-top: 1px solid rgba(53, 95, 77, 0.14);
+  padding-top: 1rem;
+}
+
+.admin-photo-upload-queue > progress {
+  width: 100%;
+  height: 0.55rem;
+  accent-color: var(--leaf);
+}
+
+.admin-photo-upload-queue ol {
+  display: grid;
+  gap: 0.45rem;
+  max-height: 17rem;
+  margin: 0;
+  overflow-y: auto;
+  padding: 0;
+  list-style: none;
+}
+
+.admin-photo-upload-queue li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.8rem;
+  border-radius: 0.75rem;
+  background: rgba(239, 232, 218, 0.55);
+  padding: 0.62rem 0.72rem;
+}
+
+.admin-photo-upload-queue li div {
+  min-width: 0;
+}
+
+.admin-photo-upload-queue li strong,
+.admin-photo-upload-queue li small {
+  display: block;
+  overflow-wrap: anywhere;
+}
+
+.admin-photo-upload-queue li strong {
+  color: var(--ink);
+  font-size: 0.78rem;
+}
+
+.admin-photo-upload-queue li small,
+.admin-photo-upload-queue li > span {
+  color: var(--muted);
+  font-size: 0.68rem;
+  line-height: 1.45;
+}
+
+.admin-photo-upload-actions {
+  display: flex;
+  gap: 0.7rem;
+  margin-top: 1rem;
+}
+
+.admin-photo-upload-actions button {
+  border: 0;
+  border-radius: 999px;
+  background: var(--leaf);
+  padding: 0.72rem 1.05rem;
+  color: #fffaf1;
+  cursor: pointer;
+}
+
+.admin-photo-upload-actions button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.admin-photo-inline-status {
+  margin: 0.7rem 0 0;
+  color: var(--muted);
+  font-size: 0.78rem;
+  line-height: 1.6;
+}
+
+.admin-photo-inline-status.error {
+  color: #9e3f32;
+}
+
+.admin-photo-empty {
+  border: 1px dashed rgba(53, 95, 77, 0.28);
+  border-radius: 1.1rem;
+  padding: 2rem 1rem;
+  color: var(--muted);
+  text-align: center;
+}
+
+.admin-photo-empty strong {
+  color: var(--ink);
+}
+
+.admin-photo-empty p {
+  margin: 0.45rem 0 0;
+  font-size: 0.8rem;
+}
+
+@media (max-width: 800px) {
+  .admin-photo-filter-grid,
+  .admin-photo-upload-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-photo-filter-heading,
+  .admin-photo-batch-heading {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .admin-photo-filter-heading button {
+    align-self: flex-start;
+  }
+}
+
+@media (max-width: 520px) {
+  .admin-photo-filter-card,
+  .admin-photo-batch-card {
+    border-radius: 1rem;
+    padding: 0.9rem;
+  }
+
+  .admin-photo-upload-albums {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
