@@ -53,7 +53,7 @@ admin = replaceOnce(
 
 admin = replaceOnce(
   admin,
-  /\n              Boolean\(upload\.file && upload\.albumIds\.length === 0\)/,
+  /\s*\|\|\s*Boolean\(upload\.file && upload\.albumIds\.length === 0\)/,
   "",
   "legacy upload save guard",
 );
