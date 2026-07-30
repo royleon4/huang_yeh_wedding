@@ -25,15 +25,17 @@ test("disabled category selection always uploads to guest classification", async
   assert.match(source, /\{categorySelectionEnabled && \(/);
 });
 
-test("administrator backend exposes a checkbox for the feature", async () => {
-  const [component, main] = await Promise.all([
+test("administrator visitor upload setting lives only inside the general tab", async () => {
+  const [component, general, main] = await Promise.all([
     readClient("AdminFeatureSettings.jsx"),
+    readClient("GeneralSettings.jsx"),
     readClient("main.jsx"),
   ]);
   assert.match(component, /type="checkbox"/);
   assert.match(component, /允許訪客上傳時選擇照片分類/);
   assert.match(component, /\/admin\/api\/settings/);
-  assert.match(main, /<AdminFeatureSettings \/>/);
+  assert.match(general, /<AdminFeatureSettings \/>/);
+  assert.doesNotMatch(main, /AdminFeatureSettings/);
 });
 
 test("runtime wires authenticated administrator settings API", async () => {
