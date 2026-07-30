@@ -15,9 +15,8 @@ const COPY = {
     life: "生活照",
     weddingGroup: "婚禮流程",
     files: "選擇照片",
-    choose: "選擇最多 30 張照片",
-    hint:
-      "支援 JPEG、PNG、WebP、HEIC／HEIF；每張上限 25 MB。照片逐張傳送並使用固定識別碼，重新嘗試不會重複建立 Drive 檔案。",
+    choose: "選擇最多 10 張照片",
+    hint: "支援 JPEG、PNG、WebP、HEIC／HEIF；每張上限 25 MB。照片逐張傳送並使用固定識別碼，重新嘗試不會重複建立 Drive 檔案。",
     start: "開始上傳",
     retryFailed: "繼續未完成照片",
     cancel: "暫停上傳",
@@ -51,8 +50,7 @@ const COPY = {
     weddingGroup: "Wedding moments",
     files: "Choose photos",
     choose: "Choose up to 30 photos",
-    hint:
-      "JPEG, PNG, WebP, HEIC and HEIF are accepted, up to 25 MB each. Stable upload IDs prevent duplicate Drive files when a request is retried.",
+    hint: "JPEG, PNG, WebP, HEIC and HEIF are accepted, up to 25 MB each. Stable upload IDs prevent duplicate Drive files when a request is retried.",
     start: "Start upload",
     retryFailed: "Continue unfinished photos",
     cancel: "Pause upload",
@@ -67,7 +65,8 @@ const COPY = {
     required: "Enter your name and select at least one photo.",
     completed: "Upload complete",
     partial: "Some photos are not finished",
-    management: "Save this private management link. It will let you view or withdraw this batch later.",
+    management:
+      "Save this private management link. It will let you view or withdraw this batch later.",
     openManagement: "Open private management link",
     retryNote:
       "Completed photos are never resent. Continue unfinished photos safely resumes the same batch and Drive files.",
@@ -100,7 +99,8 @@ export default function UploadModal({ lang, onClose, onUploaded }) {
   const t = COPY[lang] ?? COPY.zh;
   const [uploaderName, setUploaderName] = useState("");
   const [classificationChoice, setClassificationChoice] = useState("guest");
-  const [categorySelectionEnabled, setCategorySelectionEnabled] = useState(true);
+  const [categorySelectionEnabled, setCategorySelectionEnabled] =
+    useState(true);
   const [processes, setProcesses] = useState([]);
   const [files, setFiles] = useState([]);
   const [items, setItems] = useState([]);
@@ -128,8 +128,7 @@ export default function UploadModal({ lang, onClose, onUploaded }) {
     ])
       .then(([settings, processData]) => {
         if (cancelled) return;
-        const enabled =
-          settings.guestUploadCategorySelectionEnabled !== false;
+        const enabled = settings.guestUploadCategorySelectionEnabled !== false;
         setCategorySelectionEnabled(enabled);
         if (!enabled) setClassificationChoice("guest");
         setProcesses(normalizeProcesses(processData.processes));
@@ -203,7 +202,9 @@ export default function UploadModal({ lang, onClose, onUploaded }) {
       setSummary(result.summary);
       setPhase("done");
     } catch (uploadError) {
-      setError(uploadError instanceof Error ? uploadError.message : "Upload failed");
+      setError(
+        uploadError instanceof Error ? uploadError.message : "Upload failed",
+      );
       setPhase("done");
     } finally {
       controllerRef.current = null;
@@ -269,9 +270,7 @@ export default function UploadModal({ lang, onClose, onUploaded }) {
         </button>
         <p className="eyebrow">GUEST MEMORIES · 20 JUN 2026</p>
         <h2 id="upload-dialog-title">{t.title}</h2>
-        <p>
-          {categorySelectionEnabled ? t.introEnabled : t.introDisabled}
-        </p>
+        <p>{categorySelectionEnabled ? t.introEnabled : t.introDisabled}</p>
 
         <form className="upload-form" onSubmit={startUpload}>
           <label>
@@ -292,7 +291,9 @@ export default function UploadModal({ lang, onClose, onUploaded }) {
               <span>{t.classification}</span>
               <select
                 value={classificationChoice}
-                onChange={(event) => setClassificationChoice(event.target.value)}
+                onChange={(event) =>
+                  setClassificationChoice(event.target.value)
+                }
                 disabled={phase === "uploading" || Boolean(batch)}
               >
                 <option value="guest">{t.guestOnly}</option>
@@ -331,7 +332,9 @@ export default function UploadModal({ lang, onClose, onUploaded }) {
               </div>
               <ol>
                 {items.map((item, index) => (
-                  <li key={`${item.file.name}-${item.file.lastModified}-${index}`}>
+                  <li
+                    key={`${item.file.name}-${item.file.lastModified}-${index}`}
+                  >
                     <div>
                       <strong>{item.file.name}</strong>
                       <small>
@@ -379,7 +382,11 @@ export default function UploadModal({ lang, onClose, onUploaded }) {
               </button>
             )}
             {phase === "uploading" && (
-              <button className="button secondary" type="button" onClick={cancelUpload}>
+              <button
+                className="button secondary"
+                type="button"
+                onClick={cancelUpload}
+              >
                 {t.cancel}
               </button>
             )}
@@ -393,7 +400,11 @@ export default function UploadModal({ lang, onClose, onUploaded }) {
               </button>
             )}
             {phase === "done" && (
-              <button className="button secondary" type="button" onClick={close}>
+              <button
+                className="button secondary"
+                type="button"
+                onClick={close}
+              >
                 {t.close}
               </button>
             )}
