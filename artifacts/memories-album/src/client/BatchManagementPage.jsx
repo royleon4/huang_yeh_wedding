@@ -5,6 +5,7 @@ import {
   parsePrivateBatchLocation,
   rotatePrivateLink,
 } from "./batch-management-client.mjs";
+import LazyImage from "./LazyImage.jsx";
 
 const COPY = {
   zh: {
@@ -242,10 +243,11 @@ export default function BatchManagementPage() {
             <ul className="batch-photo-grid">
               {batch.photos.map((photo) => (
                 <li key={photo.id}>
-                  <img
+                  <LazyImage
                     src={photo.thumbnailUrl}
                     alt={t.photoAlt}
-                    loading="lazy"
+                    width={photo.width}
+                    height={photo.height}
                   />
                   <button
                     className="button danger"
