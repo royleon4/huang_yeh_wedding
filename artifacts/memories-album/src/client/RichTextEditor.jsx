@@ -6,6 +6,7 @@ import StarterKit from "@tiptap/starter-kit";
 import { useEffect, useRef, useState } from "react";
 import { AttachmentCard, WeddingImage } from "./TiptapMediaNodes.jsx";
 import "./rich-text-formatting.css";
+import "./rich-text-mobile.css";
 
 const ATTACHMENT_ACCEPT = [
   "image/jpeg",

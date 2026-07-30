@@ -1,76 +1,101 @@
 @media (max-width: 720px) {
+  .process-content-details,
+  .process-content-expanded,
+  .process-content-inline-editor,
+  .process-rich-editor,
   .tiptap-rich-editor,
   .tiptap-editor-header,
-  .tiptap-toolbar {
+  .tiptap-toolbar,
+  .tiptap-editor-frame,
+  .tiptap-editor-frame > div,
+  .process-attachment-library,
+  .process-attachment-library-grid {
     width: 100%;
     max-width: 100%;
     min-width: 0;
     box-sizing: border-box;
   }
 
+  .process-content-details,
+  .process-content-expanded,
+  .process-content-inline-editor,
+  .process-rich-editor,
+  .tiptap-rich-editor {
+    overflow: visible;
+  }
+
+  .process-content-expanded {
+    padding-inline: clamp(0.65rem, 3vw, 1rem);
+  }
+
   .tiptap-editor-header {
     position: static;
     margin-inline: 0;
-    overflow: visible;
+    overflow: hidden;
     border-radius: 12px;
   }
 
   .tiptap-toolbar {
-    display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    align-items: stretch;
-    gap: 0.45rem;
-    padding: 0.55rem;
-    overflow: visible;
-    overscroll-behavior-inline: auto;
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: clamp(0.2rem, 1vw, 0.38rem);
+    padding: 0.42rem;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scroll-snap-type: x proximity;
+    scroll-padding-inline: 0.42rem;
+    scrollbar-width: thin;
+    overscroll-behavior-inline: contain;
+    -webkit-overflow-scrolling: touch;
+    touch-action: pan-x;
+  }
+
+  .tiptap-toolbar > * {
+    scroll-snap-align: start;
   }
 
   .tiptap-block-select {
-    grid-column: 1 / -1;
-    width: 100%;
+    flex: 0 0 auto;
+    width: clamp(5.5rem, 28vw, 7rem);
     min-width: 0;
   }
 
   .tiptap-block-select select {
     width: 100%;
+    max-width: 100%;
     min-width: 0;
-    min-height: 3rem;
+    min-height: clamp(2.5rem, 10vw, 2.9rem);
+    padding-inline: 0.65rem 1.8rem;
+    font-size: clamp(0.88rem, 3.5vw, 1rem);
+    box-sizing: border-box;
   }
 
-  .tiptap-toolbar-divider,
+  .tiptap-toolbar-divider {
+    flex: 0 0 1px;
+    height: 1.7rem;
+    margin-inline: 0.05rem;
+  }
+
   .tiptap-toolbar-spacer {
     display: none;
   }
 
   .tiptap-toolbar-button {
-    display: flex;
-    flex-direction: column;
-    width: 100%;
+    flex: 0 0 auto;
+    width: clamp(2.55rem, 11vw, 3rem);
     min-width: 0;
-    min-height: 3.6rem;
-    gap: 0.15rem;
-    padding: 0.4rem 0.25rem;
+    min-height: clamp(2.5rem, 10vw, 2.9rem);
+    padding: 0.35rem;
     border: 1px solid var(--editor-line);
     background: #fff;
-    line-height: 1.15;
-    white-space: normal;
+    line-height: 1;
+    box-sizing: border-box;
   }
 
   .tiptap-toolbar-button > span {
-    font-size: 1.05rem;
+    font-size: clamp(0.98rem, 4vw, 1.12rem);
     line-height: 1;
-  }
-
-  .tiptap-toolbar-button::after {
-    content: attr(aria-label);
-    display: block;
-    max-width: 100%;
-    color: inherit;
-    font-size: 0.68rem;
-    font-weight: 700;
-    line-height: 1.2;
-    text-align: center;
-    overflow-wrap: anywhere;
   }
 
   .tiptap-toolbar-button small {
@@ -78,20 +103,75 @@
   }
 
   .tiptap-toolbar-button.is-wide {
-    grid-column: 1 / -1;
-    flex-direction: row;
-    min-height: 3.15rem;
-    gap: 0.45rem;
-    padding-inline: 0.8rem;
+    width: auto;
+    min-width: max-content;
+    padding-inline: 0.75rem;
   }
 
-  .tiptap-toolbar-button.is-wide::after {
-    font-size: 0.82rem;
+  .tiptap-toolbar-button.is-wide small {
+    display: inline;
+    font-size: clamp(0.72rem, 3vw, 0.82rem);
   }
 
   .tiptap-editor-hint {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
     padding-inline: 0;
     overflow-wrap: anywhere;
+    box-sizing: border-box;
+  }
+
+  .tiptap-editor-frame {
+    overflow: visible;
+  }
+
+  .process-rich-editable.tiptap-editor-surface,
+  .tiptap-editor-frame .ProseMirror {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    height: clamp(14rem, 48dvh, 34rem);
+    min-height: clamp(12rem, 38dvh, 16rem);
+    max-height: min(72dvh, 42rem);
+    padding: clamp(0.8rem, 3vw, 1rem);
+    overflow-x: hidden;
+    overflow-y: auto;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+    white-space: pre-wrap;
+    resize: vertical;
+    overscroll-behavior: contain;
+    box-sizing: border-box;
+  }
+
+  .tiptap-editor-frame .ProseMirror > *,
+  .tiptap-media-node,
+  .tiptap-media-content,
+  .tiptap-image-node img,
+  .tiptap-attachment-node,
+  .tiptap-attachment-node a,
+  .process-attachment-library-grid article {
+    max-width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+  }
+
+  .tiptap-editor-frame .ProseMirror a,
+  .process-attachment-name,
+  .process-attachment-meta,
+  .process-attachment-library-grid article span,
+  .process-attachment-library-grid article a {
+    max-width: 100%;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+  }
+
+  .tiptap-media-controls {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
   }
 
   .tiptap-bubble-menu {
@@ -107,14 +187,36 @@
     border: 0;
     padding: 0.35rem 0.55rem;
   }
+}
 
-  .tiptap-bubble-menu .tiptap-toolbar-button::after {
-    display: none;
+@media (max-width: 390px) {
+  .tiptap-toolbar {
+    display: grid;
+    grid-template-rows: repeat(2, minmax(2.5rem, auto));
+    grid-auto-flow: column;
+    grid-auto-columns: max-content;
+    align-items: center;
+    max-height: 6.7rem;
+  }
+
+  .tiptap-block-select {
+    width: 5.6rem;
+  }
+
+  .tiptap-toolbar-button {
+    width: 2.55rem;
+  }
+
+  .tiptap-toolbar-button.is-wide {
+    width: max-content;
   }
 }
 
-@media (max-width: 360px) {
-  .tiptap-toolbar {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+@media (max-height: 520px) and (orientation: landscape) {
+  .process-rich-editable.tiptap-editor-surface,
+  .tiptap-editor-frame .ProseMirror {
+    height: 46dvh;
+    min-height: 9rem;
+    max-height: 58dvh;
   }
 }
