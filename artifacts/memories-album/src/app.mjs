@@ -142,12 +142,14 @@ async function handleStandaloneApi(
     url.pathname.startsWith(`${MEMORIES_API_PATH}/upload-batches`) ||
     url.pathname.startsWith(`${MEMORIES_API_PATH}/albums`) ||
     url.pathname.startsWith(`${MEMORIES_API_PATH}/processes`) ||
+    url.pathname.startsWith(`${MEMORIES_API_PATH}/process-attachments`) ||
     url.pathname.startsWith(`${MEMORIES_API_PATH}/settings`)
   ) {
     try {
       const runtime = await getRuntime(env);
       if (await runtime.albumApi(request, response, url)) return true;
       if (await runtime.settingsApi(request, response, url)) return true;
+      if (await runtime.processContentApi(request, response, url)) return true;
       if (await runtime.processApi(request, response, url)) return true;
       if (await runtime.uploadApi(request, response, url)) return true;
       if (await runtime.photoApi(request, response, url)) return true;
@@ -162,6 +164,12 @@ async function handleStandaloneApi(
           url.pathname === `${MEMORIES_API_PATH}/processes`
         ) {
           sendJson(response, 200, {
+            allProcess: {
+              id: "all",
+              labelZh: "全部流程",
+              labelEn: "All moments",
+              showAllPhotos: true,
+            },
             processes: [],
             degraded: true,
             storageError: boundedStorageError(error).code,
@@ -259,6 +267,7 @@ export async function handleRequest(request, response, options) {
     try {
       const runtime = await (options?.getRuntime ?? getMemoriesRuntime)(env);
       if (await runtime.adminAlbumApi?.(request, response, url)) return;
+      if (await runtime.adminProcessContentApi?.(request, response, url)) return;
       if (await runtime.adminCategoryApi?.(request, response, url)) return;
       if (await runtime.adminPhotoApi?.(request, response, url)) return;
       if (await runtime.adminSettingsApi?.(request, response, url)) return;
