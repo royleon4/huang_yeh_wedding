@@ -1,4 +1,4 @@
-import { isValidGalleryMediaOrder } from "../../gallery-media-order.mjs";
+import { isValidGalleryMediaOrder } from "./media-order.mjs";
 
 function json(response, status, body) {
   response.writeHead(status, {
