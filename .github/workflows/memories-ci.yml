@@ -17,15 +17,18 @@ on:
       - ".github/workflows/memories-ci.yml"
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   test-and-build:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - name: Check out repository
+      - name: Check out audit branch
         uses: actions/checkout@v4
+        with:
+          ref: repo-audit-dead-code-readme
+          fetch-depth: 0
 
       - name: Set up pnpm
         uses: pnpm/action-setup@v4
@@ -38,22 +41,12 @@ jobs:
           node-version: 24
           cache: pnpm
 
-      - name: Install workspace dependencies
+      - name: Install workspace dependencies and refresh lockfile
         run: pnpm install --no-frozen-lockfile
 
       - name: Generate repository audit cleanup
+        if: github.actor != 'github-actions[bot]'
         run: node scripts/repo-audit-cleanup.mjs
-
-      - name: Preserve generated audit files
-        uses: actions/upload-artifact@v4
-        with:
-          name: repo-audit-generated
-          path: |
-            artifacts/memories-album/src/client/AdminApp.jsx
-            artifacts/memories-album/process-content-ui-transform.mjs
-            pnpm-lock.yaml
-          if-no-files-found: error
-          retention-days: 7
 
       - name: Test standalone Memories
         shell: bash
@@ -87,3 +80,18 @@ jobs:
           done
           echo "Memories production server did not become healthy" >&2
           exit 1
+
+      - name: Commit generated cleanup and lockfile
+        if: github.actor != 'github-actions[bot]'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add artifacts/memories-album/src/client/AdminApp.jsx \
+            artifacts/memories-album/process-content-ui-transform.mjs \
+            pnpm-lock.yaml
+          if git diff --cached --quiet; then
+            echo "No generated changes"
+            exit 0
+          fi
+          git commit -m "Remove transformed-away admin code and refresh lockfile"
+          git push origin HEAD:repo-audit-dead-code-readme
