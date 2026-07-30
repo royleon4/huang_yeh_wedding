@@ -1,9 +1,11 @@
 import { Node, mergeAttributes } from "@tiptap/core";
 import { NodeViewWrapper, ReactNodeViewRenderer } from "@tiptap/react";
 import { useEffect, useRef, useState } from "react";
+import { recoverUtf8Filename } from "../filename-encoding.mjs";
 
 export const MIN_MEDIA_WIDTH = 24;
 export const MAX_MEDIA_WIDTH = 100;
+const WIDTH_PRESETS = [25, 50, 75, 100];
 
 export function clampMediaWidth(value) {
   const parsed = Number.parseFloat(String(value ?? "").replace("%", ""));
@@ -19,6 +21,10 @@ function formatBytes(value) {
   return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
 }
 
+function attachmentName(value) {
+  return recoverUtf8Filename(String(value || "附件")) || "附件";
+}
+
 function readImageAttributes(element) {
   const image = element.tagName === "IMG" ? element : element.querySelector("img");
   const caption = element.querySelector?.("figcaption")?.textContent?.trim() ?? "";
@@ -32,10 +38,15 @@ function readImageAttributes(element) {
 
 function readAttachmentAttributes(element) {
   const anchor = element.querySelector("a");
-  const rawName = anchor?.textContent?.trim().replace(/^📎\s*/, "") ?? "附件";
+  const namedElement = element.querySelector(".process-attachment-name");
+  const rawName =
+    element.getAttribute("data-name") ||
+    namedElement?.textContent?.trim() ||
+    anchor?.textContent?.trim().replace(/^📎\s*/, "") ||
+    "附件";
   return {
     attachmentId: element.getAttribute("data-attachment-id") ?? "",
-    name: element.getAttribute("data-name") || rawName,
+    name: attachmentName(rawName),
     href: anchor?.getAttribute("href") ?? "",
     downloadUrl: anchor?.getAttribute("href") ?? "",
     mimeType: element.getAttribute("data-mime-type") ?? "",
@@ -44,27 +55,50 @@ function readAttachmentAttributes(element) {
   };
 }
 
-function moveNode(editor, getPos, direction) {
+function moveNode(editor, getPos, destination) {
   const position = typeof getPos === "function" ? getPos() : undefined;
-  if (!Number.isInteger(position)) return;
+  if (!Number.isInteger(position)) return false;
+
   const current = editor.state.doc.nodeAt(position);
-  if (!current) return;
+  if (!current) return false;
 
   const transaction = editor.state.tr;
-  if (direction < 0) {
-    const previous = editor.state.doc.resolve(position).nodeBefore;
-    if (!previous) return;
-    const target = position - previous.nodeSize;
+  let target = null;
+
+  if (destination === "first") {
     transaction.delete(position, position + current.nodeSize);
-    transaction.insert(target, current);
-  } else {
+    target = 0;
+  } else if (destination === "last") {
+    transaction.delete(position, position + current.nodeSize);
+    target = transaction.doc.content.size;
+  } else if (destination === "previous") {
+    const previous = editor.state.doc.resolve(position).nodeBefore;
+    if (!previous) return false;
+    target = position - previous.nodeSize;
+    transaction.delete(position, position + current.nodeSize);
+  } else if (destination === "next") {
     const nextPosition = position + current.nodeSize;
     const next = editor.state.doc.nodeAt(nextPosition);
-    if (!next) return;
+    if (!next) return false;
     transaction.delete(position, position + current.nodeSize);
-    transaction.insert(position + next.nodeSize, current);
+    target = position + next.nodeSize;
   }
+
+  if (!Number.isInteger(target)) return false;
+  transaction.insert(target, current);
   editor.view.dispatch(transaction.scrollIntoView());
+  return true;
+}
+
+function openInNewTab(url) {
+  if (!url || typeof window === "undefined") return;
+  window.open(url, "_blank", "noopener,noreferrer");
+}
+
+function controlAction(event, action) {
+  event.preventDefault();
+  event.stopPropagation();
+  action();
 }
 
 function MediaNodeShell({
@@ -77,6 +111,7 @@ function MediaNodeShell({
   deleteNode,
   className,
   as = "div",
+  openUrl = "",
 }) {
   const rootRef = useRef(null);
   const [draftWidth, setDraftWidth] = useState(() => clampMediaWidth(node.attrs.width));
@@ -89,6 +124,15 @@ function MediaNodeShell({
     const width = clampMediaWidth(value);
     setDraftWidth(width);
     updateAttributes({ width });
+  };
+
+  const selectNode = (event) => {
+    if (event.pointerType === "mouse" && event.button !== 0) return;
+    const position = typeof getPos === "function" ? getPos() : undefined;
+    if (!Number.isInteger(position)) return;
+    event.preventDefault();
+    event.stopPropagation();
+    editor.commands.setNodeSelection(position);
   };
 
   const startResize = (event) => {
@@ -105,7 +149,9 @@ function MediaNodeShell({
     event.currentTarget.setPointerCapture?.(pointerId);
 
     const move = (moveEvent) => {
-      latestWidth = clampMediaWidth(startWidth + ((moveEvent.clientX - startX) / editorRect.width) * 100);
+      latestWidth = clampMediaWidth(
+        startWidth + ((moveEvent.clientX - startX) / editorRect.width) * 100,
+      );
       setDraftWidth(latestWidth);
     };
     const finish = () => {
@@ -128,41 +174,86 @@ function MediaNodeShell({
       data-media-node="true"
       style={{ width: `${draftWidth}%` }}
     >
-      <div className="tiptap-media-controls" contentEditable={false}>
-        <button type="button" data-drag-handle aria-label="拖曳移動" title="拖曳到文章中的其他位置">
-          ⠿
-        </button>
-        <button type="button" aria-label="往上移" title="往上移" onClick={() => moveNode(editor, getPos, -1)}>
-          ↑
-        </button>
-        <button type="button" aria-label="往下移" title="往下移" onClick={() => moveNode(editor, getPos, 1)}>
-          ↓
-        </button>
-        <label title="調整寬度">
-          <span>寬度</span>
-          <input
-            type="range"
-            min={MIN_MEDIA_WIDTH}
-            max={MAX_MEDIA_WIDTH}
-            value={draftWidth}
-            onChange={(event) => commitWidth(event.target.value)}
-            aria-label="媒體寬度"
-          />
-          <output>{draftWidth}%</output>
-        </label>
-        <button type="button" className="danger" aria-label="從文章移除" title="從文章移除" onClick={deleteNode}>
-          ×
-        </button>
-      </div>
-      <div className="tiptap-media-content" contentEditable={false}>
+      <div
+        className="tiptap-media-content"
+        contentEditable={false}
+        onPointerDown={selectNode}
+        aria-label="選取此媒體以調整位置與大小"
+      >
         {children}
       </div>
+
+      <div className="tiptap-media-controls" contentEditable={false}>
+        <div className="tiptap-media-actions" role="toolbar" aria-label="媒體位置操作">
+          <button
+            type="button"
+            data-drag-handle
+            data-desktop-drag-handle
+            aria-label="桌面拖曳移動"
+            title="桌面版可拖曳到文章中的其他位置"
+          >
+            ⠿
+          </button>
+          <button type="button" aria-label="移到最前" title="移到文章最前方" onClick={(event) => controlAction(event, () => moveNode(editor, getPos, "first"))}>
+            ⇤
+          </button>
+          <button type="button" aria-label="往上移" title="往上移一段" onClick={(event) => controlAction(event, () => moveNode(editor, getPos, "previous"))}>
+            ↑
+          </button>
+          <button type="button" aria-label="往下移" title="往下移一段" onClick={(event) => controlAction(event, () => moveNode(editor, getPos, "next"))}>
+            ↓
+          </button>
+          <button type="button" aria-label="移到最後" title="移到文章最後方" onClick={(event) => controlAction(event, () => moveNode(editor, getPos, "last"))}>
+            ⇥
+          </button>
+          {openUrl && (
+            <button type="button" aria-label="開啟附件" title="在新分頁開啟附件" onClick={(event) => controlAction(event, () => openInNewTab(openUrl))}>
+              ↗
+            </button>
+          )}
+          <button type="button" className="danger" aria-label="從文章移除" title="只從文章移除，不會刪除已上傳檔案" onClick={(event) => controlAction(event, deleteNode)}>
+            ×
+          </button>
+        </div>
+
+        <div className="tiptap-media-size-controls" aria-label="媒體顯示寬度">
+          <span className="tiptap-media-control-label">顯示寬度</span>
+          <div className="tiptap-media-presets">
+            {WIDTH_PRESETS.map((width) => (
+              <button
+                key={width}
+                type="button"
+                className={draftWidth === width ? "is-active" : ""}
+                aria-pressed={draftWidth === width}
+                aria-label={`設為 ${width}%`}
+                onClick={(event) => controlAction(event, () => commitWidth(width))}
+              >
+                {width}%
+              </button>
+            ))}
+          </div>
+          <label title="精細調整寬度">
+            <span className="sr-only">媒體寬度</span>
+            <input
+              type="range"
+              min={MIN_MEDIA_WIDTH}
+              max={MAX_MEDIA_WIDTH}
+              value={draftWidth}
+              onPointerDown={(event) => event.stopPropagation()}
+              onChange={(event) => commitWidth(event.target.value)}
+              aria-label="媒體寬度"
+            />
+            <output>{draftWidth}%</output>
+          </label>
+        </div>
+      </div>
+
       <button
         type="button"
         className="tiptap-media-resize-handle"
         contentEditable={false}
         aria-label="拖曳調整寬度"
-        title="左右拖曳調整寬度"
+        title="桌面版可左右拖曳調整寬度"
         onPointerDown={startResize}
       />
     </NodeViewWrapper>
@@ -174,30 +265,28 @@ function WeddingImageView(props) {
   return (
     <MediaNodeShell {...props} as="figure" className="process-inline-image tiptap-image-node">
       <img src={node.attrs.src} alt={node.attrs.alt || ""} draggable={false} />
-      {(node.attrs.caption || node.attrs.alt) && (
-        <figcaption>{node.attrs.caption || node.attrs.alt}</figcaption>
-      )}
+      {(node.attrs.caption || node.attrs.alt) && <figcaption>{node.attrs.caption || node.attrs.alt}</figcaption>}
     </MediaNodeShell>
   );
 }
 
 function AttachmentCardView(props) {
   const { node } = props;
+  const name = attachmentName(node.attrs.name);
   const size = formatBytes(node.attrs.byteSize);
-  const extension = String(node.attrs.name || "附件").split(".").pop()?.toUpperCase();
+  const extension = String(name).split(".").pop()?.toUpperCase();
+
   return (
-    <MediaNodeShell {...props} className="process-attachment-line process-attachment-card tiptap-attachment-node">
-      <a
-        href={node.attrs.downloadUrl || node.attrs.href}
-        target="_blank"
-        rel="noopener noreferrer"
-        download
-        onClick={(event) => event.stopPropagation()}
-      >
+    <MediaNodeShell
+      {...props}
+      className="process-attachment-line process-attachment-card tiptap-attachment-node"
+      openUrl={node.attrs.downloadUrl || node.attrs.href}
+    >
+      <div className="tiptap-attachment-preview">
         <span className="process-attachment-icon" aria-hidden="true">📎</span>
-        <span className="process-attachment-name">{node.attrs.name || "附件"}</span>
+        <span className="process-attachment-name">{name}</span>
         <span className="process-attachment-meta">{[extension, size].filter(Boolean).join(" · ")}</span>
-      </a>
+      </div>
     </MediaNodeShell>
   );
 }
@@ -255,7 +344,7 @@ export const AttachmentCard = Node.create({
       downloadUrl: { default: "" },
       mimeType: { default: "" },
       byteSize: { default: 0 },
-      width: { default: 100 },
+      width: { default: 82 },
     };
   },
 
@@ -270,6 +359,7 @@ export const AttachmentCard = Node.create({
   renderHTML({ node }) {
     const width = clampMediaWidth(node.attrs.width);
     const size = formatBytes(node.attrs.byteSize);
+    const name = attachmentName(node.attrs.name);
     return [
       "div",
       mergeAttributes({
@@ -277,20 +367,15 @@ export const AttachmentCard = Node.create({
         "data-type": "attachment-card",
         "data-width": String(width),
         "data-attachment-id": node.attrs.attachmentId || "",
-        "data-name": node.attrs.name || "附件",
+        "data-name": name,
         "data-mime-type": node.attrs.mimeType || "",
         "data-byte-size": String(node.attrs.byteSize || 0),
       }),
       [
         "a",
-        {
-          href: node.attrs.downloadUrl || node.attrs.href,
-          target: "_blank",
-          rel: "noopener noreferrer",
-          download: "",
-        },
+        { href: node.attrs.downloadUrl || node.attrs.href, target: "_blank", rel: "noopener noreferrer", download: "" },
         ["span", { class: "process-attachment-icon" }, "📎"],
-        ["span", { class: "process-attachment-name" }, node.attrs.name || "附件"],
+        ["span", { class: "process-attachment-name" }, name],
         ["span", { class: "process-attachment-meta" }, size],
       ],
     ];

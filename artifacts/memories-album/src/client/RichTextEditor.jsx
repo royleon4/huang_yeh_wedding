@@ -7,6 +7,7 @@ import { useEffect, useRef, useState } from "react";
 import { AttachmentCard, WeddingImage } from "./TiptapMediaNodes.jsx";
 import "./rich-text-formatting.css";
 import "./rich-text-mobile.css";
+import "./rich-text-media-editor.css";
 
 const ATTACHMENT_ACCEPT = [
   "image/jpeg",
@@ -212,7 +213,7 @@ export default function RichTextEditor({
             downloadUrl: attachment.downloadUrl || attachment.url || "",
             mimeType: attachment.mimeType || "",
             byteSize: Number(attachment.byteSize || 0),
-            width: 100,
+            width: 82,
           },
         };
     editor.chain().focus().insertContent([node, { type: "paragraph" }]).run();
@@ -326,7 +327,7 @@ export default function RichTextEditor({
       </div>
 
       <p className="tiptap-editor-hint">
-        反白文字可快速套用格式。圖片與附件可按住 ⠿ 拖曳位置，或使用上下鍵；拉動右側把手或寬度滑桿即可調整大小。
+        反白文字可快速套用格式。手機請點選圖片或附件後使用移動與寬度控制；桌面仍可拖曳，並可拉動把手調整大小。
       </p>
 
       <div className="tiptap-editor-frame">
