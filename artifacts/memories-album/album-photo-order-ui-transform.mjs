@@ -18,6 +18,13 @@ function transformGallery(source) {
 
   code = replaceOnce(
     code,
+    `    const query = new URLSearchParams({ limit: "100" });`,
+    `    const query = new URLSearchParams({\n      limit: "100",\n      includeSortRanks: "1",\n    });`,
+    "privacy-safe photo sort ranks",
+  );
+
+  code = replaceOnce(
+    code,
     `    showSummary: true,\n  }));`,
     `    showSummary: true,\n    photoSortMode: "time-asc",\n  }));`,
     "fallback album photo order",
