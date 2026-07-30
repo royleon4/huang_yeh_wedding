@@ -56,7 +56,7 @@ export function fetchPrivateBatch({ batchId, token, fetchImpl }) {
   });
 }
 
-export function withdrawPrivatePhoto({ batchId, photoId, token, fetchImpl }) {
+export function deletePrivatePhoto({ batchId, photoId, token, fetchImpl }) {
   return requestJson({
     url: `/Memories/api/upload-batches/${encodeURIComponent(batchId)}/photos/${encodeURIComponent(photoId)}`,
     token,

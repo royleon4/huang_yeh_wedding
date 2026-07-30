@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import {
+  deletePrivatePhoto,
   fetchPrivateBatch,
   parsePrivateBatchLocation,
   rotatePrivateLink,
-  withdrawPrivatePhoto,
 } from "./batch-management-client.mjs";
 
 const COPY = {
@@ -18,9 +18,11 @@ const COPY = {
       "請妥善保存這個網址；任何取得連結的人都能管理這一批照片。更新私人連結後，舊網址會立即失效。",
     uploader: "上傳者",
     empty: "這一批目前沒有可管理的照片。",
-    withdraw: "撤回照片",
-    withdrawing: "正在撤回…",
-    withdrawConfirm: "要撤回這張照片嗎？它會立即從公開相簿隱藏。",
+    delete: "永久刪除照片",
+    deleting: "正在永久刪除…",
+    deleteConfirm:
+      "確定要永久刪除這張照片嗎？原始照片、縮圖及網站資料都會刪除，無法復原。",
+    deleteFailed: "照片刪除失敗，尚未從清單移除。請稍後再試。",
     rotate: "更新私人連結",
     rotating: "正在更新…",
     rotateConfirm:
@@ -42,10 +44,11 @@ const COPY = {
       "Keep this URL private. Anyone with the link can manage this batch. The old URL stops working immediately after the link is renewed.",
     uploader: "Uploaded by",
     empty: "This batch has no manageable photos.",
-    withdraw: "Withdraw photo",
-    withdrawing: "Withdrawing…",
-    withdrawConfirm:
-      "Withdraw this photo? It will disappear from the public album immediately.",
+    delete: "Permanently delete photo",
+    deleting: "Deleting permanently…",
+    deleteConfirm:
+      "Permanently delete this photo? The original, thumbnail, and website records will be removed and cannot be recovered.",
+    deleteFailed: "The photo could not be deleted and remains listed. Please try again.",
     rotate: "Renew private link",
     rotating: "Renewing…",
     rotateConfirm:
@@ -71,6 +74,7 @@ export default function BatchManagementPage() {
   const [batch, setBatch] = useState(null);
   const [state, setState] = useState(route?.token ? "loading" : "invalid");
   const [busyPhotoId, setBusyPhotoId] = useState(null);
+  const [actionError, setActionError] = useState("");
   const [rotating, setRotating] = useState(false);
   const [replacementUrl, setReplacementUrl] = useState("");
   const [copied, setCopied] = useState(false);
@@ -108,11 +112,12 @@ export default function BatchManagementPage() {
     localStorage.setItem("memories-language", next);
   };
 
-  const withdraw = async (photoId) => {
-    if (!window.confirm(t.withdrawConfirm)) return;
+  const deletePhoto = async (photoId) => {
+    if (!window.confirm(t.deleteConfirm)) return;
     setBusyPhotoId(photoId);
+    setActionError("");
     try {
-      await withdrawPrivatePhoto({
+      await deletePrivatePhoto({
         batchId: route.batchId,
         photoId,
         token,
@@ -122,7 +127,7 @@ export default function BatchManagementPage() {
         photos: current.photos.filter((photo) => photo.id !== photoId),
       }));
     } catch {
-      setState("invalid");
+      setActionError(t.deleteFailed);
     } finally {
       setBusyPhotoId(null);
     }
@@ -131,6 +136,7 @@ export default function BatchManagementPage() {
   const rotate = async () => {
     if (!window.confirm(t.rotateConfirm)) return;
     setRotating(true);
+    setActionError("");
     try {
       const payload = await rotatePrivateLink({
         batchId: route.batchId,
@@ -222,6 +228,12 @@ export default function BatchManagementPage() {
             </section>
           )}
 
+          {actionError && (
+            <p className="upload-error" role="alert">
+              {actionError}
+            </p>
+          )}
+
           {batch.photos.length === 0 ? (
             <section className="batch-management-state">
               <p>{t.empty}</p>
@@ -239,9 +251,9 @@ export default function BatchManagementPage() {
                     className="button danger"
                     type="button"
                     disabled={busyPhotoId === photo.id}
-                    onClick={() => withdraw(photo.id)}
+                    onClick={() => deletePhoto(photo.id)}
                   >
-                    {busyPhotoId === photo.id ? t.withdrawing : t.withdraw}
+                    {busyPhotoId === photo.id ? t.deleting : t.delete}
                   </button>
                 </li>
               ))}

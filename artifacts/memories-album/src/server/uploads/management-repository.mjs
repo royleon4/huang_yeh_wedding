@@ -27,6 +27,17 @@ function mapPhoto(row) {
   };
 }
 
+function mapDeletionPhoto(row) {
+  return {
+    id: row.id,
+    driveFileId: row.drive_file_id,
+    thumbnailDriveFileId: row.thumbnail_drive_file_id,
+    contentHash: row.content_hash,
+    contentVersion: Number(row.content_version ?? 1),
+    uploaderName: row.uploader_name,
+  };
+}
+
 export class PostgresUploadManagementRepository {
   constructor(pool) {
     if (!pool?.query) throw new Error("A PostgreSQL pool is required");
@@ -88,17 +99,18 @@ export class PostgresUploadManagementRepository {
     return result.rows.map(mapPhoto);
   }
 
-  async hideBatchPhoto({ batchId, photoId, updatedAt }) {
+  async findBatchPhotoForPermanentDeletion({ batchId, photoId }) {
     const result = await this.pool.query(
-      `UPDATE memories_photos
-       SET visibility = 'hidden', trashed_at = NULL, updated_at = $3
+      `SELECT id, drive_file_id, thumbnail_drive_file_id, content_hash,
+              content_version, uploader_name
+       FROM memories_photos
        WHERE id = $1
          AND batch_id = $2
          AND uploader_type = 'guest'
-         AND visibility = 'public'
-       RETURNING id`,
-      [photoId, batchId, updatedAt],
+         AND visibility <> 'trashed'
+       LIMIT 1`,
+      [photoId, batchId],
     );
-    return result.rows[0] ?? null;
+    return result.rows[0] ? mapDeletionPhoto(result.rows[0]) : null;
   }
 }

@@ -139,6 +139,7 @@ async function createRuntime(env) {
   });
   const guestBatchManagementApi = createGuestBatchManagementApi({
     repository: uploadManagementRepository,
+    drive,
   });
   const uploadApi = async (request, response, url) => {
     if (await guestBatchManagementApi(request, response, url)) return true;
