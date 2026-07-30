@@ -5,13 +5,9 @@ const COPY = {
   zh: {
     title: "把你的照片放進檔案館",
     intro:
-      "請留下姓名、選擇照片，並可替這批照片選擇網站分類。系統會逐張安全上傳，暫時性失敗會自動重試。",
+      "請留下姓名並選擇照片。上傳完成後，系統會依照姓名自動整理在「訪客上傳」分類中。",
     name: "你的姓名（必填）",
     namePlaceholder: "例如：小安",
-    classification: "顯示分類（選填）",
-    guestOnly: "不分類，只顯示在訪客上傳",
-    life: "生活照",
-    weddingGroup: "婚禮流程",
     files: "選擇照片",
     choose: "選擇最多 30 張照片",
     hint:
@@ -38,13 +34,9 @@ const COPY = {
   en: {
     title: "Add your photos to the archive",
     intro:
-      "Enter your name, choose photos, and optionally select where they appear. Files upload one at a time and temporary failures retry automatically.",
+      "Enter your name and choose photos. The archive groups completed uploads automatically by that name.",
     name: "Your name (required)",
     namePlaceholder: "For example: An",
-    classification: "Display category (optional)",
-    guestOnly: "No category — Guest uploads only",
-    life: "Life photos",
-    weddingGroup: "Wedding moments",
     files: "Choose photos",
     choose: "Choose up to 30 photos",
     hint:
@@ -74,15 +66,9 @@ function statusLabel(copy, status) {
   return copy[status] ?? status;
 }
 
-export default function UploadModal({
-  lang,
-  processes = [],
-  onClose,
-  onUploaded,
-}) {
+export default function UploadModal({ lang, onClose, onUploaded }) {
   const t = COPY[lang] ?? COPY.zh;
   const [uploaderName, setUploaderName] = useState("");
-  const [classificationChoice, setClassificationChoice] = useState("guest");
   const [files, setFiles] = useState([]);
   const [items, setItems] = useState([]);
   const [phase, setPhase] = useState("idle");
@@ -162,15 +148,10 @@ export default function UploadModal({
       setError(t.required);
       return;
     }
-    const [classification, processId] = classificationChoice.startsWith("wedding:")
-      ? ["wedding", classificationChoice.slice("wedding:".length)]
-      : [classificationChoice, null];
     await runUpload((signal) =>
       uploadQueue({
         uploaderName,
         files,
-        classification,
-        processId,
         signal,
         onUpdate: handleUpdate,
       }),
@@ -229,24 +210,6 @@ export default function UploadModal({
               disabled={phase === "uploading" || Boolean(batch)}
               autoComplete="name"
             />
-          </label>
-          <label>
-            <span>{t.classification}</span>
-            <select
-              value={classificationChoice}
-              onChange={(event) => setClassificationChoice(event.target.value)}
-              disabled={phase === "uploading" || Boolean(batch)}
-            >
-              <option value="guest">{t.guestOnly}</option>
-              <option value="life">{t.life}</option>
-              <optgroup label={t.weddingGroup}>
-                {processes.map((process, index) => (
-                  <option key={process.id} value={`wedding:${process.id}`}>
-                    {String(index + 1).padStart(2, "0")} · {process[lang]}
-                  </option>
-                ))}
-              </optgroup>
-            </select>
           </label>
           <label className="file-picker">
             <span>{t.files}</span>

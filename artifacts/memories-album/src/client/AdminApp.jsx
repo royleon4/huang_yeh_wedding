@@ -31,6 +31,13 @@ function withoutSuccessfulDrafts(current, prefix, successful) {
   );
 }
 
+function normalizedVideoDraft(category) {
+  return {
+    youtubeUrl: category.youtubeUrl ?? "",
+    youtubeAutoplay: Boolean(category.youtubeAutoplay),
+  };
+}
+
 function AlbumEditor({ album, draft, busy, onChange }) {
   return (
     <form className="admin-editor-card" onSubmit={(event) => event.preventDefault()}>
@@ -92,8 +99,10 @@ function AlbumEditor({ album, draft, busy, onChange }) {
 function CategoryEditor({
   category,
   draft,
+  videoDraft,
   busy,
   onChange,
+  onVideoChange,
   onMove,
   first,
   last,
@@ -122,6 +131,27 @@ function CategoryEditor({
           onChange={(event) => onChange({ labelEn: event.target.value })}
           disabled={busy}
         />
+      </label>
+      <label className="admin-wide-field admin-youtube-field">
+        YouTube 連結
+        <input
+          type="url"
+          value={videoDraft.youtubeUrl}
+          onChange={(event) => onVideoChange({ youtubeUrl: event.target.value })}
+          placeholder="https://www.youtube.com/watch?v=..."
+          disabled={busy}
+        />
+      </label>
+      <label className="admin-check admin-youtube-autoplay">
+        <input
+          type="checkbox"
+          checked={videoDraft.youtubeAutoplay}
+          onChange={(event) =>
+            onVideoChange({ youtubeAutoplay: event.target.checked })
+          }
+          disabled={busy || !videoDraft.youtubeUrl.trim()}
+        />
+        前端自動播放（會靜音以符合手機瀏覽器規則）
       </label>
       <div className="admin-row-actions">
         <button
@@ -169,7 +199,15 @@ function AlbumChoices({ albums, selected, onChange, disabled }) {
   );
 }
 
-function PhotoEditor({ photo, draft, albums, categories, busy, onChange }) {
+function PhotoEditor({
+  photo,
+  draft,
+  albums,
+  categories,
+  busy,
+  onChange,
+  onDelete,
+}) {
   return (
     <form className="admin-photo-card" onSubmit={(event) => event.preventDefault()}>
       <div className="admin-photo-preview">
@@ -233,7 +271,20 @@ function PhotoEditor({ photo, draft, albums, categories, busy, onChange }) {
         {draft.albumIds.length === 0 && (
           <p className="admin-form-error">照片至少必須屬於一個相簿。</p>
         )}
-        <span className="admin-draft-hint">變更會由頁面底部統一儲存</span>
+        <div className="admin-photo-actions">
+          <span className="admin-draft-hint">變更會由頁面底部統一儲存</span>
+          <button
+            className="admin-permanent-delete"
+            type="button"
+            onClick={onDelete}
+            disabled={busy}
+            aria-label={`永久刪除 ${draft.displayName}`}
+            title="永久刪除照片"
+          >
+            <span aria-hidden="true">🗑</span>
+            永久刪除
+          </button>
+        </div>
       </div>
     </form>
   );
@@ -246,7 +297,12 @@ const EMPTY_ALBUM = {
   descriptionEn: "",
   isVisible: true,
 };
-const EMPTY_CATEGORY = { labelZh: "", labelEn: "" };
+const EMPTY_CATEGORY = {
+  labelZh: "",
+  labelEn: "",
+  youtubeUrl: "",
+  youtubeAutoplay: false,
+};
 
 export default function AdminApp() {
   const [tab, setTab] = useState("albums");
@@ -256,6 +312,7 @@ export default function AdminApp() {
   const [nextCursor, setNextCursor] = useState(null);
   const [albumDrafts, setAlbumDrafts] = useState({});
   const [categoryDrafts, setCategoryDrafts] = useState({});
+  const [categoryVideoDrafts, setCategoryVideoDrafts] = useState({});
   const [photoDrafts, setPhotoDrafts] = useState({});
   const [categoryOrder, setCategoryOrder] = useState([]);
   const [newAlbum, setNewAlbum] = useState(EMPTY_ALBUM);
@@ -310,7 +367,29 @@ export default function AdminApp() {
       photoDrafts,
     ],
   );
-  const pendingCount = changeSet.count + (upload.file ? 1 : 0);
+
+  const categoryVideoChanges = useMemo(
+    () =>
+      categories
+        .map((category) => {
+          const draft = categoryVideoDrafts[category.id];
+          if (!draft) return null;
+          const original = normalizedVideoDraft(category);
+          const next = {
+            youtubeUrl: String(draft.youtubeUrl ?? "").trim(),
+            youtubeAutoplay: Boolean(draft.youtubeAutoplay),
+          };
+          return original.youtubeUrl.trim() !== next.youtubeUrl ||
+            original.youtubeAutoplay !== next.youtubeAutoplay
+            ? { id: category.id, values: next }
+            : null;
+        })
+        .filter(Boolean),
+    [categories, categoryVideoDrafts],
+  );
+
+  const pendingCount =
+    changeSet.count + categoryVideoChanges.length + (upload.file ? 1 : 0);
 
   const replaceUnauthorized = (loadError) => {
     if (loadError?.status !== 401) return false;
@@ -392,6 +471,16 @@ export default function AdminApp() {
     }));
   };
 
+  const updateCategoryVideoDraft = (category, changes) => {
+    setCategoryVideoDrafts((current) => ({
+      ...current,
+      [category.id]: {
+        ...(current[category.id] ?? normalizedVideoDraft(category)),
+        ...changes,
+      },
+    }));
+  };
+
   const updatePhotoDraft = (photo, changes) => {
     setPhotoDrafts((current) => ({
       ...current,
@@ -418,6 +507,7 @@ export default function AdminApp() {
     const failures = [];
     let succeeded = 0;
     let preserveCategoryOrder = changeSet.reordered;
+    let failedCreatedVideo = null;
 
     try {
       if (changeSet.count > 0) {
@@ -445,9 +535,46 @@ export default function AdminApp() {
         );
         if (successful.has("album:create:new-album")) setNewAlbum(EMPTY_ALBUM);
         if (successful.has("category:create:new-category")) {
+          const created = (payload.results ?? []).find(
+            (result) => result.key === "category:create:new-category" && result.status === "ok",
+          );
+          const requestedVideo = {
+            youtubeUrl: String(newCategory.youtubeUrl ?? "").trim(),
+            youtubeAutoplay: Boolean(newCategory.youtubeAutoplay),
+          };
           setNewCategory(EMPTY_CATEGORY);
+          if (created?.id && requestedVideo.youtubeUrl) {
+            try {
+              await adminRequest(`/admin/api/categories/${encodeURIComponent(created.id)}`, {
+                method: "PATCH",
+                body: requestedVideo,
+              });
+              succeeded += 1;
+            } catch (videoError) {
+              failures.push(adminErrorMessage(videoError));
+              failedCreatedVideo = { id: created.id, values: requestedVideo };
+            }
+          }
         }
         if (successful.has("category:reorder")) preserveCategoryOrder = false;
+      }
+
+      for (const change of categoryVideoChanges) {
+        try {
+          await adminRequest(`/admin/api/categories/${encodeURIComponent(change.id)}`, {
+            method: "PATCH",
+            body: change.values,
+          });
+          succeeded += 1;
+          setCategoryVideoDrafts((current) => {
+            const next = { ...current };
+            delete next[change.id];
+            return next;
+          });
+        } catch (videoError) {
+          if (replaceUnauthorized(videoError)) return;
+          failures.push(adminErrorMessage(videoError));
+        }
       }
 
       if (upload.file) {
@@ -484,6 +611,12 @@ export default function AdminApp() {
       }
 
       await loadCanonical({ preserveCategoryOrder });
+      if (failedCreatedVideo) {
+        setCategoryVideoDrafts((current) => ({
+          ...current,
+          [failedCreatedVideo.id]: failedCreatedVideo.values,
+        }));
+      }
       if (failures.length > 0) {
         setError(
           `${succeeded} 項已儲存，${failures.length} 項仍待處理：${[
@@ -496,6 +629,34 @@ export default function AdminApp() {
     } catch (saveError) {
       if (replaceUnauthorized(saveError)) return;
       setError(adminErrorMessage(saveError));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const deletePhoto = async (photo) => {
+    if (busy) return;
+    const confirmed = window.confirm(
+      `確定永久刪除「${photo.displayName || photo.originalFilename}」嗎？\n\n原圖、縮圖與資料庫紀錄都會立即刪除，無法復原。`,
+    );
+    if (!confirmed) return;
+    setBusy(true);
+    setMessage("");
+    setError("");
+    try {
+      await adminRequest(`/admin/api/photos/${encodeURIComponent(photo.id)}`, {
+        method: "DELETE",
+        timeoutMs: 120_000,
+      });
+      setPhotos((current) => current.filter((item) => item.id !== photo.id));
+      setPhotoDrafts((current) => {
+        const next = { ...current };
+        delete next[photo.id];
+        return next;
+      });
+      setMessage("照片已永久刪除。");
+    } catch (deleteError) {
+      if (!replaceUnauthorized(deleteError)) setError(adminErrorMessage(deleteError));
     } finally {
       setBusy(false);
     }
@@ -566,7 +727,7 @@ export default function AdminApp() {
         {[
           ["albums", "相簿"],
           ["photos", "照片"],
-          ["categories", "分類"],
+          ["categories", "分類與影片"],
         ].map(([id, label]) => (
           <button
             key={id}
@@ -598,10 +759,7 @@ export default function AdminApp() {
               </div>
               <span>{albums.length} 個相簿</span>
             </div>
-            <form
-              className="admin-create-card"
-              onSubmit={(event) => event.preventDefault()}
-            >
+            <form className="admin-create-card" onSubmit={(event) => event.preventDefault()}>
               <h3>新增相簿</h3>
               <p className="admin-section-note">
                 填寫名稱後，這筆新相簿會加入頁面底部的待儲存項目。
@@ -612,10 +770,7 @@ export default function AdminApp() {
                   <input
                     value={newAlbum.titleZh}
                     onChange={(event) =>
-                      setNewAlbum((current) => ({
-                        ...current,
-                        titleZh: event.target.value,
-                      }))
+                      setNewAlbum((current) => ({ ...current, titleZh: event.target.value }))
                     }
                     disabled={busy}
                   />
@@ -625,10 +780,7 @@ export default function AdminApp() {
                   <input
                     value={newAlbum.titleEn}
                     onChange={(event) =>
-                      setNewAlbum((current) => ({
-                        ...current,
-                        titleEn: event.target.value,
-                      }))
+                      setNewAlbum((current) => ({ ...current, titleEn: event.target.value }))
                     }
                     disabled={busy}
                   />
@@ -638,10 +790,7 @@ export default function AdminApp() {
                   <textarea
                     value={newAlbum.descriptionZh}
                     onChange={(event) =>
-                      setNewAlbum((current) => ({
-                        ...current,
-                        descriptionZh: event.target.value,
-                      }))
+                      setNewAlbum((current) => ({ ...current, descriptionZh: event.target.value }))
                     }
                     disabled={busy}
                   />
@@ -651,10 +800,7 @@ export default function AdminApp() {
                   <textarea
                     value={newAlbum.descriptionEn}
                     onChange={(event) =>
-                      setNewAlbum((current) => ({
-                        ...current,
-                        descriptionEn: event.target.value,
-                      }))
+                      setNewAlbum((current) => ({ ...current, descriptionEn: event.target.value }))
                     }
                     disabled={busy}
                   />
@@ -679,18 +825,15 @@ export default function AdminApp() {
           <section aria-labelledby="categories-title">
             <div className="admin-section-heading">
               <div>
-                <p className="admin-kicker">CATEGORIES</p>
-                <h2 id="categories-title">婚禮流程分類</h2>
+                <p className="admin-kicker">CATEGORIES & VIDEO</p>
+                <h2 id="categories-title">婚禮流程分類與影片</h2>
               </div>
               <span>{categories.length} 個分類</span>
             </div>
             <p className="admin-section-note">
-              新增、改名與排序會在統一儲存時同步變更 Google Drive 的編號資料夾。
+              分類名稱與排序會同步 Google Drive。YouTube 影片只在訪客選取該流程時顯示。
             </p>
-            <form
-              className="admin-create-card"
-              onSubmit={(event) => event.preventDefault()}
-            >
+            <form className="admin-create-card" onSubmit={(event) => event.preventDefault()}>
               <h3>新增分類</h3>
               <div className="admin-field-grid">
                 <label>
@@ -698,10 +841,7 @@ export default function AdminApp() {
                   <input
                     value={newCategory.labelZh}
                     onChange={(event) =>
-                      setNewCategory((current) => ({
-                        ...current,
-                        labelZh: event.target.value,
-                      }))
+                      setNewCategory((current) => ({ ...current, labelZh: event.target.value }))
                     }
                     disabled={busy}
                   />
@@ -711,13 +851,36 @@ export default function AdminApp() {
                   <input
                     value={newCategory.labelEn}
                     onChange={(event) =>
-                      setNewCategory((current) => ({
-                        ...current,
-                        labelEn: event.target.value,
-                      }))
+                      setNewCategory((current) => ({ ...current, labelEn: event.target.value }))
                     }
                     disabled={busy}
                   />
+                </label>
+                <label className="admin-wide-field">
+                  YouTube 連結（選填）
+                  <input
+                    type="url"
+                    value={newCategory.youtubeUrl}
+                    onChange={(event) =>
+                      setNewCategory((current) => ({ ...current, youtubeUrl: event.target.value }))
+                    }
+                    placeholder="https://www.youtube.com/watch?v=..."
+                    disabled={busy}
+                  />
+                </label>
+                <label className="admin-check admin-wide-field">
+                  <input
+                    type="checkbox"
+                    checked={newCategory.youtubeAutoplay}
+                    onChange={(event) =>
+                      setNewCategory((current) => ({
+                        ...current,
+                        youtubeAutoplay: event.target.checked,
+                      }))
+                    }
+                    disabled={busy || !newCategory.youtubeUrl.trim()}
+                  />
+                  自動播放（靜音）
                 </label>
               </div>
             </form>
@@ -726,14 +889,18 @@ export default function AdminApp() {
                 <CategoryEditor
                   key={category.id}
                   category={category}
-                  draft={
-                    categoryDrafts[category.id] ?? categoryDraft(category)
+                  draft={categoryDrafts[category.id] ?? categoryDraft(category)}
+                  videoDraft={
+                    categoryVideoDrafts[category.id] ?? normalizedVideoDraft(category)
                   }
                   busy={busy}
                   first={index === 0}
                   last={index === orderedCategories.length - 1}
                   onMove={(direction) => moveCategory(index, direction)}
                   onChange={(changes) => updateCategoryDraft(category, changes)}
+                  onVideoChange={(changes) =>
+                    updateCategoryVideoDraft(category, changes)
+                  }
                 />
               ))}
             </div>
@@ -749,10 +916,7 @@ export default function AdminApp() {
               </div>
               <span>{photos.length} 張已載入</span>
             </div>
-            <form
-              className="admin-create-card"
-              onSubmit={(event) => event.preventDefault()}
-            >
+            <form className="admin-create-card" onSubmit={(event) => event.preventDefault()}>
               <h3>新增照片</h3>
               <p className="admin-section-note">
                 選好照片與資料後，會在按下「儲存所有變更」時上傳。
@@ -780,10 +944,7 @@ export default function AdminApp() {
                   <input
                     value={upload.displayName}
                     onChange={(event) =>
-                      setUpload((current) => ({
-                        ...current,
-                        displayName: event.target.value,
-                      }))
+                      setUpload((current) => ({ ...current, displayName: event.target.value }))
                     }
                     disabled={busy}
                   />
@@ -794,10 +955,7 @@ export default function AdminApp() {
                     type="datetime-local"
                     value={upload.capturedAt}
                     onChange={(event) =>
-                      setUpload((current) => ({
-                        ...current,
-                        capturedAt: event.target.value,
-                      }))
+                      setUpload((current) => ({ ...current, capturedAt: event.target.value }))
                     }
                     disabled={busy}
                   />
@@ -807,10 +965,7 @@ export default function AdminApp() {
                   <select
                     value={upload.categoryId}
                     onChange={(event) =>
-                      setUpload((current) => ({
-                        ...current,
-                        categoryId: event.target.value,
-                      }))
+                      setUpload((current) => ({ ...current, categoryId: event.target.value }))
                     }
                     disabled={busy}
                   >
@@ -845,6 +1000,7 @@ export default function AdminApp() {
                   categories={orderedCategories}
                   busy={busy}
                   onChange={(changes) => updatePhotoDraft(photo, changes)}
+                  onDelete={() => void deletePhoto(photo)}
                 />
               ))}
             </div>

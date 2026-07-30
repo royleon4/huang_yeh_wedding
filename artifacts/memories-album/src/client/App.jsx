@@ -5,8 +5,10 @@ import {
   NAV_ITEMS,
   PROCESS_DEFINITIONS,
   filterPhotos,
+  guestUploaderGroups,
   normalizePublicAlbums,
   pagePhotos,
+  youtubeEmbedUrl,
 } from "./gallery-model.mjs";
 import UploadModal from "./UploadModal.jsx";
 import PhotoLightbox from "./PhotoLightbox.jsx";
@@ -18,13 +20,14 @@ const COPY = {
     subtitle: "一座安靜收藏笑聲、祝福與相遇的婚禮檔案館",
     date: "二〇二六年六月二十日",
     allProcesses: "全部流程",
+    allGuests: "全部訪客",
     wedding: "婚禮流程",
     guest: "訪客上傳",
     life: "生活照",
     categories: "照片分類",
     weddingNote: "依照婚禮當天流程整理的正式照片與已分類訪客照片。",
-    guestNote: "所有訪客上傳都會在這裡出現，原圖固定保存在「訪客上傳」資料夾。",
-    lifeNote: "婚禮之外的日常片刻，以及訪客選擇歸入生活照的照片。",
+    guestNote: "訪客照片會依照上傳時填寫的姓名自動分組。",
+    lifeNote: "婚禮之外的日常片刻。",
     loadMore: "載入更多回憶",
     emptyTitle: "這個分類還在等待照片",
     emptyBody: "回憶會慢慢被收藏進來。",
@@ -59,16 +62,15 @@ const COPY = {
       "A quiet archive of laughter, blessings, and the people who shared our day",
     date: "20 June 2026",
     allProcesses: "All moments",
+    allGuests: "All guests",
     wedding: "Wedding moments",
     guest: "Guest uploads",
     life: "Life photos",
     categories: "Photo collections",
     weddingNote:
       "Official wedding photos and guest photos that were classified into a wedding moment.",
-    guestNote:
-      "Every guest upload appears here. Originals always remain in the Guest uploads Drive folder.",
-    lifeNote:
-      "Everyday memories outside the wedding, including guest uploads classified as life photos.",
+    guestNote: "Guest photos are grouped automatically by the name entered during upload.",
+    lifeNote: "Everyday memories outside the wedding.",
     loadMore: "Load more memories",
     emptyTitle: "This collection is waiting for photos",
     emptyBody: "Memories will be carefully added here.",
@@ -242,6 +244,26 @@ function StateCard({ icon, title, body, action }) {
   );
 }
 
+function ProcessVideo({ process, lang }) {
+  const source = youtubeEmbedUrl(process?.youtubeVideoId, process?.youtubeAutoplay);
+  if (!source) return null;
+  return (
+    <section className="process-video-block" aria-label={process[lang]}>
+      <div className="process-video-frame">
+        <iframe
+          src={source}
+          title={process[lang]}
+          loading="lazy"
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+          referrerPolicy="strict-origin-when-cross-origin"
+          allowFullScreen
+        />
+      </div>
+      <div className="process-video-divider" aria-hidden="true" />
+    </section>
+  );
+}
+
 export default function App() {
   const params = new URLSearchParams(window.location.search);
   const runtimeState = params.get("state") ?? "ready";
@@ -306,6 +328,11 @@ export default function App() {
       })),
     [sourcePhotos],
   );
+  const guestGroups = useMemo(() => guestUploaderGroups(photos), [photos]);
+  const guestPhotoCount = useMemo(
+    () => guestGroups.reduce((total, group) => total + group.count, 0),
+    [guestGroups],
+  );
   const filtered = useMemo(
     () => filterPhotos(photos, activeFilter, activeCollection),
     [photos, activeFilter, activeCollection],
@@ -324,6 +351,11 @@ export default function App() {
     !galleryError;
   const activeCollectionDefinition =
     albums.find((item) => item.id === activeCollection) ?? albums[0];
+  const activeProcess =
+    activeCollection === "wedding" && activeFilter !== "all"
+      ? processes.find((process) => process.id === activeFilter)
+      : null;
+  const hasProcessVideo = Boolean(activeProcess?.youtubeVideoId);
   const configuredDescription =
     activeCollectionDefinition?.[
       lang === "zh" ? "descriptionZh" : "descriptionEn"
@@ -363,6 +395,12 @@ export default function App() {
   const chooseCollection = (collectionId) => {
     setActiveCollection(collectionId);
     setActiveFilter("all");
+    setPageSize(12);
+    setSelectedPhotoId(null);
+  };
+
+  const chooseFilter = (filterId) => {
+    setActiveFilter(filterId);
     setPageSize(12);
     setSelectedPhotoId(null);
   };
@@ -507,10 +545,7 @@ export default function App() {
               <button
                 type="button"
                 className={`process-chip ${activeFilter === "all" ? "active" : ""}`}
-                onClick={() => {
-                  setActiveFilter("all");
-                  setPageSize(12);
-                }}
+                onClick={() => chooseFilter("all")}
               >
                 {t.allProcesses}
               </button>
@@ -521,13 +556,34 @@ export default function App() {
                   className={`process-chip ${
                     activeFilter === process.id ? "active" : ""
                   }`}
-                  onClick={() => {
-                    setActiveFilter(process.id);
-                    setPageSize(12);
-                  }}
+                  onClick={() => chooseFilter(process.id)}
                 >
                   <span>{String(index + 1).padStart(2, "0")}</span>
                   {process[lang]}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {activeCollection === "guest" && guestGroups.length > 0 && (
+            <div className="process-strip" role="list" aria-label={t.guest}>
+              <button
+                type="button"
+                className={`process-chip ${activeFilter === "all" ? "active" : ""}`}
+                onClick={() => chooseFilter("all")}
+              >
+                {t.allGuests} ({guestPhotoCount})
+              </button>
+              {guestGroups.map((group) => (
+                <button
+                  key={group.id}
+                  type="button"
+                  className={`process-chip ${
+                    activeFilter === group.id ? "active" : ""
+                  }`}
+                  onClick={() => chooseFilter(group.id)}
+                >
+                  {group.name} ({group.count})
                 </button>
               ))}
             </div>
@@ -540,52 +596,59 @@ export default function App() {
           aria-live="polite"
         >
           {stateView ??
-            (filtered.length === 0 || runtimeState === "empty" ? (
+            (filtered.length === 0 && !hasProcessVideo ? (
               <StateCard icon="✦" title={t.emptyTitle} body={t.emptyBody} />
             ) : (
               <>
-                <div className="masonry-grid">
-                  {visible.map((photo, index) => {
-                    return (
-                      <article className="photo-card" key={photo.id}>
-                        <button
-                          type="button"
-                          className="photo-open"
-                          onClick={(event) => {
-                            openerRef.current = event.currentTarget;
-                            setSelectedPhotoId(photo.id);
-                          }}
-                          aria-label={`${t.photo} ${index + 1}`}
-                        >
-                          <img
-                            src={photo.thumbnailUrl}
-                            alt={`${t.photo} ${index + 1}`}
-                            loading="lazy"
-                            decoding="async"
-                            width={photo.width}
-                            height={photo.height}
-                          />
-                          <span className="photo-index">
-                            {String(index + 1).padStart(2, "0")}
-                          </span>
-                        </button>
-                        <footer>
-                          <span>{photoCollectionLabel(photo)}</span>
-                          <small>{photo.uploaderName}</small>
-                        </footer>
-                      </article>
-                    );
-                  })}
-                </div>
-                {visible.length < filtered.length && (
-                  <button
-                    className="load-more"
-                    type="button"
-                    onClick={() => setPageSize((size) => size + 12)}
-                  >
-                    {t.loadMore}
-                    <span>↓</span>
-                  </button>
+                {hasProcessVideo && (
+                  <ProcessVideo process={activeProcess} lang={lang} />
+                )}
+                {filtered.length === 0 ? (
+                  <StateCard icon="✦" title={t.emptyTitle} body={t.emptyBody} />
+                ) : (
+                  <>
+                    <div className="masonry-grid">
+                      {visible.map((photo, index) => (
+                        <article className="photo-card" key={photo.id}>
+                          <button
+                            type="button"
+                            className="photo-open"
+                            onClick={(event) => {
+                              openerRef.current = event.currentTarget;
+                              setSelectedPhotoId(photo.id);
+                            }}
+                            aria-label={`${t.photo} ${index + 1}`}
+                          >
+                            <img
+                              src={photo.thumbnailUrl}
+                              alt={`${t.photo} ${index + 1}`}
+                              loading="lazy"
+                              decoding="async"
+                              width={photo.width}
+                              height={photo.height}
+                            />
+                            <span className="photo-index">
+                              {String(index + 1).padStart(2, "0")}
+                            </span>
+                          </button>
+                          <footer>
+                            <span>{photoCollectionLabel(photo)}</span>
+                            <small>{photo.uploaderName}</small>
+                          </footer>
+                        </article>
+                      ))}
+                    </div>
+                    {visible.length < filtered.length && (
+                      <button
+                        className="load-more"
+                        type="button"
+                        onClick={() => setPageSize((size) => size + 12)}
+                      >
+                        {t.loadMore}
+                        <span>↓</span>
+                      </button>
+                    )}
+                  </>
                 )}
               </>
             ))}
@@ -609,7 +672,6 @@ export default function App() {
       {modal === "upload" && (
         <UploadModal
           lang={lang}
-          processes={processes}
           onClose={() => setModal(null)}
           onUploaded={handleUploaded}
         />

@@ -138,7 +138,7 @@ test("website process changes write to Drive before database refresh", async () 
   assert.ok(drive.children.some((folder) => folder.name === "02 網站新增"));
 });
 
-test("client process and guest-upload options are database hydrated, not bundled", async () => {
+test("client process data is database hydrated while visitor upload is guest-only", async () => {
   const [galleryModel, mainSource, adminSource, uploadSource] =
     await Promise.all([
       readFile(
@@ -162,5 +162,6 @@ test("client process and guest-upload options are database hydrated, not bundled
     adminSource,
     /sessionStorage|CustomEvent|MutationObserver/,
   );
-  assert.match(uploadSource, /processes\.map/);
+  assert.doesNotMatch(uploadSource, /processes\.map|processId|classificationChoice|<select/);
+  assert.match(uploadSource, /依照姓名自動整理/);
 });
