@@ -1,3 +1,5 @@
+import { albumRefreshUiTransform } from "./album-refresh-ui-transform.mjs";
+
 const APP_SUFFIX = "/src/client/App.jsx";
 const ADMIN_APP_SUFFIX = "/src/client/AdminApp.jsx";
 
@@ -143,16 +145,19 @@ function transformAdmin(source) {
 }
 
 export function processContentUiTransform() {
+  const albumUi = albumRefreshUiTransform();
   return {
     name: "process-content-ui",
     enforce: "pre",
     transform(source, id) {
       const normalizedId = id.split("?")[0].replace(/\\/g, "/");
       if (normalizedId.endsWith(APP_SUFFIX)) {
-        return { code: transformGallery(source), map: null };
+        const code = transformGallery(source);
+        return albumUi.transform(code, id);
       }
       if (normalizedId.endsWith(ADMIN_APP_SUFFIX)) {
-        return { code: transformAdmin(source), map: null };
+        const code = transformAdmin(source);
+        return albumUi.transform(code, id);
       }
       return null;
     },
