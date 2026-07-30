@@ -36,9 +36,11 @@
 
 .pinned-selected-card img {
   width: 4.5rem;
-  height: 3.6rem;
+  height: 4.5rem;
+  aspect-ratio: 1;
   border-radius: 0.55rem;
-  object-fit: cover;
+  background-color: #e5dfd2;
+  object-fit: contain;
 }
 
 .pinned-selected-card div:not(.pinned-order-actions) {
@@ -91,6 +93,7 @@
   max-height: 31rem;
   overflow: auto;
   padding: 0.15rem;
+  overscroll-behavior: contain;
 }
 
 .pinned-candidate-grid button {
@@ -117,8 +120,10 @@
 .pinned-candidate-grid img {
   display: block;
   width: 100%;
-  aspect-ratio: 4 / 3;
-  object-fit: cover;
+  height: auto;
+  aspect-ratio: 1;
+  background-color: #e5dfd2;
+  object-fit: contain;
 }
 
 .pinned-candidate-grid span {
@@ -143,7 +148,7 @@
 
   .pinned-selected-card img {
     width: 4rem;
-    height: 3.2rem;
+    height: 4rem;
   }
 
   .pinned-order-actions {
