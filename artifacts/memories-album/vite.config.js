@@ -1,5 +1,6 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
+import { adminPhotoUploaderUiTransform } from "./admin-photo-uploader-ui-transform.mjs";
 import {
   LEGACY_ADMIN_API_PATH,
   LEGACY_ADMIN_PATH,
@@ -218,7 +219,7 @@ function memoriesDevelopmentRoutes() {
 
 export default defineConfig({
   base: `${MEMORIES_BASE_PATH}/`,
-  plugins: [react(), memoriesDevelopmentRoutes()],
+  plugins: [adminPhotoUploaderUiTransform(), react(), memoriesDevelopmentRoutes()],
   publicDir: false,
   server: {
     host: "0.0.0.0",

@@ -1,0 +1,27 @@
+.admin-protected-photo-note {
+  grid-column: 1 / -1;
+  margin: 0;
+  border: 1px solid rgba(141, 103, 35, 0.3);
+  border-radius: 0.65rem;
+  background: rgba(215, 174, 92, 0.12);
+  padding: 0.65rem 0.75rem;
+  color: #775518;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.admin-shell .admin-permanent-delete:disabled {
+  cursor: not-allowed;
+}
+
+@media (min-width: 700px) {
+  .admin-photo-fields {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .admin-photo-fields .admin-album-choices,
+  .admin-photo-fields .admin-form-error,
+  .admin-photo-fields .admin-photo-actions {
+    grid-column: 1 / -1;
+  }
+}
