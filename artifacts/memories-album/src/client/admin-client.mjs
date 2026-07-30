@@ -87,6 +87,68 @@ async function enrichPhotoUploaders(payload, options) {
   };
 }
 
+function supplementaryFailurePayload(
+  payload,
+  results,
+  failed,
+) {
+  if (failed === 0) return payload;
+  return {
+    ...payload,
+    results,
+    summary: payload.summary
+      ? {
+          ...payload.summary,
+          succeeded: Math.max(0, Number(payload.summary.succeeded ?? 0) - failed),
+          failed: Number(payload.summary.failed ?? 0) + failed,
+        }
+      : payload.summary,
+  };
+}
+
+async function persistAlbumSummaryChanges(payload, body, options) {
+  const summaryChanges = new Map(
+    (body?.albums?.update ?? [])
+      .filter((item) => Object.hasOwn(item?.changes ?? {}, "showSummary"))
+      .map((item) => [String(item.id), item.changes.showSummary === true]),
+  );
+  if (summaryChanges.size === 0) return payload;
+
+  const results = [...(payload.results ?? [])];
+  let failed = 0;
+  for (let index = 0; index < results.length; index += 1) {
+    const result = results[index];
+    if (
+      result?.status !== "ok" ||
+      result?.type !== "album.update" ||
+      !summaryChanges.has(String(result.id))
+    ) {
+      continue;
+    }
+    try {
+      await fetchAdminJson(
+        `/admin/api/albums/${encodeURIComponent(result.id)}`,
+        {
+          ...options,
+          method: "PATCH",
+          body: { showSummary: summaryChanges.get(String(result.id)) },
+          form: undefined,
+        },
+      );
+    } catch (error) {
+      failed += 1;
+      results[index] = {
+        ...result,
+        status: "error",
+        error: error?.message || "相簿名稱與介紹顯示設定儲存失敗",
+        code: error?.code || "ALBUM_SUMMARY_UPDATE_FAILED",
+      };
+    }
+  }
+
+  return supplementaryFailurePayload(payload, results, failed);
+}
+
 async function persistUploaderChanges(payload, body, options) {
   const uploaderChanges = new Map(
     (body?.photos?.update ?? [])
@@ -127,18 +189,7 @@ async function persistUploaderChanges(payload, body, options) {
     }
   }
 
-  if (failed === 0) return payload;
-  return {
-    ...payload,
-    results,
-    summary: payload.summary
-      ? {
-          ...payload.summary,
-          succeeded: Math.max(0, Number(payload.summary.succeeded ?? 0) - failed),
-          failed: Number(payload.summary.failed ?? 0) + failed,
-        }
-      : payload.summary,
-  };
+  return supplementaryFailurePayload(payload, results, failed);
 }
 
 export function adminSurface(pathname) {
@@ -188,6 +239,7 @@ export async function adminRequest(
       payload = await enrichPhotoUploaders(payload, options);
     }
     if (method === "PATCH" && path === "/admin/api/changes") {
+      payload = await persistAlbumSummaryChanges(payload, body, options);
       payload = await persistUploaderChanges(payload, body, options);
     }
     return payload;
