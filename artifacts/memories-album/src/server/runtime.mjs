@@ -18,7 +18,10 @@ import { createAlbumApi } from "./albums/api.mjs";
 import { createAdminAlbumApi } from "./albums/admin-api.mjs";
 import { PostgresAlbumRepository } from "./albums/postgres-repository.mjs";
 import { createAdminCategoryApi } from "./categories/admin-api.mjs";
-import { runMemoriesMigrations } from "./migrations.mjs";
+import {
+  runMemoriesMigrations,
+  shouldRunProductionMigrations,
+} from "./migrations.mjs";
 
 let runtimePromise;
 
@@ -38,7 +41,7 @@ async function createRuntime(env) {
     throw error;
   }
 
-  if (env.MEMORIES_SKIP_MIGRATIONS !== "1") {
+  if (shouldRunProductionMigrations(env)) {
     await runMemoriesMigrations({ databaseUrl: env.DATABASE_URL });
   }
 
