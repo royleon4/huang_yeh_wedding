@@ -1,5 +1,9 @@
 import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
 import { toPublicPhoto } from "../photos/api.mjs";
+import {
+  deletePhotoRecordsPermanently,
+  removeDeletedPhotoIdsFromPinnedSettings,
+} from "../photos/permanent-delete.mjs";
 
 const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -61,12 +65,25 @@ function notFound(response) {
   });
 }
 
+async function deleteDriveFile(drive, fileId) {
+  if (!fileId) return;
+  try {
+    await drive.delete(fileId);
+  } catch (error) {
+    if (Number(error?.status) === 404) return;
+    throw error;
+  }
+}
+
 export function createGuestBatchManagementApi({
   repository,
+  drive,
   now = () => new Date(),
   createToken = () => randomBytes(32).toString("base64url"),
 }) {
-  if (!repository) throw new Error("An upload management repository is required");
+  if (!repository || !drive) {
+    throw new Error("Upload management repository and Drive storage are required");
+  }
 
   return async function handleGuestBatchManagementApi(
     request,
@@ -115,17 +132,33 @@ export function createGuestBatchManagementApi({
         return true;
       }
 
-      const withdrawn = await repository.hideBatchPhoto({
+      const photo = await repository.findBatchPhotoForPermanentDeletion({
         batchId,
         photoId,
-        updatedAt: now().toISOString(),
       });
-      if (!withdrawn) {
+      if (!photo) {
         notFound(response);
         return true;
       }
+
+      const fileIds = [
+        ...new Set(
+          [photo.thumbnailDriveFileId, photo.driveFileId].filter(Boolean),
+        ),
+      ];
+      for (const fileId of fileIds) {
+        await deleteDriveFile(drive, fileId);
+      }
+
+      const deletedIds = await deletePhotoRecordsPermanently(repository, [photo.id]);
+      if (!deletedIds.includes(String(photo.id))) {
+        notFound(response);
+        return true;
+      }
+      await removeDeletedPhotoIdsFromPinnedSettings(repository, deletedIds);
+
       json(response, 200, {
-        withdrawn: true,
+        deleted: true,
         photoId,
       });
       return true;
