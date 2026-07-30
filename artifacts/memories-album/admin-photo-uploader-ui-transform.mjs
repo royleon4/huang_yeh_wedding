@@ -31,6 +31,20 @@ export function adminPhotoUploaderUiTransform() {
 
       code = replaceOnce(
         code,
+        `            disabled={busy}\n          >\n            <option value="">不指定流程</option>`,
+        `            disabled={busy || !draft.albumIds.includes("wedding")}\n          >\n            <option value="">不指定流程</option>`,
+        "process category wedding album guard",
+      );
+
+      code = replaceOnce(
+        code,
+        `          onChange={(albumIds) => onChange({ albumIds })}`,
+        `          onChange={(albumIds) =>\n            onChange({\n              albumIds,\n              categoryIds: albumIds.includes("wedding") ? draft.categoryIds : [],\n            })\n          }`,
+        "clear process category outside wedding album",
+      );
+
+      code = replaceOnce(
+        code,
         `        <div className="admin-photo-actions">\n          <span className="admin-draft-hint">變更會由頁面底部統一儲存</span>`,
         `        {(photo.deleteProtected || draft.uploaderName === "婚禮攝影") && (\n          <p className="admin-protected-photo-note">\n            上傳者為「婚禮攝影」的照片受保護，不允許永久刪除。\n          </p>\n        )}\n        <div className="admin-photo-actions">\n          <span className="admin-draft-hint">變更會由頁面底部統一儲存</span>`,
         "protected photo notice",
