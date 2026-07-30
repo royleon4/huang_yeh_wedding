@@ -25,11 +25,16 @@ const ALLOWED_TAGS = new Set([
 const SAFE_CLASSES = new Set([
   "process-inline-image",
   "process-attachment-line",
+  "process-attachment-card",
+  "process-attachment-icon",
+  "process-attachment-name",
+  "process-attachment-meta",
   "process-align-left",
   "process-align-center",
   "process-align-right",
   "process-align-justify",
 ]);
+const SAFE_TEXT_ALIGNMENTS = new Set(["left", "center", "right", "justify"]);
 
 function safeUrl(value, { image = false } = {}) {
   const raw = String(value ?? "").trim();
@@ -46,6 +51,18 @@ function safeUrl(value, { image = false } = {}) {
   } catch {
     return "";
   }
+}
+
+function safeMediaWidth(value) {
+  const parsed = Number.parseFloat(String(value ?? "").replace("%", ""));
+  if (!Number.isFinite(parsed)) return 100;
+  return Math.max(24, Math.min(100, Math.round(parsed)));
+}
+
+function safeTextAlignment(styleValue) {
+  const match = String(styleValue ?? "").match(/(?:^|;)\s*text-align\s*:\s*(left|center|right|justify)\s*(?:;|$)/i);
+  const alignment = match?.[1]?.toLowerCase() ?? "";
+  return SAFE_TEXT_ALIGNMENTS.has(alignment) ? alignment : "";
 }
 
 export function hasRichContent(value) {
@@ -83,7 +100,13 @@ export function sanitizeRichContent(value) {
       }
 
       const attributes = [...child.attributes];
+      const originalClassName = String(
+        attributes.find((item) => item.name === "class")?.value ?? "",
+      );
+      const originalStyle = attributes.find((item) => item.name === "style")?.value ?? "";
+      const originalWidth = attributes.find((item) => item.name === "data-width")?.value;
       for (const attribute of attributes) child.removeAttribute(attribute.name);
+
       if (child.tagName === "A") {
         const href = safeUrl(attributes.find((item) => item.name === "href")?.value);
         if (href) {
@@ -111,12 +134,26 @@ export function sanitizeRichContent(value) {
         child.setAttribute("loading", "lazy");
         child.setAttribute("decoding", "async");
       }
-      const classNames = String(
-        attributes.find((item) => item.name === "class")?.value ?? "",
-      )
+
+      const classNames = originalClassName
         .split(/\s+/)
         .filter((name) => SAFE_CLASSES.has(name));
       if (classNames.length) child.setAttribute("class", classNames.join(" "));
+
+      const textAlignment = safeTextAlignment(originalStyle);
+      if (textAlignment && ["P", "H2", "H3", "LI", "BLOCKQUOTE", "DIV"].includes(child.tagName)) {
+        child.style.textAlign = textAlignment;
+      }
+
+      const isSizedMedia =
+        (child.tagName === "FIGURE" && classNames.includes("process-inline-image")) ||
+        (child.tagName === "DIV" && classNames.includes("process-attachment-card"));
+      if (isSizedMedia) {
+        const width = safeMediaWidth(originalWidth || originalStyle.match(/width\s*:\s*([\d.]+)%/i)?.[1]);
+        child.setAttribute("data-width", String(width));
+        child.style.width = `${width}%`;
+      }
+
       clean(child);
     }
   };
