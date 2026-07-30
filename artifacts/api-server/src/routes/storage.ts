@@ -1,11 +1,20 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import { Readable } from "stream";
-import {
-  RequestUploadUrlBody,
-  RequestUploadUrlResponse,
-} from "@workspace/api-zod";
+import { z } from "zod";
 import { ObjectStorageService, ObjectNotFoundError } from "../lib/objectStorage";
 import { ObjectPermission } from "../lib/objectAcl";
+
+const RequestUploadUrlBody = z.object({
+  name: z.string().trim().min(1),
+  size: z.number().int().nonnegative(),
+  contentType: z.string().trim().min(1),
+});
+
+const RequestUploadUrlResponse = z.object({
+  uploadURL: z.string().url(),
+  objectPath: z.string().min(1),
+  metadata: RequestUploadUrlBody,
+});
 
 const router: IRouter = Router();
 const objectStorageService = new ObjectStorageService();
@@ -127,5 +136,7 @@ router.get("/storage/objects/*path", async (req: Request, res: Response) => {
     res.status(500).json({ error: "Failed to serve object" });
   }
 });
+
+void ObjectPermission;
 
 export default router;
