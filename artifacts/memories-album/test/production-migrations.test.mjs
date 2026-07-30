@@ -85,7 +85,7 @@ async function withMigrationDirectory(run) {
   }
 }
 
-test("a configured database always enables startup migrations", () => {
+test("a configured production database always enables startup migrations", () => {
   assert.equal(shouldRunProductionMigrations({}), false);
   assert.equal(
     shouldRunProductionMigrations({
@@ -96,17 +96,27 @@ test("a configured database always enables startup migrations", () => {
   );
   assert.equal(
     shouldRunProductionMigrations({
+      NODE_ENV: "development",
+      DATABASE_URL: "postgres://local/memories",
+      MEMORIES_SKIP_MIGRATIONS: "1",
+    }),
+    false,
+  );
+  assert.equal(
+    shouldRunProductionMigrations({
       REPLIT_DEPLOYMENT: "1",
       DATABASE_URL: "postgres://deployment/memories",
+      MEMORIES_SKIP_MIGRATIONS: "1",
     }),
     true,
   );
   assert.equal(
     shouldRunProductionMigrations({
+      NODE_ENV: "production",
       DATABASE_URL: "postgres://deployment/memories",
       MEMORIES_SKIP_MIGRATIONS: "1",
     }),
-    false,
+    true,
   );
 });
 
