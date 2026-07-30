@@ -6,6 +6,8 @@ const DEFAULT_SETTINGS = {
   processWheelVisibleCount: 6,
 };
 
+const SUBCATEGORY_SELECTED_EVENT = "memories:subcategory-selected";
+
 let settingsPromise;
 
 async function processSelectorSettings() {
@@ -56,12 +58,18 @@ export default function ProcessSelector(props) {
     };
   }, []);
 
+  const selectSubcategory = (id) => {
+    props.onSelect(id);
+    document.dispatchEvent(new Event(SUBCATEGORY_SELECTED_EVENT));
+  };
+  const selectorProps = { ...props, onSelect: selectSubcategory };
+
   return settings.processWheelEnabled ? (
     <ProcessWheel
-      {...props}
+      {...selectorProps}
       visibleCount={settings.processWheelVisibleCount}
     />
   ) : (
-    <TraditionalSelector {...props} />
+    <TraditionalSelector {...selectorProps} />
   );
 }
