@@ -19,7 +19,7 @@ function transformGallery(source) {
   code = replaceOnce(
     code,
     `import BottomCollectionNav from "./BottomCollectionNav.jsx";`,
-    `import BottomCollectionNav from "./BottomCollectionNav.jsx";\nimport ProcessWheel from "./ProcessWheel.jsx";\nimport ProcessRichContent, {\n  ProcessDivider,\n  hasRichContent,\n} from "./ProcessRichContent.jsx";`,
+    `import BottomCollectionNav from "./BottomCollectionNav.jsx";\nimport ProcessSelector from "./ProcessSelector.jsx";\nimport ProcessRichContent, {\n  ProcessDivider,\n  hasRichContent,\n} from "./ProcessRichContent.jsx";`,
     "process rich content import",
   );
 
@@ -40,15 +40,15 @@ function transformGallery(source) {
   code = replaceOnce(
     code,
     `          {activeCollection === "wedding" && (\n            <div className="process-strip" role="list" aria-label={t.wedding}>\n              <button\n                type="button"\n                className={\`process-chip \${activeFilter === "all" ? "active" : ""}\`}\n                onClick={() => chooseFilter("all")}\n              >\n                {t.allProcesses}\n              </button>\n              {processes.map((process, index) => (\n                <button\n                  key={process.id}\n                  type="button"\n                  className={\`process-chip \${\n                    activeFilter === process.id ? "active" : ""\n                  }\`}\n                  onClick={() => chooseFilter(process.id)}\n                >\n                  <span>{String(index + 1).padStart(2, "0")}</span>\n                  {process[lang]}\n                </button>\n              ))}\n            </div>\n          )}`,
-    `          {activeCollection === "wedding" && (\n            <ProcessWheel\n              ariaLabel={t.wedding}\n              activeId={activeFilter}\n              onSelect={chooseFilter}\n              items={[\n                {\n                  id: "all",\n                  number: "00",\n                  label: ALL_PROCESS_DEFINITION[lang] || t.allProcesses,\n                },\n                ...processes.map((process, index) => ({\n                  id: process.id,\n                  number: String(index + 1).padStart(2, "0"),\n                  label: process[lang],\n                })),\n              ]}\n            />\n          )}`,
-    "wedding process wheel",
+    `          {activeCollection === "wedding" && (\n            <ProcessSelector\n              ariaLabel={t.wedding}\n              activeId={activeFilter}\n              onSelect={chooseFilter}\n              items={[\n                {\n                  id: "all",\n                  number: "00",\n                  label: ALL_PROCESS_DEFINITION[lang] || t.allProcesses,\n                },\n                ...processes.map((process, index) => ({\n                  id: process.id,\n                  number: String(index + 1).padStart(2, "0"),\n                  label: process[lang],\n                })),\n              ]}\n            />\n          )}`,
+    "wedding process selector",
   );
 
   code = replaceOnce(
     code,
     `          {activeCollection === "guest" && guestGroups.length > 0 && (\n            <div className="process-strip" role="list" aria-label={t.guest}>\n              <button\n                type="button"\n                className={\`process-chip \${activeFilter === "all" ? "active" : ""}\`}\n                onClick={() => chooseFilter("all")}\n              >\n                {t.allGuests} ({guestPhotoCount})\n              </button>\n              {guestGroups.map((group) => (\n                <button\n                  key={group.id}\n                  type="button"\n                  className={\`process-chip \${\n                    activeFilter === group.id ? "active" : ""\n                  }\`}\n                  onClick={() => chooseFilter(group.id)}\n                >\n                  {group.name} ({group.count})\n                </button>\n              ))}\n            </div>\n          )}`,
-    `          {activeCollection === "guest" && guestGroups.length > 0 && (\n            <ProcessWheel\n              ariaLabel={t.guest}\n              activeId={activeFilter}\n              onSelect={chooseFilter}\n              variant="guest"\n              items={[\n                { id: "all", label: \`${"${t.allGuests}"} (${"${guestPhotoCount}"})\` },\n                ...guestGroups.map((group) => ({\n                  id: group.id,\n                  label: \`${"${group.name}"} (${"${group.count}"})\`,\n                })),\n              ]}\n            />\n          )}`,
-    "guest uploader wheel",
+    `          {activeCollection === "guest" && guestGroups.length > 0 && (\n            <ProcessSelector\n              ariaLabel={t.guest}\n              activeId={activeFilter}\n              onSelect={chooseFilter}\n              variant="guest"\n              items={[\n                { id: "all", label: \`${"${t.allGuests}"} (${"${guestPhotoCount}"})\` },\n                ...guestGroups.map((group) => ({\n                  id: group.id,\n                  label: \`${"${group.name}"} (${"${group.count}"})\`,\n                })),\n              ]}\n            />\n          )}`,
+    "guest uploader selector",
   );
 
   code = replaceOnce(
@@ -86,7 +86,7 @@ function transformAdmin(source) {
   let code = replaceOnce(
     source,
     `import "./admin-save-bar.css";`,
-    `import "./admin-save-bar.css";\nimport ProcessContentEditor, { AllProcessEditor } from "./ProcessContentEditor.jsx";\nimport "./process-content-admin.css";`,
+    `import "./admin-save-bar.css";\nimport ProcessContentEditor, { AllProcessEditor } from "./ProcessContentEditor.jsx";\nimport ProcessSelectorSettings from "./ProcessSelectorSettings.jsx";\nimport "./process-content-admin.css";`,
     "admin process content imports",
   );
 
@@ -95,6 +95,20 @@ function transformAdmin(source) {
     `      <div className="admin-row-actions">`,
     `      <ProcessContentEditor processKey={category.id} />\n      <div className="admin-row-actions">`,
     "category rich content editor",
+  );
+
+  code = replaceOnce(
+    code,
+    `          ["categories", "分類與影片"],`,
+    `          ["categories", "分類與影片"],\n          ["subcategory-ui", "子分類操作"],`,
+    "subcategory settings tab",
+  );
+
+  code = replaceOnce(
+    code,
+    `      <main className="admin-content">\n        {tab === "albums" && (`,
+    `      <main className="admin-content">\n        {tab === "subcategory-ui" && <ProcessSelectorSettings />}\n        {tab === "albums" && (`,
+    "subcategory settings panel",
   );
 
   code = replaceOnce(
