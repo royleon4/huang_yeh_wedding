@@ -93,7 +93,7 @@ export function buildAdminChangeSet({
     .map((album) => ({
       id: album.id,
       changes: changedFields(
-        album,
+        { ...album, showSummary: album.showSummary !== false },
         albumDrafts[album.id] ?? albumDraft(album),
         ALBUM_FIELDS,
       ),
