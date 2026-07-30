@@ -1,7 +1,7 @@
 import {
   DEFAULT_GALLERY_MEDIA_ORDER,
   normalizeGalleryMediaOrder,
-} from "../../gallery-media-order.mjs";
+} from "./media-order.mjs";
 
 const NAVIGATION_KEY = "primary_navigation_visible";
 const GUEST_UPLOAD_CATEGORY_SELECTION_KEY =
