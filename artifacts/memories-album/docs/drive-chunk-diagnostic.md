@@ -1,13 +1,19 @@
-# Google Drive 4 MiB chunk diagnostic
+# Google Drive upload diagnostic result
 
-This diagnostic is intentionally narrow. It tests the production observation that files requiring more than one 4 MiB resumable chunk fail through the Replit Google Drive connector while a 118 KB file succeeds.
+The production experiment disproved the original 4 MiB request-body theory.
 
-When a non-final 4 MiB upload request receives HTTP 403, the proxy retries the exact same bytes as two valid 2 MiB Drive chunks in the same resumable session.
+Observed production failures:
 
-Server-log interpretation:
+- `stage: session-status`, `status: 403`, `chunkBytes: 0`
+- `stage: drive-request`, `status: 403`, request bodies between about 217 KB and 357 KB
 
-- `strategy: 4mib-rejected-retry-2mib` confirms the original 4 MiB request was rejected.
-- `strategy: 2mib-subchunks-accepted` proves the same authorization, session, folder, file and bytes work when only the request-body size changes. That identifies a connector request-size boundary rather than a Google Drive permission failure.
-- `strategy: 2mib-first-subchunk` or `2mib-second-subchunk-rejected` means the 4 MiB body-size theory was not sufficient. The recorded stage and status should then be used for the next controlled test.
+The first result shows that a previously persisted resumable-session status query was rejected even though it sent no file bytes. The second result shows that small Drive writes also failed, so the failure is not explained by a 4 MiB upload boundary.
 
-No token, folder ID, session URI, filename, response body or file bytes are logged.
+The Replit Drive proxy now handles only the exact stale-session case:
+
+- a 403 returned for `PUT` with `Content-Range: bytes */total` is treated as an unusable old resumable session
+- the Drive adapter discards that session and starts a fresh one
+- a 401 remains an authorization failure
+- ordinary 403 responses remain unchanged
+
+Diagnostics now distinguish `thumbnail-upload` from generic Drive requests. No token, folder ID, session URI, filename, response body, or file bytes are logged.
