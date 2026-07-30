@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 
-test("process wheel selects in one gesture, reuses traditional gallery positioning, and preserves readable mobile items", async () => {
+test("process wheel selects any clicked process directly, reuses traditional gallery positioning, and preserves readable mobile items", async () => {
   const [component, selector, styles, settings] = await Promise.all([
     readFile(new URL("../src/client/ProcessWheel.jsx", import.meta.url), "utf8"),
     readFile(new URL("../src/client/ProcessSelector.jsx", import.meta.url), "utf8"),
@@ -12,9 +12,15 @@ test("process wheel selects in one gesture, reuses traditional gallery positioni
 
   assert.match(component, /closestItem/);
   assert.match(component, /setTimeout\(selectCenteredItem, 90\)/);
+  assert.match(component, /programmaticTargetRef/);
+  assert.match(component, /itemCenterOffset/);
+  assert.match(component, /wheel\.scrollTo\(\{/);
+  assert.match(component, /left: wheel\.scrollLeft \+ offset/);
+  assert.match(component, /onPointerDown=\{cancelProgrammaticScroll\}/);
   assert.match(component, /onScroll=\{scheduleSelection\}/);
   assert.match(component, /onWheel=\{handleWheel\}/);
   assert.match(component, /role="tablist"/);
+  assert.doesNotMatch(component, /scrollIntoView/);
   assert.doesNotMatch(component, /firstSelectedContent/);
   assert.doesNotMatch(component, /\.process-video-block/);
   assert.doesNotMatch(component, /\.masonry-grid \.photo-card/);
@@ -31,5 +37,7 @@ test("process wheel selects in one gesture, reuses traditional gallery positioni
   assert.match(styles, /white-space: nowrap/);
   assert.match(styles, /scroll-snap-type: x mandatory/);
   assert.match(styles, /scroll-snap-align: center/);
+  assert.match(styles, /scroll-snap-stop: normal/);
+  assert.doesNotMatch(styles, /scroll-snap-stop: always/);
   assert.match(settings, /優先保留原本較寬、可讀且容易點選的尺寸/);
 });
