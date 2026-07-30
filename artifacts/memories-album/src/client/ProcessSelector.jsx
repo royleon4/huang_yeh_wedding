@@ -6,8 +6,6 @@ const DEFAULT_SETTINGS = {
   processWheelVisibleCount: 6,
 };
 
-const SUBCATEGORY_SELECTED_EVENT = "memories:subcategory-selected";
-
 let settingsPromise;
 
 async function processSelectorSettings() {
@@ -23,6 +21,22 @@ async function processSelectorSettings() {
     }))
     .catch(() => DEFAULT_SETTINGS);
   return settingsPromise;
+}
+
+function scrollToGalleryStart() {
+  const gallery = document.getElementById("archive-gallery");
+  if (!gallery) return;
+  const stickyControls = document.querySelector(".process-section");
+  const stickyHeight = stickyControls?.getBoundingClientRect().height ?? 0;
+  const top =
+    window.scrollY + gallery.getBoundingClientRect().top - stickyHeight - 10;
+  window.scrollTo({ top: Math.max(0, top), behavior: "smooth" });
+}
+
+function requestGalleryStartScroll() {
+  window.requestAnimationFrame(() =>
+    window.requestAnimationFrame(scrollToGalleryStart),
+  );
 }
 
 function TraditionalSelector({ items, activeId, onSelect, ariaLabel, variant }) {
@@ -58,18 +72,19 @@ export default function ProcessSelector(props) {
     };
   }, []);
 
-  const selectSubcategory = (id) => {
-    props.onSelect(id);
-    document.dispatchEvent(new Event(SUBCATEGORY_SELECTED_EVENT));
-  };
-  const selectorProps = { ...props, onSelect: selectSubcategory };
+  if (settings.processWheelEnabled) {
+    const selectWithTraditionalPositioning = (id) => {
+      props.onSelect(id);
+      requestGalleryStartScroll();
+    };
+    return (
+      <ProcessWheel
+        {...props}
+        onSelect={selectWithTraditionalPositioning}
+        visibleCount={settings.processWheelVisibleCount}
+      />
+    );
+  }
 
-  return settings.processWheelEnabled ? (
-    <ProcessWheel
-      {...selectorProps}
-      visibleCount={settings.processWheelVisibleCount}
-    />
-  ) : (
-    <TraditionalSelector {...selectorProps} />
-  );
+  return <TraditionalSelector {...props} />;
 }
