@@ -229,8 +229,8 @@ export default defineConfig({
   plugins: [
     adminPhotoUploaderUiTransform(),
     processContentUiTransform(),
-    websiteCopyUiTransform(),
     adminPhotoWorkspaceUiTransform(),
+    websiteCopyUiTransform(),
     react(),
     memoriesDevelopmentRoutes(),
   ],
