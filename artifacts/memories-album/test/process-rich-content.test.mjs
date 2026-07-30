@@ -104,7 +104,7 @@ test("public process API includes fixed all-process and rich content", async () 
   assert.equal(payload.processes[0].dividerPaddingBottom, 11);
 });
 
-test("UI transform integrates fixed category, editor, and public content", async () => {
+test("UI transform integrates optional selector, admin tab, editor, and public content", async () => {
   const transform = processContentUiTransform();
   const appSource = await readFile(
     new URL("../src/client/App.jsx", import.meta.url),
@@ -124,11 +124,44 @@ test("UI transform integrates fixed category, editor, and public content", async
   ).code;
   assert.match(gallery, /ALL_PROCESS_DEFINITION/);
   assert.match(gallery, /ProcessRichContent/);
+  assert.match(gallery, /ProcessSelector/);
+  assert.match(gallery, /variant="guest"/);
+  assert.match(gallery, /number: "00"/);
   assert.match(gallery, /photosSuppressed/);
   assert.match(admin, /<AllProcessEditor \/>/);
   assert.match(admin, /ProcessContentEditor processKey=\{category\.id\}/);
+  assert.match(admin, /ProcessSelectorSettings/);
+  assert.match(admin, /\["subcategory-ui", "子分類操作"\]/);
+  assert.match(admin, /tab === "subcategory-ui"/);
   assert.match(admin, /categories\.length \+ 1/);
   assert.match(admin, /!upload\.albumIds\.includes\("wedding"\)/);
+});
+
+test("selector preserves traditional buttons and enables wheel from settings", async () => {
+  const selector = await readFile(
+    new URL("../src/client/ProcessSelector.jsx", import.meta.url),
+    "utf8",
+  );
+  assert.match(selector, /processWheelEnabled/);
+  assert.match(selector, /settings\.processWheelEnabled === true/);
+  assert.match(selector, /<ProcessWheel \{\.\.\.props\} \/>/);
+  assert.match(selector, /className="process-strip"/);
+  assert.match(selector, /className={`process-chip/);
+  assert.match(selector, /useState\(false\)/);
+});
+
+test("process wheel keeps several options visible and selects the centered item", async () => {
+  const [component, styles] = await Promise.all([
+    readFile(new URL("../src/client/ProcessWheel.jsx", import.meta.url), "utf8"),
+    readFile(new URL("../src/client/process-wheel.css", import.meta.url), "utf8"),
+  ]);
+  assert.match(component, /closestItem/);
+  assert.match(component, /setTimeout\(selectCenteredItem, 90\)/);
+  assert.match(component, /onWheel=\{handleWheel\}/);
+  assert.match(component, /scrollIntoView\(\{ behavior: "smooth"/);
+  assert.match(styles, /--wheel-item-width: clamp\(6rem, 27vw, 11rem\)/);
+  assert.match(styles, /scroll-snap-align: center/);
+  assert.match(styles, /scroll-snap-type: x mandatory/);
 });
 
 test("rich content migration is additive only", async () => {

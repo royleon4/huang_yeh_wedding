@@ -65,6 +65,22 @@ export function createAdminSettingsApi({ repository }) {
 
     try {
       const body = await readJson(request);
+      if (Object.hasOwn(body, "processWheelEnabled")) {
+        if (typeof body.processWheelEnabled !== "boolean") {
+          json(response, 422, {
+            error: "processWheelEnabled must be a boolean",
+            code: "INVALID_SETTING",
+          });
+          return true;
+        }
+        json(
+          response,
+          200,
+          await repository.setProcessWheelEnabled(body.processWheelEnabled),
+        );
+        return true;
+      }
+
       if (typeof body.guestUploadCategorySelectionEnabled !== "boolean") {
         json(response, 422, {
           error: "guestUploadCategorySelectionEnabled must be a boolean",

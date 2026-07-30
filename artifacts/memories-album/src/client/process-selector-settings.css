@@ -1,0 +1,145 @@
+.selector-settings {
+  display: grid;
+  gap: 1rem;
+}
+
+.selector-mode-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.selector-mode-card {
+  position: relative;
+  display: grid;
+  gap: 0.7rem;
+  min-height: 15rem;
+  border: 1px solid rgba(53, 95, 77, 0.22);
+  border-radius: 1.25rem;
+  background: rgba(255, 252, 245, 0.82);
+  padding: 1.15rem;
+  cursor: pointer;
+  transition:
+    border-color 0.18s ease,
+    box-shadow 0.18s ease,
+    transform 0.18s ease;
+}
+
+.selector-mode-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 30px rgba(42, 61, 51, 0.09);
+}
+
+.selector-mode-card.selected {
+  border-color: var(--leaf);
+  box-shadow:
+    0 14px 34px rgba(42, 61, 51, 0.12),
+    inset 0 0 0 2px rgba(53, 95, 77, 0.1);
+}
+
+.selector-mode-card input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.selector-mode-check {
+  width: 1.25rem;
+  height: 1.25rem;
+  border: 1px solid rgba(53, 95, 77, 0.45);
+  border-radius: 50%;
+  background: #fffaf1;
+}
+
+.selector-mode-card.selected .selector-mode-check {
+  border: 0.34rem solid var(--leaf);
+}
+
+.selector-mode-card strong {
+  color: var(--ink);
+  font-size: 1.08rem;
+}
+
+.selector-mode-card > p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.75;
+}
+
+.selector-mode-preview {
+  align-self: end;
+  display: flex;
+  align-items: center;
+  gap: 0.38rem;
+  min-width: 0;
+  overflow: hidden;
+  border-radius: 0.9rem;
+  background: rgba(239, 232, 218, 0.72);
+  padding: 0.75rem 0.55rem;
+}
+
+.selector-mode-preview i {
+  flex: 0 0 auto;
+  border: 1px solid rgba(53, 95, 77, 0.2);
+  border-radius: 999px;
+  background: #f7f2e8;
+  padding: 0.48rem 0.65rem;
+  color: var(--leaf);
+  font-style: normal;
+  font-size: 0.7rem;
+  white-space: nowrap;
+}
+
+.selector-mode-preview.wheel i {
+  flex-basis: 30%;
+  overflow: hidden;
+  border-radius: 0.8rem;
+  text-align: center;
+  text-overflow: ellipsis;
+}
+
+.selector-mode-preview i.focus {
+  border-color: var(--leaf);
+  background: var(--leaf);
+  color: #fffaf1;
+}
+
+.selector-settings-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+}
+
+.selector-settings-actions button {
+  border: 0;
+  border-radius: 999px;
+  background: var(--leaf);
+  padding: 0.72rem 1.2rem;
+  color: #fffaf1;
+  cursor: pointer;
+}
+
+.selector-settings-actions button:disabled {
+  cursor: not-allowed;
+  opacity: 0.48;
+}
+
+.selector-settings-actions span,
+.selector-settings-status {
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+.selector-settings-status.error {
+  color: #9e3f32;
+}
+
+@media (max-width: 700px) {
+  .selector-mode-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .selector-mode-card {
+    min-height: 13rem;
+  }
+}

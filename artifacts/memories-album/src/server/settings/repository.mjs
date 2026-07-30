@@ -1,6 +1,7 @@
 const NAVIGATION_KEY = "primary_navigation_visible";
 const GUEST_UPLOAD_CATEGORY_SELECTION_KEY =
   "guest_upload_category_selection_enabled";
+const PROCESS_WHEEL_ENABLED_KEY = "process_wheel_enabled";
 
 function booleanSetting(rows, key, fallback) {
   const row = rows.find((item) => item.key === key);
@@ -18,7 +19,11 @@ export class PostgresSettingsRepository {
       `SELECT key, value
        FROM memories_app_settings
        WHERE key = ANY($1::text[])`,
-      [[NAVIGATION_KEY, GUEST_UPLOAD_CATEGORY_SELECTION_KEY]],
+      [[
+        NAVIGATION_KEY,
+        GUEST_UPLOAD_CATEGORY_SELECTION_KEY,
+        PROCESS_WHEEL_ENABLED_KEY,
+      ]],
     );
     return {
       primaryNavigationVisible: booleanSetting(
@@ -30,6 +35,11 @@ export class PostgresSettingsRepository {
         result.rows,
         GUEST_UPLOAD_CATEGORY_SELECTION_KEY,
         true,
+      ),
+      processWheelEnabled: booleanSetting(
+        result.rows,
+        PROCESS_WHEEL_ENABLED_KEY,
+        false,
       ),
     };
   }
@@ -46,6 +56,14 @@ export class PostgresSettingsRepository {
     return this.setBoolean(
       GUEST_UPLOAD_CATEGORY_SELECTION_KEY,
       "guestUploadCategorySelectionEnabled",
+      value,
+    );
+  }
+
+  async setProcessWheelEnabled(value) {
+    return this.setBoolean(
+      PROCESS_WHEEL_ENABLED_KEY,
+      "processWheelEnabled",
       value,
     );
   }
