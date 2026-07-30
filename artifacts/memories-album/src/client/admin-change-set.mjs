@@ -8,6 +8,7 @@ const ALBUM_FIELDS = [
 const CATEGORY_FIELDS = ["labelZh", "labelEn"];
 const PHOTO_FIELDS = [
   "displayName",
+  "uploaderName",
   "visibility",
   "albumIds",
   "categoryIds",
@@ -57,6 +58,8 @@ export function categoryDraft(category) {
 export function photoDraft(photo) {
   return {
     displayName: photo.displayName,
+    uploaderName: photo.uploaderName ?? "",
+    deleteProtected: Boolean(photo.deleteProtected),
     visibility: photo.visibility,
     albumIds: [...photo.albumIds],
     categoryIds: [...photo.categoryIds],
