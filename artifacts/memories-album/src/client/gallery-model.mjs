@@ -1,3 +1,8 @@
+import {
+  DEFAULT_ALBUM_PHOTO_SORT_MODE,
+  normalizeAlbumPhotoSortMode,
+} from "../../album-photo-order.mjs";
+
 // Wedding process categories are populated from PostgreSQL, which is synchronized
 // from Google Drive. Keep this mutable array empty at build time so a deployment
 // can never overwrite the owner's Drive folder names with bundled defaults.
@@ -41,6 +46,9 @@ export function normalizePublicAlbums(albums) {
     zh: album.titleZh,
     en: album.titleEn || album.titleZh,
     showSummary: album.showSummary !== false,
+    photoSortMode: normalizeAlbumPhotoSortMode(
+      album.photoSortMode ?? DEFAULT_ALBUM_PHOTO_SORT_MODE,
+    ),
   }));
 }
 
