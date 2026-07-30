@@ -11,7 +11,8 @@ export class PostgresProcessRepository {
     await this.deactivateLegacyProcesses();
     const result = await this.pool.query(
       `SELECT id, label_zh, label_en, display_order, drive_folder_id,
-              drive_folder_name, sync_state, last_synced_at
+              drive_folder_name, sync_state, last_synced_at,
+              youtube_video_id, youtube_autoplay
        FROM memories_processes
        WHERE is_active = true
        ORDER BY display_order ASC, id ASC`,
@@ -22,7 +23,8 @@ export class PostgresProcessRepository {
   async findProcessById(id) {
     const result = await this.pool.query(
       `SELECT id, label_zh, label_en, display_order, drive_folder_id,
-              drive_folder_name, sync_state, last_synced_at, is_active
+              drive_folder_name, sync_state, last_synced_at, is_active,
+              youtube_video_id, youtube_autoplay
        FROM memories_processes
        WHERE id = $1
        LIMIT 1`,
@@ -77,8 +79,24 @@ export class PostgresProcessRepository {
        SET label_en = $2, updated_at = now()
        WHERE id = $1 AND is_active = true
        RETURNING id, label_zh, label_en, display_order, drive_folder_id,
-                 drive_folder_name, sync_state, last_synced_at, is_active`,
+                 drive_folder_name, sync_state, last_synced_at, is_active,
+                 youtube_video_id, youtube_autoplay`,
       [id, labelEn],
+    );
+    return result.rows[0] ? mapRow(result.rows[0]) : null;
+  }
+
+  async updateProcessVideo(id, { youtubeVideoId = null, youtubeAutoplay = false }) {
+    const result = await this.pool.query(
+      `UPDATE memories_processes
+       SET youtube_video_id = $2,
+           youtube_autoplay = $3,
+           updated_at = now()
+       WHERE id = $1 AND is_active = true
+       RETURNING id, label_zh, label_en, display_order, drive_folder_id,
+                 drive_folder_name, sync_state, last_synced_at, is_active,
+                 youtube_video_id, youtube_autoplay`,
+      [id, youtubeVideoId, Boolean(youtubeAutoplay)],
     );
     return result.rows[0] ? mapRow(result.rows[0]) : null;
   }
@@ -125,7 +143,8 @@ export class PostgresProcessRepository {
              updated_at = now()
          WHERE ${condition}
          RETURNING id, label_zh, label_en, display_order, drive_folder_id,
-                   drive_folder_name, sync_state, last_synced_at, is_active`,
+                   drive_folder_name, sync_state, last_synced_at, is_active,
+                   youtube_video_id, youtube_autoplay`,
         [...values, syncState],
       );
       const processIds = result.rows.map((row) => row.id);
@@ -157,6 +176,8 @@ function mapRow(row) {
     driveFolderName: row.drive_folder_name,
     syncState: row.sync_state,
     isActive: row.is_active !== false,
+    youtubeVideoId: row.youtube_video_id ?? null,
+    youtubeAutoplay: Boolean(row.youtube_autoplay),
     lastSyncedAt: row.last_synced_at
       ? new Date(row.last_synced_at).toISOString()
       : null,
