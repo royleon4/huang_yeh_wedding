@@ -3,6 +3,22 @@
 // can never overwrite the owner's Drive folder names with bundled defaults.
 export const PROCESS_DEFINITIONS = [];
 
+// "All processes" is a virtual category. It is editable but never participates
+// in Google Drive folder synchronization or process ordering.
+export const ALL_PROCESS_DEFINITION = {
+  id: "all",
+  zh: "全部流程",
+  en: "All moments",
+  displayOrder: 0,
+  youtubeVideoId: null,
+  youtubeAutoplay: false,
+  showAllPhotos: true,
+  contentHtmlZh: "",
+  contentHtmlEn: "",
+  dividerPaddingTop: 12,
+  dividerPaddingBottom: 12,
+};
+
 export const COLLECTION_DEFINITIONS = [
   { id: "wedding", zh: "婚禮流程", en: "Wedding moments" },
   { id: "guest", zh: "訪客上傳", en: "Guest uploads" },
@@ -64,7 +80,12 @@ export function filterPhotos(
     if (collectionId === "guest") return photo.source === "guest";
     return collectionForPhoto(photo) === collectionId;
   });
-  if (filterId === "all") return inCollection;
+  if (filterId === "all") {
+    if (collectionId === "wedding" && !ALL_PROCESS_DEFINITION.showAllPhotos) {
+      return [];
+    }
+    return inCollection;
+  }
   if (collectionId === "wedding") {
     return inCollection.filter((photo) => photo.processIds.includes(filterId));
   }

@@ -34,6 +34,12 @@ test("admin login succeeds even when Drive runtime is unavailable", async () => 
     const processes = await fetch(`${origin}/Memories/api/processes`);
     assert.equal(processes.status, 200);
     assert.deepEqual(await processes.json(), {
+      allProcess: {
+        id: "all",
+        labelZh: "全部流程",
+        labelEn: "All moments",
+        showAllPhotos: true,
+      },
       processes: [],
       degraded: true,
       storageError: "DRIVE_RETRYABLE",

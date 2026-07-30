@@ -1,6 +1,7 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import { adminPhotoUploaderUiTransform } from "./admin-photo-uploader-ui-transform.mjs";
+import { processContentUiTransform } from "./process-content-ui-transform.mjs";
 import {
   LEGACY_ADMIN_API_PATH,
   LEGACY_ADMIN_PATH,
@@ -122,6 +123,7 @@ function memoriesDevelopmentRoutes() {
           try {
             const runtime = await getMemoriesRuntime();
             if (await runtime.adminAlbumApi(request, response, url)) return;
+            if (await runtime.adminProcessContentApi(request, response, url)) return;
             if (await runtime.adminCategoryApi(request, response, url)) return;
             if (await runtime.adminPhotoApi(request, response, url)) return;
             sendJson(response, 404, { error: "Not found" });
@@ -172,12 +174,14 @@ function memoriesDevelopmentRoutes() {
           url.pathname.startsWith(`${MEMORIES_API_PATH}/upload-batches`) ||
           url.pathname.startsWith(`${MEMORIES_API_PATH}/albums`) ||
           url.pathname.startsWith(`${MEMORIES_API_PATH}/processes`) ||
+          url.pathname.startsWith(`${MEMORIES_API_PATH}/process-attachments`) ||
           url.pathname.startsWith(`${MEMORIES_API_PATH}/settings`)
         ) {
           try {
             const runtime = await getMemoriesRuntime();
             if (await runtime.albumApi(request, response, url)) return;
             if (await runtime.settingsApi(request, response, url)) return;
+            if (await runtime.processContentApi(request, response, url)) return;
             if (await runtime.processApi(request, response, url)) return;
             if (await runtime.uploadApi(request, response, url)) return;
             if (await runtime.photoApi(request, response, url)) return;
@@ -219,7 +223,12 @@ function memoriesDevelopmentRoutes() {
 
 export default defineConfig({
   base: `${MEMORIES_BASE_PATH}/`,
-  plugins: [adminPhotoUploaderUiTransform(), react(), memoriesDevelopmentRoutes()],
+  plugins: [
+    adminPhotoUploaderUiTransform(),
+    processContentUiTransform(),
+    react(),
+    memoriesDevelopmentRoutes(),
+  ],
   publicDir: false,
   server: {
     host: "0.0.0.0",

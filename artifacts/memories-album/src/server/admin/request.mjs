@@ -1,11 +1,15 @@
 import { adminAuthorized, sendAdminJson } from "./auth.mjs";
 
 export async function readAdminJson(request, maxBytes = 32 * 1024) {
+  const limit =
+    typeof maxBytes === "object" && maxBytes !== null
+      ? Number(maxBytes.maxBytes ?? 32 * 1024)
+      : Number(maxBytes);
   const chunks = [];
   let total = 0;
   for await (const chunk of request) {
     total += chunk.length;
-    if (total > maxBytes) {
+    if (total > limit) {
       const error = new Error("Request body too large");
       error.status = 413;
       error.code = "BODY_TOO_LARGE";
