@@ -1,6 +1,7 @@
 import { sendAdminJson } from "../admin/auth.mjs";
 import { requireAdmin } from "../admin/request.mjs";
 import { deletePhotoRecordPermanently } from "./permanent-delete.mjs";
+import { isWeddingPhotographerUploader } from "./uploader-admin-api.mjs";
 
 async function deleteDriveFile(drive, fileId) {
   if (!fileId) return;
@@ -36,6 +37,14 @@ export function createPermanentPhotoDeleteApi({
       sendAdminJson(response, 404, {
         error: "Photo not found",
         code: "NOT_FOUND",
+      });
+      return true;
+    }
+
+    if (isWeddingPhotographerUploader(photo.uploaderName)) {
+      sendAdminJson(response, 403, {
+        error: "婚禮攝影照片受保護，不允許永久刪除。",
+        code: "WEDDING_PHOTOGRAPHER_PHOTO_PROTECTED",
       });
       return true;
     }
