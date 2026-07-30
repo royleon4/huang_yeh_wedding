@@ -92,7 +92,7 @@ export async function parsePhotoMultipart(request, options = {}) {
         size: temporary.size,
         truncated: false,
       },
-      fields: {},
+      fields: temporary.fields,
     };
   } finally {
     await temporary.cleanup();
