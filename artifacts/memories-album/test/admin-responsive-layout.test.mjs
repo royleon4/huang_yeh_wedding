@@ -19,6 +19,23 @@ function runAdminTransforms(source) {
   return code;
 }
 
+test("application entrypoint always loads responsive administrator CSS", async () => {
+  const entrypoint = await readFile(
+    new URL("../src/client/main.jsx", import.meta.url),
+    "utf8",
+  );
+
+  const baseStyles = entrypoint.indexOf('import "./admin.css";');
+  const responsiveStyles = entrypoint.indexOf(
+    'import "./admin-responsive-layout.css";',
+  );
+  assert.ok(baseStyles >= 0, "base administrator stylesheet must be loaded");
+  assert.ok(
+    responsiveStyles > baseStyles,
+    "responsive administrator overrides must load after the base stylesheet",
+  );
+});
+
 test("administrator photo cards use a four-up preview buffer and expand for editing", async () => {
   const source = await readFile(
     new URL("../src/client/AdminApp.jsx", import.meta.url),
@@ -41,6 +58,7 @@ test("process cards and crowded controls use a single-column readable layout", a
     "utf8",
   );
 
+  assert.match(styles, /\.admin-category-row \{[\s\S]*display: grid !important/);
   assert.match(styles, /\.admin-category-row \{[\s\S]*grid-template-columns: minmax\(0, 1fr\) !important/);
   assert.match(styles, /\.admin-card-actions \{[\s\S]*flex-direction: column/);
   assert.match(styles, /\.admin-category-row \.admin-youtube-autoplay[\s\S]*grid-template-columns: auto minmax\(0, 1fr\)/);
