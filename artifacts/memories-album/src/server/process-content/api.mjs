@@ -1,6 +1,7 @@
 import Busboy from "busboy";
 import { randomUUID } from "node:crypto";
 import { Readable } from "node:stream";
+import { recoverUtf8Filename } from "../../filename-encoding.mjs";
 import { sendAdminJson } from "../admin/auth.mjs";
 import { readAdminJson, requireAdmin } from "../admin/request.mjs";
 import { normalizeYoutubeVideoId } from "../processes/youtube.mjs";
@@ -90,7 +91,7 @@ function boundedPadding(value, fallback = 12) {
 }
 
 function safeFilename(filename) {
-  const value = String(filename || "attachment")
+  const value = String(recoverUtf8Filename(filename) || "attachment")
     .normalize("NFKC")
     .replace(/[\\/\0\r\n]+/g, "-")
     .replace(/\s+/g, " ")
@@ -108,7 +109,7 @@ function attachmentPayload(attachment) {
   return {
     id: attachment.id,
     processKey: attachment.processKey,
-    name: attachment.originalFilename,
+    name: recoverUtf8Filename(attachment.originalFilename),
     mimeType: attachment.mimeType,
     byteSize: attachment.byteSize,
     isImage: attachment.isImage,
@@ -124,6 +125,7 @@ function parseAttachmentMultipart(request) {
     try {
       parser = Busboy({
         headers: request.headers,
+        defParamCharset: "utf8",
         limits: { files: 1, fields: 0, fileSize: MAX_ATTACHMENT_BYTES },
       });
     } catch {
@@ -217,7 +219,7 @@ function contentPayload(content, attachments = []) {
 
 function sendFile(response, file, attachment, forceDownload) {
   const disposition = forceDownload || !attachment.isImage ? "attachment" : "inline";
-  const encodedName = encodeURIComponent(attachment.originalFilename);
+  const encodedName = encodeURIComponent(recoverUtf8Filename(attachment.originalFilename));
   response.writeHead(200, {
     "Content-Type": attachment.mimeType || file.contentType || "application/octet-stream",
     ...(file.contentLength ? { "Content-Length": file.contentLength } : {}),

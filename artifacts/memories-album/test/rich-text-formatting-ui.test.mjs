@@ -88,8 +88,9 @@ test("image and attachment nodes support drag reorder and arbitrary resizing", a
   assert.match(media, /window\.addEventListener\("pointermove", move\)/);
   assert.match(media, /updateAttributes\(\{ width: latestWidth \}\)/);
   assert.match(media, /type="range"/);
-  assert.match(media, /moveNode\(editor, getPos, -1\)/);
-  assert.match(media, /moveNode\(editor, getPos, 1\)/);
+  for (const destination of ["first", "previous", "next", "last"]) {
+    assert.match(media, new RegExp(`moveNode\\(editor, getPos, "${destination}"\\)`));
+  }
   assert.match(media, /MIN_MEDIA_WIDTH = 24/);
   assert.match(media, /MAX_MEDIA_WIDTH = 100/);
 });
