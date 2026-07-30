@@ -43,7 +43,7 @@ test("administrator photo transform uses natural-height lazy previews", async ()
   const transformed = adminPhotoWorkspaceUiTransform().transform(
     processTransformed,
     "/workspace/src/client/AdminApp.jsx",
-  );
+  ).code;
   assert.match(transformed, /import LazyImage/);
   assert.match(transformed, /<LazyImage[\s\S]*width=\{photo\.width\}/);
 
