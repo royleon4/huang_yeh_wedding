@@ -10,20 +10,34 @@ test("mobile rich text toolbar styles are included in the application", async ()
   assert.match(index, /rich-text-mobile\.css/);
 });
 
-test("mobile rich text toolbar uses a wrapped grid instead of a clipped row", async () => {
+test("standard phones use one horizontally scrollable toolbar row", async () => {
   const styles = await readFile(mobileStylesUrl, "utf8");
 
   assert.match(styles, /@media \(max-width: 720px\)/);
-  assert.match(styles, /\.tiptap-toolbar[\s\S]*display: grid/);
-  assert.match(styles, /grid-template-columns: repeat\(3, minmax\(0, 1fr\)\)/);
-  assert.match(styles, /overflow: visible/);
-  assert.match(styles, /\.tiptap-toolbar-divider,[\s\S]*display: none/);
-  assert.match(styles, /\.tiptap-toolbar-button::after[\s\S]*content: attr\(aria-label\)/);
-  assert.match(styles, /\.tiptap-toolbar-button\.is-wide[\s\S]*grid-column: 1 \/ -1/);
+  assert.match(styles, /\.tiptap-toolbar\s*\{[\s\S]*display: flex/);
+  assert.match(styles, /flex-wrap: nowrap/);
+  assert.match(styles, /overflow-x: auto/);
+  assert.match(styles, /overflow-y: hidden/);
+  assert.match(styles, /scroll-snap-type: x proximity/);
+  assert.match(styles, /-webkit-overflow-scrolling: touch/);
+  assert.doesNotMatch(styles, /grid-template-columns: repeat\(3/);
 });
 
-test("very narrow phones fall back to two toolbar columns", async () => {
+test("narrow phones use no more than two horizontally scrollable rows", async () => {
   const styles = await readFile(mobileStylesUrl, "utf8");
 
-  assert.match(styles, /@media \(max-width: 360px\)[\s\S]*repeat\(2, minmax\(0, 1fr\)\)/);
+  assert.match(styles, /@media \(max-width: 390px\)/);
+  assert.match(styles, /grid-template-rows: repeat\(2, minmax\(2\.5rem, auto\)\)/);
+  assert.match(styles, /grid-auto-flow: column/);
+  assert.match(styles, /grid-auto-columns: max-content/);
+  assert.match(styles, /max-height: 6\.7rem/);
+  assert.doesNotMatch(styles, /repeat\(3, minmax\(2\.5rem, auto\)\)/);
+});
+
+test("mobile editor height adapts to the viewport and remains vertically resizable", async () => {
+  const styles = await readFile(mobileStylesUrl, "utf8");
+
+  assert.match(styles, /height: clamp\(16rem, 50dvh, 34rem\)/);
+  assert.match(styles, /max-height: 72dvh/);
+  assert.match(styles, /resize: vertical/);
 });
