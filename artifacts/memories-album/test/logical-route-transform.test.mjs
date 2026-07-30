@@ -30,17 +30,21 @@ async function transformed(relativePath) {
   return source;
 }
 
-test("final public gallery output is driven by URL state", async () => {
+test("final public gallery output is driven by logical URL and language state", async () => {
   const source = await transformed("src/client/App.jsx");
   assert.match(source, /readPublicRoute\(window\.location\.pathname\)/);
-  assert.match(source, /publicGalleryPath\(\{/);
+  assert.match(source, /const \[lang, setLang\] = useState\(initialRoute\.language\)/);
+  assert.match(source, /groupNumber: groupNumberFor\(collectionId\)/);
+  assert.match(source, /subgroupNumber: subgroupNumberFor\(collectionId, filterId\)/);
+  assert.match(source, /publicModalPath\(route\.routeId, next\)/);
+  assert.match(source, /requestGalleryStartScroll\(\)/);
   assert.match(source, /window\.addEventListener\("popstate", syncFromLocation\)/);
   assert.match(source, /openPhotoRoute\(photo\.id\)/);
   assert.doesNotMatch(source, /setSelectedPhotoId\(photo\.id\);/);
   assert.match(source, /onUpload=\{\(\) => openModalRoute\("upload"\)\}/);
 });
 
-test("final administrator output gives every generated tab a deep link", async () => {
+test("final administrator output maps ordered tabs to logical group URLs", async () => {
   const source = await transformed("src/client/AdminApp.jsx");
   assert.match(source, /readAdminTab\(window\.location\.pathname\)/);
   assert.match(source, /chooseAdminTab\(id\)/);
