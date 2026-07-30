@@ -1,5 +1,16 @@
+import {
+  DEFAULT_ALBUM_PHOTO_SORT_MODE,
+  normalizeAlbumPhotoSortMode,
+} from "../../../album-photo-order.mjs";
+
 function clone(album) {
-  return { ...album, showSummary: album.showSummary !== false };
+  return {
+    ...album,
+    showSummary: album.showSummary !== false,
+    photoSortMode: normalizeAlbumPhotoSortMode(
+      album.photoSortMode ?? DEFAULT_ALBUM_PHOTO_SORT_MODE,
+    ),
+  };
 }
 
 export class MemoryAlbumRepository {
@@ -40,6 +51,7 @@ export class MemoryAlbumRepository {
       isVisible: album.isVisible !== false,
       isSystem: album.isSystem === true,
       showSummary: album.showSummary !== false,
+      photoSortMode: normalizeAlbumPhotoSortMode(album.photoSortMode),
     };
     this.#albums.push(stored);
     return clone(stored);
@@ -52,6 +64,7 @@ export class MemoryAlbumRepository {
       ...this.#albums[index],
       ...album,
       showSummary: album.showSummary !== false,
+      photoSortMode: normalizeAlbumPhotoSortMode(album.photoSortMode),
     };
     return clone(this.#albums[index]);
   }
