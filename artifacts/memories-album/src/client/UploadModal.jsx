@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { retryFailedUploads, uploadQueue } from "./upload-client.mjs";
 
+const MAX_UPLOAD_PHOTOS = 10;
+
 const COPY = {
   zh: {
     title: "把你的照片放進檔案館",
@@ -17,6 +19,7 @@ const COPY = {
     files: "選擇照片",
     choose: "選擇最多 10 張照片",
     hint: "支援 JPEG、PNG、WebP、HEIC／HEIF；每張上限 25 MB。照片逐張傳送並使用固定識別碼，重新嘗試不會重複建立 Drive 檔案。",
+    tooMany: "一次最多只能選擇 10 張照片，已保留前 10 張。",
     start: "開始上傳",
     retryFailed: "繼續未完成照片",
     cancel: "暫停上傳",
@@ -49,8 +52,9 @@ const COPY = {
     life: "Life photos",
     weddingGroup: "Wedding moments",
     files: "Choose photos",
-    choose: "Choose up to 30 photos",
+    choose: "Choose up to 10 photos",
     hint: "JPEG, PNG, WebP, HEIC and HEIF are accepted, up to 25 MB each. Stable upload IDs prevent duplicate Drive files when a request is retried.",
+    tooMany: "You can upload up to 10 photos at a time. The first 10 were kept.",
     start: "Start upload",
     retryFailed: "Continue unfinished photos",
     cancel: "Pause upload",
@@ -154,7 +158,8 @@ export default function UploadModal({ lang, onClose, onUploaded }) {
   }, [items]);
 
   const handleFiles = (event) => {
-    const selected = Array.from(event.target.files ?? []).slice(0, 30);
+    const allSelected = Array.from(event.target.files ?? []);
+    const selected = allSelected.slice(0, MAX_UPLOAD_PHOTOS);
     setFiles(selected);
     setItems(
       selected.map((file) => ({
@@ -164,7 +169,7 @@ export default function UploadModal({ lang, onClose, onUploaded }) {
         error: null,
       })),
     );
-    setError("");
+    setError(allSelected.length > MAX_UPLOAD_PHOTOS ? t.tooMany : "");
     setSummary(null);
     setBatch(null);
     uploadedIdsRef.current.clear();
