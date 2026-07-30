@@ -27,15 +27,6 @@ function normalizedVisibleCount(value) {
   return Math.min(MAX_VISIBLE_COUNT, Math.max(MIN_VISIBLE_COUNT, parsed));
 }
 
-function firstSelectedContent() {
-  const gallery = document.getElementById("archive-gallery");
-  return (
-    gallery?.querySelector(".process-video-block") ??
-    gallery?.querySelector(".masonry-grid .photo-card") ??
-    gallery
-  );
-}
-
 export default function ProcessWheel({
   items,
   activeId,
@@ -46,30 +37,14 @@ export default function ProcessWheel({
 }) {
   const wheelRef = useRef(null);
   const selectTimerRef = useRef(null);
-  const contentTimerRef = useRef(null);
   const frameRef = useRef(null);
   const mobileVisibleCount = normalizedVisibleCount(visibleCount);
   const mobileItemWidth = `calc(${100 / mobileVisibleCount}% - 0.46rem)`;
 
-  const scrollToSelectedContent = () => {
-    globalThis.clearTimeout(contentTimerRef.current);
-    contentTimerRef.current = globalThis.setTimeout(() => {
-      firstSelectedContent()?.scrollIntoView({
-        behavior: "smooth",
-        block: "start",
-      });
-    }, 180);
-  };
-
-  const select = (id) => {
-    onSelect(id);
-    scrollToSelectedContent();
-  };
-
   const selectCenteredItem = () => {
     const item = closestItem(wheelRef.current);
     const id = item?.dataset.wheelId;
-    if (id && id !== activeId) select(id);
+    if (id && id !== activeId) onSelect(id);
   };
 
   const scheduleSelection = () => {
@@ -97,14 +72,13 @@ export default function ProcessWheel({
   useEffect(
     () => () => {
       globalThis.clearTimeout(selectTimerRef.current);
-      globalThis.clearTimeout(contentTimerRef.current);
       globalThis.cancelAnimationFrame(frameRef.current);
     },
     [],
   );
 
   const choose = (id, element) => {
-    select(id);
+    onSelect(id);
     element?.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
   };
 
