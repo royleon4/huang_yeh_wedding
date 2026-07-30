@@ -1,0 +1,92 @@
+.process-rich-toolbar {
+  align-items: stretch;
+}
+
+.process-rich-toolbar-group {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  align-content: center;
+  gap: 0.35rem;
+  min-width: 0;
+  padding: 0.25rem;
+  border: 1px solid rgba(47, 111, 85, 0.12);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.process-rich-toolbar-group.wide {
+  flex: 1 1 14rem;
+}
+
+.process-rich-toolbar-label {
+  flex: 0 0 100%;
+  color: #68756e;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.process-rich-toolbar-group button {
+  min-width: 2.35rem;
+  padding-inline: 0.65rem;
+  font-weight: 700;
+}
+
+.process-rich-toolbar-group button[aria-pressed="true"] {
+  border-color: #2f6f55;
+  background: #2f6f55;
+  color: #fff;
+}
+
+.process-rich-toolbar-group select {
+  width: auto;
+  min-width: 7rem;
+}
+
+.process-rich-selection-hint {
+  margin: 0;
+  color: #6c776f;
+  font-size: 0.78rem;
+  line-height: 1.5;
+}
+
+.process-rich-editable .process-align-left,
+.process-rich-content .process-align-left {
+  text-align: left;
+}
+
+.process-rich-editable .process-align-center,
+.process-rich-content .process-align-center {
+  text-align: center;
+}
+
+.process-rich-editable .process-align-right,
+.process-rich-content .process-align-right {
+  text-align: right;
+}
+
+.process-rich-editable .process-align-justify,
+.process-rich-content .process-align-justify {
+  text-align: justify;
+  text-justify: inter-character;
+}
+
+@media (max-width: 720px) {
+  .process-rich-toolbar {
+    gap: 0.45rem;
+  }
+
+  .process-rich-toolbar-group,
+  .process-rich-toolbar-group.wide {
+    flex: 1 1 100%;
+  }
+
+  .process-rich-toolbar-group button {
+    flex: 1 1 auto;
+  }
+
+  .process-rich-toolbar-group select {
+    width: 100%;
+  }
+}
