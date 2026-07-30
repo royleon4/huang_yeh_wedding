@@ -98,7 +98,7 @@ function transformGallery(source) {
   );
 
   const mediaBody = `          {stateView ??
-            (orderedAvailableMediaKeys.length === 0 && !photosSuppressed ? (
+            (mediaSequence.length === 0 && !photosSuppressed ? (
               <StateCard icon="✦" title={t.emptyTitle} body={t.emptyBody} />
             ) : (
               <>
