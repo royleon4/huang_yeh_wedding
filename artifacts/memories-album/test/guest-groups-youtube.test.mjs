@@ -70,13 +70,14 @@ test("YouTube links normalize to a safe video id and privacy-enhanced embed", ()
   });
 });
 
-test("visitor upload UI no longer offers a classification selector", async () => {
+test("visitor upload category selector excludes visitor-name labels", async () => {
   const source = await readFile(
     new URL("../src/client/UploadModal.jsx", import.meta.url),
     "utf8",
   );
-  assert.doesNotMatch(source, /classificationChoice|processId|<select/);
-  assert.match(source, /依照姓名自動整理/);
+  assert.match(source, /classificationChoice|processId|<select/);
+  assert.match(source, /你的姓名只會用來自動整理/);
+  assert.doesNotMatch(source, /guestUploaderGroups|guestGroups|allGuests/);
 });
 
 test("public document policy allows only privacy-enhanced YouTube frames", async () => {
