@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { createServer } from "node:http";
 import test from "node:test";
+import { adminPhotoWorkspaceUiTransform } from "../admin-photo-workspace-ui-transform.mjs";
+import { logicalRouteUiTransform } from "../logical-route-ui-transform.mjs";
 import { processContentUiTransform } from "../process-content-ui-transform.mjs";
 import { websiteCopyUiTransform } from "../website-copy-ui-transform.mjs";
 import {
@@ -93,30 +95,39 @@ test("invalid or oversized website copy is rejected", async () => {
   });
 });
 
-test("production transform hydrates website copy and renders multiline titles", async () => {
+test("production transform chain hydrates website copy after route and gallery transforms", async () => {
   const source = await readFile(new URL("../src/client/App.jsx", import.meta.url), "utf8");
   const id = "/workspace/src/client/App.jsx";
   const processCode = processContentUiTransform().transform(source, id).code;
-  const finalCode = websiteCopyUiTransform().transform(processCode, id).code;
+  const workspaceCode = adminPhotoWorkspaceUiTransform().transform(processCode, id).code;
+  const logicalCode = logicalRouteUiTransform().transform(workspaceCode, id).code;
+  const finalCode = websiteCopyUiTransform().transform(logicalCode, id).code;
   assert.match(finalCode, /normalizeSiteCopy\(settings\.siteCopy\)/);
   assert.match(finalCode, /const t = \{ \.\.\.COPY\[lang\], \.\.\.siteCopy\[lang\] \}/);
   assert.match(finalCode, /<p className="eyebrow">\{t\.headerEyebrow\}<\/p>/);
   assert.match(finalCode, /import "\.\/site-copy\.css"/);
   assert.match(finalCode, /\[lang, t\.archive\]/);
+  assert.match(finalCode, /requestGalleryStartScroll/);
+  assert.match(finalCode, /albumRandomSeedRef/);
 });
 
 test("administrator general settings exposes the website copy editor", async () => {
-  const [general, editor, repository, vite] = await Promise.all([
+  const [general, editor, repository, vite, routes] = await Promise.all([
     readFile(new URL("../src/client/GeneralSettings.jsx", import.meta.url), "utf8"),
     readFile(new URL("../src/client/WebsiteCopySettings.jsx", import.meta.url), "utf8"),
     readFile(new URL("../src/server/settings/repository.mjs", import.meta.url), "utf8"),
     readFile(new URL("../vite.config.js", import.meta.url), "utf8"),
+    readFile(new URL("../vite.routes.config.js", import.meta.url), "utf8"),
   ]);
   assert.match(general, /<WebsiteCopySettings \/>/);
   assert.match(editor, /body: \{ siteCopy: draft \}/);
   assert.match(editor, /rows=\{field\.key === "archive" \? 3 : 4\}/);
   assert.match(repository, /SITE_COPY_KEY/);
   assert.match(repository, /setSiteCopy/);
-  assert.match(vite, /websiteCopyUiTransform\(\)/);
+  assert.doesNotMatch(vite, /websiteCopyUiTransform/);
   assert.match(vite, /runtime\.adminSettingsApi/);
+  assert.match(
+    routes,
+    /logicalRouteUiTransform\(\),\s*websiteCopyUiTransform\(\)/,
+  );
 });
