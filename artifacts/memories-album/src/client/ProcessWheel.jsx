@@ -1,6 +1,10 @@
 import { useEffect, useRef } from "react";
 import "./process-wheel.css";
 
+const DEFAULT_VISIBLE_COUNT = 6;
+const MIN_VISIBLE_COUNT = 3;
+const MAX_VISIBLE_COUNT = 8;
+
 function closestItem(container) {
   if (!container) return null;
   const center = container.getBoundingClientRect().left + container.clientWidth / 2;
@@ -17,21 +21,55 @@ function closestItem(container) {
   return closest;
 }
 
+function normalizedVisibleCount(value) {
+  const parsed = Number(value);
+  if (!Number.isInteger(parsed)) return DEFAULT_VISIBLE_COUNT;
+  return Math.min(MAX_VISIBLE_COUNT, Math.max(MIN_VISIBLE_COUNT, parsed));
+}
+
+function firstSelectedContent() {
+  const gallery = document.getElementById("archive-gallery");
+  return (
+    gallery?.querySelector(".process-video-block") ??
+    gallery?.querySelector(".masonry-grid .photo-card") ??
+    gallery
+  );
+}
+
 export default function ProcessWheel({
   items,
   activeId,
   onSelect,
   ariaLabel,
   variant = "process",
+  visibleCount = DEFAULT_VISIBLE_COUNT,
 }) {
   const wheelRef = useRef(null);
   const selectTimerRef = useRef(null);
+  const contentTimerRef = useRef(null);
   const frameRef = useRef(null);
+  const mobileVisibleCount = normalizedVisibleCount(visibleCount);
+  const mobileItemWidth = `calc(${100 / mobileVisibleCount}% - 0.46rem)`;
+
+  const scrollToSelectedContent = () => {
+    globalThis.clearTimeout(contentTimerRef.current);
+    contentTimerRef.current = globalThis.setTimeout(() => {
+      firstSelectedContent()?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+    }, 180);
+  };
+
+  const select = (id) => {
+    onSelect(id);
+    scrollToSelectedContent();
+  };
 
   const selectCenteredItem = () => {
     const item = closestItem(wheelRef.current);
     const id = item?.dataset.wheelId;
-    if (id && id !== activeId) onSelect(id);
+    if (id && id !== activeId) select(id);
   };
 
   const scheduleSelection = () => {
@@ -59,13 +97,14 @@ export default function ProcessWheel({
   useEffect(
     () => () => {
       globalThis.clearTimeout(selectTimerRef.current);
+      globalThis.clearTimeout(contentTimerRef.current);
       globalThis.cancelAnimationFrame(frameRef.current);
     },
     [],
   );
 
   const choose = (id, element) => {
-    onSelect(id);
+    select(id);
     element?.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
   };
 
@@ -101,7 +140,10 @@ export default function ProcessWheel({
   if (!items.length) return null;
 
   return (
-    <div className={`process-wheel-shell ${variant === "guest" ? "guest" : ""}`}>
+    <div
+      className={`process-wheel-shell ${variant === "guest" ? "guest" : ""}`}
+      style={{ "--wheel-mobile-item-width": mobileItemWidth }}
+    >
       <div className="process-wheel-focus" aria-hidden="true" />
       <div
         ref={wheelRef}
