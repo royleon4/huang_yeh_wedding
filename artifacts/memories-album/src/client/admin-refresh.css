@@ -1,0 +1,73 @@
+.admin-refresh-control {
+  display: grid;
+  gap: 0.42rem;
+  min-width: 0;
+}
+
+.admin-refresh-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.42rem;
+  min-height: 2.35rem;
+  border: 1px solid rgba(53, 95, 77, 0.28);
+  border-radius: 999px;
+  background: rgba(255, 253, 247, 0.92);
+  padding: 0.55rem 0.88rem;
+  color: var(--leaf);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.admin-refresh-button span {
+  font-size: 1.08rem;
+  line-height: 1;
+}
+
+.admin-refresh-button:hover:not(:disabled) {
+  border-color: var(--leaf);
+  background: var(--leaf-soft);
+}
+
+.admin-refresh-button:disabled {
+  cursor: wait;
+  opacity: 0.55;
+}
+
+.admin-refresh-status {
+  max-width: 28rem;
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.72rem;
+  line-height: 1.55;
+}
+
+.admin-refresh-status small {
+  display: block;
+  margin-top: 0.16rem;
+  color: inherit;
+}
+
+.admin-refresh-status.error {
+  color: #9e3f32;
+}
+
+.admin-card-actions .admin-refresh-control {
+  margin-left: auto;
+}
+
+.admin-row-actions .admin-refresh-control {
+  min-width: 8.5rem;
+}
+
+@media (max-width: 620px) {
+  .admin-card-actions .admin-refresh-control,
+  .admin-row-actions .admin-refresh-control {
+    width: 100%;
+    margin-left: 0;
+  }
+
+  .admin-refresh-button {
+    width: 100%;
+  }
+}
