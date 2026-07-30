@@ -5,6 +5,7 @@ import {
   isWeddingPhotographerProtected,
   successfulBulkPhotoResults,
 } from "./admin-photo-bulk-actions.mjs";
+import "./admin-photo-bulk-actions.css";
 
 function mergeUpdatedPhotos(current, updates) {
   const byId = new Map(updates.map((entry) => [entry.id, entry.photo]));
