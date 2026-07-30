@@ -1,4 +1,5 @@
 const DEFAULT_LEASE_MS = 2 * 60 * 1000;
+const SESSION_PROGRESS_LEASE_MS = 5 * 60 * 1000;
 
 function mapItem(row) {
   return {
@@ -9,6 +10,11 @@ function mapItem(row) {
     originalFilename: row.original_filename,
     originalDriveFileId: row.original_drive_file_id,
     thumbnailDriveFileId: row.thumbnail_drive_file_id,
+    originalUploadSessionUri: row.original_upload_session_uri ?? null,
+    originalUploadOffset: Number(row.original_upload_offset ?? 0),
+    originalUploadSessionUpdatedAt: row.original_upload_session_updated_at
+      ? new Date(row.original_upload_session_updated_at).toISOString()
+      : null,
     status: row.status,
     attemptCount: Number(row.attempt_count ?? 0),
     leaseExpiresAt: row.lease_expires_at
@@ -66,6 +72,9 @@ export class PostgresDurableUploadRepository {
              status = 'ready',
              lease_expires_at = NULL,
              last_error_code = NULL,
+             original_upload_session_uri = NULL,
+             original_upload_offset = 0,
+             original_upload_session_updated_at = NULL,
              updated_at = EXCLUDED.updated_at`,
           [
             batchId,
@@ -148,6 +157,33 @@ export class PostgresDurableUploadRepository {
     }
   }
 
+  async recordOriginalUploadSession({
+    batchId,
+    clientUploadId,
+    sessionUri,
+    uploadedBytes = 0,
+  }) {
+    const offset = Math.max(0, Number(uploadedBytes) || 0);
+    const result = await this.pool.query(
+      `UPDATE memories_upload_items
+       SET original_upload_session_uri = $3,
+           original_upload_offset = GREATEST(0, $4::bigint),
+           original_upload_session_updated_at = now(),
+           lease_expires_at = now() + ($5::bigint * interval '1 millisecond'),
+           updated_at = now()
+       WHERE batch_id = $1 AND client_upload_id = $2
+       RETURNING *`,
+      [
+        batchId,
+        clientUploadId,
+        sessionUri,
+        offset,
+        SESSION_PROGRESS_LEASE_MS,
+      ],
+    );
+    return result.rows[0] ? mapItem(result.rows[0]) : null;
+  }
+
   async recordFiles({
     batchId,
     clientUploadId,
@@ -158,6 +194,18 @@ export class PostgresDurableUploadRepository {
       `UPDATE memories_upload_items
        SET original_drive_file_id = COALESCE($3, original_drive_file_id),
            thumbnail_drive_file_id = COALESCE($4, thumbnail_drive_file_id),
+           original_upload_session_uri = CASE
+             WHEN $3::text IS NOT NULL THEN NULL
+             ELSE original_upload_session_uri
+           END,
+           original_upload_offset = CASE
+             WHEN $3::text IS NOT NULL THEN 0
+             ELSE original_upload_offset
+           END,
+           original_upload_session_updated_at = CASE
+             WHEN $3::text IS NOT NULL THEN NULL
+             ELSE original_upload_session_updated_at
+           END,
            updated_at = now()
        WHERE batch_id = $1 AND client_upload_id = $2
        RETURNING *`,
@@ -182,6 +230,9 @@ export class PostgresDurableUploadRepository {
              status = 'ready',
              lease_expires_at = NULL,
              last_error_code = NULL,
+             original_upload_session_uri = NULL,
+             original_upload_offset = 0,
+             original_upload_session_updated_at = NULL,
              updated_at = now()
          WHERE batch_id = $1 AND client_upload_id = $2`,
         [batchId, clientUploadId, photoId],
