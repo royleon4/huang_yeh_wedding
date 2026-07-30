@@ -10,7 +10,10 @@ import { PostgresProcessRepository } from "./processes/repository.mjs";
 import { DriveProcessSynchronizer } from "./processes/sync.mjs";
 import { createProcessApi } from "./processes/api.mjs";
 import { PostgresSettingsRepository } from "./settings/repository.mjs";
-import { createSettingsApi } from "./settings/api.mjs";
+import {
+  createAdminSettingsApi,
+  createSettingsApi,
+} from "./settings/api.mjs";
 import { createAlbumApi } from "./albums/api.mjs";
 import { createAdminAlbumApi } from "./albums/admin-api.mjs";
 import { PostgresAlbumRepository } from "./albums/postgres-repository.mjs";
@@ -169,6 +172,9 @@ async function createRuntime(env) {
       imageProcessor,
       synchronizer,
       adminToken: env.MEMORIES_ADMIN_TOKEN,
+    }),
+    adminSettingsApi: createAdminSettingsApi({
+      repository: settingsRepository,
     }),
     uploadApi: createGuestUploadApi({
       repository,
