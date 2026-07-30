@@ -47,8 +47,8 @@ export function toPublicPhoto(photo, sortRanks = null) {
       photo.collection ?? (photo.source === "guest" ? "guest" : "wedding"),
     albumIds: [...(photo.albumIds ?? [])],
     uploaderName: photo.uploaderName ?? null,
-    nameSortRank: sortRanks?.name.get(photo.id) ?? null,
-    authorSortRank: sortRanks?.author.get(photo.id) ?? null,
+    nameSortRank: sortRanks?.name?.get(photo.id) ?? null,
+    authorSortRank: sortRanks?.author?.get(photo.id) ?? null,
     processIds: photo.processIds ?? [],
     createdAt: photo.createdAt,
   };
@@ -180,12 +180,19 @@ export function createMemoriesPhotoApi({
     }
 
     const photos = [];
+    const seenCursors = new Set();
     let cursor = null;
     let pages = 0;
     do {
       const page = await repository.listPublicPhotos({ cursor, limit: 100 });
       photos.push(...page.items);
-      cursor = page.nextCursor ?? null;
+      const nextCursor = page.nextCursor ?? null;
+      if (!nextCursor || seenCursors.has(nextCursor)) {
+        cursor = null;
+      } else {
+        seenCursors.add(nextCursor);
+        cursor = nextCursor;
+      }
       pages += 1;
     } while (cursor && pages < 100);
 
@@ -208,6 +215,7 @@ export function createMemoriesPhotoApi({
       try {
         const collection = url.searchParams.get("collection");
         const albumId = url.searchParams.get("albumId");
+        const includeSortRanks = url.searchParams.get("includeSortRanks") === "1";
         if (
           collection &&
           !new Set(["wedding", "guest", "life"]).has(collection)
@@ -218,16 +226,17 @@ export function createMemoriesPhotoApi({
           });
           return true;
         }
+        const pagePromise = repository.listPublicPhotos({
+          cursor: url.searchParams.get("cursor"),
+          limit: Number(url.searchParams.get("limit") ?? 24),
+          processId: url.searchParams.get("process"),
+          source: url.searchParams.get("source"),
+          collection,
+          albumId,
+        });
         const [page, sortRanks] = await Promise.all([
-          repository.listPublicPhotos({
-            cursor: url.searchParams.get("cursor"),
-            limit: Number(url.searchParams.get("limit") ?? 24),
-            processId: url.searchParams.get("process"),
-            source: url.searchParams.get("source"),
-            collection,
-            albumId,
-          }),
-          loadSortRanks(),
+          pagePromise,
+          includeSortRanks ? loadSortRanks() : Promise.resolve(null),
         ]);
         json(response, 200, {
           photos: page.items.map((photo) => toPublicPhoto(photo, sortRanks)),
