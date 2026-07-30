@@ -7,6 +7,7 @@ on:
       - "pnpm-workspace.yaml"
       - "pnpm-lock.yaml"
       - ".github/workflows/memories-ci.yml"
+      - "scripts/repo-audit-cleanup.mjs"
   push:
     branches: [main]
     paths:
@@ -39,6 +40,20 @@ jobs:
 
       - name: Install workspace dependencies
         run: pnpm install --no-frozen-lockfile
+
+      - name: Generate repository audit cleanup
+        run: node scripts/repo-audit-cleanup.mjs
+
+      - name: Preserve generated audit files
+        uses: actions/upload-artifact@v4
+        with:
+          name: repo-audit-generated
+          path: |
+            artifacts/memories-album/src/client/AdminApp.jsx
+            artifacts/memories-album/process-content-ui-transform.mjs
+            pnpm-lock.yaml
+          if-no-files-found: error
+          retention-days: 7
 
       - name: Test standalone Memories
         shell: bash
