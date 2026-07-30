@@ -1,15 +1,25 @@
 import { useEffect, useState } from "react";
 import ProcessWheel from "./ProcessWheel.jsx";
 
+const DEFAULT_SETTINGS = {
+  processWheelEnabled: false,
+  processWheelVisibleCount: 6,
+};
+
 let settingsPromise;
 
-async function processWheelEnabled() {
+async function processSelectorSettings() {
   settingsPromise ??= fetch("/Memories/api/settings", {
     headers: { Accept: "application/json" },
   })
     .then((response) => (response.ok ? response.json() : {}))
-    .then((settings) => settings.processWheelEnabled === true)
-    .catch(() => false);
+    .then((settings) => ({
+      processWheelEnabled: settings.processWheelEnabled === true,
+      processWheelVisibleCount: Number.isInteger(settings.processWheelVisibleCount)
+        ? settings.processWheelVisibleCount
+        : DEFAULT_SETTINGS.processWheelVisibleCount,
+    }))
+    .catch(() => DEFAULT_SETTINGS);
   return settingsPromise;
 }
 
@@ -34,20 +44,23 @@ function TraditionalSelector({ items, activeId, onSelect, ariaLabel, variant }) 
 }
 
 export default function ProcessSelector(props) {
-  const [wheelEnabled, setWheelEnabled] = useState(false);
+  const [settings, setSettings] = useState(DEFAULT_SETTINGS);
 
   useEffect(() => {
     let cancelled = false;
-    void processWheelEnabled().then((enabled) => {
-      if (!cancelled) setWheelEnabled(enabled);
+    void processSelectorSettings().then((nextSettings) => {
+      if (!cancelled) setSettings(nextSettings);
     });
     return () => {
       cancelled = true;
     };
   }, []);
 
-  return wheelEnabled ? (
-    <ProcessWheel {...props} />
+  return settings.processWheelEnabled ? (
+    <ProcessWheel
+      {...props}
+      visibleCount={settings.processWheelVisibleCount}
+    />
   ) : (
     <TraditionalSelector {...props} />
   );
