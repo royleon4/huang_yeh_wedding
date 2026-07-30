@@ -1,3 +1,4 @@
+import LazyImage from "./LazyImage.jsx";
 import "./pinned-photos.css";
 
 export default function PinnedPhotoStrip({ photos, copy, onOpen }) {
@@ -16,11 +17,9 @@ export default function PinnedPhotoStrip({ photos, copy, onOpen }) {
             onClick={(event) => onOpen?.(photo, event.currentTarget)}
             aria-label={`${copy?.photo ?? "照片"} ${index + 1}`}
           >
-            <img
+            <LazyImage
               src={photo.thumbnailUrl}
               alt={photo.displayName || `${copy?.photo ?? "照片"} ${index + 1}`}
-              loading={index === 0 ? "eager" : "lazy"}
-              decoding="async"
               width={photo.width}
               height={photo.height}
             />
