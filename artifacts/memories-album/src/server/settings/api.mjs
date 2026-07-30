@@ -1,5 +1,6 @@
 import { isValidGalleryMediaOrder } from "./media-order.mjs";
 import { isValidPinnedPhotosByProcess } from "../../pinned-photo-settings.mjs";
+import { isValidSiteCopy } from "../../site-copy.mjs";
 import { isValidDriveUploadMode } from "./upload-mode.mjs";
 
 function json(response, status, body) {
@@ -11,7 +12,7 @@ function json(response, status, body) {
   response.end(JSON.stringify(body));
 }
 
-async function readJson(request, maxBytes = 8 * 1024) {
+async function readJson(request, maxBytes = 32 * 1024) {
   const chunks = [];
   let size = 0;
   for await (const chunk of request) {
@@ -69,6 +70,7 @@ export function createAdminSettingsApi({ repository }) {
 
     try {
       const body = await readJson(request);
+      const hasSiteCopy = Object.hasOwn(body, "siteCopy");
       const hasWheelEnabled = Object.hasOwn(body, "processWheelEnabled");
       const hasWheelVisibleCount = Object.hasOwn(
         body,
@@ -80,6 +82,18 @@ export function createAdminSettingsApi({ repository }) {
         "pinnedPhotoIdsByProcess",
       );
       const hasDriveUploadMode = Object.hasOwn(body, "driveUploadMode");
+
+      if (hasSiteCopy) {
+        if (!isValidSiteCopy(body.siteCopy)) {
+          json(response, 422, {
+            error: "siteCopy must contain all supported Chinese and English text fields",
+            code: "INVALID_SETTING",
+          });
+          return true;
+        }
+        json(response, 200, await repository.setSiteCopy(body.siteCopy));
+        return true;
+      }
 
       if (hasDriveUploadMode) {
         if (!isValidDriveUploadMode(body.driveUploadMode)) {
