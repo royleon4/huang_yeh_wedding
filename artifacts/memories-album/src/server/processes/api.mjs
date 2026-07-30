@@ -13,6 +13,8 @@ function publicProcess(process) {
     labelZh: process.labelZh,
     labelEn: process.labelEn,
     displayOrder: process.displayOrder,
+    youtubeVideoId: process.youtubeVideoId ?? null,
+    youtubeAutoplay: Boolean(process.youtubeAutoplay),
     syncState: process.syncState,
     lastSyncedAt: process.lastSyncedAt,
   };
