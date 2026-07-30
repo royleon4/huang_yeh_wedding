@@ -23,6 +23,8 @@ export function toPublicPhoto(photo) {
     collection:
       photo.collection ?? (photo.source === "guest" ? "guest" : "wedding"),
     albumIds: [...(photo.albumIds ?? [])],
+    displayName: photo.displayName ?? photo.originalFilename ?? "",
+    originalFilename: photo.originalFilename ?? "",
     uploaderName: photo.uploaderName ?? null,
     processIds: photo.processIds ?? [],
     createdAt: photo.createdAt,
