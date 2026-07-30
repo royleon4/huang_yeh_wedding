@@ -6,6 +6,10 @@ import {
   MEMORIES_ADMIN_SESSION_PATH,
   canonicalAdminRequestPath,
 } from "../admin-route-paths.mjs";
+import {
+  verifyBatchPersistence,
+  verifyMutationPersistence,
+} from "./admin-persistence.mjs";
 
 function timeoutError() {
   const error = new Error("伺服器回應逾時");
@@ -126,15 +130,15 @@ async function persistAlbumSummaryChanges(payload, body, options) {
       continue;
     }
     try {
-      await fetchAdminJson(
-        `/admin/api/albums/${encodeURIComponent(result.id)}`,
-        {
-          ...options,
-          method: "PATCH",
-          body: { showSummary: summaryChanges.get(String(result.id)) },
-          form: undefined,
-        },
-      );
+      const path = `/admin/api/albums/${encodeURIComponent(result.id)}`;
+      const patch = { showSummary: summaryChanges.get(String(result.id)) };
+      const saved = await fetchAdminJson(path, {
+        ...options,
+        method: "PATCH",
+        body: patch,
+        form: undefined,
+      });
+      verifyMutationPersistence(path, "PATCH", patch, saved);
     } catch (error) {
       failed += 1;
       results[index] = {
@@ -169,15 +173,15 @@ async function persistUploaderChanges(payload, body, options) {
       continue;
     }
     try {
-      await fetchAdminJson(
-        `/admin/api/photos/${encodeURIComponent(result.id)}/uploader`,
-        {
-          ...options,
-          method: "PATCH",
-          body: { uploaderName: uploaderChanges.get(String(result.id)) },
-          form: undefined,
-        },
-      );
+      const path = `/admin/api/photos/${encodeURIComponent(result.id)}/uploader`;
+      const patch = { uploaderName: uploaderChanges.get(String(result.id)) };
+      const saved = await fetchAdminJson(path, {
+        ...options,
+        method: "PATCH",
+        body: patch,
+        form: undefined,
+      });
+      verifyMutationPersistence(path, "PATCH", patch, saved);
     } catch (error) {
       failed += 1;
       results[index] = {
@@ -241,6 +245,9 @@ export async function adminRequest(
     if (method === "PATCH" && path === "/admin/api/changes") {
       payload = await persistAlbumSummaryChanges(payload, body, options);
       payload = await persistUploaderChanges(payload, body, options);
+      payload = verifyBatchPersistence(payload, body);
+    } else {
+      payload = verifyMutationPersistence(path, method, body, payload);
     }
     return payload;
   })();
@@ -296,6 +303,9 @@ export function adminErrorMessage(error) {
   }
   if (error?.code === "REQUEST_TIMEOUT") {
     return "伺服器回應逾時，請再試一次。";
+  }
+  if (error?.code === "PERSISTENCE_MISMATCH") {
+    return error.message || "伺服器未確認變更已儲存，請再試一次。";
   }
   if (error?.status === 429 || error?.code === "RATE_LIMITED") {
     return "登入嘗試次數過多，請稍後再試。";
