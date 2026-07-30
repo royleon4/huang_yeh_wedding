@@ -1,7 +1,10 @@
 /* Keep every process editor on the same readable, single-column rhythm as "全部流程". */
 .admin-category-row {
+  display: grid !important;
+  width: 100%;
   grid-template-columns: minmax(0, 1fr) !important;
   align-items: stretch !important;
+  justify-items: stretch !important;
 }
 
 .admin-category-row > *,
@@ -13,6 +16,7 @@
   grid-column: 1 / -1 !important;
   grid-row: auto !important;
   min-width: 0;
+  max-width: none !important;
 }
 
 .admin-category-row .admin-order-number {
