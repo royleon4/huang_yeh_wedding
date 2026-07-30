@@ -8,6 +8,8 @@ import { uploadOriginalSingleRequest } from "./storage/single-request-upload.mjs
 import { createGuestUploadApi } from "./uploads/api.mjs";
 import { PostgresDurableUploadRepository } from "./uploads/durable-repository.mjs";
 import { createImageProcessor } from "./uploads/image-processor.mjs";
+import { createGuestBatchManagementApi } from "./uploads/management-api.mjs";
+import { PostgresUploadManagementRepository } from "./uploads/management-repository.mjs";
 import { PostgresProcessRepository } from "./processes/repository.mjs";
 import { DriveProcessSynchronizer } from "./processes/sync.mjs";
 import { createProcessApi } from "./processes/api.mjs";
@@ -77,6 +79,7 @@ async function createRuntime(env) {
     return repository.findPhotoForAdmin(photoId);
   };
   const durableUploadRepository = new PostgresDurableUploadRepository(pool);
+  const uploadManagementRepository = new PostgresUploadManagementRepository(pool);
   const processRepository = new PostgresProcessRepository(pool);
   const processContentRepository = new PostgresProcessContentRepository(pool);
   const settingsRepository = new PostgresSettingsRepository(pool);
@@ -126,6 +129,22 @@ async function createRuntime(env) {
     thumbnailService,
   });
 
+  const guestUploadApi = createGuestUploadApi({
+    repository,
+    durableUploadRepository,
+    processRepository,
+    drive,
+    imageProcessor,
+    thumbnailService,
+  });
+  const guestBatchManagementApi = createGuestBatchManagementApi({
+    repository: uploadManagementRepository,
+  });
+  const uploadApi = async (request, response, url) => {
+    if (await guestBatchManagementApi(request, response, url)) return true;
+    return guestUploadApi(request, response, url);
+  };
+
   let backfillPromise = null;
   const runThumbnailBackfill = () => {
     if (backfillPromise) return backfillPromise;
@@ -163,6 +182,7 @@ async function createRuntime(env) {
     pool,
     repository,
     durableUploadRepository,
+    uploadManagementRepository,
     processRepository,
     processContentRepository,
     settingsRepository,
@@ -208,14 +228,7 @@ async function createRuntime(env) {
     adminSettingsApi: createAdminSettingsApi({
       repository: settingsRepository,
     }),
-    uploadApi: createGuestUploadApi({
-      repository,
-      durableUploadRepository,
-      processRepository,
-      drive,
-      imageProcessor,
-      thumbnailService,
-    }),
+    uploadApi,
     processApi: createProcessApi({
       repository: processRepository,
       contentRepository: processContentRepository,
