@@ -1,0 +1,33 @@
+name: Apply mobile media fix
+
+on:
+  push:
+    branches: [fix-mobile-media-editor-and-filenames]
+    paths:
+      - "artifacts/memories-album/scripts/apply-mobile-media-fix.mjs"
+      - ".github/workflows/apply-mobile-media-fix.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix-mobile-media-editor-and-filenames
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - run: node artifacts/memories-album/scripts/apply-mobile-media-fix.mjs
+      - name: Commit patched files
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add artifacts/memories-album/src/server/process-content/api.mjs \
+                  artifacts/memories-album/src/client/RichTextEditor.jsx \
+                  artifacts/memories-album/test/rich-text-formatting-ui.test.mjs
+          git commit -m "Fix attachment filenames and mobile media editing"
+          git push origin HEAD:fix-mobile-media-editor-and-filenames
