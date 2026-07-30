@@ -16,6 +16,7 @@ import "./photo-lightbox.css";
 import "./feature-controls.css";
 import "./bottom-collection-nav.css";
 import "./admin.css";
+import "./admin-responsive-layout.css";
 import "./admin-feature-settings.css";
 import "./gallery-tweaks.css";
 import "./process-rich-content.css";
