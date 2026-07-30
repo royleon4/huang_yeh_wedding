@@ -46,6 +46,7 @@ test("administrators can add and edit albums while visitors only see visible alb
       displayOrder: 1,
       isVisible: true,
       isSystem: true,
+      showSummary: true,
     },
   ]);
   const adminApi = createAdminAlbumApi({
@@ -94,6 +95,7 @@ test("administrators can add and edit albums while visitors only see visible alb
         displayOrder: 2,
         isVisible: true,
         isSystem: false,
+        showSummary: true,
       },
     });
 
@@ -109,11 +111,14 @@ test("administrators can add and edit albums while visitors only see visible alb
         body: JSON.stringify({
           titleZh: "交往回憶",
           isVisible: false,
+          showSummary: false,
         }),
       },
     );
     assert.equal(updated.status, 200);
-    assert.equal((await updated.json()).album.titleZh, "交往回憶");
+    const updatedAlbum = (await updated.json()).album;
+    assert.equal(updatedAlbum.titleZh, "交往回憶");
+    assert.equal(updatedAlbum.showSummary, false);
 
     const adminList = await fetch(`${origin}/admin/api/albums`, {
       headers: { Cookie: cookie },
@@ -135,6 +140,7 @@ test("administrators can add and edit albums while visitors only see visible alb
           descriptionZh: "",
           descriptionEn: "",
           displayOrder: 1,
+          showSummary: true,
         },
       ],
     });
