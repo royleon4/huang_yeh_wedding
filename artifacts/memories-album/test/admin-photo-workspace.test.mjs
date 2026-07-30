@@ -36,7 +36,8 @@ test("admin transforms replace only the old add-photo tab and preserve photo edi
 
   assert.match(code, /import AdminPhotoWorkspace/);
   assert.match(code, /<AdminPhotoWorkspace/);
-  assert.match(code, /renderPhoto=\{\(photo\) =>/);
+  assert.match(code, /renderPhoto=\{\(photo, photoBusy = false\) =>/);
+  assert.match(code, /setPhotoDrafts=\{setPhotoDrafts\}/);
   assert.match(code, /<PhotoEditor/);
   assert.match(code, /mergeAdminPhotos\(current, photoData\.photos\)/);
   assert.match(code, /deletion\.deletedIds/);
