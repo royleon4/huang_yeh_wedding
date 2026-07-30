@@ -47,6 +47,13 @@ function videoSettings(body, existing = null) {
   return { youtubeVideoId, youtubeAutoplay };
 }
 
+async function saveVideoSettings(repository, category, settings) {
+  if (typeof repository.updateProcessVideo === "function") {
+    return repository.updateProcessVideo(category.id, settings);
+  }
+  return { ...category, ...settings };
+}
+
 export function createAdminCategoryApi({
   repository,
   synchronizer,
@@ -91,8 +98,9 @@ export function createAdminCategoryApi({
           labelZh: normalizeLabel(body.labelZh, { required: true }),
           labelEn: normalizeLabel(body.labelEn),
         });
-        category = await repository.updateProcessVideo(
-          category.id,
+        category = await saveVideoSettings(
+          repository,
+          category,
           videoSettings(body),
         );
         sendAdminJson(response, 201, {
@@ -125,8 +133,9 @@ export function createAdminCategoryApi({
             labelEn,
           );
         }
-        category = await repository.updateProcessVideo(
-          id,
+        category = await saveVideoSettings(
+          repository,
+          category,
           videoSettings(body, category),
         );
         sendAdminJson(response, 200, {
