@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { adminErrorMessage, adminRequest } from "./admin-client.mjs";
+import AdminRefreshButton from "./AdminRefreshButton.jsx";
 import RichTextEditor from "./RichTextEditor.jsx";
 
 const EMPTY_CONTENT = {
@@ -326,6 +327,12 @@ function ProcessContentPanel({ processKey, special = false }) {
       )}
       <div className="all-process-actions">
         <span>固定在最上層，不參與其他分類的排序。</span>
+        <AdminRefreshButton
+          scopeType="album"
+          scopeId="wedding"
+          label={content.labelZh || "全部流程"}
+          disabled={busy}
+        />
         <button type="button" onClick={() => void save()} disabled={busy}>
           {busy ? "儲存中…" : "儲存全部流程"}
         </button>
