@@ -2,7 +2,7 @@
 
 這是 **黃律詠與葉藝慧** 的婚禮專案。Repository 同時保存原有婚禮邀請網站，以及獨立部署、獨立儲存、獨立 API 的 **Memories 婚禮照片檔案館**。
 
-> 文件基準：2026-07-29 最新 `main`。管理後台正式路徑是 `/Memories/admin/`；管理密碼的 Replit Production Secret 名稱是 `MEMORIES_ADMIN_TOKEN`。
+> 文件基準：2026-07-30 的 `main`。Memories 正式路徑是 `/Memories/`，管理後台是 `/Memories/admin/`，管理密碼的 Replit Secret 名稱是 `MEMORIES_ADMIN_TOKEN`。
 
 ## 婚禮資訊
 
@@ -10,94 +10,134 @@
 - 地點：德光長老教會
 - 形式：結婚感恩禮拜
 
-## 最重要的系統邊界
+## 最重要的專案邊界
 
 Repository 內有兩套彼此隔離的照片系統：
 
 1. 原有婚禮邀請網站與 legacy 相片牆。
-2. Standalone Memories 婚禮照片檔案館。
+2. 新的 standalone Memories 相簿。
 
-除非 repo owner 明確核准，Memories 開發不得修改、匯入或共用 legacy 相片 API、Object Storage 或邀請網站前端。`artifacts/wedding-invitation/**` 與 legacy `/api/photos*` 由 CI 邊界測試保護。
+除非 repo owner 明確核准，Memories 開發不得修改、匯入或共用 legacy 邀請網站的相片 API、Object Storage 或前端程式。`artifacts/wedding-invitation/**` 與 legacy `/api/photos*` 是受 CI 保護的邊界。
 
 ## Repository 結構
 
-| 路徑 | 用途 | 規則 |
+| 路徑 | 用途 | 維護規則 |
 | --- | --- | --- |
 | `artifacts/wedding-invitation` | 原有婚禮邀請網站與 legacy 相片牆 | Memories 工作不得修改 |
-| `artifacts/api-server` | 原有網站 API，包含 legacy `/api/photos*` | Memories 不可共用或改寫 |
-| `artifacts/memories-album` | React、Vite、Node HTTP API、PostgreSQL、Google Drive | Memories 主程式 |
-| `artifacts/mockup-sandbox` | 元件與版面預覽 | 不屬於 production runtime |
-| `docs/memories` | Drive、部署、migration、故障排除 | 核心規格改動時同步更新 |
-| `.agents/memory` | Agent 長期規則與已確認架構 | 必須與 `main` 保持一致 |
-| `.github/workflows` | 測試、build、production smoke、legacy boundary | PR 必須通過 |
+| `artifacts/api-server` | 原有網站 API，包含 legacy `/api/photos*` | 不可被 Memories 共用或改寫 |
+| `artifacts/memories-album` | React + Vite、Node HTTP API、PostgreSQL 與 Google Drive | Memories 主要程式碼 |
+| `artifacts/mockup-sandbox` | 元件與版面預覽 | 不屬於正式 runtime |
+| `docs/memories` | 架構、Drive、migration、部署與故障排除 | 必須與程式一致 |
+| `.agents/memory` | 專案 agent 長期規則與已確認事實 | 核心架構變更時同步更新 |
+| `.github/workflows` | Memories CI 與 legacy 邊界檢查 | PR 必須通過 |
 
 ## 正式路徑
 
 | 路徑 | 用途 |
 | --- | --- |
 | `/` | 原有婚禮邀請網站 |
-| `/Memories/` | 公開照片檔案館 |
-| `/memories/...` | 小寫相容路徑，轉址至 `/Memories/...` |
-| `/Memories/api/health` | 輕量 healthcheck；不初始化完整 Drive／DB runtime |
-| `/Memories/api/photos*` | 公開照片列表、縮圖及原圖串流 |
-| `/Memories/api/upload-batches*` | 訪客上傳批次與逐張上傳 |
-| `/Memories/manage/:batchId` | 私人批次管理保留路徑；完整 UI／API 尚未完成 |
+| `/Memories/` | 公開婚禮照片檔案館 |
+| `/memories/...` | 小寫相容路徑，轉址到 `/Memories/...` |
+| `/Memories/api/health` | 獨立健康檢查；不初始化完整 Drive runtime |
+| `/Memories/api/photos` | 公開照片清單與 cursor API |
+| `/Memories/api/photos/:id/thumbnail` | 受控縮圖串流與修復 |
+| `/Memories/api/photos/:id/media` | 受控原圖串流 |
+| `/Memories/api/processes` | 婚禮流程、順序與公開影片設定 |
+| `/Memories/api/upload-batches` | 建立訪客上傳批次 |
+| `/Memories/api/upload-batches/:id/photos` | 每次上傳一張照片 |
+| `/Memories/manage/:batchId` | 私人批次管理預留路徑；功能尚未完成 |
 | `/Memories/admin/login` | 管理員登入 |
 | `/Memories/admin/` | 管理後台 |
-| `/Memories/admin/api/session` | 登入、session 檢查、登出 |
-| `/Memories/admin/api/changes` | 管理後台「儲存所有變更」patch-style batch API |
-| `/Memories/admin/api/albums*` | 相簿管理 API |
-| `/Memories/admin/api/photos*` | 照片讀取、上傳與編輯 API |
-| `/Memories/admin/api/categories*` | Drive-backed 流程分類 API |
-| `/admin...` | 舊路徑相容 redirect；不可作為正式文件路徑 |
+| `/Memories/admin/api/changes` | 管理端全域 patch-style 儲存 |
+| `/Memories/admin/api/photos/:id` `DELETE` | 永久刪除單張照片 |
+| `/Memories/admin/api/*` | session、相簿、照片、分類與影片 API |
+| `/admin...` | 舊路徑相容 redirect，不是正式路徑 |
 
-Replit path router 將 `/Memories/admin`、`/Memories`、小寫相容路徑及舊 `/admin` alias 交給 Memories 服務的 port 19316；healthcheck 使用 `/Memories/api/health`。
+Replit path router 將 `/Memories/admin`、`/Memories`、小寫相容路徑與舊 `/admin` alias 交給 `artifacts/memories-album` 的 19316 服務；healthcheck 使用 `/Memories/api/health`。
 
-## 已實作功能
+## 目前已實作功能
 
 ### 公開照片牆
 
-- 手機優先的照片牆與全螢幕 lightbox。
+- 手機優先照片牆與全螢幕 lightbox。
 - 依 PostgreSQL `created_at ASC, id ASC` 由早到晚排序。
-- Drive 匯入時間優先順序：圖片拍攝時間 → Drive 建立時間 → Drive 修改時間。
-- 顯示順序為由左至右、由上而下。
-- 細格 CSS Grid 搭配實際卡片高度計算 row span，盡量填補不同長寬比造成的空缺。
-- 上方重複四格導覽已隱藏；主要相簿切換保留在固定底部導覽。
-- 切換相簿或流程後自動捲至照片牆起點。
-- 標題在約 3.5 秒內連點五次會檢查 admin session；已登入前往 `/Memories/admin/`，未登入前往 `/Memories/admin/login`。
+- Drive 匯入時間優先順序：拍攝時間 → Drive 建立時間 → Drive 修改時間。
+- 顯示順序由左至右、由上而下。
+- 細格 CSS Grid 搭配卡片自然高度計算 row span，盡量填補空缺且不裁切照片。
+- iPhone／Safari 重新排版不再先清空全部 row span；只有寬度變化才全體重排，並保留可見照片錨點。
+- 上方重複四格導覽已隱藏；主要相簿切換保留於固定底部導覽。
+- 切換相簿或流程後自動捲到照片牆起點。
+- 標題約 3.5 秒內連點五次會檢查管理員 session。
 - 繁體中文與英文介面。
+
+### 訪客姓名子分類
+
+「訪客上傳」相簿不需要管理員手工建立子分類。前端會依公開照片中的 `uploaderName` 自動產生：
+
+```text
+全部訪客 (總張數)
+小安 (12)
+阿慧 (7)
+```
+
+姓名會先做 Unicode NFKC 與空白正規化；相同姓名合併計數。點擊姓名只顯示該訪客上傳的照片。
 
 ### 訪客上傳
 
 - 姓名必填。
-- 每批最多選擇 30 張照片，每張最多 25 MB。
+- 訪客介面不再提供婚禮流程或生活照分類選擇；上傳後依姓名自動分組。
+- 每批最多 30 張，每張最多 25 MB。
 - 支援 JPEG、PNG、WebP、HEIC、HEIF。
-- 前端逐張上傳，顯示單張及整體進度，可暫停並繼續未完成照片。
-- 每張照片使用穩定 client upload ID；相同批次重試不會重複建立 Drive 檔案。
-- `memories_upload_items` 使用 durable lease 防止同一張照片同時重複處理。
-- `sharp` 驗證圖片、正規化方向、移除 metadata、產生 WebP 縮圖。
+- 前端逐張上傳，顯示單張與整體進度，可暫停並續傳未完成照片。
+- 每張使用穩定 client upload ID；重試不會重複建立 Drive 檔案。
+- `memories_upload_items` durable lease 防止同一張照片同時重複處理。
+- `sharp` 驗證、方向正規化、移除 metadata、產生 WebP 縮圖。
 - Drive 429／5xx 使用有上限的 exponential backoff。
-- 批次回傳私人 management token；資料庫僅保存 hash，原始 token 放在 URL fragment。
+- 批次回傳私人 management token；資料庫只保存 hash，原始 token 放在 URL fragment。
+
+### 流程 YouTube 影片
+
+- 每個婚禮流程可在管理後台設定一個 YouTube 網址。
+- 伺服器只保存驗證後的 11 字元 video ID 與 autoplay boolean。
+- 支援一般 watch、`youtu.be`、embed、Shorts 與 live URL。
+- 前端只有在訪客選取該流程、且流程有影片時才顯示 iframe。
+- 影片置於照片集第一個位置；沒有影片時不產生空容器。
+- 手機為完整一行、16:9、置中；影片後立即接 divider，再接照片牆，不保留額外 padding。
+- 使用 `youtube-nocookie.com` privacy-enhanced embed。
+- 自動播放選項會加入 `autoplay=1&mute=1&playsinline=1`，以符合多數手機瀏覽器政策；瀏覽器仍可自行阻止 autoplay。
+- CSP 的 `frame-src` 只允許 `https://www.youtube-nocookie.com`。
 
 ### 管理後台
 
 - 使用 `MEMORIES_ADMIN_TOKEN` 登入。
-- 密碼只透過登入 POST 的 Bearer header 傳送，不保存至 browser storage。
-- 成功後取得 30 分鐘、HMAC 簽章的 `HttpOnly; Secure; SameSite=Strict` cookie，path 限定 `/Memories/admin`。
+- 密碼只透過登入 POST 的 Bearer header 傳送，不保存於 browser storage。
+- 登入成功取得 30 分鐘、HMAC 簽章的 `HttpOnly; Secure; SameSite=Strict` cookie，path 限定 `/Memories/admin`。
 - 登入失敗限制保存於 PostgreSQL，可跨 Replit Autoscale instance 共用。
 - 可新增及編輯相簿。
 - 可新增、改名及排序 Google Drive 流程分類。
+- 可替每個流程設定／清除 YouTube 影片與靜音自動播放。
 - 可上傳單張正式照片。
 - 可編輯照片顯示名稱、拍攝時間、公開狀態、相簿與流程分類。
 - 管理員覆寫拍攝時間／相簿歸屬會留下 override flag，Drive reconciliation 不會覆蓋。
-- 跨分頁編輯先保存為本機 React draft，不會每改一欄就寫入伺服器。
-- 固定底部列顯示待儲存操作數，按一次「儲存所有變更」才提交。
-- JSON 變更透過 `PATCH /Memories/admin/api/changes` 批次處理；只送真正改變的欄位。
-- 每個 operation 都有獨立結果；成功項目從草稿移除，失敗項目保留以便重試。
-- 新照片是 binary multipart，因此在 JSON change batch 後個別上傳；失敗檔案仍保留選取狀態。
-- 離開、重新載入或登出前會保護尚未儲存的變更。
+- 跨分頁編輯先保存為 React draft，最後按一次「儲存所有變更」。
+- `PATCH /Memories/admin/api/changes` 只傳送真正有變動的欄位。
+- 每個 operation 有獨立結果；成功草稿移除，失敗草稿保留供重試。
+- 新照片是 multipart binary，在 JSON change batch 後個別上傳。
+- 離開、重新整理或登出前會保護尚未儲存的變更。
 
-目前重建後台尚未提供照片單張／批次刪除、相簿刪除、分類刪除、七天垃圾桶、復原及到期清除。
+### 永久刪除照片
+
+管理員照片卡片提供紅色垃圾桶按鈕。確認後：
+
+1. 刪除 Google Drive WebP 縮圖。
+2. 刪除 Google Drive 原圖。
+3. 清除 durable upload item 對照片與 Drive file 的引用。
+4. 刪除照片的流程與相簿關聯。
+5. 刪除 `memories_photos` 資料列。
+
+此操作立即生效、不可復原。Drive 回傳 404 代表檔案本來就不存在，仍可繼續清資料庫；其他 Drive 錯誤會停止資料庫刪除，讓管理員修復後重試。
+
+目前仍未提供批次刪除、相簿刪除、分類刪除、七天垃圾桶、復原與到期清除。
 
 ## 系統總覽
 
@@ -106,12 +146,13 @@ flowchart TB
   Visitor[訪客瀏覽器]
   Admin[管理員瀏覽器]
   Router[Replit path router]
-  Legacy[婚禮邀請網站]
+  Legacy[Legacy 婚禮邀請網站]
   LegacyAPI[Legacy API]
   Memories[Standalone Memories\nReact/Vite + Node HTTP]
   DB[(PostgreSQL)]
   Connector[Replit Google Drive Integration]
   Drive[(Google Drive\n原圖／縮圖／流程資料夾)]
+  YouTube[YouTube no-cookie embed]
 
   Visitor --> Router
   Admin --> Router
@@ -120,199 +161,117 @@ flowchart TB
   Router -->|/Memories/*| Memories
   Memories --> DB
   Memories --> Connector --> Drive
+  Visitor -->|選取有影片的流程| YouTube
 ```
 
-## 公開照片讀取邏輯鏈
-
-```mermaid
-sequenceDiagram
-  participant B as 瀏覽器
-  participant A as Memories API
-  participant P as PostgreSQL
-  participant D as Google Drive
-
-  B->>A: GET /Memories/api/photos?collection=...
-  A->>P: 查詢 public 照片、相簿、流程及時間
-  P-->>A: opaque ID、尺寸、cursor
-  A-->>B: thumbnailUrl / mediaUrl
-  B->>A: GET /Memories/api/photos/:id/thumbnail
-  A->>P: 取得 server-only Drive reference
-  A->>D: 下載縮圖
-  alt 縮圖缺失／損壞
-    A->>D: 修復或重建縮圖
-    alt 仍不可用
-      A->>D: 暫時串流原圖並使用 no-store
-    end
-  end
-  A-->>B: 受控圖片回應
-```
-
-瀏覽器不會收到 Drive file ID、folder ID、Drive URL、Connector 回應或 OAuth token。
-
-## 訪客上傳邏輯鏈
-
-```mermaid
-flowchart TD
-  Form[姓名、分類、最多 30 張]
-  Batch[建立 upload batch]
-  BatchDB[(memories_upload_batches)]
-  Queue[前端逐張 queue]
-  Parse[Busboy 單張 multipart]
-  Image[sharp 驗證／正規化／WebP]
-  Lease[(memories_upload_items\nclaim／lease／retry)]
-  Original[Drive 訪客上傳原圖]
-  Thumb[Drive 系統縮圖]
-  PhotoDB[(memories_photos\n相簿／流程關聯)]
-  Gallery[公開照片牆]
-
-  Form --> Batch --> BatchDB
-  Batch --> Queue --> Parse --> Image --> Lease
-  Lease -->|不存在才建立| Original
-  Lease -->|不存在才建立| Thumb
-  Original --> PhotoDB
-  Thumb --> PhotoDB --> Gallery
-```
-
-## Drive reconciliation 邏輯鏈
-
-```mermaid
-flowchart TD
-  Root[MEMORIES_DRIVE_PHOTOS_FOLDER_ID]
-  Ensure[ensureStructure]
-  Reserved[00 未分類／訪客上傳／生活照／系統縮圖]
-  Numbered[掃描 NN 流程資料夾]
-  Processes[(memories_processes)]
-  Scan[掃描流程、root 及保留資料夾圖片]
-  Photos[(memories_photos\nprocess／album relationships)]
-  Backfill[thumbnail backfill]
-  Timer[預設每 5 分鐘\n最低 1 分鐘]
-
-  Root --> Ensure --> Reserved
-  Ensure --> Numbered --> Processes
-  Reserved --> Scan
-  Numbered --> Scan --> Photos --> Backfill
-  Timer --> Ensure
-```
-
-規則：
-
-- 編號 Drive 資料夾是流程名稱及順序的主要來源。
-- 後台分類新增、改名、排序會先寫 Drive，再更新 PostgreSQL。
-- 正式照片重新分類會 move 原始 Drive 檔案，不複製。
-- 訪客原圖固定留在 `訪客上傳`；其 wedding／life 歸屬是邏輯分類。
-- Drive 中消失的流程資料夾會在資料庫停用。
-- 現行 reconciliation **不會**自動把手動從 Drive 刪除的照片 row 改為 hidden／trashed；PostgreSQL public row、另一份縮圖或瀏覽器 cache 仍可能存在。
-
-## 管理員登入邏輯鏈
-
-```mermaid
-sequenceDiagram
-  participant B as 瀏覽器
-  participant S as Session API
-  participant R as PostgreSQL rate-limit store
-
-  B->>S: POST /Memories/admin/api/session\nBearer 密碼
-  S->>S: 確認 MEMORIES_ADMIN_TOKEN
-  S->>R: claim client hash
-  alt 超過限制
-    S-->>B: 429 RATE_LIMITED
-  else limiter／DB 失敗
-    S-->>B: 503 ADMIN_RATE_LIMIT_UNAVAILABLE
-  else 密碼錯誤
-    S-->>B: 401 UNAUTHORIZED
-  else 正確
-    S->>R: 清除失敗紀錄
-    S-->>B: 200 + 30 分鐘 HttpOnly cookie
-    B->>B: 前往 /Memories/admin/
-  end
-```
-
-登入 endpoint 不需要 Google Drive runtime。`ADMIN_TOKEN_NOT_CONFIGURED` 代表 Published App 沒有讀到 `MEMORIES_ADMIN_TOKEN`。
-
-## 管理員「儲存所有變更」邏輯鏈
-
-```mermaid
-flowchart TD
-  Edit[在相簿／照片／分類分頁編輯]
-  Draft[React local draft state]
-  Count[固定底列顯示 pending operation count]
-  Save[按 儲存所有變更]
-  Build[比較原始資料，只建立 changed fields]
-  Patch[PATCH /Memories/admin/api/changes]
-  Ops[逐項執行 album／category／photo／order operation]
-  Drive[需要時先操作 Google Drive]
-  DB[(更新 PostgreSQL)]
-  Results[回傳每項 success／failure]
-  Clear[清除成功 draft]
-  Keep[保留失敗 draft 供重試]
-  Upload[JSON batch 後再上傳選取的新照片]
-
-  Edit --> Draft --> Count --> Save --> Build --> Patch --> Ops
-  Ops --> Drive --> DB --> Results
-  Ops --> DB --> Results
-  Results --> Clear
-  Results --> Keep
-  Save --> Upload
-```
-
-## 資料來源與責任
-
-| 資料 | 保存／主要來源 | 說明 |
-| --- | --- | --- |
-| 原始照片 | Google Drive | 官方照片在流程、`00 未分類`、root 或 `生活照`；訪客在 `訪客上傳` |
-| WebP 縮圖 | Drive `系統縮圖` | 公開牆優先讀取，可按需修復 |
-| visibility、排序、處理狀態 | PostgreSQL | 公開 API 只查 `visibility = public` |
-| 流程名稱／順序 | 編號 Drive folder，鏡像至 PostgreSQL | Drive ID 不出 server |
-| 系統／自訂相簿 | PostgreSQL | 系統相簿：wedding、guest、life |
-| Upload batch／token hash | PostgreSQL | 原始 management token 不存明文 |
-| Durable upload state | PostgreSQL | 防重複與安全續傳 |
-| 管理草稿 | 瀏覽器 React state | 尚未按「儲存所有變更」不寫入 server |
-| 管理密碼 | Replit Production Secret | 必須名為 `MEMORIES_ADMIN_TOKEN` |
-| 管理 session | HttpOnly cookie | 30 分鐘，path `/Memories/admin` |
-
-## PostgreSQL migration 與主要資料表
-
-Migration 來源是 `artifacts/memories-album/db/001_...sql` 至 `009_...sql`；不可使用 Drizzle push 取代。
-
-| 資料表 | 用途 |
-| --- | --- |
-| `memories_schema_migrations` | migration filename、checksum、套用時間 |
-| `memories_upload_batches` | 訪客資料、分類、management token hash、狀態 |
-| `memories_upload_items` | stable upload ID、lease、Drive IDs、錯誤及完成狀態 |
-| `memories_processes` | 流程名稱、順序、Drive folder、sync state |
-| `memories_photos` | opaque UUID、Drive references、hash、尺寸、visibility、時間、overrides |
-| `memories_photo_processes` | 照片與流程關聯 |
-| `memories_drive_sync_runs` | Drive sync run schema |
-| `memories_app_settings` | JSONB UI 設定 |
-| `memories_albums` | 系統及自訂相簿 |
-| `memories_photo_albums` | 照片與相簿關聯 |
-| `memories_admin_login_failures` | 跨 instance 登入限流 |
-
-Migration runner 會檢查 checksum、使用 PostgreSQL advisory lock、只執行 pending files；production 只有在 migration 成功後才 listen。`postMerge` 使用同一套 runner 更新 development database，避免 Replit 誤產生破壞性 DROP。
-
-## Replit 部署邏輯鏈
+## 訪客分類邏輯鏈
 
 ```mermaid
 flowchart LR
-  Merge[合併 main]
-  Dev[postMerge\ninstall + development db:migrate]
-  Publish[Replit Publish]
-  Build[Vite build + package server/db]
-  Start[node dist/server.mjs]
-  ProdMig[production db:migrate]
-  Listen[listen 19316]
-  Health[/Memories/api/health = 200]
-  Route[router 導流]
+  Upload[訪客填寫姓名並上傳]
+  DB[(memories_photos.uploader_name)]
+  Read[公開照片 API]
+  Normalize[NFKC + 合併空白]
+  Group[依姓名分組並計數]
+  Chips[姓名 (張數)]
+  Filter[只顯示該姓名照片]
 
-  Merge --> Dev
-  Merge --> Publish --> Build --> Start --> ProdMig --> Listen --> Health --> Route
+  Upload --> DB --> Read --> Normalize --> Group --> Chips --> Filter
 ```
 
-若 Replit migration 預覽要 DROP Memories tables／columns：取消 deployment、執行 tracked `db:migrate` 更新 development schema、不要用 development data 覆蓋 production，再重新 Publish。
+## 流程影片邏輯鏈
 
-## 環境設定
+```mermaid
+sequenceDiagram
+  participant A as 管理後台
+  participant API as Category API
+  participant DB as PostgreSQL
+  participant B as 訪客瀏覽器
+  participant Y as youtube-nocookie.com
 
-必要的 Production Secrets：
+  A->>API: YouTube URL + autoplay
+  API->>API: 驗證來源並抽出 video ID
+  API->>DB: 保存 video ID / autoplay
+  B->>API: GET /Memories/api/processes
+  API-->>B: 流程與公開影片設定
+  B->>B: 訪客選取單一流程
+  alt 有 video ID
+    B->>Y: 載入 privacy-enhanced iframe
+    B->>B: 顯示 divider，再顯示照片
+  else 無影片
+    B->>B: 直接顯示照片
+  end
+```
+
+## 永久刪除邏輯鏈
+
+```mermaid
+flowchart TD
+  Confirm[管理員確認永久刪除]
+  Auth[驗證 admin session + mutate header]
+  Find[讀取照片 Drive references]
+  Thumb[刪除縮圖]
+  Original[刪除原圖]
+  Durable[清除 durable upload references]
+  Relations[刪除 process / album 關聯]
+  Row[刪除 memories_photos]
+  UI[後台移除照片卡片]
+
+  Confirm --> Auth --> Find --> Thumb --> Original --> Durable --> Relations --> Row --> UI
+```
+
+## Google Drive 與 PostgreSQL 責任
+
+| 資料 | 主要來源／保存位置 | 說明 |
+| --- | --- | --- |
+| 原圖 | Google Drive | 官方照片在流程、未分類或生活照；訪客原圖在 `訪客上傳` |
+| WebP 縮圖 | Google Drive `系統縮圖` | 公開照片牆優先讀取 |
+| 公開／隱藏狀態 | PostgreSQL | 公開 API 只查 `visibility = public` |
+| 排序時間 | PostgreSQL `memories_photos.created_at` | 可由管理員覆寫 |
+| 訪客姓名分組 | PostgreSQL `uploader_name`，前端衍生 | 不建立 Drive 子資料夾 |
+| 流程名稱與順序 | 編號 Google Drive 資料夾，鏡像至 PostgreSQL | Drive folder ID 不傳給瀏覽器 |
+| 流程 YouTube 設定 | PostgreSQL `memories_processes` | Drive reconciliation 不覆蓋 |
+| 系統／自訂相簿 | PostgreSQL | 系統相簿為 wedding、guest、life |
+| 上傳批次與 token hash | PostgreSQL | 原始 token 不保存明文 |
+| durable upload state | PostgreSQL | 防止重試建立重複檔案 |
+| 管理密碼 | Replit Production Secret | `MEMORIES_ADMIN_TOKEN` |
+| 管理 session | HttpOnly cookie | 30 分鐘，path `/Memories/admin` |
+
+## Drive reconciliation
+
+- `01 名稱`、`02 名稱` 等編號資料夾是婚禮流程名稱與順序主要來源。
+- 後台新增、改名、排序分類時先操作 Drive，再更新 PostgreSQL。
+- 正式照片改流程時會 move 原始 Drive 檔，不會複製。
+- 訪客原圖固定保留在 `訪客上傳`。
+- Drive 中消失的流程資料夾會在資料庫停用。
+- 流程 YouTube 設定由 PostgreSQL 擁有，Drive 同步不會覆蓋。
+- 目前 Drive reconciliation 不會自動將手動刪除的照片紀錄改成 hidden／trashed。
+
+因此，手動從 Drive 刪檔不等於完整網站刪除；請使用管理後台永久刪除。
+
+## PostgreSQL migrations
+
+Migration 來源是 `artifacts/memories-album/db/001_...sql` 至 `010_...sql`，不是 Drizzle schema push。
+
+Migration 010 新增：
+
+```text
+memories_processes.youtube_video_id
+memories_processes.youtube_autoplay
+```
+
+Runner 規則：
+
+- 依檔名排序，只套用尚未記錄的 SQL。
+- 已套用 migration checksum 若改變，啟動失敗；已發布 migration 不可修改。
+- 使用 PostgreSQL advisory lock，避免多 instance 同時套用。
+- Production server 在 migration 成功後才 listen。
+- Replit `postMerge` 對 development 執行同一套 `db:migrate`。
+- **不得使用 `drizzle-kit push` 管理 Memories tables。**
+
+若 Replit 預覽出現破壞性 `DROP TABLE`／`DROP COLUMN`：取消 deployment、對 development 執行 tracked migration，再重新 Publish；不要用 development data 覆蓋 production。
+
+## 必要 Production 設定
 
 ```text
 DATABASE_URL
@@ -320,7 +279,7 @@ MEMORIES_DRIVE_PHOTOS_FOLDER_ID
 MEMORIES_ADMIN_TOKEN
 ```
 
-此外 Published App 必須連接 Replit Google Drive Integration。
+Published App 亦必須連接 Replit Google Drive Integration。
 
 選填：
 
@@ -333,7 +292,7 @@ MEMORIES_TRUST_PROXY=1
 MEMORIES_SKIP_MIGRATIONS=1
 ```
 
-`MEMORIES_DRIVE_THUMBNAILS_FOLDER_ID` 是 legacy override；正常情況由 runtime 建立／發現 `系統縮圖`。Secret、真實 Drive ID、管理密碼及 OAuth 憑證不得提交到 GitHub 或前端。
+Secret、真實 Drive folder ID、管理密碼與 OAuth 憑證不得提交到 GitHub、`.replit` 或前端 bundle。
 
 ## 開發與驗證
 
@@ -349,33 +308,37 @@ pnpm --filter @workspace/memories-album db:migrate
 pnpm --filter @workspace/memories-album test:drive-live
 ```
 
-每個 Memories PR 應通過：Node tests、Vite production build、`dist/server.mjs` health smoke，以及 legacy boundary workflow。
+每個 Memories PR 應通過：
+
+1. Node test runner 全套測試。
+2. Vite production build。
+3. 啟動 `dist/server.mjs` 並確認 `/Memories/api/health`。
+4. Memories legacy boundary workflow。
+
+`test:drive-live` 只可在已連接 Google Drive Integration、並使用安全測試資料夾的 Replit 環境執行。
 
 ## 常見錯誤
 
-| 代碼／現象 | 意思 | 處理 |
+| 現象／代碼 | 意思 | 處理方式 |
 | --- | --- | --- |
-| `ADMIN_TOKEN_NOT_CONFIGURED` | Published App 沒有 `MEMORIES_ADMIN_TOKEN` | 精確設定 Secret 後重新 Publish |
-| `ADMIN_RATE_LIMIT_UNAVAILABLE` | PostgreSQL limiter／table 失敗 | 檢查 `DATABASE_URL`、migration 009、DB log |
-| PostgreSQL `42P01` | table 不存在 | 執行 tracked migrations |
-| `DRIVE_AUTHORIZATION_REQUIRED` | Connector 401／403 | 重新連接 Integration、確認 folder 編輯權限 |
-| `DRIVE_RETRYABLE` | Connector／Drive 429 或 5xx | 稍後安全重試、檢查呼叫頻率 |
-| thumbnail batch 12 全失敗 | 第一批預設 12 張均未成功 | 先修共同授權／連線問題 |
-| Drive 刪除後仍顯示 | DB public row／縮圖／cache 仍存在 | 不把手動 Drive 刪除視為完整網站刪除 |
-| 首次 runtime 失敗後持續 503 | rejected initialization Promise 可能被快取 | 修正後 restart／re-publish |
-| 儲存所有變更部分失敗 | API 回傳逐項結果 | 成功草稿已清除；保留失敗草稿修正後重試 |
+| `ADMIN_TOKEN_NOT_CONFIGURED` | Published App 沒讀到 `MEMORIES_ADMIN_TOKEN` | 檢查 Secret 精確名稱並重新 Publish |
+| `ADMIN_RATE_LIMIT_UNAVAILABLE` | PostgreSQL 限流表／連線失敗 | 檢查 DB 與 migration 009 |
+| `INVALID_YOUTUBE_URL` | 後台輸入不是支援的 YouTube URL／ID | 改用 watch、youtu.be、embed、Shorts 或 live URL |
+| `DRIVE_AUTHORIZATION_REQUIRED` | Connector 收到 401／403 | 重連 Integration 並確認資料夾權限 |
+| `DRIVE_RETRYABLE` | Drive／Connector 429 或 5xx | 稍後重試並檢查 timeout／頻率 |
+| Drive 刪除後網站仍顯示 | PostgreSQL public row、縮圖或 cache 還在 | 使用管理後台永久刪除 |
+| YouTube iframe 不顯示 | video ID 無效、CSP 舊部署或平台阻擋 | 重新 Publish 最新版本並檢查瀏覽器 Console |
 
 ## 尚未完成／已知限制
 
-- `/Memories/manage/:batchId` 私人管理／撤回 UI 與 API。
-- 管理後台照片單張／批次刪除、相簿刪除、分類刪除。
-- 七天垃圾桶、復原及到期清除。
-- 手動 Drive 刪除圖片後自動停用 PostgreSQL photo row。
+- `/Memories/manage/:batchId` 私人批次管理與撤回 UI／API。
+- 管理後台批次刪除、相簿刪除、分類刪除。
+- 七天垃圾桶、復原與到期清除。
+- 手動從 Drive 刪除圖片後自動停用 PostgreSQL 照片紀錄。
 - 初次 runtime 初始化失敗後免重啟恢復。
-- 真正按需的 server cursor 分頁；部分前端仍預取全部頁面。
-- 部分 frontend 仍使用 document-wide observer／hidden DOM bridge。
-- 完整 iOS Safari、Android Chrome、Instagram WebView、橫向及慢網實機驗收。
-- People／Find-me／人臉處理屬 Phase 2。
+- 真正按需的 server cursor 分頁；部分前端仍會預取多頁。
+- iOS Safari、Android Chrome、Instagram／LINE 內建瀏覽器與慢速網路的完整實機驗收。
+- 人物分類與自拍找照片屬於 Phase 2。
 
 ---
 
