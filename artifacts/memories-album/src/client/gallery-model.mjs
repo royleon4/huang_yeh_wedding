@@ -31,6 +31,27 @@ function collectionForPhoto(photo) {
   return photo.collection ?? (photo.source === "guest" ? "guest" : "wedding");
 }
 
+export function normalizedUploaderName(value) {
+  return String(value ?? "")
+    .normalize("NFKC")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+export function guestUploaderGroups(photos) {
+  const counts = new Map();
+  for (const photo of photos ?? []) {
+    const albumIds = Array.isArray(photo.albumIds) ? photo.albumIds : [];
+    if (!albumIds.includes("guest") && photo.source !== "guest") continue;
+    const name = normalizedUploaderName(photo.uploaderName);
+    if (!name) continue;
+    counts.set(name, (counts.get(name) ?? 0) + 1);
+  }
+  return [...counts.entries()]
+    .map(([name, count]) => ({ id: name, name, count }))
+    .sort((left, right) => left.name.localeCompare(right.name, "zh-Hant"));
+}
+
 export function filterPhotos(
   photos,
   filterId = "all",
@@ -43,8 +64,27 @@ export function filterPhotos(
     if (collectionId === "guest") return photo.source === "guest";
     return collectionForPhoto(photo) === collectionId;
   });
-  if (collectionId !== "wedding" || filterId === "all") return inCollection;
-  return inCollection.filter((photo) => photo.processIds.includes(filterId));
+  if (filterId === "all") return inCollection;
+  if (collectionId === "wedding") {
+    return inCollection.filter((photo) => photo.processIds.includes(filterId));
+  }
+  if (collectionId === "guest") {
+    return inCollection.filter(
+      (photo) => normalizedUploaderName(photo.uploaderName) === filterId,
+    );
+  }
+  return inCollection;
+}
+
+export function youtubeEmbedUrl(videoId, autoplay = false) {
+  const normalized = String(videoId ?? "").trim();
+  if (!/^[A-Za-z0-9_-]{11}$/.test(normalized)) return "";
+  const query = new URLSearchParams({ rel: "0", playsinline: "1" });
+  if (autoplay) {
+    query.set("autoplay", "1");
+    query.set("mute", "1");
+  }
+  return `https://www.youtube-nocookie.com/embed/${normalized}?${query}`;
 }
 
 export function pagePhotos(photos, pageSize, cursor = 0) {
