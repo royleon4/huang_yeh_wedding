@@ -174,6 +174,7 @@ async function handleStandaloneApi(
         ) {
           sendJson(response, 200, {
             primaryNavigationVisible: false,
+            guestUploadCategorySelectionEnabled: true,
             degraded: true,
             storageError: boundedStorageError(error).code,
           });
@@ -260,6 +261,7 @@ export async function handleRequest(request, response, options) {
       if (await runtime.adminAlbumApi?.(request, response, url)) return;
       if (await runtime.adminCategoryApi?.(request, response, url)) return;
       if (await runtime.adminPhotoApi?.(request, response, url)) return;
+      if (await runtime.adminSettingsApi?.(request, response, url)) return;
     } catch (error) {
       console.warn("Memories administrator API unavailable", {
         name: error instanceof Error ? error.name : "UnknownError",
