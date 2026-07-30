@@ -42,7 +42,7 @@ export function guestUploaderGroups(photos) {
   const counts = new Map();
   for (const photo of photos ?? []) {
     const albumIds = Array.isArray(photo.albumIds) ? photo.albumIds : [];
-    if (!albumIds.includes("guest") && photo.source !== "guest") continue;
+    if (!albumIds.includes("guest")) continue;
     const name = normalizedUploaderName(photo.uploaderName);
     if (!name) continue;
     counts.set(name, (counts.get(name) ?? 0) + 1);
