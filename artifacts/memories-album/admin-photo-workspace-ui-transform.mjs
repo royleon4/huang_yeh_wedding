@@ -43,6 +43,58 @@ function replacePhotoTab(source) {
   return `${source.slice(0, start)}${replacement}${source.slice(end)}`;
 }
 
+function transformDeleteFlow(source) {
+  let code = replaceOnce(
+    source,
+    `      \`確定永久刪除「\${photo.displayName || photo.originalFilename}」嗎？\\n\\n原圖、縮圖與資料庫紀錄都會立即刪除，無法復原。\`,`,
+    `      \`確定永久刪除「\${photo.displayName || photo.originalFilename}」嗎？\\n\\n若同一張照片同時存在多個相簿或流程分類，所有位置都會一起刪除。原圖、縮圖與資料庫紀錄將立即刪除，無法復原。\`,`,
+    "permanent deletion confirmation",
+  );
+
+  code = replaceOnce(
+    code,
+    `      await adminRequest(\`/admin/api/photos/\${encodeURIComponent(photo.id)}\`, {
+        method: "DELETE",
+        timeoutMs: 120_000,
+      });
+      setPhotos((current) => current.filter((item) => item.id !== photo.id));
+      setPhotoDrafts((current) => {
+        const next = { ...current };
+        delete next[photo.id];
+        return next;
+      });
+      setMessage("照片已永久刪除。");`,
+    `      const deletion = await adminRequest(
+        \`/admin/api/photos/\${encodeURIComponent(photo.id)}\`,
+        {
+          method: "DELETE",
+          timeoutMs: 120_000,
+        },
+      );
+      const deletedIds = new Set(
+        Array.isArray(deletion.deletedIds) && deletion.deletedIds.length > 0
+          ? deletion.deletedIds
+          : [photo.id],
+      );
+      setPhotos((current) =>
+        current.filter((item) => !deletedIds.has(item.id)),
+      );
+      setPhotoDrafts((current) => {
+        const next = { ...current };
+        for (const deletedId of deletedIds) delete next[deletedId];
+        return next;
+      });
+      setMessage(
+        deletedIds.size > 1
+          ? \`同一張照片的 \${deletedIds.size} 筆分類紀錄已全部永久刪除。\`
+          : "照片已從所有相簿與流程分類永久刪除。",
+      );`,
+    "photo family deletion response",
+  );
+
+  return code;
+}
+
 function transformUploadModal(source) {
   let code = replaceOnce(
     source,
@@ -105,6 +157,7 @@ export function adminPhotoWorkspaceUiTransform() {
         `    setPhotos((current) => mergeAdminPhotos(current, photoData.photos));`,
         "canonical photo merge",
       );
+      code = transformDeleteFlow(code);
       code = replacePhotoTab(code);
       return { code, map: null };
     },
