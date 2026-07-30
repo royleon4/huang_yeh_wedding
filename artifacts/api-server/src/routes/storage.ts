@@ -1,20 +1,31 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import { Readable } from "stream";
-import { z } from "zod";
 import { ObjectStorageService, ObjectNotFoundError } from "../lib/objectStorage";
-import { ObjectPermission } from "../lib/objectAcl";
 
-const RequestUploadUrlBody = z.object({
-  name: z.string().trim().min(1),
-  size: z.number().int().nonnegative(),
-  contentType: z.string().trim().min(1),
-});
+interface UploadMetadata {
+  name: string;
+  size: number;
+  contentType: string;
+}
 
-const RequestUploadUrlResponse = z.object({
-  uploadURL: z.string().url(),
-  objectPath: z.string().min(1),
-  metadata: RequestUploadUrlBody,
-});
+function parseUploadMetadata(value: unknown): UploadMetadata | null {
+  if (typeof value !== "object" || value === null) return null;
+  const candidate = value as Record<string, unknown>;
+  const name = typeof candidate.name === "string" ? candidate.name.trim() : "";
+  const contentType =
+    typeof candidate.contentType === "string" ? candidate.contentType.trim() : "";
+  const size = candidate.size;
+  if (
+    !name ||
+    !contentType ||
+    typeof size !== "number" ||
+    !Number.isSafeInteger(size) ||
+    size < 0
+  ) {
+    return null;
+  }
+  return { name, size, contentType };
+}
 
 const router: IRouter = Router();
 const objectStorageService = new ObjectStorageService();
@@ -27,25 +38,21 @@ const objectStorageService = new ObjectStorageService();
  * Then uploads the file directly to the returned presigned URL.
  */
 router.post("/storage/uploads/request-url", async (req: Request, res: Response) => {
-  const parsed = RequestUploadUrlBody.safeParse(req.body);
-  if (!parsed.success) {
+  const metadata = parseUploadMetadata(req.body);
+  if (!metadata) {
     res.status(400).json({ error: "Missing or invalid required fields" });
     return;
   }
 
   try {
-    const { name, size, contentType } = parsed.data;
-
     const uploadURL = await objectStorageService.getObjectEntityUploadURL();
     const objectPath = objectStorageService.normalizeObjectEntityPath(uploadURL);
 
-    res.json(
-      RequestUploadUrlResponse.parse({
-        uploadURL,
-        objectPath,
-        metadata: { name, size, contentType },
-      }),
-    );
+    res.json({
+      uploadURL,
+      objectPath,
+      metadata,
+    });
   } catch (error) {
     req.log.error({ err: error }, "Error generating upload URL");
     res.status(500).json({ error: "Failed to generate upload URL" });
@@ -136,7 +143,5 @@ router.get("/storage/objects/*path", async (req: Request, res: Response) => {
     res.status(500).json({ error: "Failed to serve object" });
   }
 });
-
-void ObjectPermission;
 
 export default router;
