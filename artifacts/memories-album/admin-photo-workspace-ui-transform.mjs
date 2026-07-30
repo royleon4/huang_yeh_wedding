@@ -151,8 +151,14 @@ export function adminPhotoWorkspaceUiTransform() {
       let code = replaceOnce(
         source,
         `import "./admin-save-bar.css";`,
-        `import "./admin-save-bar.css";\nimport AdminPhotoWorkspace, { mergeAdminPhotos } from "./AdminPhotoWorkspace.jsx";`,
+        `import "./admin-save-bar.css";\nimport LazyImage from "./LazyImage.jsx";\nimport AdminPhotoWorkspace, { mergeAdminPhotos } from "./AdminPhotoWorkspace.jsx";`,
         "AdminApp stylesheet import",
+      );
+      code = replaceOnce(
+        code,
+        `        <img src={photo.thumbnailUrl} alt="" loading="lazy" />`,
+        `        <LazyImage\n          src={photo.thumbnailUrl}\n          alt=""\n          width={photo.width}\n          height={photo.height}\n        />`,
+        "administrator photo lazy preview",
       );
       code = replaceOnce(
         code,
