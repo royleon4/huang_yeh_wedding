@@ -1,0 +1,131 @@
+/*
+ * Global text-label contract
+ *
+ * Text-bearing controls must show their complete label. When the available
+ * width is too small, labels wrap instead of being clipped or replaced by an
+ * ellipsis. Icon-only controls keep their existing dimensions because these
+ * rules affect text flow, not fixed icon sizing.
+ */
+
+:where(
+  button,
+  [role="button"],
+  [role="tab"],
+  [role="option"],
+  summary,
+  label,
+  .ui-label,
+  [data-wrap-label],
+  [class*="-label"],
+  [class*="-badge"],
+  [class*="-chip"]
+) {
+  min-width: 0;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: normal;
+}
+
+/* Remove the legacy one-line/ellipsis treatment from visible UI labels. */
+:where(
+  .nav-card span,
+  .section-heading > p,
+  .photo-card footer span,
+  .photo-card footer small,
+  .process-wheel-item strong,
+  .bottom-nav-side small,
+  .general-setting-heading > span,
+  .selector-mode-preview i,
+  .admin-photo-summary-label,
+  .admin-photo-preview span,
+  .pinned-selected-card strong,
+  .pinned-selected-card span,
+  .pinned-candidate-grid span
+) {
+  min-width: 0;
+  max-width: 100%;
+  overflow: visible !important;
+  text-overflow: clip !important;
+  white-space: normal !important;
+  overflow-wrap: anywhere;
+  word-break: normal;
+}
+
+/* Traditional subgroup chips remain horizontally scrollable, but an
+   individual long label wraps within a viewport-bounded chip. */
+.process-chip {
+  max-width: min(20rem, calc(100vw - 2rem));
+  flex-wrap: wrap;
+  justify-content: center;
+  text-align: center;
+  line-height: 1.4;
+}
+
+.process-chip > span {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
+/* Wheel cards grow with wrapped text. The focus frame follows the tallest
+   wheel row instead of retaining the previous fixed single-line height. */
+.process-wheel-focus {
+  height: auto !important;
+  bottom: 1.55rem;
+}
+
+.process-wheel-item strong {
+  display: block;
+  line-height: 1.35;
+}
+
+/* Bottom navigation labels may occupy multiple lines. Reserve enough page
+   space for the common two-line case while allowing the bar itself to grow. */
+:root {
+  --memories-bottom-nav-height: 6.6rem;
+}
+
+.bottom-collection-nav {
+  align-items: stretch;
+}
+
+.bottom-nav-side button {
+  min-height: 4.45rem;
+  height: auto;
+  padding-block: 0.35rem;
+}
+
+.bottom-nav-side small {
+  display: block;
+  line-height: 1.25;
+}
+
+/* Grid tabs and administration tabs grow vertically rather than clipping. */
+.collection-tab,
+.nav-card,
+.admin-tabs button {
+  height: auto;
+  line-height: 1.4;
+}
+
+/* Badges and preview labels should be allowed to consume their available row. */
+.general-setting-heading > span {
+  max-width: 100%;
+  text-align: center;
+}
+
+.selector-mode-preview {
+  align-items: stretch;
+}
+
+.selector-mode-preview i {
+  display: grid;
+  place-items: center;
+  line-height: 1.35;
+}
+
+.admin-photo-summary-label,
+.pinned-candidate-grid span,
+.pinned-selected-card strong,
+.pinned-selected-card span {
+  line-height: 1.4;
+}

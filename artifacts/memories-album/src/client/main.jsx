@@ -21,6 +21,7 @@ import "./admin-feature-settings.css";
 import "./gallery-tweaks.css";
 import "./process-rich-content.css";
 import "./batch-management.css";
+import "./label-wrapping.css";
 
 class MemoriesErrorBoundary extends Component {
   constructor(props) {
