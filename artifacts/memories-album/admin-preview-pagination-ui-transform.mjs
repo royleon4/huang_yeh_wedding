@@ -20,6 +20,13 @@ function transformAdminApp(source) {
 function transformAdminWorkspace(source) {
   let code = replaceOnce(
     source,
+    `import "./admin-photo-workspace.css";`,
+    `import "./admin-photo-workspace.css";\nimport "./admin-photo-pagination.css";`,
+    "administrator photo pagination stylesheet",
+  );
+
+  code = replaceOnce(
+    code,
     `const query = new URLSearchParams({ limit: "50" });`,
     `const query = new URLSearchParams({ limit: "10" });`,
     "filtered administrator photo page size",
