@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 import {
-  ADMIN_UPLOAD_LIMIT_OPTIONS,
-  GUEST_UPLOAD_LIMIT_OPTIONS,
+  MAX_SUPPORTED_UPLOAD_PHOTOS,
+  MIN_UPLOAD_PHOTOS,
   UPLOAD_DESCRIPTION_MAX_LENGTH,
+  isValidAdminUploadMaxPhotos,
+  isValidGuestUploadMaxPhotos,
   normalizeUploadSettings,
 } from "../upload-settings.mjs";
 import { adminErrorMessage, adminRequest } from "./admin-client.mjs";
@@ -36,6 +38,12 @@ function descriptionsEqual(left, right) {
   return left?.zh === right?.zh && left?.en === right?.en;
 }
 
+function limitHelpText(valid) {
+  return valid
+    ? `可輸入 ${MIN_UPLOAD_PHOTOS}～${MAX_SUPPORTED_UPLOAD_PHOTOS} 的整數。`
+    : `請輸入 ${MIN_UPLOAD_PHOTOS}～${MAX_SUPPORTED_UPLOAD_PHOTOS} 的整數。`;
+}
+
 export default function DriveUploadModeSettings() {
   const initial = useMemo(() => normalizedCardSettings({}), []);
   const [saved, setSaved] = useState(initial);
@@ -45,6 +53,12 @@ export default function DriveUploadModeSettings() {
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
 
+  const guestLimitValid = isValidGuestUploadMaxPhotos(
+    draft.guestUploadMaxPhotos,
+  );
+  const adminLimitValid = isValidAdminUploadMaxPhotos(
+    draft.adminUploadMaxPhotos,
+  );
   const changedFields = [
     draft.driveUploadMode !== saved.driveUploadMode,
     draft.guestUploadMaxPhotos !== saved.guestUploadMaxPhotos,
@@ -83,6 +97,12 @@ export default function DriveUploadModeSettings() {
     setError("");
   };
 
+  const updateLimit = (key, value) => {
+    updateDraft({
+      [key]: value === "" ? "" : Number(value),
+    });
+  };
+
   const updateDescription = (language, value) => {
     setDraft((current) => ({
       ...current,
@@ -97,24 +117,32 @@ export default function DriveUploadModeSettings() {
 
   const save = async () => {
     if (saving || !changed) return { succeeded: 0 };
+    if (!guestLimitValid || !adminLimitValid) {
+      const validationError = `上傳張數必須是 ${MIN_UPLOAD_PHOTOS}～${MAX_SUPPORTED_UPLOAD_PHOTOS} 的整數。`;
+      setError(validationError);
+      throw new Error(validationError);
+    }
+
     setSaving(true);
     setMessage("");
     setError("");
     try {
+      const guestUploadMaxPhotos = Number(draft.guestUploadMaxPhotos);
+      const adminUploadMaxPhotos = Number(draft.adminUploadMaxPhotos);
       const result = await adminRequest("/admin/api/settings", {
         method: "PATCH",
         body: {
           driveUploadMode: draft.driveUploadMode,
-          guestUploadMaxPhotos: draft.guestUploadMaxPhotos,
-          adminUploadMaxPhotos: draft.adminUploadMaxPhotos,
+          guestUploadMaxPhotos,
+          adminUploadMaxPhotos,
           uploadDescription: draft.uploadDescription,
         },
       });
       const echoed = normalizedCardSettings(result);
       const verified =
         result.driveUploadMode === draft.driveUploadMode &&
-        Number(result.guestUploadMaxPhotos) === draft.guestUploadMaxPhotos &&
-        Number(result.adminUploadMaxPhotos) === draft.adminUploadMaxPhotos &&
+        Number(result.guestUploadMaxPhotos) === guestUploadMaxPhotos &&
+        Number(result.adminUploadMaxPhotos) === adminUploadMaxPhotos &&
         descriptionsEqual(result.uploadDescription, draft.uploadDescription);
       if (!verified) {
         throw new Error("伺服器沒有完整回傳已儲存的上傳設定，草稿已保留。");
@@ -152,7 +180,7 @@ export default function DriveUploadModeSettings() {
       </div>
 
       <p className="admin-section-note">
-        在同一張卡片管理 Google Drive 傳送方式、訪客與管理員一次可選的照片數量，以及上傳介面顯示的中英文說明。數量只允許使用經過測試的選項。
+        在同一張卡片管理 Google Drive 傳送方式、訪客與管理員一次可選的照片數量，以及上傳介面顯示的中英文說明。張數可自由輸入安全範圍內的整數。
       </p>
 
       {loading ? (
@@ -189,37 +217,41 @@ export default function DriveUploadModeSettings() {
             <div className="upload-limit-grid">
               <label>
                 訪客上傳
-                <select
+                <input
+                  type="number"
+                  min={MIN_UPLOAD_PHOTOS}
+                  max={MAX_SUPPORTED_UPLOAD_PHOTOS}
+                  step="1"
+                  inputMode="numeric"
                   value={draft.guestUploadMaxPhotos}
                   onChange={(event) =>
-                    updateDraft({ guestUploadMaxPhotos: Number(event.target.value) })
+                    updateLimit("guestUploadMaxPhotos", event.target.value)
                   }
+                  aria-invalid={!guestLimitValid}
                   disabled={saving}
-                >
-                  {GUEST_UPLOAD_LIMIT_OPTIONS.map((value) => (
-                    <option key={value} value={value}>
-                      每次最多 {value} 張
-                    </option>
-                  ))}
-                </select>
-                <small>可選 10 或 100 張。</small>
+                />
+                <small className={guestLimitValid ? "" : "error"}>
+                  {limitHelpText(guestLimitValid)}
+                </small>
               </label>
               <label>
                 管理員後台上傳
-                <select
+                <input
+                  type="number"
+                  min={MIN_UPLOAD_PHOTOS}
+                  max={MAX_SUPPORTED_UPLOAD_PHOTOS}
+                  step="1"
+                  inputMode="numeric"
                   value={draft.adminUploadMaxPhotos}
                   onChange={(event) =>
-                    updateDraft({ adminUploadMaxPhotos: Number(event.target.value) })
+                    updateLimit("adminUploadMaxPhotos", event.target.value)
                   }
+                  aria-invalid={!adminLimitValid}
                   disabled={saving}
-                >
-                  {ADMIN_UPLOAD_LIMIT_OPTIONS.map((value) => (
-                    <option key={value} value={value}>
-                      每次最多 {value} 張
-                    </option>
-                  ))}
-                </select>
-                <small>可選 30 或 100 張。</small>
+                />
+                <small className={adminLimitValid ? "" : "error"}>
+                  {limitHelpText(adminLimitValid)}
+                </small>
               </label>
             </div>
           </div>
