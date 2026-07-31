@@ -1,0 +1,154 @@
+.admin-accordion {
+  width: 100%;
+  display: block;
+  overflow: hidden;
+  border: 1px solid var(--admin-line);
+  border-radius: 1rem;
+  background: var(--admin-card);
+  box-shadow: 0 0.8rem 2rem rgba(31, 53, 45, 0.06);
+}
+
+.admin-accordion > summary {
+  list-style: none;
+}
+
+.admin-accordion > summary::-webkit-details-marker {
+  display: none;
+}
+
+.admin-accordion-summary {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.55rem 0.9rem;
+  min-height: 3.8rem;
+  padding: 0.85rem 1rem;
+  color: var(--admin-ink);
+  cursor: pointer;
+  user-select: none;
+}
+
+.admin-accordion-summary::before {
+  content: "▶";
+  color: var(--admin-green);
+  font-size: 0.78rem;
+  transform-origin: center;
+  transition: transform 160ms ease;
+}
+
+.admin-accordion[open] > .admin-accordion-summary::before {
+  transform: rotate(90deg);
+}
+
+.admin-accordion[open] > .admin-accordion-summary {
+  border-bottom: 1px solid var(--admin-line);
+  background: rgba(49, 91, 73, 0.035);
+}
+
+.admin-accordion-summary:focus-visible {
+  outline: 3px solid rgba(49, 91, 73, 0.28);
+  outline-offset: -3px;
+}
+
+.admin-accordion-title {
+  min-width: 0;
+  font-weight: 800;
+  overflow-wrap: anywhere;
+}
+
+.admin-accordion-secondary,
+.admin-accordion-meta {
+  min-width: 0;
+  color: var(--admin-muted);
+  font-size: 0.78rem;
+  overflow-wrap: anywhere;
+}
+
+.admin-accordion-meta {
+  justify-self: end;
+  white-space: nowrap;
+}
+
+.admin-accordion-number {
+  color: var(--admin-gold);
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+.admin-accordion-body,
+.admin-accordion-content {
+  padding: 1rem;
+}
+
+.admin-editor-card.admin-accordion {
+  display: block;
+  gap: 0;
+  padding: 0;
+}
+
+.admin-album-editor-form,
+.admin-accordion-content.admin-category-row {
+  display: grid;
+  gap: 1rem;
+}
+
+.admin-create-accordion,
+.admin-photo-upload-accordion,
+.admin-refresh-accordion {
+  margin-bottom: 1.3rem;
+}
+
+.admin-create-accordion .admin-create-card,
+.admin-photo-upload-accordion .admin-photo-batch-card {
+  margin: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  padding: 0;
+  box-shadow: none;
+}
+
+.admin-refresh-management.admin-accordion {
+  padding: 0;
+}
+
+.admin-category-summary {
+  grid-template-columns: auto auto minmax(0, 1fr) minmax(0, 1fr);
+}
+
+.admin-category-accordion .admin-category-row {
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: end;
+}
+
+@media (min-width: 700px) {
+  .admin-category-accordion .admin-category-row {
+    grid-template-columns: auto minmax(0, 1fr) minmax(0, 1fr) auto;
+  }
+}
+
+@media (max-width: 699px) {
+  .admin-accordion-summary,
+  .admin-category-summary {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .admin-accordion-summary .admin-accordion-secondary,
+  .admin-accordion-summary .admin-accordion-meta {
+    grid-column: 2;
+    justify-self: start;
+    white-space: normal;
+  }
+
+  .admin-category-summary .admin-accordion-number {
+    grid-row: 1 / span 2;
+    align-self: start;
+    padding-top: 0.1rem;
+  }
+
+  .admin-category-summary::before {
+    grid-row: 1 / span 2;
+    align-self: start;
+    margin-top: 0.2rem;
+  }
+}
