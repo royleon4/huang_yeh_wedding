@@ -5,6 +5,10 @@ import {
 import { normalizePinnedPhotosByProcess } from "../../pinned-photo-settings.mjs";
 import { normalizeSiteCopy } from "../../site-copy.mjs";
 import {
+  normalizeStoredSiteIcon,
+  siteIconMetadata,
+} from "../../site-icon.mjs";
+import {
   DEFAULT_UPLOAD_SETTINGS,
   normalizeUploadDescription,
 } from "../../upload-settings.mjs";
@@ -37,6 +41,7 @@ const GALLERY_MEDIA_ORDER_KEY = "gallery_media_order";
 const PINNED_PHOTOS_BY_PROCESS_KEY = "pinned_photos_by_process";
 const DRIVE_UPLOAD_MODE_KEY = "drive_upload_mode";
 const SITE_COPY_KEY = "site_copy";
+const SITE_ICON_KEY = "site_icon";
 const GUEST_UPLOADER_LABELS_VISIBLE_KEY = "guest_uploader_labels_visible";
 const GUEST_LABEL_VISIBILITY_STORAGE_KEYS = Object.freeze({
   [GUEST_LABEL_VISIBILITY_KEYS.latest]:
@@ -76,6 +81,11 @@ function driveUploadModeSetting(rows) {
 function siteCopySetting(rows) {
   const row = rows.find((item) => item.key === SITE_COPY_KEY);
   return normalizeSiteCopy(row?.value);
+}
+
+function siteIconSetting(rows) {
+  const row = rows.find((item) => item.key === SITE_ICON_KEY);
+  return normalizeStoredSiteIcon(row?.value);
 }
 
 function uploadDescriptionSetting(rows) {
@@ -159,6 +169,7 @@ export class PostgresSettingsRepository {
           PINNED_PHOTOS_BY_PROCESS_KEY,
           DRIVE_UPLOAD_MODE_KEY,
           SITE_COPY_KEY,
+          SITE_ICON_KEY,
           GUEST_UPLOADER_LABELS_VISIBLE_KEY,
           ...Object.values(GUEST_LABEL_VISIBILITY_STORAGE_KEYS),
           GUEST_UPLOADER_LABEL_ORDER_KEY,
@@ -203,6 +214,7 @@ export class PostgresSettingsRepository {
       pinnedPhotoIdsByProcess: pinnedPhotosSetting(result.rows),
       driveUploadMode: driveUploadModeSetting(result.rows),
       siteCopy: siteCopySetting(result.rows),
+      siteIcon: siteIconMetadata(siteIconSetting(result.rows)),
       ...guestLabelVisibilitySettings(result.rows),
       guestUploaderLabelOrder: guestUploaderLabelOrderSetting(
         result.rows,
@@ -227,6 +239,17 @@ export class PostgresSettingsRepository {
       [DRIVE_UPLOAD_MODE_KEY],
     );
     return driveUploadModeSetting(result.rows);
+  }
+
+  async getSiteIcon() {
+    const result = await this.pool.query(
+      `SELECT value
+       FROM memories_app_settings
+       WHERE key = $1
+       LIMIT 1`,
+      [SITE_ICON_KEY],
+    );
+    return normalizeStoredSiteIcon(result.rows[0]?.value);
   }
 
   async setPrimaryNavigationVisible(value) {
@@ -311,6 +334,22 @@ export class PostgresSettingsRepository {
 
   async setSiteCopy(value) {
     return this.setJson(SITE_COPY_KEY, "siteCopy", normalizeSiteCopy(value));
+  }
+
+  async setSiteIcon(value) {
+    const icon = normalizeStoredSiteIcon(value);
+    if (!icon) throw new TypeError("A valid normalized site icon is required");
+    await this.setJson(SITE_ICON_KEY, "siteIcon", icon);
+    return icon;
+  }
+
+  async clearSiteIcon() {
+    await this.pool.query(
+      `DELETE FROM memories_app_settings
+       WHERE key = $1`,
+      [SITE_ICON_KEY],
+    );
+    return null;
   }
 
   async setGuestUploaderLabelsVisible(value) {
