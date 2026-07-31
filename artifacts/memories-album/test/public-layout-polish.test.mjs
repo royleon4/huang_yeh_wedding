@@ -28,21 +28,35 @@ test("public hero removes the date divider and uses compact mobile spacing", asy
   assert.match(styles.code, /\.archive-subtitle:empty\s*\{\s*display: none/);
 });
 
-test("bottom album buttons keep a usable hit target with a tightly inset active chip", async () => {
-  const navigation = await transformed("src/client/bottom-collection-nav.css");
-  const appended = navigation.code.slice(navigation.source.length);
+test("bottom navigation is shorter while album buttons flex to nearly its full height", async () => {
+  const navigation = await readFile(
+    path.join(root, "src/client/bottom-collection-nav.css"),
+    "utf8",
+  );
 
-  assert.match(appended, /\.bottom-nav-side button/);
-  assert.match(appended, /flex: 0 0 auto/);
-  assert.match(appended, /min-width: 3\.55rem/);
-  assert.match(appended, /min-height: 2\.75rem/);
-  assert.match(appended, /padding: 0\.08rem 0\.34rem/);
-  assert.match(appended, /\.bottom-nav-side button\.active\s*\{\s*background: transparent/);
-  assert.match(appended, /\.bottom-nav-side button\.active::before/);
-  assert.match(appended, /inset: 0\.22rem 0\.12rem/);
-  assert.match(appended, /min-width: 3\.3rem/);
-  assert.match(appended, /inset: 0\.24rem 0\.08rem/);
-  assert.doesNotMatch(appended, /\.bottom-collection-nav\s*\{/);
-  assert.doesNotMatch(appended, /--memories-bottom-nav-height/);
-  assert.doesNotMatch(appended, /safe-area-inset/);
+  assert.match(
+    navigation,
+    /--memories-bottom-nav-height: clamp\(4\.35rem, 11\.5vw, 4\.75rem\)/,
+  );
+  assert.match(
+    navigation,
+    /grid-template-columns:[\s\S]*clamp\(4\.45rem, 12vw, 5\.25rem\)/,
+  );
+  assert.match(navigation, /\.bottom-nav-side\s*\{[\s\S]*align-items: stretch/);
+  assert.match(
+    navigation,
+    /flex: 1 1 clamp\(4rem, 18vw, 5\.3rem\)/,
+  );
+  assert.match(
+    navigation,
+    /min-height: calc\([\s\S]*var\(--memories-bottom-nav-height\)[\s\S]*var\(--memories-bottom-nav-block-padding\) \* 2/,
+  );
+  assert.match(navigation, /padding:[\s\S]*clamp\(0\.18rem, 0\.6vw, 0\.32rem\)/);
+  assert.match(navigation, /font-size: clamp\(1rem, 3vw, 1\.2rem\)/);
+  assert.match(navigation, /white-space: normal/);
+  assert.match(
+    navigation,
+    /@media \(max-width: 430px\)[\s\S]*--memories-bottom-nav-height: clamp\(4\.2rem, 18vw, 4\.55rem\)/,
+  );
+  assert.doesNotMatch(navigation, /bottom-nav-chip/);
 });

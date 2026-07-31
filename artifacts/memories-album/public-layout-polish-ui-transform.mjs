@@ -1,6 +1,5 @@
 const APP_SUFFIX = "/src/client/App.jsx";
 const STYLES_SUFFIX = "/src/client/styles.css";
-const BOTTOM_NAV_SUFFIX = "/src/client/bottom-collection-nav.css";
 
 const BOTANICAL_RULE = `        <div className="botanical-rule" aria-hidden="true">
           <span>❧</span>
@@ -43,55 +42,6 @@ const COMPACT_HERO_CSS = `
 }
 `;
 
-const COMPACT_ALBUM_BUTTON_CSS = `
-
-/* Keep a 44px touch target while making the visible album chip much tighter. */
-.bottom-nav-side button {
-  position: relative;
-  isolation: isolate;
-  flex: 0 0 auto;
-  min-width: 3.55rem;
-  min-height: 2.75rem;
-  gap: 0.06rem;
-  border-radius: 0.68rem;
-  padding: 0.08rem 0.34rem;
-}
-
-.bottom-nav-side button.active {
-  background: transparent;
-}
-
-.bottom-nav-side button.active::before {
-  content: "";
-  position: absolute;
-  inset: 0.22rem 0.12rem;
-  z-index: -1;
-  border-radius: 0.58rem;
-  background: rgba(219, 226, 213, 0.68);
-}
-
-.bottom-nav-icon {
-  font-size: 0.96rem;
-}
-
-.bottom-nav-side small {
-  font-size: 0.62rem;
-  line-height: 1.1;
-}
-
-@media (max-width: 430px) {
-  .bottom-nav-side button {
-    min-width: 3.3rem;
-    min-height: 2.75rem;
-    padding: 0.05rem 0.24rem;
-  }
-
-  .bottom-nav-side button.active::before {
-    inset: 0.24rem 0.08rem;
-  }
-}
-`;
-
 function removeBotanicalRule(source) {
   if (!source.includes(BOTANICAL_RULE)) {
     throw new Error("Public layout polish could not find the hero botanical rule");
@@ -110,9 +60,6 @@ export function publicLayoutPolishUiTransform() {
       }
       if (normalizedId.endsWith(STYLES_SUFFIX)) {
         return { code: `${source}${COMPACT_HERO_CSS}`, map: null };
-      }
-      if (normalizedId.endsWith(BOTTOM_NAV_SUFFIX)) {
-        return { code: `${source}${COMPACT_ALBUM_BUTTON_CSS}`, map: null };
       }
       return null;
     },

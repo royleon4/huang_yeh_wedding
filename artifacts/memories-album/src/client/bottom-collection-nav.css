@@ -1,5 +1,7 @@
 :root {
-  --memories-bottom-nav-height: 5.4rem;
+  --memories-bottom-nav-height: clamp(4.35rem, 11.5vw, 4.75rem);
+  --memories-bottom-nav-inline-padding: clamp(0.35rem, 1.5vw, 0.7rem);
+  --memories-bottom-nav-block-padding: clamp(0.22rem, 0.8vw, 0.34rem);
 }
 
 .collection-tabs,
@@ -33,25 +35,31 @@
   width: min(720px, 100%);
   min-height: var(--memories-bottom-nav-height);
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 5.4rem minmax(0, 1fr);
-  align-items: end;
+  grid-template-columns:
+    minmax(0, 1fr)
+    clamp(4.45rem, 12vw, 5.25rem)
+    minmax(0, 1fr);
+  align-items: stretch;
   transform: translateX(-50%);
   border: 1px solid rgba(53, 95, 77, 0.18);
   border-bottom: 0;
-  border-radius: 1.35rem 1.35rem 0 0;
+  border-radius: 1.2rem 1.2rem 0 0;
   background: rgba(252, 248, 240, 0.96);
-  padding: 0.55rem max(0.75rem, env(safe-area-inset-right))
-    max(0.45rem, env(safe-area-inset-bottom))
-    max(0.75rem, env(safe-area-inset-left));
-  box-shadow: 0 -14px 42px rgba(31, 58, 47, 0.16);
+  padding:
+    var(--memories-bottom-nav-block-padding)
+    max(var(--memories-bottom-nav-inline-padding), env(safe-area-inset-right))
+    max(var(--memories-bottom-nav-block-padding), env(safe-area-inset-bottom))
+    max(var(--memories-bottom-nav-inline-padding), env(safe-area-inset-left));
+  box-shadow: 0 -12px 34px rgba(31, 58, 47, 0.14);
   backdrop-filter: blur(20px);
 }
 
 .bottom-nav-side {
   min-width: 0;
+  min-height: 0;
   display: flex;
-  align-items: end;
-  gap: 0.25rem;
+  align-items: stretch;
+  gap: clamp(0.12rem, 0.6vw, 0.28rem);
   overflow-x: auto;
   scrollbar-width: none;
 }
@@ -69,15 +77,23 @@
 }
 
 .bottom-nav-side button {
-  flex: 0 0 min(5.2rem, 46%);
-  min-height: 3.7rem;
+  flex: 1 1 clamp(4rem, 18vw, 5.3rem);
+  min-width: clamp(3.6rem, 15vw, 4.7rem);
+  max-width: clamp(4.8rem, 22vw, 5.8rem);
+  min-height: calc(
+    var(--memories-bottom-nav-height) -
+      (var(--memories-bottom-nav-block-padding) * 2)
+  );
   display: grid;
   place-items: center;
   align-content: center;
-  gap: 0.2rem;
+  gap: clamp(0.06rem, 0.35vw, 0.14rem);
   border: 0;
-  border-radius: 0.9rem;
+  border-radius: clamp(0.72rem, 2.4vw, 0.95rem);
   background: transparent;
+  padding:
+    clamp(0.18rem, 0.6vw, 0.32rem)
+    clamp(0.28rem, 1vw, 0.56rem);
   color: #6e776f;
   cursor: pointer;
 }
@@ -89,29 +105,32 @@
 
 .bottom-nav-icon {
   font-family: Arial, sans-serif;
-  font-size: 1.18rem;
+  font-size: clamp(1rem, 3vw, 1.2rem);
   line-height: 1;
 }
 
 .bottom-nav-side small {
   max-width: 100%;
-  overflow: hidden;
-  font-size: 0.68rem;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow: visible;
+  font-size: clamp(0.62rem, 1.8vw, 0.72rem);
+  line-height: 1.15;
+  text-align: center;
+  text-overflow: clip;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 .bottom-upload-action {
   align-self: start;
   justify-self: center;
-  width: 4.9rem;
-  height: 4.9rem;
+  width: clamp(4.35rem, 12.5vw, 4.9rem);
+  height: clamp(4.35rem, 12.5vw, 4.9rem);
   display: grid;
   place-items: center;
   align-content: center;
   gap: 0.1rem;
-  margin-top: -1.55rem;
-  border: 0.32rem solid #f8f3e9;
+  margin-top: clamp(-1.45rem, -3.8vw, -1.15rem);
+  border: clamp(0.26rem, 0.8vw, 0.32rem) solid #f8f3e9;
   border-radius: 50%;
   background: linear-gradient(145deg, #d95f72, #b96e5d 58%, #b59657);
   color: #fff;
@@ -121,12 +140,12 @@
 
 .bottom-upload-action span {
   font-family: Arial, sans-serif;
-  font-size: 1.7rem;
+  font-size: clamp(1.5rem, 4vw, 1.7rem);
   line-height: 0.9;
 }
 
 .bottom-upload-action strong {
-  font-size: 0.66rem;
+  font-size: clamp(0.62rem, 1.8vw, 0.68rem);
   letter-spacing: 0.06em;
 }
 
@@ -139,23 +158,25 @@
   .bottom-collection-nav {
     bottom: 1rem;
     border-bottom: 1px solid rgba(53, 95, 77, 0.18);
-    border-radius: 1.35rem;
+    border-radius: 1.2rem;
   }
 }
 
 @media (max-width: 430px) {
+  :root {
+    --memories-bottom-nav-height: clamp(4.2rem, 18vw, 4.55rem);
+    --memories-bottom-nav-inline-padding: clamp(0.24rem, 1vw, 0.38rem);
+  }
+
   .bottom-collection-nav {
-    grid-template-columns: minmax(0, 1.25fr) 4.7rem minmax(0, 0.75fr);
-    padding-left: 0.35rem;
-    padding-right: 0.35rem;
+    grid-template-columns:
+      minmax(0, 1.2fr)
+      clamp(4.25rem, 19vw, 4.65rem)
+      minmax(0, 0.8fr);
   }
 
-  .bottom-upload-action {
-    width: 4.45rem;
-    height: 4.45rem;
-  }
-
-  .bottom-nav-side small {
-    font-size: 0.61rem;
+  .bottom-nav-side button {
+    min-width: clamp(3.35rem, 17vw, 4.15rem);
+    max-width: clamp(4.25rem, 23vw, 5rem);
   }
 }
