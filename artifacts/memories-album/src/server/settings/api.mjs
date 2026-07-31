@@ -16,6 +16,10 @@ import {
   isValidGuestUploadMaxPhotos,
   isValidUploadDescription,
 } from "../../upload-settings.mjs";
+import {
+  createAdminSiteIconApi,
+  createSiteIconApi,
+} from "../site-icon/api.mjs";
 import { isValidDriveUploadMode } from "./upload-mode.mjs";
 
 const GUEST_LABEL_BOOLEAN_SETTING_KEYS = Object.freeze([
@@ -91,12 +95,14 @@ async function applyGuestLabelVisibilityUpdates(
 
 export function createSettingsApi({ repository }) {
   if (!repository) throw new Error("Settings repository is required");
+  const siteIconApi = createSiteIconApi({ repository });
 
   return async function handleSettingsApi(
     request,
     response,
     url = new URL(request.url ?? "/", "http://localhost"),
   ) {
+    if (await siteIconApi(request, response, url)) return true;
     if (request.method !== "GET" || url.pathname !== "/Memories/api/settings") {
       return false;
     }
@@ -107,12 +113,14 @@ export function createSettingsApi({ repository }) {
 
 export function createAdminSettingsApi({ repository }) {
   if (!repository) throw new Error("Settings repository is required");
+  const adminSiteIconApi = createAdminSiteIconApi({ repository });
 
   return async function handleAdminSettingsApi(
     request,
     response,
     url = new URL(request.url ?? "/", "http://localhost"),
   ) {
+    if (await adminSiteIconApi(request, response, url)) return true;
     if (url.pathname !== "/admin/api/settings") return false;
 
     if (request.method === "GET") {
