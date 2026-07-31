@@ -4,13 +4,24 @@ import { createServer } from "node:http";
 import test from "node:test";
 import sharp from "sharp";
 import {
+  EMPTY_SITE_ICON_METADATA,
   SITE_ICON_ADMIN_PATH,
+  SITE_ICON_FILE_ERROR_CODES,
+  SITE_ICON_MAX_UPLOAD_BYTES,
   SITE_ICON_OUTPUT_CONTENT_TYPE,
   SITE_ICON_OUTPUT_SIZE,
   SITE_ICON_PUBLIC_PATH,
+  normalizeSiteIconMetadata,
   normalizeStoredSiteIcon,
   siteIconMetadata,
+  validateSiteIconFile,
 } from "../src/site-icon.mjs";
+import {
+  applySiteIcon,
+  loadAdminSiteIcon,
+  removeAdminSiteIcon,
+  replaceAdminSiteIcon,
+} from "../src/client/site-icon-client.mjs";
 import {
   createAdminSettingsApi,
   createSettingsApi,
@@ -70,22 +81,123 @@ async function sourcePng() {
     .toBuffer();
 }
 
-test("stored site icon metadata never exposes image bytes", () => {
-  const stored = {
-    contentType: "image/png",
-    data: Buffer.from("icon").toString("base64"),
-    version: "a".repeat(64),
-    byteLength: 4,
-  };
-  assert.deepEqual(normalizeStoredSiteIcon(stored), stored);
-  assert.deepEqual(siteIconMetadata(stored), {
+function configuredMetadata() {
+  return {
     configured: true,
     contentType: "image/png",
     version: "a".repeat(64),
     byteLength: 4,
-  });
+  };
+}
+
+function fakeDocument() {
+  const links = [];
+  const head = {
+    querySelector(selector) {
+      const rel = selector.match(/link\[rel="([^"]+)"\]/)?.[1];
+      return links.find(
+        (link) => link.rel === rel && link.dataset.memoriesSiteIcon === "true",
+      );
+    },
+    append(link) {
+      links.push(link);
+    },
+  };
+  return {
+    links,
+    head,
+    createElement() {
+      return { dataset: {} };
+    },
+  };
+}
+
+test("stored site icon and public metadata share one validated contract", () => {
+  const stored = {
+    ...configuredMetadata(),
+    data: Buffer.from("icon").toString("base64"),
+  };
+  delete stored.configured;
+  assert.deepEqual(normalizeStoredSiteIcon(stored), stored);
+  assert.deepEqual(siteIconMetadata(stored), configuredMetadata());
   assert.equal(Object.hasOwn(siteIconMetadata(stored), "data"), false);
   assert.equal(normalizeStoredSiteIcon({ ...stored, byteLength: 5 }), null);
+  assert.deepEqual(normalizeSiteIconMetadata(configuredMetadata()), configuredMetadata());
+  assert.equal(
+    normalizeSiteIconMetadata({ ...configuredMetadata(), version: "invalid" }),
+    EMPTY_SITE_ICON_METADATA,
+  );
+});
+
+test("site icon file validation is shared by the administrator editor", () => {
+  assert.deepEqual(validateSiteIconFile(null), {
+    valid: false,
+    code: SITE_ICON_FILE_ERROR_CODES.required,
+  });
+  assert.deepEqual(validateSiteIconFile({ type: "image/gif", size: 10 }), {
+    valid: false,
+    code: SITE_ICON_FILE_ERROR_CODES.unsupportedType,
+  });
+  assert.deepEqual(
+    validateSiteIconFile({
+      type: "image/png",
+      size: SITE_ICON_MAX_UPLOAD_BYTES + 1,
+    }),
+    { valid: false, code: SITE_ICON_FILE_ERROR_CODES.tooLarge },
+  );
+  assert.deepEqual(validateSiteIconFile({ type: "image/webp", size: 10 }), {
+    valid: true,
+    code: null,
+  });
+});
+
+test("site icon client commands preserve request methods and normalize responses", async () => {
+  const calls = [];
+  const fetchImpl = async (url, options) => {
+    calls.push({ url, options });
+    return {
+      ok: true,
+      status: 200,
+      async json() {
+        return configuredMetadata();
+      },
+    };
+  };
+  const file = { type: "image/png", size: 4 };
+  assert.deepEqual(await loadAdminSiteIcon({ fetchImpl }), configuredMetadata());
+  assert.deepEqual(
+    await replaceAdminSiteIcon(file, { fetchImpl }),
+    configuredMetadata(),
+  );
+  assert.deepEqual(await removeAdminSiteIcon({ fetchImpl }), configuredMetadata());
+  assert.deepEqual(
+    calls.map((call) => call.options.method),
+    ["GET", "PUT", "DELETE"],
+  );
+  assert.equal(calls[1].options.body, file);
+  assert.equal(calls[1].options.headers["Content-Type"], "image/png");
+  assert.equal(calls[2].options.body, undefined);
+});
+
+test("browser and Apple icon links use the same validated metadata", () => {
+  const documentRef = fakeDocument();
+  applySiteIcon(configuredMetadata(), documentRef, () => 123);
+  assert.equal(documentRef.links.length, 2);
+  assert.deepEqual(
+    documentRef.links.map((link) => link.rel),
+    ["icon", "apple-touch-icon"],
+  );
+  assert.ok(
+    documentRef.links.every((link) =>
+      link.href.includes(`v=${"a".repeat(64)}`),
+    ),
+  );
+
+  applySiteIcon(EMPTY_SITE_ICON_METADATA, documentRef, () => 456);
+  assert.equal(documentRef.links.length, 2, "existing link nodes are reused");
+  assert.ok(
+    documentRef.links.every((link) => link.href.endsWith("?removed=456")),
+  );
 });
 
 test("administrator uploads a normalized PNG favicon and can remove it", async () => {
@@ -150,11 +262,12 @@ test("site icon upload rejects unsupported or invalid files", async () => {
 });
 
 test("general settings exposes a responsive unified-save site icon editor", async () => {
-  const [general, editor, client, css, html, repository, api, build] =
+  const [general, editor, client, shared, css, html, repository, api, build] =
     await Promise.all([
       readFile(new URL("../src/client/GeneralSettings.jsx", import.meta.url), "utf8"),
       readFile(new URL("../src/client/SiteIconSettings.jsx", import.meta.url), "utf8"),
       readFile(new URL("../src/client/site-icon-client.mjs", import.meta.url), "utf8"),
+      readFile(new URL("../src/site-icon.mjs", import.meta.url), "utf8"),
       readFile(new URL("../src/client/site-icon-settings.css", import.meta.url), "utf8"),
       readFile(new URL("../index.html", import.meta.url), "utf8"),
       readFile(new URL("../src/server/settings/repository.mjs", import.meta.url), "utf8"),
@@ -165,11 +278,16 @@ test("general settings exposes a responsive unified-save site icon editor", asyn
   assert.match(general, /<SiteIconSettings \/>/);
   assert.match(editor, /useAdminSaveSection\("site-icon"/);
   assert.match(editor, /type="file"/);
-  assert.match(editor, /SITE_ICON_ACCEPTED_CONTENT_TYPES/);
-  assert.match(editor, /method: "PUT"/);
-  assert.match(editor, /method: "DELETE"/);
-  assert.match(client, /canonicalAdminRequestPath\(SITE_ICON_ADMIN_PATH\)/);
+  assert.match(editor, /validateSiteIconFile/);
+  assert.match(editor, /kind: "replace"/);
+  assert.match(editor, /kind: "remove"/);
+  assert.match(editor, /replaceAdminSiteIcon/);
+  assert.match(editor, /removeAdminSiteIcon/);
+  assert.match(client, /normalizeSiteIconMetadata/);
+  assert.doesNotMatch(client, /VERSION_PATTERN/);
   assert.match(client, /apple-touch-icon/);
+  assert.match(shared, /EMPTY_SITE_ICON_METADATA/);
+  assert.match(shared, /SITE_ICON_FILE_ERROR_CODES/);
   assert.match(css, /aspect-ratio:\s*1/);
   assert.match(css, /min-height:\s*2\.75rem/);
   assert.match(css, /@media \(max-width: 420px\)/);
