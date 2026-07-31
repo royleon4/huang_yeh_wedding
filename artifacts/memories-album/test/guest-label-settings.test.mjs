@@ -151,3 +151,11 @@ test("production gallery hides labels or shows ordered labels plus latest photos
     /activeCollection === "guest" &&\s*guestUploaderLabelsVisible/,
   );
 });
+
+test("production build copies the shared guest label settings module", async () => {
+  const build = await readFile(new URL("../scripts/build.mjs", import.meta.url), "utf8");
+  assert.match(
+    build,
+    /cp\("src\/guest-label-settings\.mjs", "dist\/guest-label-settings\.mjs"\)/,
+  );
+});
