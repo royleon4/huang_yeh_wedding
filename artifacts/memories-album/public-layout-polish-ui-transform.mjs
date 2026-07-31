@@ -1,6 +1,5 @@
 const APP_SUFFIX = "/src/client/App.jsx";
 const STYLES_SUFFIX = "/src/client/styles.css";
-const BOTTOM_NAV_SUFFIX = "/src/client/bottom-collection-nav.css";
 
 const BOTANICAL_RULE = `        <div className="botanical-rule" aria-hidden="true">
           <span>❧</span>
@@ -43,53 +42,6 @@ const COMPACT_HERO_CSS = `
 }
 `;
 
-const COMPACT_ALBUM_BUTTON_CSS = `
-
-/* Preserve the original album-button footprint; only tighten the inner visual chip. */
-.bottom-nav-side button {
-  flex: 0 0 min(5.2rem, 46%);
-  min-height: 3.7rem;
-  padding: 0;
-  background: transparent;
-}
-
-.bottom-nav-chip {
-  min-width: 3.7rem;
-  min-height: 2.55rem;
-  display: grid;
-  place-items: center;
-  align-content: center;
-  gap: 0.08rem;
-  border-radius: 0.72rem;
-  padding: 0.22rem 0.42rem;
-}
-
-.bottom-nav-side button.active {
-  background: transparent;
-}
-
-.bottom-nav-side button.active .bottom-nav-chip {
-  background: rgba(219, 226, 213, 0.68);
-}
-
-.bottom-nav-icon {
-  font-size: 0.98rem;
-}
-
-.bottom-nav-side small {
-  font-size: 0.63rem;
-  line-height: 1.15;
-}
-
-@media (max-width: 430px) {
-  .bottom-nav-chip {
-    min-width: 3.45rem;
-    min-height: 2.45rem;
-    padding: 0.18rem 0.32rem;
-  }
-}
-`;
-
 function removeBotanicalRule(source) {
   if (!source.includes(BOTANICAL_RULE)) {
     throw new Error("Public layout polish could not find the hero botanical rule");
@@ -108,9 +60,6 @@ export function publicLayoutPolishUiTransform() {
       }
       if (normalizedId.endsWith(STYLES_SUFFIX)) {
         return { code: `${source}${COMPACT_HERO_CSS}`, map: null };
-      }
-      if (normalizedId.endsWith(BOTTOM_NAV_SUFFIX)) {
-        return { code: `${source}${COMPACT_ALBUM_BUTTON_CSS}`, map: null };
       }
       return null;
     },
