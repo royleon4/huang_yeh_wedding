@@ -16,6 +16,7 @@ import {
 import { normalizePublicSettings } from "../src/client/public-bootstrap.mjs";
 import {
   mergeGuestUploaderLabelOrder,
+  normalizeGuestLabelVisibilitySettings,
   normalizeGuestLatestPhotoCount,
   normalizeGuestUploaderLabelOrder,
 } from "../src/guest-label-settings.mjs";
@@ -92,18 +93,32 @@ test("latest guest label returns the configured newest photos", () => {
   assert.equal(normalizeGuestLatestPhotoCount(51), 40);
 });
 
-test("public bootstrap normalizes guest label settings before first render", () => {
+test("public bootstrap normalizes three guest label visibility settings before first render", () => {
   const settings = normalizePublicSettings({
-    guestUploaderLabelsVisible: false,
+    guestLatestPhotosLabelVisible: false,
+    guestAllVisitorsLabelVisible: true,
+    guestNameLabelsVisible: false,
     guestUploaderLabelOrder: ["阿慧", "小安"],
     guestLatestPhotoCount: 35,
   });
-  assert.equal(settings.guestUploaderLabelsVisible, false);
+  assert.equal(settings.guestLatestPhotosLabelVisible, false);
+  assert.equal(settings.guestAllVisitorsLabelVisible, true);
+  assert.equal(settings.guestNameLabelsVisible, false);
   assert.deepEqual(settings.guestUploaderLabelOrder, ["阿慧", "小安"]);
   assert.equal(settings.guestLatestPhotoCount, 35);
+
+  assert.deepEqual(
+    normalizeGuestLabelVisibilitySettings({ guestUploaderLabelsVisible: false }),
+    {
+      guestLatestPhotosLabelVisible: false,
+      guestAllVisitorsLabelVisible: false,
+      guestNameLabelsVisible: false,
+    },
+    "the previous one-checkbox setting remains a fallback for saved deployments",
+  );
 });
 
-test("administrator can drag guest labels and save visibility order and latest count", async () => {
+test("administrator exposes exactly three guest label visibility checkboxes", async () => {
   const [general, component, css, repository, api, adminSource] = await Promise.all([
     readFile(new URL("../src/client/GeneralSettings.jsx", import.meta.url), "utf8"),
     readFile(new URL("../src/client/GuestLabelSettings.jsx", import.meta.url), "utf8"),
@@ -135,22 +150,37 @@ test("administrator can drag guest labels and save visibility order and latest c
     admin,
     /<details className="admin-accordion admin-guest-label-accordion" open/,
   );
-  assert.match(component, /draggable=\{!saving\}/);
-  assert.match(component, /onDragStart|onDrop/);
-  assert.match(component, /guestUploaderLabelsVisible/);
+  assert.equal(
+    [...component.matchAll(/type="checkbox"/g)].length,
+    3,
+    "the block must contain exactly the three requested checkboxes",
+  );
+  assert.match(component, /顯示最新照片標籤/);
+  assert.match(component, /顯示所有訪客標籤/);
+  assert.match(component, /顯示姓名標籤/);
+  assert.match(component, /guestLatestPhotosLabelVisible/);
+  assert.match(component, /guestAllVisitorsLabelVisible/);
+  assert.match(component, /guestNameLabelsVisible/);
   assert.match(component, /guestUploaderLabelOrder/);
   assert.match(component, /guestLatestPhotoCount/);
+  assert.match(component, /draggable=\{!saving\}/);
+  assert.match(component, /onDragStart|onDrop/);
   assert.match(component, /useAdminSaveSection\("guest-uploader-labels"/);
   assert.match(css, /grid-template-columns:\s*minmax\(0, 1\.4fr\)/);
   assert.match(css, /@media \(max-width: 760px\)/);
-  assert.match(repository, /guest_uploader_label_order/);
+  assert.match(repository, /guest_latest_photos_label_visible/);
+  assert.match(repository, /guest_all_visitors_label_visible/);
+  assert.match(repository, /guest_name_labels_visible/);
   assert.match(repository, /ORDER BY MIN\(p\.created_at\) ASC/);
   assert.match(repository, /mergeGuestUploaderLabelOrder/);
+  assert.match(api, /setGuestLatestPhotosLabelVisible/);
+  assert.match(api, /setGuestAllVisitorsLabelVisible/);
+  assert.match(api, /setGuestNameLabelsVisible/);
   assert.match(api, /isValidGuestUploaderLabelOrder/);
   assert.match(api, /MIN_GUEST_LATEST_PHOTO_COUNT/);
 });
 
-test("production gallery hides labels or shows ordered labels plus latest photos", async () => {
+test("production gallery independently includes latest all-visitor and name labels", async () => {
   const id = "/workspace/src/client/App.jsx";
   let code = await readFile(new URL("../src/client/App.jsx", import.meta.url), "utf8");
   code = run(processContentUiTransform(), code, id);
@@ -160,16 +190,19 @@ test("production gallery hides labels or shows ordered labels plus latest photos
   code = run(publicBootstrapUiTransform(), code, id);
   code = run(guestLabelsUiTransform(), code, id);
 
-  assert.match(code, /guestUploaderLabelsVisible/);
+  assert.match(code, /guestLatestPhotosLabelVisible/);
+  assert.match(code, /guestAllVisitorsLabelVisible/);
+  assert.match(code, /guestNameLabelsVisible/);
   assert.match(code, /guestUploaderLabelOrder/);
   assert.match(code, /LATEST_GUEST_FILTER_ID/);
   assert.match(code, /Latest photos/);
   assert.match(code, /effectiveFilter/);
+  assert.match(code, /activeGuestFilterVisible/);
   assert.match(code, /latestGuestPhotoCount: guestLatestPhotoCount/);
-  assert.match(
-    code,
-    /activeCollection === "guest" &&\s*guestUploaderLabelsVisible/,
-  );
+  assert.match(code, /guestAllVisitorsLabelVisible\s*\? \[/);
+  assert.match(code, /guestLatestPhotosLabelVisible\s*\? \[/);
+  assert.match(code, /guestNameLabelsVisible\s*\? guestGroups\.map/);
+  assert.doesNotMatch(code, /guestUploaderLabelsVisible/);
 });
 
 test("production build copies the shared guest label settings module", async () => {
