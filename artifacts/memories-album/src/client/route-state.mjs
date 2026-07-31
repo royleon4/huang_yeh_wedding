@@ -8,8 +8,9 @@ export const ADMIN_TAB_IDS = Object.freeze([
   "albums",
   "photos",
   "categories",
-  "subcategory-ui",
 ]);
+
+const LEGACY_ADMIN_TAB_ALIASES = new Map([["subcategory-ui", "general"]]);
 
 const PUBLIC_MODAL_ROUTES = new Map([
   ["upload", "upload"],
@@ -211,7 +212,8 @@ export function readPublicRoute(pathname) {
 }
 
 export function adminTabPath(tabId = DEFAULT_ADMIN_TAB) {
-  const index = ADMIN_TAB_IDS.indexOf(tabId);
+  const normalizedTabId = LEGACY_ADMIN_TAB_ALIASES.get(tabId) ?? tabId;
+  const index = ADMIN_TAB_IDS.indexOf(normalizedTabId);
   const groupNumber =
     (index >= 0 ? index : ADMIN_TAB_IDS.indexOf(DEFAULT_ADMIN_TAB)) + 1;
   return `${MEMORIES_ROOT}/admin/group${groupNumber}`;
@@ -227,8 +229,10 @@ export function readAdminTab(pathname) {
   if (groupNumber && ADMIN_TAB_IDS[groupNumber - 1]) {
     return ADMIN_TAB_IDS[groupNumber - 1];
   }
+  if (groupNumber === 5) return "general";
   const legacyTabId = decodeSegment(segment);
-  return ADMIN_TAB_IDS.includes(legacyTabId) ? legacyTabId : DEFAULT_ADMIN_TAB;
+  const aliasedTabId = LEGACY_ADMIN_TAB_ALIASES.get(legacyTabId) ?? legacyTabId;
+  return ADMIN_TAB_IDS.includes(aliasedTabId) ? aliasedTabId : DEFAULT_ADMIN_TAB;
 }
 
 export function routeSurface(pathname) {
