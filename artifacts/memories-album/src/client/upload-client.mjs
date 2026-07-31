@@ -1,8 +1,13 @@
 import {
   UploadClientError,
+  createGuestBatch as createGuestBatchBase,
   uploadQueue as uploadQueueBase,
 } from "./upload-client-fair.mjs";
 import { MAX_SUPPORTED_UPLOAD_PHOTOS } from "../upload-settings.mjs";
+import {
+  isReservedGuestUploaderName,
+  normalizeGuestUploaderName,
+} from "../guest-uploader-policy.mjs";
 
 export * from "./upload-client-fair.mjs";
 
@@ -12,6 +17,20 @@ function resolvedUploadLimit(value) {
   const normalized = Number(value);
   if (!Number.isInteger(normalized) || normalized < 1) return MAX_UPLOAD_PHOTOS;
   return Math.min(normalized, MAX_SUPPORTED_UPLOAD_PHOTOS);
+}
+
+export async function createGuestBatch(uploaderName, options = {}) {
+  const normalized = normalizeGuestUploaderName(uploaderName);
+  if (isReservedGuestUploaderName(normalized)) {
+    throw new UploadClientError(
+      "「婚禮攝影」為保留名稱，請輸入您的真實姓名。",
+      {
+        code: "RESERVED_UPLOADER_NAME",
+        status: 422,
+      },
+    );
+  }
+  return createGuestBatchBase(normalized, options);
 }
 
 export async function uploadQueue(options = {}) {
@@ -26,5 +45,10 @@ export async function uploadQueue(options = {}) {
       },
     );
   }
-  return uploadQueueBase({ ...options, files: selected, maxPhotos });
+  return uploadQueueBase({
+    ...options,
+    files: selected,
+    maxPhotos,
+    createBatchFn: options.createBatchFn ?? createGuestBatch,
+  });
 }
