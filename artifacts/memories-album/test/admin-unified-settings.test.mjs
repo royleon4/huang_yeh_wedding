@@ -91,21 +91,19 @@ test("subcategory controls live inside General while category and video saves re
   assert.match(categoryEditor, /\/admin\/api\/process-content/);
 });
 
-test("administrator cards share a full-width contract and tall non-General cards collapse at twice the Drive card height", async () => {
-  const [admin, manager, css] = await Promise.all([
+test("administrator cards stay full width and never receive automatic collapse controls", async () => {
+  const [admin, transform, css] = await Promise.all([
     transformedAdmin(),
-    clientSource("AdminAutoCollapseManager.jsx"),
+    readFile(path.join(root, "admin-settings-consolidation-ui-transform.mjs"), "utf8"),
     clientSource("admin-unified-layout.css"),
   ]);
-  assert.match(admin, /<AdminAutoCollapseManager \/>/);
-  assert.match(manager, /drive-upload-mode-title/);
-  assert.match(manager, /const collapseHeight = referenceHeight \* 2/);
-  assert.match(manager, /card\.scrollHeight > collapseHeight \+ 1/);
-  assert.match(manager, /card\.closest\("\.general-settings"\)/);
-  assert.match(manager, /removeToggle\(card\);\s*continue;/);
-  assert.match(manager, /展開編輯/);
-  assert.match(manager, /收合卡片/);
+  assert.match(admin, /import "\.\/admin-unified-layout\.css"/);
+  assert.doesNotMatch(admin, /AdminAutoCollapseManager/);
+  assert.doesNotMatch(transform, /AdminAutoCollapseManager|collapse manager/);
   assert.match(css, /\.general-setting-card,[\s\S]*width: 100% !important/);
-  assert.match(css, /max-height: var\(--admin-card-collapse-height\) !important/);
   assert.match(css, /\.admin-general-panel\[hidden\]/);
+  assert.doesNotMatch(
+    css,
+    /admin-auto-collapsible|admin-auto-collapsed|admin-auto-collapse-toggle|admin-card-collapse-height/,
+  );
 });
