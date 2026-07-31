@@ -4,6 +4,7 @@ import {
   normalizeGalleryMediaOrder,
 } from "../gallery-media-order.mjs";
 import { adminErrorMessage, adminRequest } from "./admin-client.mjs";
+import { useAdminSaveSection } from "./AdminSaveCoordinator.jsx";
 
 const LABELS = {
   video: {
@@ -71,7 +72,7 @@ export default function GalleryMediaOrderSettings() {
   };
 
   const save = async () => {
-    if (saving || !hasChanges) return;
+    if (saving || !hasChanges) return { succeeded: 0 };
     setSaving(true);
     setMessage("");
     setError("");
@@ -84,16 +85,20 @@ export default function GalleryMediaOrderSettings() {
       setSavedOrder(order);
       setDraftOrder(order);
       setMessage("前台內容順序已更新。");
+      return { succeeded: 1 };
     } catch (saveError) {
-      if (saveError?.status === 401) {
-        window.location.replace("/Memories/");
-        return;
-      }
+      if (saveError?.status === 401) window.location.replace("/Memories/");
       setError(adminErrorMessage(saveError));
+      throw saveError;
     } finally {
       setSaving(false);
     }
   };
+
+  useAdminSaveSection("gallery-media-order", {
+    pendingCount: hasChanges ? 1 : 0,
+    save,
+  });
 
   return (
     <section className="general-setting-card" aria-labelledby="media-order-title">
@@ -144,14 +149,11 @@ export default function GalleryMediaOrderSettings() {
             ))}
           </ol>
           <div className="general-setting-actions">
-            <button
-              type="button"
-              onClick={() => void save()}
-              disabled={saving || !hasChanges}
-            >
-              {saving ? "儲存中…" : "儲存顯示順序"}
-            </button>
-            {hasChanges && <span>尚未儲存</span>}
+            <span>
+              {hasChanges
+                ? "顯示順序有未儲存變更。"
+                : "變更會由頁面底部統一儲存。"}
+            </span>
           </div>
         </>
       )}
