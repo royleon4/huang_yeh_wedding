@@ -10,7 +10,7 @@ import {
 } from "../gallery-media-order.mjs";
 import {
   DEFAULT_GUEST_LATEST_PHOTO_COUNT,
-  DEFAULT_GUEST_UPLOADER_LABELS_VISIBLE,
+  normalizeGuestLabelVisibilitySettings,
   normalizeGuestLatestPhotoCount,
   normalizeGuestUploaderLabelOrder,
 } from "../guest-label-settings.mjs";
@@ -71,6 +71,7 @@ export function normalizePublicSettings(value) {
   return {
     ...source,
     ...normalizeUploadSettings(source),
+    ...normalizeGuestLabelVisibilitySettings(source),
     galleryMediaOrder: normalizeGalleryMediaOrder(source.galleryMediaOrder),
     pinnedPhotoIdsByProcess: normalizePinnedPhotosByProcess(
       source.pinnedPhotoIdsByProcess,
@@ -84,10 +85,6 @@ export function normalizePublicSettings(value) {
       : DEFAULT_WHEEL_VISIBLE_COUNT,
     guestUploadCategorySelectionEnabled:
       source.guestUploadCategorySelectionEnabled !== false,
-    guestUploaderLabelsVisible:
-      source.guestUploaderLabelsVisible === undefined
-        ? DEFAULT_GUEST_UPLOADER_LABELS_VISIBLE
-        : source.guestUploaderLabelsVisible === true,
     guestUploaderLabelOrder: normalizeGuestUploaderLabelOrder(
       source.guestUploaderLabelOrder,
     ),
