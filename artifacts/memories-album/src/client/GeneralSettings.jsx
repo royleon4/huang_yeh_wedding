@@ -1,7 +1,6 @@
 import AdminFeatureSettings from "./AdminFeatureSettings.jsx";
 import DriveUploadModeSettings from "./DriveUploadModeSettings.jsx";
 import GalleryMediaOrderSettings from "./GalleryMediaOrderSettings.jsx";
-import GuestLabelSettings from "./GuestLabelSettings.jsx";
 import ProcessSelectorSettings from "./ProcessSelectorSettings.jsx";
 import WebsiteCopySettings from "./WebsiteCopySettings.jsx";
 import "./general-settings.css";
@@ -22,7 +21,6 @@ export default function GeneralSettings() {
       <WebsiteCopySettings />
       <DriveUploadModeSettings />
       <GalleryMediaOrderSettings />
-      <GuestLabelSettings />
       <ProcessSelectorSettings />
       <AdminFeatureSettings />
     </section>
