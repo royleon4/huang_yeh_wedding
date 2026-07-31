@@ -14,16 +14,17 @@
 ## Delivery behavior
 
 - Waterfall and multi-photo pages request `/Memories/api/photos/:id/thumbnail` only.
-- Clicking a photo opens `/Memories/api/photos/:id/media`, which streams the original.
+- Clicking a photo reuses the same thumbnail URL that the gallery already loaded, avoiding a second original-file download.
 - Thumbnails use long immutable browser caching.
-- Original media uses a shorter cache policy.
+- Original media remains available through `/Memories/api/photos/:id/media` for future explicit download or original-view actions, but the fullscreen viewer does not request it.
 
 ## Fullscreen viewer
 
 - Covers the full viewport, including mobile safe areas.
-- Loads the original image only after the user opens a photo.
+- Reuses the browser-cached thumbnail immediately when a photo is opened.
+- Uses `object-fit: contain` in the complete remaining viewport, so portrait and landscape photos are fully visible at 100% zoom.
 - Supports previous/next buttons, keyboard arrows, and horizontal swipe.
 - Supports mouse wheel, buttons, double-click, and pinch zoom from 100% to 500%.
 - Supports dragging a zoomed image.
-- Resets zoom when changing photos and preloads the adjacent originals.
+- Resets zoom when changing photos and preloads only the adjacent thumbnails.
 - Locks background scrolling while open and restores focus to the originating gallery item when closed.

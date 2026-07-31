@@ -6,6 +6,7 @@ import {
   adjacentPhotoIndex,
   clampZoom,
   isHorizontalSwipe,
+  lightboxImageUrl,
 } from "./lightbox-model.mjs";
 
 function pointerDistance(left, right) {
@@ -20,6 +21,7 @@ export default function PhotoLightbox({
   labels,
 }) {
   const photo = photos[selectedIndex];
+  const viewerUrl = lightboxImageUrl(photo);
   const [zoom, setZoom] = useState(MIN_ZOOM);
   const [offset, setOffset] = useState({ x: 0, y: 0 });
   const [loading, setLoading] = useState(true);
@@ -109,10 +111,10 @@ export default function PhotoLightbox({
 
   useEffect(() => {
     for (const index of [selectedIndex - 1, selectedIndex + 1]) {
-      const adjacent = photos[index];
-      if (!adjacent?.mediaUrl) continue;
+      const adjacentUrl = lightboxImageUrl(photos[index]);
+      if (!adjacentUrl) continue;
       const image = new Image();
-      image.src = adjacent.mediaUrl;
+      image.src = adjacentUrl;
     }
   }, [photos, selectedIndex]);
 
@@ -266,9 +268,12 @@ export default function PhotoLightbox({
       >
         {loading && <div className="photo-viewer-loading">{labels.loading}</div>}
         <img
-          src={photo.mediaUrl}
+          key={photo.id}
+          src={viewerUrl}
           alt={`${labels.photo} ${selectedIndex + 1}`}
           draggable="false"
+          decoding="async"
+          fetchPriority="high"
           onLoad={() => setLoading(false)}
           onError={() => setLoading(false)}
           style={{ transform }}
