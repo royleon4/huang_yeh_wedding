@@ -33,7 +33,7 @@
   font-weight: 700;
 }
 
-.upload-limit-grid select,
+.upload-limit-grid input,
 .upload-description-grid textarea {
   width: 100%;
   min-width: 0;
@@ -44,6 +44,11 @@
   color: var(--admin-ink);
   font: inherit;
   font-weight: 400;
+}
+
+.upload-limit-grid input[aria-invalid="true"] {
+  border-color: #a33b32;
+  outline-color: rgba(163, 59, 50, 0.2);
 }
 
 .upload-description-grid textarea {
@@ -57,6 +62,10 @@
   font-size: 0.74rem;
   font-weight: 400;
   line-height: 1.45;
+}
+
+.upload-limit-grid small.error {
+  color: #8f2f28;
 }
 
 @media (max-width: 680px) {
