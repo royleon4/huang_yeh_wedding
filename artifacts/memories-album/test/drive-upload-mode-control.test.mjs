@@ -7,21 +7,27 @@ const readClient = (name) =>
 const readServer = (name) =>
   readFile(new URL(`../src/server/${name}`, import.meta.url), "utf8");
 
-test("administrator can choose unchunked or chunked original uploads", async () => {
-  const [control, general, css] = await Promise.all([
+test("administrator can configure original transfer mode and upload limits together", async () => {
+  const [control, general, generalCss, uploadCss] = await Promise.all([
     readClient("DriveUploadModeSettings.jsx"),
     readClient("GeneralSettings.jsx"),
     readClient("general-settings.css"),
+    readClient("upload-settings.css"),
   ]);
 
   assert.match(control, /value: "single"/);
   assert.match(control, /value: "chunked"/);
-  assert.match(control, /body: \{ driveUploadMode: draftMode \}/);
-  assert.match(control, /目前預設為不分塊上傳/);
+  assert.match(control, /driveUploadMode: draft\.driveUploadMode/);
+  assert.match(control, /guestUploadMaxPhotos: draft\.guestUploadMaxPhotos/);
+  assert.match(control, /adminUploadMaxPhotos: draft\.adminUploadMaxPhotos/);
+  assert.match(control, /uploadDescription: draft\.uploadDescription/);
+  assert.match(control, /<h3 id="upload-method-title">上傳方式<\/h3>/);
   assert.match(control, /type="radio"/);
   assert.match(general, /<DriveUploadModeSettings \/>/);
-  assert.match(css, /\.upload-mode-options/);
-  assert.match(css, /@media \(max-width: 680px\)/);
+  assert.match(generalCss, /\.upload-mode-options/);
+  assert.match(generalCss, /@media \(max-width: 680px\)/);
+  assert.match(uploadCss, /\.upload-limit-grid/);
+  assert.match(uploadCss, /\.upload-description-grid/);
 });
 
 test("runtime snapshots the administrator upload mode for each new original", async () => {
