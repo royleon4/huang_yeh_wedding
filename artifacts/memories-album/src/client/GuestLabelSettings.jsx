@@ -3,6 +3,7 @@ import {
   DEFAULT_GUEST_LATEST_PHOTO_COUNT,
   MAX_GUEST_LATEST_PHOTO_COUNT,
   MIN_GUEST_LATEST_PHOTO_COUNT,
+  normalizeGuestLabelVisibilitySettings,
   normalizeGuestLatestPhotoCount,
   normalizeGuestUploaderLabelOrder,
 } from "../guest-label-settings.mjs";
@@ -34,8 +35,11 @@ function moveLabel(labels, fromIndex, toIndex) {
 }
 
 function normalizedSnapshot(settings = {}) {
+  const visibility = normalizeGuestLabelVisibilitySettings(settings);
   return {
-    visible: settings.guestUploaderLabelsVisible !== false,
+    latestVisible: visibility.guestLatestPhotosLabelVisible,
+    allVisible: visibility.guestAllVisitorsLabelVisible,
+    namesVisible: visibility.guestNameLabelsVisible,
     order: normalizeGuestUploaderLabelOrder(settings.guestUploaderLabelOrder),
     latestCount: normalizeGuestLatestPhotoCount(
       settings.guestLatestPhotoCount ?? DEFAULT_GUEST_LATEST_PHOTO_COUNT,
@@ -54,7 +58,9 @@ export default function GuestLabelSettings() {
 
   const changed = useMemo(
     () =>
-      draft.visible !== saved.visible ||
+      draft.latestVisible !== saved.latestVisible ||
+      draft.allVisible !== saved.allVisible ||
+      draft.namesVisible !== saved.namesVisible ||
       draft.latestCount !== saved.latestCount ||
       !sameOrder(draft.order, saved.order),
     [draft, saved],
@@ -84,6 +90,12 @@ export default function GuestLabelSettings() {
     };
   }, []);
 
+  const updateVisibility = (key, value) => {
+    setDraft((current) => ({ ...current, [key]: value }));
+    setMessage("");
+    setError("");
+  };
+
   const updateOrder = (fromIndex, toIndex) => {
     setDraft((current) => ({
       ...current,
@@ -102,12 +114,21 @@ export default function GuestLabelSettings() {
       const payload = await adminRequest("/admin/api/settings", {
         method: "PATCH",
         body: {
-          guestUploaderLabelsVisible: draft.visible,
+          guestLatestPhotosLabelVisible: draft.latestVisible,
+          guestAllVisitorsLabelVisible: draft.allVisible,
+          guestNameLabelsVisible: draft.namesVisible,
           guestUploaderLabelOrder: draft.order,
           guestLatestPhotoCount: draft.latestCount,
         },
       });
-      const next = normalizedSnapshot({ ...draft, ...payload });
+      const next = normalizedSnapshot({
+        guestLatestPhotosLabelVisible: draft.latestVisible,
+        guestAllVisitorsLabelVisible: draft.allVisible,
+        guestNameLabelsVisible: draft.namesVisible,
+        guestUploaderLabelOrder: draft.order,
+        guestLatestPhotoCount: draft.latestCount,
+        ...payload,
+      });
       setSaved(next);
       setDraft(next);
       setMessage("訪客相簿標籤設定已儲存。");
@@ -135,7 +156,7 @@ export default function GuestLabelSettings() {
         <p className="admin-kicker">GUEST ALBUM LABELS</p>
         <h2 id="guest-label-settings-title">訪客相簿標籤</h2>
         <p>
-          控制訪客姓名標籤是否顯示、標籤順序，以及「最新照片」標籤包含的照片數量。新出現的姓名會自動加在目前排序的最後面，不會依姓名重新排序。
+          分別控制「最新照片」、「所有訪客」與姓名標籤是否顯示，並可調整姓名標籤順序與最新照片張數。新出現的姓名會自動加在目前排序的最後面，不會依姓名重新排序。
         </p>
       </div>
 
@@ -147,18 +168,37 @@ export default function GuestLabelSettings() {
             <label className="admin-check">
               <input
                 type="checkbox"
-                checked={draft.visible}
-                onChange={(event) => {
-                  setDraft((current) => ({
-                    ...current,
-                    visible: event.target.checked,
-                  }));
-                  setMessage("");
-                  setError("");
-                }}
+                checked={draft.latestVisible}
+                onChange={(event) =>
+                  updateVisibility("latestVisible", event.target.checked)
+                }
                 disabled={saving}
               />
-              在訪客相簿顯示「全部訪客」、「最新照片」與姓名標籤
+              顯示最新照片標籤
+            </label>
+
+            <label className="admin-check">
+              <input
+                type="checkbox"
+                checked={draft.allVisible}
+                onChange={(event) =>
+                  updateVisibility("allVisible", event.target.checked)
+                }
+                disabled={saving}
+              />
+              顯示所有訪客標籤
+            </label>
+
+            <label className="admin-check">
+              <input
+                type="checkbox"
+                checked={draft.namesVisible}
+                onChange={(event) =>
+                  updateVisibility("namesVisible", event.target.checked)
+                }
+                disabled={saving}
+              />
+              顯示姓名標籤
             </label>
 
             <label className="guest-latest-count-field">
@@ -175,7 +215,7 @@ export default function GuestLabelSettings() {
                   setMessage("");
                   setError("");
                 }}
-                disabled={saving}
+                disabled={saving || !draft.latestVisible}
               />
               <small>
                 可設定 {MIN_GUEST_LATEST_PHOTO_COUNT}～{MAX_GUEST_LATEST_PHOTO_COUNT} 張。
