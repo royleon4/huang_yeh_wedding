@@ -45,8 +45,8 @@ function transformAdminWorkspace(source) {
   );
   code = replaceOnce(
     code,
-    `  const controlsLocked = busy || uploading || Boolean(batch);\n  const hasUnfinished = Boolean(summary?.failed || summary?.cancelled);\n\n  useEffect(() => {`,
-    `  const controlsLocked = busy || uploading || Boolean(batch);\n  const hasUnfinished = Boolean(summary?.failed || summary?.cancelled);\n\n  useEffect(() => {\n    let cancelled = false;\n    void adminRequest("/admin/api/settings")\n      .then((settings) => {\n        if (!cancelled) setUploadSettings(normalizeUploadSettings(settings));\n      })\n      .catch((error) => {\n        if (error?.status === 401) window.location.replace("/Memories/");\n      });\n    return () => {\n      cancelled = true;\n    };\n  }, []);\n\n  useEffect(() => {`,
+    `  const hasUnfinished = Boolean(summary?.failed || summary?.cancelled);\n\n  useEffect(() => {`,
+    `  const hasUnfinished = Boolean(summary?.failed || summary?.cancelled);\n\n  useEffect(() => {\n    let cancelled = false;\n    void adminRequest("/admin/api/settings")\n      .then((settings) => {\n        if (!cancelled) setUploadSettings(normalizeUploadSettings(settings));\n      })\n      .catch((error) => {\n        if (error?.status === 401) window.location.replace("/Memories/");\n      });\n    return () => {\n      cancelled = true;\n    };\n  }, []);\n\n  useEffect(() => {`,
     "administrator upload settings load",
   );
   code = replaceOnce(
