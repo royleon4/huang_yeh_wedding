@@ -108,7 +108,9 @@ test("production transform chain hydrates website copy after route and gallery t
   assert.match(finalCode, /import "\.\/site-copy\.css"/);
   assert.match(finalCode, /\[lang, t\.archive\]/);
   assert.match(finalCode, /requestGalleryStartScroll/);
-  assert.match(finalCode, /albumRandomSeedRef/);
+  assert.match(finalCode, /const \[albumRandomSeed\] = useState/);
+  assert.match(finalCode, /albumRandomSeed,/);
+  assert.doesNotMatch(finalCode, /albumRandomSeedRef/);
 });
 
 test("administrator general settings exposes the website copy editor", async () => {
