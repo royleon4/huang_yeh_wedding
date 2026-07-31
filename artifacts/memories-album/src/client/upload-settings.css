@@ -1,0 +1,67 @@
+.upload-settings-block {
+  display: grid;
+  gap: 0.75rem;
+  border-top: 1px solid rgba(53, 95, 77, 0.14);
+  padding-top: 1rem;
+}
+
+.upload-settings-block:first-of-type {
+  border-top: 0;
+  padding-top: 0;
+}
+
+.upload-settings-block h4 {
+  margin: 0;
+  color: var(--admin-ink);
+  font-size: 0.95rem;
+}
+
+.upload-limit-grid,
+.upload-description-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.8rem;
+}
+
+.upload-limit-grid label,
+.upload-description-grid label {
+  display: grid;
+  gap: 0.45rem;
+  min-width: 0;
+  color: var(--admin-ink);
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.upload-limit-grid select,
+.upload-description-grid textarea {
+  width: 100%;
+  min-width: 0;
+  border: 1px solid var(--admin-line);
+  border-radius: 0.8rem;
+  background: #fffdf8;
+  padding: 0.75rem 0.85rem;
+  color: var(--admin-ink);
+  font: inherit;
+  font-weight: 400;
+}
+
+.upload-description-grid textarea {
+  min-height: 7rem;
+  resize: vertical;
+  line-height: 1.55;
+}
+
+.upload-limit-grid small {
+  color: var(--admin-muted);
+  font-size: 0.74rem;
+  font-weight: 400;
+  line-height: 1.45;
+}
+
+@media (max-width: 680px) {
+  .upload-limit-grid,
+  .upload-description-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

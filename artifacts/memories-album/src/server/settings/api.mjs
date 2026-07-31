@@ -1,6 +1,11 @@
 import { isValidGalleryMediaOrder } from "./media-order.mjs";
 import { isValidPinnedPhotosByProcess } from "../../pinned-photo-settings.mjs";
 import { isValidSiteCopy } from "../../site-copy.mjs";
+import {
+  isValidAdminUploadMaxPhotos,
+  isValidGuestUploadMaxPhotos,
+  isValidUploadDescription,
+} from "../../upload-settings.mjs";
 import { isValidDriveUploadMode } from "./upload-mode.mjs";
 
 function json(response, status, body) {
@@ -82,6 +87,20 @@ export function createAdminSettingsApi({ repository }) {
         "pinnedPhotoIdsByProcess",
       );
       const hasDriveUploadMode = Object.hasOwn(body, "driveUploadMode");
+      const hasGuestUploadMaxPhotos = Object.hasOwn(
+        body,
+        "guestUploadMaxPhotos",
+      );
+      const hasAdminUploadMaxPhotos = Object.hasOwn(
+        body,
+        "adminUploadMaxPhotos",
+      );
+      const hasUploadDescription = Object.hasOwn(body, "uploadDescription");
+      const hasUploadCardSetting =
+        hasDriveUploadMode ||
+        hasGuestUploadMaxPhotos ||
+        hasAdminUploadMaxPhotos ||
+        hasUploadDescription;
 
       if (hasSiteCopy) {
         if (!isValidSiteCopy(body.siteCopy)) {
@@ -95,19 +114,78 @@ export function createAdminSettingsApi({ repository }) {
         return true;
       }
 
-      if (hasDriveUploadMode) {
-        if (!isValidDriveUploadMode(body.driveUploadMode)) {
+      if (hasUploadCardSetting) {
+        if (
+          hasDriveUploadMode &&
+          !isValidDriveUploadMode(body.driveUploadMode)
+        ) {
           json(response, 422, {
             error: "driveUploadMode must be either single or chunked",
             code: "INVALID_SETTING",
           });
           return true;
         }
-        json(
-          response,
-          200,
-          await repository.setDriveUploadMode(body.driveUploadMode),
-        );
+        if (
+          hasGuestUploadMaxPhotos &&
+          !isValidGuestUploadMaxPhotos(body.guestUploadMaxPhotos)
+        ) {
+          json(response, 422, {
+            error: "guestUploadMaxPhotos must be either 10 or 100",
+            code: "INVALID_SETTING",
+          });
+          return true;
+        }
+        if (
+          hasAdminUploadMaxPhotos &&
+          !isValidAdminUploadMaxPhotos(body.adminUploadMaxPhotos)
+        ) {
+          json(response, 422, {
+            error: "adminUploadMaxPhotos must be either 30 or 100",
+            code: "INVALID_SETTING",
+          });
+          return true;
+        }
+        if (
+          hasUploadDescription &&
+          !isValidUploadDescription(body.uploadDescription)
+        ) {
+          json(response, 422, {
+            error: "uploadDescription must contain Chinese and English text up to 800 characters each",
+            code: "INVALID_SETTING",
+          });
+          return true;
+        }
+
+        const uploadUpdates = {};
+        if (hasDriveUploadMode) {
+          Object.assign(
+            uploadUpdates,
+            await repository.setDriveUploadMode(body.driveUploadMode),
+          );
+        }
+        if (hasGuestUploadMaxPhotos) {
+          Object.assign(
+            uploadUpdates,
+            await repository.setGuestUploadMaxPhotos(
+              Number(body.guestUploadMaxPhotos),
+            ),
+          );
+        }
+        if (hasAdminUploadMaxPhotos) {
+          Object.assign(
+            uploadUpdates,
+            await repository.setAdminUploadMaxPhotos(
+              Number(body.adminUploadMaxPhotos),
+            ),
+          );
+        }
+        if (hasUploadDescription) {
+          Object.assign(
+            uploadUpdates,
+            await repository.setUploadDescription(body.uploadDescription),
+          );
+        }
+        json(response, 200, uploadUpdates);
         return true;
       }
 

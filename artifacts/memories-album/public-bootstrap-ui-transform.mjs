@@ -142,7 +142,7 @@ function transformUploadModal(source) {
   code = replaceOnce(
     code,
     `export default function UploadModal({ lang, onClose, onUploaded }) {\n  const t = COPY[lang] ?? COPY.zh;`,
-    `export default function UploadModal({ lang, onClose, onUploaded }) {\n  const t = COPY[lang] ?? COPY.zh;\n  const publicBootstrap = getPublicBootstrap();`,
+    `export default function UploadModal({ lang, onClose, onUploaded }) {\n  const t = COPY[lang] ?? COPY.zh;\n  const publicBootstrap = getPublicBootstrap();\n  const maxUploadPhotos = publicBootstrap.settings.guestUploadMaxPhotos;\n  const uploadDescription =\n    publicBootstrap.settings.uploadDescription?.[lang] ?? "";\n  const choosePhotosLabel =\n    lang === "en"\n      ? "Choose up to " + maxUploadPhotos + " photos"\n      : "選擇最多 " + maxUploadPhotos + " 張照片";\n  const tooManyPhotosMessage =\n    lang === "en"\n      ? "You can upload up to " + maxUploadPhotos +\n        " photos at a time. The first " + maxUploadPhotos + " were kept."\n      : "一次最多只能選擇 " + maxUploadPhotos +\n        " 張照片，已保留前 " + maxUploadPhotos + " 張。";`,
     "upload bootstrap snapshot",
   );
   code = replaceOnce(
@@ -157,6 +157,36 @@ function transformUploadModal(source) {
     `  const overallProgress =`,
     ``,
     "upload settings and process requests",
+  );
+  code = replaceOnce(
+    code,
+    `    const selected = allSelected.slice(0, MAX_UPLOAD_PHOTOS);`,
+    `    const selected = allSelected.slice(0, maxUploadPhotos);`,
+    "configured guest selection limit",
+  );
+  code = replaceOnce(
+    code,
+    `    setError(allSelected.length > MAX_UPLOAD_PHOTOS ? t.tooMany : "");`,
+    `    setError(allSelected.length > maxUploadPhotos ? tooManyPhotosMessage : "");`,
+    "configured guest overflow message",
+  );
+  code = replaceOnce(
+    code,
+    `        files,\n        classification,`,
+    `        files,\n        maxPhotos: maxUploadPhotos,\n        classification,`,
+    "configured guest queue limit",
+  );
+  code = replaceOnce(
+    code,
+    `            <strong>{t.choose}</strong>`,
+    `            <strong>{choosePhotosLabel}</strong>`,
+    "configured guest chooser label",
+  );
+  code = replaceOnce(
+    code,
+    `          <small className="upload-hint">{t.hint}</small>`,
+    `          <small className="upload-hint">{uploadDescription}</small>`,
+    "configured upload description",
   );
   return code;
 }

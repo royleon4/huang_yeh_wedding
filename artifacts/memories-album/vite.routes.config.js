@@ -7,6 +7,7 @@ import { adminSettingsConsolidationUiTransform } from "./admin-settings-consolid
 import { adminAccordionUiTransform } from "./admin-accordion-ui-transform.mjs";
 import { publicLayoutPolishUiTransform } from "./public-layout-polish-ui-transform.mjs";
 import { publicBootstrapUiTransform } from "./public-bootstrap-ui-transform.mjs";
+import { uploadSettingsUiTransform } from "./upload-settings-ui-transform.mjs";
 
 export default defineConfig({
   ...baseConfig,
@@ -19,5 +20,6 @@ export default defineConfig({
     adminAccordionUiTransform(),
     publicLayoutPolishUiTransform(),
     publicBootstrapUiTransform(),
+    uploadSettingsUiTransform(),
   ],
 });

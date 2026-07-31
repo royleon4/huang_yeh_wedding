@@ -10,6 +10,7 @@ import {
 } from "../gallery-media-order.mjs";
 import { normalizePinnedPhotosByProcess } from "../pinned-photo-settings.mjs";
 import { normalizeSiteCopy } from "../site-copy.mjs";
+import { normalizeUploadSettings } from "../upload-settings.mjs";
 
 const DEFAULT_TIMEOUT_MS = 8000;
 const DEFAULT_WHEEL_VISIBLE_COUNT = 6;
@@ -63,6 +64,7 @@ export function normalizePublicSettings(value) {
   const requestedVisibleCount = Number(source.processWheelVisibleCount);
   return {
     ...source,
+    ...normalizeUploadSettings(source),
     galleryMediaOrder: normalizeGalleryMediaOrder(source.galleryMediaOrder),
     pinnedPhotoIdsByProcess: normalizePinnedPhotosByProcess(
       source.pinnedPhotoIdsByProcess,

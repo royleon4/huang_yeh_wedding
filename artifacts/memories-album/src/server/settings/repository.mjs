@@ -5,6 +5,10 @@ import {
 import { normalizePinnedPhotosByProcess } from "../../pinned-photo-settings.mjs";
 import { normalizeSiteCopy } from "../../site-copy.mjs";
 import {
+  DEFAULT_UPLOAD_SETTINGS,
+  normalizeUploadDescription,
+} from "../../upload-settings.mjs";
+import {
   DEFAULT_DRIVE_UPLOAD_MODE,
   normalizeDriveUploadMode,
 } from "./upload-mode.mjs";
@@ -12,6 +16,9 @@ import {
 const NAVIGATION_KEY = "primary_navigation_visible";
 const GUEST_UPLOAD_CATEGORY_SELECTION_KEY =
   "guest_upload_category_selection_enabled";
+const GUEST_UPLOAD_MAX_PHOTOS_KEY = "guest_upload_max_photos";
+const ADMIN_UPLOAD_MAX_PHOTOS_KEY = "admin_upload_max_photos";
+const UPLOAD_DESCRIPTION_KEY = "upload_description";
 const PROCESS_WHEEL_ENABLED_KEY = "process_wheel_enabled";
 const PROCESS_WHEEL_VISIBLE_COUNT_KEY = "process_wheel_visible_count";
 const GALLERY_MEDIA_ORDER_KEY = "gallery_media_order";
@@ -50,6 +57,11 @@ function siteCopySetting(rows) {
   return normalizeSiteCopy(row?.value);
 }
 
+function uploadDescriptionSetting(rows) {
+  const row = rows.find((item) => item.key === UPLOAD_DESCRIPTION_KEY);
+  return normalizeUploadDescription(row?.value);
+}
+
 export class PostgresSettingsRepository {
   constructor(pool) {
     if (!pool?.query) throw new Error("A PostgreSQL pool is required");
@@ -64,6 +76,9 @@ export class PostgresSettingsRepository {
       [[
         NAVIGATION_KEY,
         GUEST_UPLOAD_CATEGORY_SELECTION_KEY,
+        GUEST_UPLOAD_MAX_PHOTOS_KEY,
+        ADMIN_UPLOAD_MAX_PHOTOS_KEY,
+        UPLOAD_DESCRIPTION_KEY,
         PROCESS_WHEEL_ENABLED_KEY,
         PROCESS_WHEEL_VISIBLE_COUNT_KEY,
         GALLERY_MEDIA_ORDER_KEY,
@@ -83,6 +98,17 @@ export class PostgresSettingsRepository {
         GUEST_UPLOAD_CATEGORY_SELECTION_KEY,
         true,
       ),
+      guestUploadMaxPhotos: integerSetting(
+        result.rows,
+        GUEST_UPLOAD_MAX_PHOTOS_KEY,
+        DEFAULT_UPLOAD_SETTINGS.guestUploadMaxPhotos,
+      ),
+      adminUploadMaxPhotos: integerSetting(
+        result.rows,
+        ADMIN_UPLOAD_MAX_PHOTOS_KEY,
+        DEFAULT_UPLOAD_SETTINGS.adminUploadMaxPhotos,
+      ),
+      uploadDescription: uploadDescriptionSetting(result.rows),
       processWheelEnabled: booleanSetting(
         result.rows,
         PROCESS_WHEEL_ENABLED_KEY,
@@ -124,6 +150,30 @@ export class PostgresSettingsRepository {
       GUEST_UPLOAD_CATEGORY_SELECTION_KEY,
       "guestUploadCategorySelectionEnabled",
       value,
+    );
+  }
+
+  async setGuestUploadMaxPhotos(value) {
+    return this.setNumber(
+      GUEST_UPLOAD_MAX_PHOTOS_KEY,
+      "guestUploadMaxPhotos",
+      value,
+    );
+  }
+
+  async setAdminUploadMaxPhotos(value) {
+    return this.setNumber(
+      ADMIN_UPLOAD_MAX_PHOTOS_KEY,
+      "adminUploadMaxPhotos",
+      value,
+    );
+  }
+
+  async setUploadDescription(value) {
+    return this.setJson(
+      UPLOAD_DESCRIPTION_KEY,
+      "uploadDescription",
+      normalizeUploadDescription(value),
     );
   }
 

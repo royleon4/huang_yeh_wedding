@@ -67,7 +67,10 @@ test("all ordinary administrator settings participate in the single save-all act
   }
 
   assert.match(components[0], /body: \{ siteCopy: draft \}/);
-  assert.match(components[1], /body: \{ driveUploadMode: draftMode \}/);
+  assert.match(components[1], /driveUploadMode: draft\.driveUploadMode/);
+  assert.match(components[1], /guestUploadMaxPhotos: draft\.guestUploadMaxPhotos/);
+  assert.match(components[1], /adminUploadMaxPhotos: draft\.adminUploadMaxPhotos/);
+  assert.match(components[1], /uploadDescription: draft\.uploadDescription/);
   assert.match(components[2], /body: \{ galleryMediaOrder: draftOrder \}/);
   assert.match(components[3], /processWheelEnabled: draftMode === "wheel"/);
   assert.match(components[3], /processWheelVisibleCount: draftVisibleCount/);
