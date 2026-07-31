@@ -1,0 +1,170 @@
+.guest-label-settings {
+  display: grid;
+  gap: clamp(0.75rem, 1.4vw, 1rem);
+}
+
+.guest-label-controls {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(12rem, 0.6fr);
+  align-items: start;
+  gap: clamp(0.75rem, 1.8vw, 1.2rem);
+}
+
+.guest-latest-count-field {
+  display: grid;
+  gap: 0.38rem;
+  color: var(--ink);
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.guest-latest-count-field input {
+  width: min(100%, 10rem);
+  min-height: 2.7rem;
+  border: 1px solid rgba(53, 95, 77, 0.24);
+  border-radius: 0.72rem;
+  background: #fffdf7;
+  padding: 0.55rem 0.7rem;
+  color: var(--ink);
+}
+
+.guest-latest-count-field small,
+.guest-label-order-heading p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.74rem;
+  font-weight: 400;
+}
+
+.guest-label-order-heading {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.guest-label-order-heading strong {
+  color: var(--ink);
+}
+
+.guest-label-order-heading span {
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.guest-label-order-list {
+  display: grid;
+  gap: 0.55rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.guest-label-order-list li {
+  display: grid;
+  grid-template-columns: auto auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: clamp(0.5rem, 1.5vw, 0.85rem);
+  min-width: 0;
+  border: 1px solid rgba(53, 95, 77, 0.2);
+  border-radius: 0.85rem;
+  background: rgba(255, 253, 247, 0.96);
+  padding: clamp(0.55rem, 1.2vw, 0.75rem);
+  cursor: grab;
+  transition:
+    opacity 140ms ease,
+    box-shadow 140ms ease,
+    transform 140ms ease;
+}
+
+.guest-label-order-list li:active {
+  cursor: grabbing;
+}
+
+.guest-label-order-list li.is-dragging {
+  opacity: 0.58;
+  box-shadow: 0 0.5rem 1.4rem rgba(31, 53, 45, 0.16);
+  transform: scale(0.99);
+}
+
+.guest-label-drag-handle {
+  color: var(--muted);
+  font-size: 1rem;
+  letter-spacing: -0.2rem;
+}
+
+.guest-label-order-number {
+  display: inline-grid;
+  place-items: center;
+  min-width: 2.2rem;
+  min-height: 2.2rem;
+  border-radius: 999px;
+  background: rgba(53, 95, 77, 0.1);
+  color: var(--leaf);
+  font-size: 0.72rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.guest-label-order-list strong {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  color: var(--ink);
+}
+
+.guest-label-move-actions {
+  display: flex;
+  gap: 0.35rem;
+}
+
+.guest-label-move-actions button {
+  display: inline-grid;
+  place-items: center;
+  min-width: 2.35rem;
+  min-height: 2.35rem;
+  border: 1px solid rgba(53, 95, 77, 0.24);
+  border-radius: 999px;
+  background: #fffdf7;
+  color: var(--leaf);
+  cursor: pointer;
+}
+
+.guest-label-move-actions button:disabled {
+  cursor: not-allowed;
+  opacity: 0.35;
+}
+
+.guest-label-empty,
+.guest-label-status {
+  margin: 0;
+  color: var(--muted);
+}
+
+.guest-label-status.error {
+  color: #9e3f32;
+}
+
+@media (max-width: 760px) {
+  .guest-label-controls {
+    grid-template-columns: 1fr;
+  }
+
+  .guest-latest-count-field input {
+    width: 100%;
+  }
+}
+
+@media (max-width: 480px) {
+  .guest-label-order-list li {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+  }
+
+  .guest-label-drag-handle {
+    display: none;
+  }
+
+  .guest-label-order-number {
+    min-width: 2rem;
+    min-height: 2rem;
+  }
+}

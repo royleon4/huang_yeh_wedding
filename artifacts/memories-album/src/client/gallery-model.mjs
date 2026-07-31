@@ -2,6 +2,13 @@ import {
   DEFAULT_ALBUM_PHOTO_SORT_MODE,
   normalizeAlbumPhotoSortMode,
 } from "../../album-photo-order.mjs";
+import {
+  LATEST_GUEST_FILTER_ID,
+  mergeGuestUploaderLabelOrder,
+  normalizeGuestLatestPhotoCount,
+} from "../guest-label-settings.mjs";
+
+export { LATEST_GUEST_FILTER_ID };
 
 // Wedding process categories are populated from PostgreSQL, which is synchronized
 // from Google Drive. Keep this mutable array empty at build time so a deployment
@@ -63,7 +70,7 @@ export function normalizedUploaderName(value) {
     .trim();
 }
 
-export function guestUploaderGroups(photos) {
+export function guestUploaderGroups(photos, preferredOrder = []) {
   const counts = new Map();
   for (const photo of photos ?? []) {
     const albumIds = Array.isArray(photo.albumIds) ? photo.albumIds : [];
@@ -72,15 +79,31 @@ export function guestUploaderGroups(photos) {
     if (!name) continue;
     counts.set(name, (counts.get(name) ?? 0) + 1);
   }
-  return [...counts.entries()]
-    .map(([name, count]) => ({ id: name, name, count }))
-    .sort((left, right) => left.name.localeCompare(right.name, "zh-Hant"));
+  return mergeGuestUploaderLabelOrder(preferredOrder, [...counts.keys()]).map(
+    (name) => ({ id: name, name, count: counts.get(name) ?? 0 }),
+  );
+}
+
+function photoTimestamp(photo) {
+  const timestamp = new Date(photo?.createdAt ?? photo?.capturedAt ?? 0).getTime();
+  return Number.isFinite(timestamp) ? timestamp : 0;
+}
+
+function latestGuestPhotos(photos, count) {
+  return [...photos]
+    .sort(
+      (left, right) =>
+        photoTimestamp(right) - photoTimestamp(left) ||
+        String(right?.id ?? "").localeCompare(String(left?.id ?? "")),
+    )
+    .slice(0, normalizeGuestLatestPhotoCount(count));
 }
 
 export function filterPhotos(
   photos,
   filterId = "all",
   collectionId = "wedding",
+  { latestGuestPhotoCount } = {},
 ) {
   const inCollection = photos.filter((photo) => {
     if (Array.isArray(photo.albumIds)) {
@@ -99,6 +122,9 @@ export function filterPhotos(
     return inCollection.filter((photo) => photo.processIds.includes(filterId));
   }
   if (collectionId === "guest") {
+    if (filterId === LATEST_GUEST_FILTER_ID) {
+      return latestGuestPhotos(inCollection, latestGuestPhotoCount);
+    }
     return inCollection.filter(
       (photo) => normalizedUploaderName(photo.uploaderName) === filterId,
     );
