@@ -8,6 +8,12 @@ import {
   DEFAULT_GALLERY_MEDIA_ORDER,
   normalizeGalleryMediaOrder,
 } from "../gallery-media-order.mjs";
+import {
+  DEFAULT_GUEST_LATEST_PHOTO_COUNT,
+  DEFAULT_GUEST_UPLOADER_LABELS_VISIBLE,
+  normalizeGuestLatestPhotoCount,
+  normalizeGuestUploaderLabelOrder,
+} from "../guest-label-settings.mjs";
 import { normalizePinnedPhotosByProcess } from "../pinned-photo-settings.mjs";
 import { normalizeSiteCopy } from "../site-copy.mjs";
 import { normalizeUploadSettings } from "../upload-settings.mjs";
@@ -78,6 +84,16 @@ export function normalizePublicSettings(value) {
       : DEFAULT_WHEEL_VISIBLE_COUNT,
     guestUploadCategorySelectionEnabled:
       source.guestUploadCategorySelectionEnabled !== false,
+    guestUploaderLabelsVisible:
+      source.guestUploaderLabelsVisible === undefined
+        ? DEFAULT_GUEST_UPLOADER_LABELS_VISIBLE
+        : source.guestUploaderLabelsVisible === true,
+    guestUploaderLabelOrder: normalizeGuestUploaderLabelOrder(
+      source.guestUploaderLabelOrder,
+    ),
+    guestLatestPhotoCount: normalizeGuestLatestPhotoCount(
+      source.guestLatestPhotoCount ?? DEFAULT_GUEST_LATEST_PHOTO_COUNT,
+    ),
   };
 }
 
