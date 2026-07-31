@@ -20,6 +20,6 @@ The General panel stays mounted while another administrator tab is selected, so 
 
 ## Card layout
 
-Administrator cards use one full-width layout contract. The Google Drive upload-mode card is the height reference. A visible card whose content height exceeds twice that reference is collapsed automatically and receives an `展開編輯` control. The threshold is recalculated when content, tab visibility, or viewport dimensions change.
+Administrator cards use one full-width layout contract and remain fully expanded. There is no automatic height measurement, collapse threshold, generated `展開編輯` button, resize observer, or mutation observer for card folding.
 
 The former standalone subcategory tab is now part of General settings. Legacy `subcategory-ui` and logical `group5` administrator routes recover to General.

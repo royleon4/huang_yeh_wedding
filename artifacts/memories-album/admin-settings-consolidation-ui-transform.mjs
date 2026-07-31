@@ -8,7 +8,7 @@ function replaceOnce(source, search, replacement, label) {
 }
 
 function transformAdmin(source) {
-  let code = `import AdminAutoCollapseManager from "./AdminAutoCollapseManager.jsx";\nimport {\n  saveRegisteredAdminSettings,\n  useAdminSettingsPendingCount,\n} from "./AdminSaveCoordinator.jsx";\n${source}`;
+  let code = `import "./admin-unified-layout.css";\nimport {\n  saveRegisteredAdminSettings,\n  useAdminSettingsPendingCount,\n} from "./AdminSaveCoordinator.jsx";\n${source}`;
 
   code = code.replace(
     `import ProcessSelectorSettings from "./ProcessSelectorSettings.jsx";\n`,
@@ -49,13 +49,6 @@ function transformAdmin(source) {
     `        {tab === "general" && (\n          <>\n            <GeneralSettings />\n            <AdminRefreshManagement\n              albums={albums}\n              categories={orderedCategories}\n            />\n          </>\n        )}`,
     `        <div\n          className="admin-general-panel"\n          hidden={tab !== "general"}\n          aria-hidden={tab !== "general"}\n        >\n          <GeneralSettings />\n          <AdminRefreshManagement\n            albums={albums}\n            categories={orderedCategories}\n          />\n        </div>`,
     "persistently mounted general settings panel",
-  );
-
-  code = replaceOnce(
-    code,
-    `    <div className="admin-shell">`,
-    `    <div className="admin-shell">\n      <AdminAutoCollapseManager />`,
-    "administrator collapse manager",
   );
 
   return code;
