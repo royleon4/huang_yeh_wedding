@@ -58,7 +58,7 @@ function transformApp(source) {
     code,
     `function fallbackAlbums() {`,
     `async function fetchAllPhotos() {`,
-    `async function fetchAllPhotos() {`,
+    ``,
     "duplicate album bootstrap helpers",
   );
   code = replaceOnce(
@@ -89,14 +89,14 @@ function transformApp(source) {
     code,
     `    void fetchAlbums()`,
     `    void fetchAllPhotos()`,
-    `    void fetchAllPhotos()`,
+    ``,
     "duplicate album request",
   );
   code = replaceRange(
     code,
     `  useEffect(() => {\n    let cancelled = false;\n    void fetch("/Memories/api/settings"`,
     `  const sourcePhotos =`,
-    `  const sourcePhotos =`,
+    ``,
     "duplicate settings request",
   );
   return code;
@@ -113,14 +113,14 @@ function transformProcessSelector(source) {
     code,
     `const DEFAULT_SETTINGS = {`,
     `function scrollToGalleryStart() {`,
-    `function scrollToGalleryStart() {`,
+    ``,
     "selector settings request",
   );
   code = replaceRange(
     code,
     `export default function ProcessSelector(props) {`,
     `  const selectWithTraditionalPositioning = (id) => {`,
-    `export default function ProcessSelector(props) {\n  const settings = getPublicBootstrap().settings;\n\n  const selectWithTraditionalPositioning = (id) => {`,
+    `export default function ProcessSelector(props) {\n  const settings = getPublicBootstrap().settings;\n\n`,
     "selector post-render hydration",
   );
   return code;
@@ -155,7 +155,7 @@ function transformUploadModal(source) {
     code,
     `  useEffect(() => {`,
     `  const overallProgress =`,
-    `  const overallProgress =`,
+    ``,
     "upload settings and process requests",
   );
   return code;
