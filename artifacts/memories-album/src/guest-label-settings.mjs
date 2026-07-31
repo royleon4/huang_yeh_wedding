@@ -1,10 +1,35 @@
 export const DEFAULT_GUEST_UPLOADER_LABELS_VISIBLE = true;
+export const DEFAULT_GUEST_LATEST_PHOTOS_LABEL_VISIBLE = true;
+export const DEFAULT_GUEST_ALL_VISITORS_LABEL_VISIBLE = true;
+export const DEFAULT_GUEST_NAME_LABELS_VISIBLE = true;
 export const DEFAULT_GUEST_LATEST_PHOTO_COUNT = 40;
 export const MIN_GUEST_LATEST_PHOTO_COUNT = 30;
 export const MAX_GUEST_LATEST_PHOTO_COUNT = 50;
 export const MAX_GUEST_UPLOADER_LABELS = 500;
 export const MAX_GUEST_UPLOADER_LABEL_LENGTH = 80;
 export const LATEST_GUEST_FILTER_ID = "__latest_guest_photos__";
+
+export function normalizeGuestLabelVisibilitySettings(value = {}) {
+  const source = value && typeof value === "object" ? value : {};
+  const legacyVisible =
+    source.guestUploaderLabelsVisible === undefined
+      ? DEFAULT_GUEST_UPLOADER_LABELS_VISIBLE
+      : source.guestUploaderLabelsVisible === true;
+  return {
+    guestLatestPhotosLabelVisible:
+      source.guestLatestPhotosLabelVisible === undefined
+        ? legacyVisible
+        : source.guestLatestPhotosLabelVisible === true,
+    guestAllVisitorsLabelVisible:
+      source.guestAllVisitorsLabelVisible === undefined
+        ? legacyVisible
+        : source.guestAllVisitorsLabelVisible === true,
+    guestNameLabelsVisible:
+      source.guestNameLabelsVisible === undefined
+        ? legacyVisible
+        : source.guestNameLabelsVisible === true,
+  };
+}
 
 export function normalizeGuestUploaderLabel(value) {
   return String(value ?? "")
