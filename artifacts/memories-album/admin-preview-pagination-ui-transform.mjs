@@ -1,6 +1,5 @@
 const ADMIN_APP_SUFFIX = "/src/client/AdminApp.jsx";
 const ADMIN_WORKSPACE_SUFFIX = "/src/client/AdminPhotoWorkspace.jsx";
-const PINNED_PICKER_SUFFIX = "/src/client/PinnedPhotoPicker.jsx";
 
 function replaceOnce(source, search, replacement, label) {
   if (!source.includes(search)) {
@@ -64,38 +63,6 @@ function transformAdminWorkspace(source) {
   return code;
 }
 
-function transformPinnedPicker(source) {
-  let code = replaceOnce(
-    source,
-    `import LazyImage from "./LazyImage.jsx";`,
-    `import LazyImage from "./LazyImage.jsx";\nimport {\n  ProgressivePreviewMoreButton,\n  useProgressivePreview,\n} from "./ProgressivePreview.jsx";`,
-    "pinned preview pagination import",
-  );
-
-  code = replaceOnce(
-    code,
-    `  const candidates = (photos ?? []).filter((photo) => {\n    if (!normalizedQuery) return true;\n    return \`${"${photoLabel(photo)} ${photo.id}"}\`\n      .toLocaleLowerCase("zh-Hant")\n      .includes(normalizedQuery);\n  });`,
-    `  const candidates = (photos ?? []).filter((photo) => {\n    if (!normalizedQuery) return true;\n    return \`${"${photoLabel(photo)} ${photo.id}"}\`\n      .toLocaleLowerCase("zh-Hant")\n      .includes(normalizedQuery);\n  });\n  const {\n    visibleItems: previewCandidates,\n    bufferedRemaining: bufferedCandidateCount,\n    revealNext: revealNextCandidateBatch,\n  } = useProgressivePreview(candidates, {\n    resetKey: [processKey, query, expanded ? "open" : "closed"].join("::"),\n  });`,
-    "pinned candidate preview state",
-  );
-
-  code = replaceOnce(
-    code,
-    `              {candidates.map((photo) => {`,
-    `              {previewCandidates.map((photo) => {`,
-    "pinned candidate rendered previews",
-  );
-
-  code = replaceOnce(
-    code,
-    `            </div>\n          )}\n        </div>\n      )}`,
-    `            </div>\n          )}\n          <ProgressivePreviewMoreButton\n            remaining={bufferedCandidateCount}\n            onClick={revealNextCandidateBatch}\n            disabled={busy}\n          />\n        </div>\n      )}`,
-    "pinned candidate show-more control",
-  );
-
-  return code;
-}
-
 export function adminPreviewPaginationUiTransform() {
   return {
     name: "admin-preview-pagination-ui",
@@ -107,9 +74,6 @@ export function adminPreviewPaginationUiTransform() {
       }
       if (normalizedId.endsWith(ADMIN_WORKSPACE_SUFFIX)) {
         return { code: transformAdminWorkspace(source), map: null };
-      }
-      if (normalizedId.endsWith(PINNED_PICKER_SUFFIX)) {
-        return { code: transformPinnedPicker(source), map: null };
       }
       return null;
     },
