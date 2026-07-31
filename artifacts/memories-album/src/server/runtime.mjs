@@ -5,8 +5,13 @@ import { ThumbnailService } from "./photos/thumbnail-service.mjs";
 import { AdminRefreshService } from "./refresh/service.mjs";
 import { createReplitDriveStorage } from "./storage/replit-drive.mjs";
 import { uploadOriginalSingleRequest } from "./storage/single-request-upload.mjs";
-import { createGuestUploadApi } from "./uploads/api.mjs";
+import { createGuestUploadApi, UploadApiError } from "./uploads/api.mjs";
 import { PostgresDurableUploadRepository } from "./uploads/durable-repository.mjs";
+import {
+  createGuestUploadRepositoryGuard,
+  RESERVED_GUEST_UPLOADER_ERROR_CODE,
+  RESERVED_GUEST_UPLOADER_MESSAGE,
+} from "./uploads/guest-uploader-guard.mjs";
 import { createImageProcessor } from "./uploads/image-processor.mjs";
 import { createGuestBatchManagementApi } from "./uploads/management-api.mjs";
 import { PostgresUploadManagementRepository } from "./uploads/management-repository.mjs";
@@ -129,8 +134,16 @@ async function createRuntime(env) {
     thumbnailService,
   });
 
+  const guestUploadRepository = createGuestUploadRepositoryGuard(repository, {
+    createReservedNameError: () =>
+      new UploadApiError(
+        422,
+        RESERVED_GUEST_UPLOADER_MESSAGE,
+        RESERVED_GUEST_UPLOADER_ERROR_CODE,
+      ),
+  });
   const guestUploadApi = createGuestUploadApi({
-    repository,
+    repository: guestUploadRepository,
     durableUploadRepository,
     processRepository,
     drive,
