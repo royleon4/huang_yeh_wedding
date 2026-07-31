@@ -87,9 +87,7 @@ function storedIcon(buffer) {
 }
 
 export function createSiteIconApi({ repository }) {
-  if (!repository?.getSiteIcon) {
-    throw new Error("Site icon repository is required");
-  }
+  if (!repository?.getSiteIcon) return async () => false;
   return async function handleSiteIconApi(
     request,
     response,
@@ -133,8 +131,12 @@ export function createSiteIconApi({ repository }) {
 }
 
 export function createAdminSiteIconApi({ repository }) {
-  if (!repository?.getSiteIcon || !repository?.setSiteIcon || !repository?.clearSiteIcon) {
-    throw new Error("Site icon repository is required");
+  if (
+    !repository?.getSiteIcon ||
+    !repository?.setSiteIcon ||
+    !repository?.clearSiteIcon
+  ) {
+    return async () => false;
   }
   return async function handleAdminSiteIconApi(
     request,
