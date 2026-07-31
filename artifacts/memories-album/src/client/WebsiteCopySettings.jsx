@@ -5,6 +5,7 @@ import {
   normalizeSiteCopy,
 } from "../site-copy.mjs";
 import { adminErrorMessage, adminRequest } from "./admin-client.mjs";
+import { useAdminSaveSection } from "./AdminSaveCoordinator.jsx";
 import "./website-copy-settings.css";
 
 function cloneCopy(value) {
@@ -59,7 +60,7 @@ export default function WebsiteCopySettings() {
   };
 
   const save = async () => {
-    if (saving || !changed) return;
+    if (saving || !changed) return { succeeded: 0 };
     setSaving(true);
     setMessage("");
     setError("");
@@ -73,23 +74,30 @@ export default function WebsiteCopySettings() {
       setSaved(next);
       setDraft(cloneCopy(next));
       setMessage("網站文字已儲存，重新整理前台後即可看到更新。");
+      return { succeeded: 1 };
     } catch (saveError) {
-      if (saveError?.status === 401) {
-        window.location.replace("/Memories/");
-        return;
-      }
+      if (saveError?.status === 401) window.location.replace("/Memories/");
       setError(adminErrorMessage(saveError));
+      throw saveError;
     } finally {
       setSaving(false);
     }
   };
+
+  useAdminSaveSection("website-copy", {
+    pendingCount: changed ? 1 : 0,
+    save,
+  });
 
   if (loading) {
     return <p className="admin-feature-status">正在讀取網站文字…</p>;
   }
 
   return (
-    <section className="website-copy-settings" aria-labelledby="website-copy-title">
+    <section
+      className="website-copy-settings general-setting-card"
+      aria-labelledby="website-copy-title"
+    >
       <div className="website-copy-heading">
         <div>
           <p className="admin-kicker">WEBSITE COPY</p>
@@ -110,9 +118,6 @@ export default function WebsiteCopySettings() {
             disabled={saving}
           >
             套用預設文字
-          </button>
-          <button type="button" onClick={() => void save()} disabled={saving || !changed}>
-            {saving ? "儲存中…" : "儲存網站文字"}
           </button>
         </div>
       </div>
@@ -163,6 +168,10 @@ export default function WebsiteCopySettings() {
           </div>
         </details>
       ))}
+
+      <p className="admin-draft-hint">
+        {changed ? "網站文字有未儲存變更。" : "變更會由頁面底部統一儲存。"}
+      </p>
 
       {(message || error) && (
         <p

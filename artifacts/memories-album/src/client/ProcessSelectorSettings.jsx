@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { adminErrorMessage, adminRequest } from "./admin-client.mjs";
+import { useAdminSaveSection } from "./AdminSaveCoordinator.jsx";
 import "./process-selector-settings.css";
 
 const DEFAULT_VISIBLE_COUNT = 6;
@@ -64,7 +65,7 @@ export default function ProcessSelectorSettings() {
   }, []);
 
   const save = async () => {
-    if (saving || !hasChanges) return;
+    if (saving || !hasChanges) return { succeeded: 0 };
     setSaving(true);
     setMessage("");
     setError("");
@@ -87,23 +88,30 @@ export default function ProcessSelectorSettings() {
           ? `前台已切換為輪盤模式；手機目標顯示約 ${visibleCount} 個選項，並優先保持文字可讀。`
           : `前台已切換回傳統按鈕；輪盤目標數量保留為 ${visibleCount} 個。`,
       );
+      return { succeeded: 1 };
     } catch (saveError) {
-      if (saveError?.status === 401) {
-        window.location.replace("/Memories/");
-        return;
-      }
+      if (saveError?.status === 401) window.location.replace("/Memories/");
       setError(adminErrorMessage(saveError));
+      throw saveError;
     } finally {
       setSaving(false);
     }
   };
 
+  useAdminSaveSection("process-selector", {
+    pendingCount: hasChanges ? 1 : 0,
+    save,
+  });
+
   return (
-    <section className="selector-settings" aria-labelledby="selector-settings-title">
-      <div className="admin-section-heading">
+    <section
+      className="selector-settings general-setting-card"
+      aria-labelledby="selector-settings-title"
+    >
+      <div className="general-setting-heading">
         <div>
           <p className="admin-kicker">SUBCATEGORY EXPERIENCE</p>
-          <h2 id="selector-settings-title">子分類操作方式</h2>
+          <h3 id="selector-settings-title">子分類操作方式</h3>
         </div>
         <span>{savedMode === "wheel" ? "輪盤模式" : "傳統模式"}</span>
       </div>
@@ -174,14 +182,11 @@ export default function ProcessSelectorSettings() {
           </div>
 
           <div className="selector-settings-actions">
-            <button
-              type="button"
-              onClick={() => void save()}
-              disabled={saving || !hasChanges}
-            >
-              {saving ? "儲存中…" : "套用操作方式"}
-            </button>
-            {hasChanges && <span>尚未儲存</span>}
+            <span>
+              {hasChanges
+                ? "子分類操作方式有未儲存變更。"
+                : "變更會由頁面底部統一儲存。"}
+            </span>
           </div>
         </>
       )}

@@ -1,0 +1,87 @@
+.admin-content > section,
+.admin-general-panel,
+.general-settings,
+.general-settings > *,
+.admin-refresh-management,
+.admin-editor-list,
+.admin-create-card,
+.admin-editor-card,
+.general-setting-card,
+.website-copy-settings,
+.admin-feature-settings,
+.selector-settings {
+  width: 100% !important;
+  max-width: none !important;
+  min-width: 0 !important;
+  margin-inline: 0 !important;
+}
+
+.admin-general-panel,
+.general-settings {
+  display: grid;
+  gap: 1rem;
+}
+
+.admin-general-panel[hidden] {
+  display: none !important;
+}
+
+.general-setting-card,
+.website-copy-settings,
+.admin-feature-settings,
+.selector-settings,
+.admin-refresh-management,
+.admin-create-card,
+.admin-editor-card {
+  box-sizing: border-box;
+}
+
+.admin-auto-collapsible {
+  position: relative;
+}
+
+.admin-auto-collapsible.admin-auto-collapsed {
+  max-height: var(--admin-card-collapse-height) !important;
+  overflow: hidden !important;
+  padding-bottom: 5rem !important;
+}
+
+.admin-auto-collapsible.admin-auto-collapsed::after {
+  content: "";
+  pointer-events: none;
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 6rem;
+  background: linear-gradient(transparent, var(--admin-card, #fffdf8) 58%);
+}
+
+.admin-auto-collapse-toggle {
+  position: absolute;
+  left: 50%;
+  bottom: 0.85rem;
+  z-index: 5;
+  min-height: 2.65rem;
+  transform: translateX(-50%);
+  border: 1px solid var(--admin-line);
+  border-radius: 999px;
+  background: var(--admin-green);
+  padding: 0.58rem 1.1rem;
+  color: #fff;
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 0.55rem 1.5rem rgba(31, 53, 45, 0.18);
+}
+
+.admin-auto-collapsible:not(.admin-auto-collapsed) {
+  padding-bottom: 4.75rem !important;
+}
+
+@media (max-width: 560px) {
+  .admin-auto-collapse-toggle {
+    width: calc(100% - 2rem);
+  }
+}

@@ -1,6 +1,7 @@
 import AdminFeatureSettings from "./AdminFeatureSettings.jsx";
 import DriveUploadModeSettings from "./DriveUploadModeSettings.jsx";
 import GalleryMediaOrderSettings from "./GalleryMediaOrderSettings.jsx";
+import ProcessSelectorSettings from "./ProcessSelectorSettings.jsx";
 import WebsiteCopySettings from "./WebsiteCopySettings.jsx";
 import "./general-settings.css";
 
@@ -15,11 +16,12 @@ export default function GeneralSettings() {
         <span>全站共用</span>
       </div>
       <p className="admin-section-note">
-        這裡只放會影響整個照片牆的設定，不會分散顯示在相簿、照片或分類頁面中。
+        這裡集中會影響整個照片牆的設定，包括子分類操作方式。修改後請使用頁面底部的「儲存所有變更」。
       </p>
       <WebsiteCopySettings />
       <DriveUploadModeSettings />
       <GalleryMediaOrderSettings />
+      <ProcessSelectorSettings />
       <AdminFeatureSettings />
     </section>
   );

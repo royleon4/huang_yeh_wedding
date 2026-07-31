@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { adminErrorMessage, adminRequest } from "./admin-client.mjs";
+import { useAdminSaveSection } from "./AdminSaveCoordinator.jsx";
 
 const MODES = [
   {
@@ -23,6 +24,7 @@ export default function DriveUploadModeSettings() {
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const changed = draftMode !== savedMode;
 
   useEffect(() => {
     let cancelled = false;
@@ -49,7 +51,7 @@ export default function DriveUploadModeSettings() {
   }, []);
 
   const save = async () => {
-    if (saving || draftMode === savedMode) return;
+    if (saving || !changed) return { succeeded: 0 };
     setSaving(true);
     setMessage("");
     setError("");
@@ -66,16 +68,20 @@ export default function DriveUploadModeSettings() {
           ? "已改為不分塊上傳。新的上傳會整個檔案一次送出。"
           : "已開啟分塊上傳。新的上傳會使用原有 chunk 機制。",
       );
+      return { succeeded: 1 };
     } catch (saveError) {
-      if (saveError?.status === 401) {
-        window.location.replace("/Memories/");
-        return;
-      }
+      if (saveError?.status === 401) window.location.replace("/Memories/");
       setError(adminErrorMessage(saveError));
+      throw saveError;
     } finally {
       setSaving(false);
     }
   };
+
+  useAdminSaveSection("drive-upload-mode", {
+    pendingCount: changed ? 1 : 0,
+    save,
+  });
 
   return (
     <section className="general-setting-card" aria-labelledby="drive-upload-mode-title">
@@ -122,14 +128,11 @@ export default function DriveUploadModeSettings() {
           </div>
 
           <div className="general-setting-actions">
-            <button
-              type="button"
-              onClick={() => void save()}
-              disabled={saving || draftMode === savedMode}
-            >
-              {saving ? "儲存中…" : "儲存上傳模式"}
-            </button>
-            <span>目前預設為不分塊上傳。</span>
+            <span>
+              {changed
+                ? "上傳模式有未儲存變更。"
+                : "變更會由頁面底部統一儲存；目前預設為不分塊上傳。"}
+            </span>
           </div>
         </>
       )}
