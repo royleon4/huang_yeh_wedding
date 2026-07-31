@@ -45,49 +45,47 @@ const COMPACT_HERO_CSS = `
 
 const COMPACT_ALBUM_BUTTON_CSS = `
 
-/* Keep a 44px touch target while making the visible album chip much tighter. */
+/* Preserve the original album-button footprint; only tighten the inner visual chip. */
 .bottom-nav-side button {
-  position: relative;
-  isolation: isolate;
-  flex: 0 0 auto;
-  min-width: 3.55rem;
-  min-height: 2.75rem;
-  gap: 0.06rem;
-  border-radius: 0.68rem;
-  padding: 0.08rem 0.34rem;
+  flex: 0 0 min(5.2rem, 46%);
+  min-height: 3.7rem;
+  padding: 0;
+  background: transparent;
+}
+
+.bottom-nav-chip {
+  min-width: 3.7rem;
+  min-height: 2.55rem;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 0.08rem;
+  border-radius: 0.72rem;
+  padding: 0.22rem 0.42rem;
 }
 
 .bottom-nav-side button.active {
   background: transparent;
 }
 
-.bottom-nav-side button.active::before {
-  content: "";
-  position: absolute;
-  inset: 0.22rem 0.12rem;
-  z-index: -1;
-  border-radius: 0.58rem;
+.bottom-nav-side button.active .bottom-nav-chip {
   background: rgba(219, 226, 213, 0.68);
 }
 
 .bottom-nav-icon {
-  font-size: 0.96rem;
+  font-size: 0.98rem;
 }
 
 .bottom-nav-side small {
-  font-size: 0.62rem;
-  line-height: 1.1;
+  font-size: 0.63rem;
+  line-height: 1.15;
 }
 
 @media (max-width: 430px) {
-  .bottom-nav-side button {
-    min-width: 3.3rem;
-    min-height: 2.75rem;
-    padding: 0.05rem 0.24rem;
-  }
-
-  .bottom-nav-side button.active::before {
-    inset: 0.24rem 0.08rem;
+  .bottom-nav-chip {
+    min-width: 3.45rem;
+    min-height: 2.45rem;
+    padding: 0.18rem 0.32rem;
   }
 }
 `;
