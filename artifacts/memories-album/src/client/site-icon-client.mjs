@@ -1,25 +1,19 @@
 import {
   SITE_ICON_ADMIN_PATH,
   SITE_ICON_PUBLIC_PATH,
-  siteIconMetadata,
   siteIconUrl,
 } from "../site-icon.mjs";
 import { canonicalAdminRequestPath } from "../admin-route-paths.mjs";
 
+const VERSION_PATTERN = /^[a-f0-9]{64}$/;
+
 export function applySiteIcon(metadata, documentRef = globalThis.document) {
   if (!documentRef?.head) return;
-  const normalized = siteIconMetadata(
-    metadata?.configured
-      ? {
-          contentType: metadata.contentType,
-          data: "AA==",
-          version: metadata.version,
-          byteLength: 1,
-        }
-      : null,
-  );
-  const href = normalized.configured
-    ? siteIconUrl(normalized.version)
+  const configured =
+    metadata?.configured === true &&
+    VERSION_PATTERN.test(String(metadata.version ?? "").toLowerCase());
+  const href = configured
+    ? siteIconUrl(metadata.version)
     : `${SITE_ICON_PUBLIC_PATH}?removed=${Date.now()}`;
   for (const rel of ["icon", "apple-touch-icon"]) {
     let link = documentRef.head.querySelector(
