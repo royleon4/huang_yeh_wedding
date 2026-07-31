@@ -42,6 +42,15 @@ function measureReference(reference) {
   return height;
 }
 
+function updateButton(button, collapsed) {
+  const label = collapsed ? "展開編輯" : "收合卡片";
+  if (button.textContent !== label) button.textContent = label;
+  const expanded = String(!collapsed);
+  if (button.getAttribute("aria-expanded") !== expanded) {
+    button.setAttribute("aria-expanded", expanded);
+  }
+}
+
 export default function AdminAutoCollapseManager() {
   useEffect(() => {
     const expandedByUser = new WeakSet();
@@ -64,8 +73,7 @@ export default function AdminAutoCollapseManager() {
         const collapsed = card.classList.toggle("admin-auto-collapsed");
         if (collapsed) expandedByUser.delete(card);
         else expandedByUser.add(card);
-        button.textContent = collapsed ? "展開編輯" : "收合卡片";
-        button.setAttribute("aria-expanded", String(!collapsed));
+        updateButton(button, collapsed);
       });
       card.append(button);
       return button;
@@ -91,18 +99,17 @@ export default function AdminAutoCollapseManager() {
         }
 
         card.classList.add("admin-auto-collapsible");
-        card.style.setProperty(
-          "--admin-card-collapse-height",
-          `${Math.ceil(collapseHeight)}px`,
-        );
+        const heightValue = `${Math.ceil(collapseHeight)}px`;
+        if (card.style.getPropertyValue("--admin-card-collapse-height") !== heightValue) {
+          card.style.setProperty("--admin-card-collapse-height", heightValue);
+        }
         const button = ensureToggle(card);
         const collapsed = !expandedByUser.has(card);
         card.classList.toggle("admin-auto-collapsed", collapsed);
-        button.textContent = collapsed ? "展開編輯" : "收合卡片";
-        button.setAttribute("aria-expanded", String(!collapsed));
+        updateButton(button, collapsed);
       }
 
-      if (typeof ResizeObserver !== "undefined") {
+      if (resizeObserver) {
         for (const element of [reference, ...cards]) {
           if (observed.has(element)) continue;
           resizeObserver.observe(element);
@@ -123,7 +130,7 @@ export default function AdminAutoCollapseManager() {
       subtree: true,
       childList: true,
       attributes: true,
-      attributeFilter: ["hidden", "class", "style"],
+      attributeFilter: ["hidden"],
     });
     window.addEventListener("resize", schedule);
     schedule();
