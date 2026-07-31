@@ -34,26 +34,31 @@ async function transformed(relativePath) {
   return source;
 }
 
-test("shared preview helper reveals administrator images ten at a time", async () => {
-  const source = await readFile(
-    path.join(root, "src/client/ProgressivePreview.jsx"),
-    "utf8",
-  );
-  assert.match(source, /ADMIN_PREVIEW_BATCH_SIZE = 10/);
-  assert.match(source, /sourceItems\.slice\(0, visibleCount\)/);
-  assert.match(source, /current \+ normalizedBatchSize/);
-  assert.match(source, /再顯示 \$\{nextCount\} 張/);
-});
-
-test("administrator photo tab renders only the current ten-photo preview batch", async () => {
+test("administrator photo tab paginates previews ten at a time", async () => {
   const source = await transformed("src/client/AdminPhotoWorkspace.jsx");
   assert.match(source, /URLSearchParams\(\{ limit: "10" \}\)/);
-  assert.match(source, /visibleItems: previewPhotos/);
+  assert.match(source, /const \[previewPage, setPreviewPage\] = useState\(0\)/);
+  assert.match(source, /const start = previewPage \* 10/);
+  assert.match(source, /visiblePhotos\.slice\(start, start \+ 10\)/);
   assert.match(source, /\{previewPhotos\.map\(\(photo\) =>/);
   assert.doesNotMatch(source, /\{visiblePhotos\.map\(\(photo\) =>/);
   assert.match(source, /visiblePhotos=\{previewPhotos\}/);
-  assert.match(source, /bufferedPreviewCount < ADMIN_PREVIEW_BATCH_SIZE/);
-  assert.match(source, /<ProgressivePreviewMoreButton/);
+  assert.match(source, /上一頁/);
+  assert.match(source, /下一頁/);
+  assert.match(source, /第 \{previewPage \+ 1\} \/ \{loadedPreviewPageCount\}/);
+  assert.match(source, /loadPhotos\(\{ append: true, cursor \}\)/);
+  assert.doesNotMatch(source, /ProgressivePreviewMoreButton/);
+  assert.doesNotMatch(source, /useProgressivePreview/);
+});
+
+test("administrator photo preview grid uses five columns and ten cards per page", async () => {
+  const css = await readFile(
+    path.join(root, "src/client/admin-photo-pagination.css"),
+    "utf8",
+  );
+  assert.match(css, /grid-template-columns: repeat\(5, minmax\(0, 1fr\)\)/);
+  assert.match(css, /\.admin-photo-pagination/);
+  assert.match(css, /aspect-ratio: 1/);
 });
 
 test("administrator bootstrap requests only the first ten photo records", async () => {
