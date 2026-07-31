@@ -2,6 +2,10 @@ export const MIN_ZOOM = 1;
 export const MAX_ZOOM = 5;
 export const ZOOM_STEP = 0.5;
 
+export function lightboxImageUrl(photo) {
+  return photo?.thumbnailUrl || photo?.mediaUrl || "";
+}
+
 export function clampZoom(value) {
   const numeric = Number(value);
   if (!Number.isFinite(numeric)) return MIN_ZOOM;
