@@ -15,6 +15,11 @@ import {
 } from "../src/client/gallery-model.mjs";
 import { normalizePublicSettings } from "../src/client/public-bootstrap.mjs";
 import {
+  GUEST_LABEL_VISIBILITY_KEYS,
+  GUEST_LABEL_VISIBILITY_SETTING_KEYS,
+  buildGuestLabelSelectorItems,
+  guestLabelRouteItems,
+  isGuestLabelFilterVisible,
   mergeGuestUploaderLabelOrder,
   normalizeGuestLabelVisibilitySettings,
   normalizeGuestLatestPhotoCount,
@@ -118,6 +123,41 @@ test("public bootstrap normalizes three guest label visibility settings before f
   );
 });
 
+test("shared guest label view model preserves selector order and route availability", () => {
+  const guestGroups = [
+    { id: "阿慧", name: "阿慧", count: 2 },
+    { id: "小安", name: "小安", count: 1 },
+  ];
+  const settings = {
+    [GUEST_LABEL_VISIBILITY_KEYS.latest]: true,
+    [GUEST_LABEL_VISIBILITY_KEYS.all]: false,
+    [GUEST_LABEL_VISIBILITY_KEYS.names]: true,
+  };
+
+  assert.deepEqual(
+    buildGuestLabelSelectorItems({
+      settings,
+      allGuestsLabel: "全部訪客",
+      latestPhotosLabel: "最新照片",
+      guestPhotoCount: 3,
+      guestLatestPhotoCount: 40,
+      guestGroups,
+    }),
+    [
+      { id: LATEST_GUEST_FILTER_ID, label: "最新照片 (3)" },
+      { id: "阿慧", label: "阿慧 (2)" },
+      { id: "小安", label: "小安 (1)" },
+    ],
+  );
+  assert.deepEqual(guestLabelRouteItems(settings, guestGroups), [
+    { id: LATEST_GUEST_FILTER_ID },
+    ...guestGroups,
+  ]);
+  assert.equal(isGuestLabelFilterVisible("all", settings), false);
+  assert.equal(isGuestLabelFilterVisible(LATEST_GUEST_FILTER_ID, settings), true);
+  assert.equal(isGuestLabelFilterVisible("阿慧", settings), true);
+});
+
 test("administrator exposes exactly three guest label visibility checkboxes", async () => {
   const [general, component, css, repository, api, adminSource] = await Promise.all([
     readFile(new URL("../src/client/GeneralSettings.jsx", import.meta.url), "utf8"),
@@ -150,17 +190,17 @@ test("administrator exposes exactly three guest label visibility checkboxes", as
     admin,
     /<details className="admin-accordion admin-guest-label-accordion" open/,
   );
+  assert.equal(GUEST_LABEL_VISIBILITY_SETTING_KEYS.length, 3);
   assert.equal(
-    [...component.matchAll(/type="checkbox"/g)].length,
+    [...component.matchAll(/key: GUEST_LABEL_VISIBILITY_KEYS\./g)].length,
     3,
-    "the block must contain exactly the three requested checkboxes",
+    "the administrator descriptor list must contain exactly three controls",
   );
+  assert.match(component, /VISIBILITY_CONTROLS\.map/);
   assert.match(component, /顯示最新照片標籤/);
   assert.match(component, /顯示所有訪客標籤/);
   assert.match(component, /顯示姓名標籤/);
-  assert.match(component, /guestLatestPhotosLabelVisible/);
-  assert.match(component, /guestAllVisitorsLabelVisible/);
-  assert.match(component, /guestNameLabelsVisible/);
+  assert.match(component, /snapshotPayload/);
   assert.match(component, /guestUploaderLabelOrder/);
   assert.match(component, /guestLatestPhotoCount/);
   assert.match(component, /draggable=\{!saving\}/);
@@ -168,19 +208,18 @@ test("administrator exposes exactly three guest label visibility checkboxes", as
   assert.match(component, /useAdminSaveSection\("guest-uploader-labels"/);
   assert.match(css, /grid-template-columns:\s*minmax\(0, 1\.4fr\)/);
   assert.match(css, /@media \(max-width: 760px\)/);
-  assert.match(repository, /guest_latest_photos_label_visible/);
-  assert.match(repository, /guest_all_visitors_label_visible/);
-  assert.match(repository, /guest_name_labels_visible/);
+  assert.match(repository, /GUEST_LABEL_VISIBILITY_STORAGE_KEYS/);
+  assert.match(repository, /setGuestLabelVisibility/);
   assert.match(repository, /ORDER BY MIN\(p\.created_at\) ASC/);
   assert.match(repository, /mergeGuestUploaderLabelOrder/);
-  assert.match(api, /setGuestLatestPhotosLabelVisible/);
-  assert.match(api, /setGuestAllVisitorsLabelVisible/);
-  assert.match(api, /setGuestNameLabelsVisible/);
+  assert.match(api, /GUEST_LABEL_BOOLEAN_SETTING_KEYS/);
+  assert.match(api, /applyGuestLabelVisibilityUpdates/);
+  assert.match(api, /setGuestLabelVisibility/);
   assert.match(api, /isValidGuestUploaderLabelOrder/);
   assert.match(api, /MIN_GUEST_LATEST_PHOTO_COUNT/);
 });
 
-test("production gallery independently includes latest all-visitor and name labels", async () => {
+test("production gallery delegates independent label decisions to the shared view model", async () => {
   const id = "/workspace/src/client/App.jsx";
   let code = await readFile(new URL("../src/client/App.jsx", import.meta.url), "utf8");
   code = run(processContentUiTransform(), code, id);
@@ -190,18 +229,17 @@ test("production gallery independently includes latest all-visitor and name labe
   code = run(publicBootstrapUiTransform(), code, id);
   code = run(guestLabelsUiTransform(), code, id);
 
-  assert.match(code, /guestLatestPhotosLabelVisible/);
-  assert.match(code, /guestAllVisitorsLabelVisible/);
-  assert.match(code, /guestNameLabelsVisible/);
-  assert.match(code, /guestUploaderLabelOrder/);
+  assert.match(code, /buildGuestLabelSelectorItems/);
+  assert.match(code, /isGuestLabelFilterVisible/);
+  assert.match(code, /guestLabelRouteItems/);
+  assert.match(code, /guestLabelVisibility/);
+  assert.match(code, /guestSelectorItems/);
   assert.match(code, /LATEST_GUEST_FILTER_ID/);
   assert.match(code, /Latest photos/);
   assert.match(code, /effectiveFilter/);
-  assert.match(code, /activeGuestFilterVisible/);
   assert.match(code, /latestGuestPhotoCount: guestLatestPhotoCount/);
-  assert.match(code, /guestAllVisitorsLabelVisible\s*\? \[/);
-  assert.match(code, /guestLatestPhotosLabelVisible\s*\? \[/);
-  assert.match(code, /guestNameLabelsVisible\s*\? guestGroups\.map/);
+  assert.match(code, /items=\{guestSelectorItems\}/);
+  assert.doesNotMatch(code, /activeGuestFilterVisible/);
   assert.doesNotMatch(code, /guestUploaderLabelsVisible/);
 });
 

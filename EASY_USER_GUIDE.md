@@ -31,6 +31,14 @@
 
 有些相簿下面還有小分類，例如婚禮中的不同流程。
 
+訪客相簿也可能顯示：
+
+- 最新照片
+- 所有訪客
+- 不同上傳者的姓名
+
+管理員可以決定哪些標籤要顯示，所以每次看到的項目可能不同。
+
 **按一下小分類，畫面會自己移到那一區。**
 
 ### 4. 往下滑
@@ -72,13 +80,17 @@
 
 ### 2. 填寫你的名字
 
-輸入你的名字，讓新人知道照片是誰分享的。
+輸入你的真實姓名，讓新人知道照片是誰分享的。
+
+`婚禮攝影` 是保留名稱，訪客不能用這個名字上傳。
 
 ### 3. 選照片
 
 按 **選擇照片**。
 
-每次最多選 **10 張**。
+按鈕旁會顯示這次最多可以選幾張。管理員可以把限制設為 1～100 張，網站預設是 **10 張**。
+
+選取數量不要超過畫面顯示的限制。
 
 每張照片不能超過 **25 MB**。
 
@@ -89,6 +101,8 @@
 - WebP
 - HEIC
 - HEIF
+
+選擇照片下面也可能有新人自訂的中文或英文說明，請先看完。
 
 ### 4. 選擇照片要放哪裡
 
@@ -103,6 +117,8 @@
 - 不要立刻關掉頁面
 - 不要一直重複按按鈕
 - 等畫面告訴你完成了
+
+即使一次選很多張，網站也會分批處理，不會全部同時傳送。
 
 網路不穩時，網站會自己再試。
 
@@ -207,10 +223,11 @@ This guide is for guests using the website for the first time.
 1. Open the wedding website and enter **Memories**.
 2. Tap the album you want to see.
 3. Tap a smaller category when one is shown.
-4. Scroll down to see the photos.
-5. Tap **Load more memories** when you want more photos.
-6. Tap a photo to make it bigger.
-7. Use **Previous**, **Next**, zoom, or the close button.
+4. In Guest uploads, you may see Latest photos, All guests, or uploader names. The administrator decides which labels are visible.
+5. Scroll down to see the photos.
+6. Tap **Load more memories** when you want more photos.
+7. Tap a photo to make it bigger.
+8. Use **Previous**, **Next**, zoom, or the close button.
 
 ## Change the language
 
@@ -221,13 +238,15 @@ The website will keep you in the same album when possible.
 ## Upload photos
 
 1. Tap **Upload**.
-2. Type your name.
-3. Choose up to **10 photos**.
-4. Each photo must be no larger than **25 MB**.
-5. Choose a category when the website shows category choices.
-6. Tap the upload button once.
-7. Keep the page open until the website says it is finished.
-8. Tap **Continue unfinished photos** if that button appears.
+2. Type your real name. Guests cannot use the reserved name `婚禮攝影`.
+3. Check the number shown beside the photo selector. The administrator can set the limit from 1 to 100; the default is **10 photos**.
+4. Do not choose more than the limit shown on the page.
+5. Each photo must be no larger than **25 MB**.
+6. Read any custom upload guidance shown below the selector.
+7. Choose a category when the website shows category choices.
+8. Tap the upload button once.
+9. Keep the page open until the website says it is finished.
+10. Tap **Continue unfinished photos** if that button appears.
 
 Supported photo types:
 
@@ -236,6 +255,8 @@ Supported photo types:
 - WebP
 - HEIC
 - HEIF
+
+The website processes a limited number of photos at the same time, even when you select a large batch.
 
 ## Save your private management link
 

@@ -6,19 +6,24 @@ It does **not** own the legacy invitation photo wall or the legacy `/api/photos*
 
 ## Canonical routes
 
-Public gallery routes use logical positions derived from the saved display order, not database IDs or editable labels.
+Public gallery routes use stable album, label, administrator-tab and photo identities. Display order is presentation only; moving an item does not change its canonical URL.
 
 | Route | Purpose |
 | --- | --- |
-| `/Memories/group1` | First public album |
-| `/Memories/group2/subgroup3` | Third subgroup in the second album |
-| `/Memories/en/group1` | English interface for the first album |
+| `/Memories/albums/wedding` | Wedding album |
+| `/Memories/albums/guest` | Guest album and its all-visitors view |
+| `/Memories/albums/guest/labels/latest` | Virtual latest-guest-photos label |
+| `/Memories/albums/guest/labels/Leon` | URL-encoded normalized guest-name label |
+| `/Memories/en/albums/guest` | English guest album |
 | `.../photos/:photoId` | Open one photo on the current gallery route |
 | `/Memories/upload` | Guest upload |
 | `/Memories/en/upload` | English guest upload |
 | `/Memories/manage/:batchId#token=...` | Private batch management and permanent deletion |
 | `/Memories/admin/login` | Administrator login |
-| `/Memories/admin/group1` | First administrator tab; later tabs continue as `group2`, `group3`, … |
+| `/Memories/admin/general` | General administrator tab |
+| `/Memories/admin/albums` | Album administrator tab |
+| `/Memories/admin/photos` | Photo administrator tab |
+| `/Memories/admin/categories` | Category and video administrator tab |
 | `/Memories/api/health` | Lightweight healthcheck without full runtime initialization |
 | `/Memories/api/albums` | Public album metadata |
 | `/Memories/api/processes` | Public process, video and rich-content metadata |
@@ -27,9 +32,9 @@ Public gallery routes use logical positions derived from the saved display order
 | `/Memories/admin/api/*` | Administrator session, albums, photos, categories, content and settings APIs |
 | `/admin*` | Compatibility redirects only |
 
-`/Memories/` and `/Memories/en/` are compatibility aliases for the first album in each language. Older semantic album and administrator paths remain readable and are canonicalized to logical-number routes.
+`/Memories/` and `/Memories/en/` are compatibility roots for the first available album. Previous ordinal paths such as `/Memories/group2/subgroup3` and `/Memories/admin/group3`, plus older semantic process paths, remain migration aliases and are replaced with stable identity routes after resolution.
 
-Opening a subgroup URL directly, clicking a subgroup, refreshing, and browser Back/Forward all restore the same selection and request gallery-anchor positioning. Full rules are documented in [`docs/logical-routes.md`](docs/logical-routes.md).
+Opening a label URL directly, clicking a label, refreshing, and browser Back/Forward all restore the same identity and request gallery-anchor positioning. A missing or unavailable label records a route-not-found state and recovers to its album; a missing album recovers to the first available album. Full rules are documented in [`docs/logical-routes.md`](docs/logical-routes.md).
 
 The Replit artifact router sends Memories routes to port 19316. Production health must target `/Memories/api/health`, not an authenticated administrator page.
 
@@ -69,6 +74,10 @@ Browser payloads expose Memories UUIDs and controlled image routes. Drive IDs, f
 - Random ordering remains stable for the current page load.
 - Wedding process media can contain YouTube video, bilingual rich text, Drive attachments, divider spacing, one to three pinned photos and the continuous photo wall.
 - Traditional process buttons are the default; an optional centered wheel can be enabled and given a mobile density target.
+- Guest-album labels are ordered as all visitors, latest photos, then administrator-ordered names when those groups are enabled.
+- The administrator can independently show or hide the latest-photo chip, all-visitors chip, and guest-name chips. Hidden latest/name labels are also unavailable to canonical label routes.
+- The latest-photo label contains the newest 30–50 guest photos, configured by the administrator and displayed newest first.
+- Saved name order remains authoritative. New uploader names append after existing names; names are not alphabetically resorted.
 - Subgroup clicks and deep links use the same anchor-positioning behavior.
 - Public, pinned and private-management thumbnails use IntersectionObserver-based lazy loading. The network `src` is withheld until an image approaches the viewport.
 - Explicit “load more memories” pagination remains in place to prevent unbounded React and DOM growth.
@@ -84,9 +93,23 @@ Browser payloads expose Memories UUIDs and controlled image routes. Drive IDs, f
 - `/Memories/api/settings`;
 - `/Memories/api/processes`.
 
-The normalized snapshot is reused by the main gallery, editable site copy, media ordering, pinned photos, traditional/wheel selector, and guest-upload classification UI. Components do not independently refetch the same settings after mount. The loader is memoized, so each resource is requested once per page load.
+The normalized snapshot is reused by the main gallery, editable site copy, media ordering, pinned photos, traditional/wheel selector, guest-label view model, and guest-upload classification UI. Components do not independently refetch the same settings after mount. The loader is memoized, so each resource is requested once per page load.
 
 The three resources fail independently. A failed endpoint uses its safe local fallback while successful endpoint results remain active. The fallback is selected before React renders; it is not displayed briefly and then replaced by a late hydration effect.
+
+## Guest-label settings structure
+
+`src/guest-label-settings.mjs` owns the pure shared rules for:
+
+- the three canonical visibility keys;
+- compatibility with the former single `guestUploaderLabelsVisible` setting;
+- selector-item construction and order;
+- active-filter visibility fallback;
+- stable-route label availability;
+- guest-name normalization, persisted ordering and append-only discovery;
+- latest-photo count normalization.
+
+The administrator component, public gallery transform, stable-route transform, settings API and PostgreSQL repository reuse those rules instead of maintaining separate visibility branches. This is a post-change, structure-only extraction: the three-checkbox behavior and stored keys remain unchanged.
 
 ## Guest upload
 
@@ -100,9 +123,12 @@ The three resources fail independently. A failed endpoint uses its safe local fa
 
 Limits and behavior:
 
-- Maximum 10 selected guest photos per batch.
+- Guest and administrator selection limits are independent integer settings from 1 through 100. Defaults are 10 guest photos and 30 administrator photos.
+- The active limit is enforced by the UI and upload queue; changing it does not increase the fixed worker concurrency.
+- The administrator can edit the bilingual upload description shown under the selector.
 - JPEG, PNG, WebP, HEIC and HEIF; 25 MB per file.
 - Administrator settings can allow Guest-only, Life or wedding-process classification; disabled mode falls back to Guest uploads.
+- The reserved uploader name `婚禮攝影` is rejected for guest batches by the client, server and database guard.
 - The same filename with different bytes is allowed. Duplicate identity is content-based, never filename-based.
 - The first pass allows two attempts per file. Retryable failures release the worker and enter the deferred pass after every photo has had a turn.
 - The deferred pass allows two more attempts. Permanent validation failures are not retried.
@@ -111,7 +137,7 @@ Limits and behavior:
 
 ## Drive upload modes
 
-New originals always use a resumable session. The General administrator setting selects:
+New originals always use a resumable session. The Upload Method administrator card selects:
 
 - `single` — default; one complete-file PUT within the resumable session.
 - `chunked` — 4 MiB chunks with persisted session URI, byte offset and update timestamp.
@@ -152,10 +178,13 @@ Current administrator capabilities:
 - edit process video, autoplay, bilingual Tiptap content, attachments and divider spacing;
 - select and order up to three pinned photos per process;
 - edit public Chinese and English site copy, including multiline titles;
+- configure independent guest/admin upload limits, Drive upload mode and bilingual upload guidance in the Upload Method card;
+- independently show/hide the latest-photo, all-visitors and name labels inside the Guest upload album editor;
+- drag guest-name labels into a saved order and configure the latest-photo count;
 - filter photos by album, process and author;
-- batch-upload up to 30 administrator photos through the reliable guest upload core, then finalize album/process memberships;
+- batch-upload administrator photos through the reliable guest upload core, then finalize album/process memberships;
 - edit display name, capture time, author, visibility, albums and process;
-- select photos on the current page and bulk-add or replace albums, replace process classification, or permanently delete the eligible photo families;
+- select photos on the current page and bulk-add or replace albums, replace process classification, bulk-change uploader/author, or permanently delete eligible photo families;
 - permanently delete the complete photo family from every album/process;
 - refresh a selected album or process by deleting only generated thumbnails, rescanning originals and rebuilding derivatives;
 - keep JSON edits in local drafts and submit changed general data through the global save action.
@@ -163,6 +192,7 @@ Current administrator capabilities:
 Current administrator UI behavior:
 
 - Native manual accordions wrap refresh maintenance, new and existing albums, new-photo upload and every category editor.
+- Guest-label settings are a nested, closed-by-default accordion inside the `guest` album editor.
 - Category summaries show display number, Chinese label and English label.
 - Administrator photo previews are paginated 10 at a time. Wide screens use five columns, then responsively reduce to four, three, two or one.
 - Pinned-photo candidates are paginated 10 at a time; page changes abort hidden thumbnail requests and release obsolete blob URLs.
@@ -190,6 +220,8 @@ The runner:
 - starts production listening only after success.
 
 Never use `drizzle-kit push` for Memories tables. A publish plan containing `DROP TABLE`, `DROP COLUMN` or removal of existing constraints must be cancelled.
+
+The guest-label visibility split and its subsequent structural refactor use the existing `memories_app_settings` key/value table and require no schema migration.
 
 ## Required production configuration
 
@@ -230,9 +262,11 @@ pnpm --filter @workspace/memories-album test:drive-live
 
 ## CI and architecture debt
 
-Standalone CI runs the Node test suite, a production client/server build and a real server health smoke. Public-bootstrap tests verify single-load memoization, independent endpoint fallback, and the completed transform-chain removal of post-render settings requests. The legacy-boundary workflow protects the invitation and old photo API.
+Standalone CI runs the Node test suite, a production client/server build and a real server health smoke. Public-bootstrap tests verify single-load memoization and independent endpoint fallback. Guest-label preservation tests verify legacy setting fallback, selector order, filter availability, canonical-route availability, persistence wiring and the completed production transform chain. The legacy-boundary workflow protects the invitation and old photo API.
 
-CI does not yet run a real browser such as Playwright against the completed production transform chain. The largest remaining architecture risk is the collection of Vite pre-transforms that mutate `App.jsx` and `AdminApp.jsx` through exact string replacement. Public data loading is now centralized in a normal module, but `public-bootstrap-ui-transform.mjs` remains a compatibility bridge until the generated gallery behavior can be moved into ordinary React components. Any transform change should validate final generated code and a real browser render.
+CI does not yet run a real browser such as Playwright against the completed production transform chain. The largest remaining architecture risk is the collection of Vite pre-transforms that mutate `App.jsx` and `AdminApp.jsx` through exact string replacement. Public data loading and guest-label decisions are now centralized in normal pure modules, but the transforms remain compatibility bridges until generated gallery behavior can move into ordinary React components. Any transform change should validate final generated code and a real browser render.
+
+Post-change structural passes must begin only after the behavior change is complete and green. They should remain local, preserve observable outcomes, add or reuse preservation tests, and avoid turning into generic repository cleanup.
 
 Additional known limitations:
 

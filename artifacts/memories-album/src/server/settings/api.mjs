@@ -2,6 +2,8 @@ import { isValidGalleryMediaOrder } from "./media-order.mjs";
 import { isValidPinnedPhotosByProcess } from "../../pinned-photo-settings.mjs";
 import { isValidSiteCopy } from "../../site-copy.mjs";
 import {
+  GUEST_LABEL_VISIBILITY_SETTING_KEYS,
+  LEGACY_GUEST_LABEL_VISIBILITY_KEY,
   MAX_GUEST_LATEST_PHOTO_COUNT,
   MIN_GUEST_LATEST_PHOTO_COUNT,
   isValidGuestLatestPhotoCount,
@@ -15,6 +17,11 @@ import {
   isValidUploadDescription,
 } from "../../upload-settings.mjs";
 import { isValidDriveUploadMode } from "./upload-mode.mjs";
+
+const GUEST_LABEL_BOOLEAN_SETTING_KEYS = Object.freeze([
+  LEGACY_GUEST_LABEL_VISIBILITY_KEY,
+  ...GUEST_LABEL_VISIBILITY_SETTING_KEYS,
+]);
 
 function json(response, status, body) {
   response.writeHead(status, {
@@ -46,6 +53,40 @@ async function readJson(request, maxBytes = 32 * 1024) {
     error.code = "INVALID_JSON";
     throw error;
   }
+}
+
+function presentSettingKeys(body, keys) {
+  return keys.filter((key) => Object.hasOwn(body, key));
+}
+
+async function applyGuestLabelVisibilityUpdates(
+  repository,
+  body,
+  presentVisibilityKeys,
+) {
+  const updates = {};
+  if (presentVisibilityKeys.includes(LEGACY_GUEST_LABEL_VISIBILITY_KEY)) {
+    const legacyValue = body[LEGACY_GUEST_LABEL_VISIBILITY_KEY];
+    Object.assign(
+      updates,
+      await repository.setGuestUploaderLabelsVisible(legacyValue),
+    );
+    for (const settingKey of GUEST_LABEL_VISIBILITY_SETTING_KEYS) {
+      Object.assign(
+        updates,
+        await repository.setGuestLabelVisibility(settingKey, legacyValue),
+      );
+    }
+  }
+
+  for (const settingKey of GUEST_LABEL_VISIBILITY_SETTING_KEYS) {
+    if (!presentVisibilityKeys.includes(settingKey)) continue;
+    Object.assign(
+      updates,
+      await repository.setGuestLabelVisibility(settingKey, body[settingKey]),
+    );
+  }
+  return updates;
 }
 
 export function createSettingsApi({ repository }) {
@@ -104,21 +145,9 @@ export function createAdminSettingsApi({ repository }) {
         "adminUploadMaxPhotos",
       );
       const hasUploadDescription = Object.hasOwn(body, "uploadDescription");
-      const hasGuestUploaderLabelsVisible = Object.hasOwn(
+      const presentGuestLabelVisibilityKeys = presentSettingKeys(
         body,
-        "guestUploaderLabelsVisible",
-      );
-      const hasGuestLatestPhotosLabelVisible = Object.hasOwn(
-        body,
-        "guestLatestPhotosLabelVisible",
-      );
-      const hasGuestAllVisitorsLabelVisible = Object.hasOwn(
-        body,
-        "guestAllVisitorsLabelVisible",
-      );
-      const hasGuestNameLabelsVisible = Object.hasOwn(
-        body,
-        "guestNameLabelsVisible",
+        GUEST_LABEL_BOOLEAN_SETTING_KEYS,
       );
       const hasGuestUploaderLabelOrder = Object.hasOwn(
         body,
@@ -134,10 +163,7 @@ export function createAdminSettingsApi({ repository }) {
         hasAdminUploadMaxPhotos ||
         hasUploadDescription;
       const hasGuestLabelSetting =
-        hasGuestUploaderLabelsVisible ||
-        hasGuestLatestPhotosLabelVisible ||
-        hasGuestAllVisitorsLabelVisible ||
-        hasGuestNameLabelsVisible ||
+        presentGuestLabelVisibilityKeys.length > 0 ||
         hasGuestUploaderLabelOrder ||
         hasGuestLatestPhotoCount;
 
@@ -229,21 +255,9 @@ export function createAdminSettingsApi({ repository }) {
       }
 
       if (hasGuestLabelSetting) {
-        const booleanGuestLabelSettings = [
-          [hasGuestUploaderLabelsVisible, body.guestUploaderLabelsVisible],
-          [
-            hasGuestLatestPhotosLabelVisible,
-            body.guestLatestPhotosLabelVisible,
-          ],
-          [
-            hasGuestAllVisitorsLabelVisible,
-            body.guestAllVisitorsLabelVisible,
-          ],
-          [hasGuestNameLabelsVisible, body.guestNameLabelsVisible],
-        ];
         if (
-          booleanGuestLabelSettings.some(
-            ([present, value]) => present && typeof value !== "boolean",
+          presentGuestLabelVisibilityKeys.some(
+            (settingKey) => typeof body[settingKey] !== "boolean",
           )
         ) {
           json(response, 422, {
@@ -273,48 +287,11 @@ export function createAdminSettingsApi({ repository }) {
           return true;
         }
 
-        const guestLabelUpdates = {};
-        if (hasGuestUploaderLabelsVisible) {
-          Object.assign(
-            guestLabelUpdates,
-            await repository.setGuestUploaderLabelsVisible(
-              body.guestUploaderLabelsVisible,
-            ),
-            await repository.setGuestLatestPhotosLabelVisible(
-              body.guestUploaderLabelsVisible,
-            ),
-            await repository.setGuestAllVisitorsLabelVisible(
-              body.guestUploaderLabelsVisible,
-            ),
-            await repository.setGuestNameLabelsVisible(
-              body.guestUploaderLabelsVisible,
-            ),
-          );
-        }
-        if (hasGuestLatestPhotosLabelVisible) {
-          Object.assign(
-            guestLabelUpdates,
-            await repository.setGuestLatestPhotosLabelVisible(
-              body.guestLatestPhotosLabelVisible,
-            ),
-          );
-        }
-        if (hasGuestAllVisitorsLabelVisible) {
-          Object.assign(
-            guestLabelUpdates,
-            await repository.setGuestAllVisitorsLabelVisible(
-              body.guestAllVisitorsLabelVisible,
-            ),
-          );
-        }
-        if (hasGuestNameLabelsVisible) {
-          Object.assign(
-            guestLabelUpdates,
-            await repository.setGuestNameLabelsVisible(
-              body.guestNameLabelsVisible,
-            ),
-          );
-        }
+        const guestLabelUpdates = await applyGuestLabelVisibilityUpdates(
+          repository,
+          body,
+          presentGuestLabelVisibilityKeys,
+        );
         if (hasGuestUploaderLabelOrder) {
           Object.assign(
             guestLabelUpdates,
