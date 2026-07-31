@@ -34,8 +34,8 @@ function transformApp(source) {
 
   code = replaceOnce(
     code,
-    `fallbackAlbums()[initialRoute.groupIndex]?.id || "wedding"`,
-    `initialRoute.albumKey ||\n      fallbackAlbums()[initialRoute.groupIndex]?.id ||\n      "wedding"`,
+    `initialPublicBootstrap.albums[initialRoute.groupIndex]?.id || "wedding"`,
+    `initialRoute.albumKey ||\n      initialPublicBootstrap.albums[initialRoute.groupIndex]?.id ||\n      initialPublicBootstrap.albums[0]?.id ||\n      "wedding"`,
     "identity-backed initial album",
   );
 
