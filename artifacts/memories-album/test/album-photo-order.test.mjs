@@ -172,7 +172,9 @@ test("album photo ordering is selectable in admin and applied after filtering", 
   assert.match(transform, /sortAlbumPhotosWithinMediaOrder\(/);
   assert.doesNotMatch(transform, /sortAlbumPhotos\(\s*sortPhotosByMediaOrder/);
   assert.match(transform, /galleryMediaOrder,/);
-  assert.match(transform, /albumRandomSeedRef\.current/);
+  assert.match(transform, /const \[albumRandomSeed\] = useState/);
+  assert.match(transform, /albumRandomSeed,/);
+  assert.doesNotMatch(transform, /albumRandomSeedRef/);
   assert.match(changeSet, /"photoSortMode"/);
   assert.match(photoApi, /nameSortRank:/);
   assert.match(photoApi, /authorSortRank:/);
