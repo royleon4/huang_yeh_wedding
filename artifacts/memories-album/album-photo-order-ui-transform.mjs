@@ -32,15 +32,8 @@ function transformGallery(source) {
 
   code = replaceOnce(
     code,
-    `  const openerRef = useRef(null);\n  const t = COPY[lang];`,
-    `  const openerRef = useRef(null);\n  const t = COPY[lang];\n  const albumRandomSeedRef = useRef(\n    globalThis.crypto?.randomUUID?.() ?? \`${"${Date.now()}"}-${"${Math.random()}"}\`,\n  );`,
-    "stable random seed",
-  );
-
-  code = replaceOnce(
-    code,
     `  const filtered = useMemo(\n    () =>\n      sortPhotosByMediaOrder(\n        filterPhotos(photos, activeFilter, activeCollection),\n        galleryMediaOrder,\n      ),\n    [photos, activeFilter, activeCollection, galleryMediaOrder],\n  );`,
-    `  const activeCollectionDefinition =\n    albums.find((item) => item.id === activeCollection) ?? albums[0];\n  const filtered = useMemo(\n    () =>\n      sortAlbumPhotosWithinMediaOrder(\n        filterPhotos(photos, activeFilter, activeCollection),\n        galleryMediaOrder,\n        activeCollectionDefinition?.photoSortMode,\n        albumRandomSeedRef.current,\n      ),\n    [\n      photos,\n      activeFilter,\n      activeCollection,\n      galleryMediaOrder,\n      activeCollectionDefinition?.photoSortMode,\n    ],\n  );`,
+    `  const [albumRandomSeed] = useState(\n    () =>\n      globalThis.crypto?.randomUUID?.() ??\n      \`${"${Date.now()}"}-${"${Math.random()}"}\`,\n  );\n  const activeCollectionDefinition =\n    albums.find((item) => item.id === activeCollection) ?? albums[0];\n  const filtered = useMemo(\n    () =>\n      sortAlbumPhotosWithinMediaOrder(\n        filterPhotos(photos, activeFilter, activeCollection),\n        galleryMediaOrder,\n        activeCollectionDefinition?.photoSortMode,\n        albumRandomSeed,\n      ),\n    [\n      photos,\n      activeFilter,\n      activeCollection,\n      galleryMediaOrder,\n      activeCollectionDefinition?.photoSortMode,\n      albumRandomSeed,\n    ],\n  );`,
     "active album photo ordering",
   );
 
