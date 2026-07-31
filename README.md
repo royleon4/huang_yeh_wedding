@@ -41,6 +41,7 @@ Memories 與舊邀請網站是不同的應用：
 - 點選子分類、直接開啟網址、重新整理，以及瀏覽器上一頁／下一頁，會還原選擇並定位到照片區。
 - 婚禮流程可包含 YouTube、雙語文章、Drive 附件、分隔空間、1～3 張置頂照片與瀑布牆。
 - 管理員可編輯公開網站的中英文文字；主標題支援換行。
+- 公開頁面會在第一次 React render 前，一次讀取相簿、流程與公開設定。正常載入時，第一個畫面直接使用管理員已儲存的文字、輪盤模式、排序與置頂設定，不會先顯示 bundled defaults 再切換。
 - 圖片使用 lazy loading；大量照片以「載入更多回憶」限制 DOM 與記憶體用量。
 - 全螢幕檢視器重用已載入縮圖，並完整顯示直式與橫式照片。
 
@@ -114,6 +115,16 @@ flowchart LR
   LegacyApi --> DB
   LegacyApi --> Object
 ```
+
+### 公開頁面啟動流程
+
+公開相簿不再讓各元件分別抓取相同設定。`public-bootstrap.mjs` 會在建立 React root 前平行讀取：
+
+1. `/Memories/api/albums`
+2. `/Memories/api/settings`
+3. `/Memories/api/processes`
+
+完成正規化後，同一份 snapshot 會提供給標題文字、相簿、流程選擇器、媒體順序、置頂圖片及訪客上傳分類。若個別 endpoint 暫時失敗，成功取得的資源仍保留，失敗的部分才使用安全 fallback；不會先 render 預設內容再二次改畫面。
 
 ## Repository 結構
 
@@ -218,7 +229,7 @@ Migration runner 會保存 checksum、使用 PostgreSQL advisory lock，並只�
 
 Standalone Memories CI 目前包含：
 
-1. Node test runner 全套測試。
+1. Node test runner 全套測試，包括 public bootstrap 的 partial-failure 與單次載入合約。
 2. Vite production build 與 server bundle。
 3. 啟動 `dist/server.mjs` 並檢查 `/Memories/api/health`。
 4. Memories／legacy 邊界檢查。
@@ -231,7 +242,7 @@ CI 尚未以 Playwright 或其他真實瀏覽器執行完整 React render。涉�
 - 直接從 Drive 刪除原圖不會完成網站資料清理；請使用管理後台或私人管理頁。
 - 人物分類與自拍找照片仍是後續功能。
 - 仍需更多 iOS Safari、Android Chrome、LINE／Instagram 內建瀏覽器及慢速網路實機驗收。
-- 多個 Vite pre-transform 仍以 exact-string replacement 修改 React source，是目前最大的維護風險。
+- 多個 Vite pre-transform 仍以 exact-string replacement 修改 React source，是目前最大的維護風險；公開資料載入已集中到單一 bootstrap，但仍需逐步把相容 transform 搬回正式元件。
 - 管理員上傳後的分類仍由前端追加 PATCH，尚未整合成伺服器端原子 command。
 
 ## 文件索引
