@@ -70,20 +70,17 @@ test("semantic routes from the previous release remain readable for migration", 
   assert.equal(parsed.photoId, "photo-9");
 });
 
-test("all administrator tabs use logical group numbers", () => {
-  const tabs = [
-    "general",
-    "albums",
-    "photos",
-    "categories",
-    "subcategory-ui",
-  ];
+test("administrator tabs use four logical groups after subcategory settings move into General", () => {
+  const tabs = ["general", "albums", "photos", "categories"];
   tabs.forEach((tab, index) => {
     const path = adminTabPath(tab);
     assert.equal(path, `/Memories/admin/group${index + 1}`);
     assert.equal(readAdminTab(path), tab);
   });
   assert.equal(readAdminTab("/Memories/admin/photos"), "photos");
+  assert.equal(readAdminTab("/Memories/admin/subcategory-ui"), "general");
+  assert.equal(readAdminTab("/Memories/admin/group5"), "general");
+  assert.equal(adminTabPath("subcategory-ui"), "/Memories/admin/group1");
   assert.equal(readAdminTab("/Memories/admin/group99"), "albums");
   assert.equal(readAdminTab("/Memories/admin/"), "albums");
 });
