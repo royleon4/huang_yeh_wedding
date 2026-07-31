@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
+import { adminAccordionUiTransform } from "../admin-accordion-ui-transform.mjs";
 import { adminPhotoWorkspaceUiTransform } from "../admin-photo-workspace-ui-transform.mjs";
 import { guestLabelsUiTransform } from "../guest-labels-ui-transform.mjs";
 import { logicalRouteUiTransform } from "../logical-route-ui-transform.mjs";
@@ -103,7 +104,7 @@ test("public bootstrap normalizes guest label settings before first render", () 
 });
 
 test("administrator can drag guest labels and save visibility order and latest count", async () => {
-  const [general, component, css, repository, api] = await Promise.all([
+  const [general, component, css, repository, api, adminSource] = await Promise.all([
     readFile(new URL("../src/client/GeneralSettings.jsx", import.meta.url), "utf8"),
     readFile(new URL("../src/client/GuestLabelSettings.jsx", import.meta.url), "utf8"),
     readFile(new URL("../src/client/guest-label-settings.css", import.meta.url), "utf8"),
@@ -112,9 +113,28 @@ test("administrator can drag guest labels and save visibility order and latest c
       "utf8",
     ),
     readFile(new URL("../src/server/settings/api.mjs", import.meta.url), "utf8"),
+    readFile(new URL("../src/client/AdminApp.jsx", import.meta.url), "utf8"),
   ]);
 
-  assert.match(general, /<GuestLabelSettings \/>/);
+  let admin = run(
+    adminAccordionUiTransform(),
+    adminSource,
+    "/workspace/src/client/AdminApp.jsx",
+  );
+  admin = run(
+    guestLabelsUiTransform(),
+    admin,
+    "/workspace/src/client/AdminApp.jsx",
+  );
+
+  assert.doesNotMatch(general, /GuestLabelSettings/);
+  assert.match(admin, /album\.id === "guest"/);
+  assert.match(admin, /訪客相簿標籤/);
+  assert.match(admin, /admin-guest-label-accordion/);
+  assert.doesNotMatch(
+    admin,
+    /<details className="admin-accordion admin-guest-label-accordion" open/,
+  );
   assert.match(component, /draggable=\{!saving\}/);
   assert.match(component, /onDragStart|onDrop/);
   assert.match(component, /guestUploaderLabelsVisible/);

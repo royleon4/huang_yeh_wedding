@@ -1,6 +1,6 @@
-# Memories logical routes
+# Memories identity routes
 
-The URL mirrors the ordered visual hierarchy rather than database IDs or display names. Renaming an album, process, guest group, or administrator tab therefore does not expose its internal identifier in the address bar.
+Canonical URLs are tied to the stable identity of the album, label, administrator tab, or photo they represent. Display order is presentation only and never changes an existing URL.
 
 ## Language
 
@@ -8,48 +8,51 @@ Traditional Chinese is the default and has no language segment. English adds `/e
 
 | Language | Example |
 | --- | --- |
-| Traditional Chinese | `/Memories/group1/subgroup2` |
-| English | `/Memories/en/group1/subgroup2` |
+| Traditional Chinese | `/Memories/albums/guest/labels/Leon` |
+| English | `/Memories/en/albums/guest/labels/Leon` |
 
-Changing the language updates the URL while preserving the selected group, subgroup, and opened photo. Opening an English URL directly also opens the English interface.
+Changing the language updates only the language segment while preserving the selected album, label, and opened photo.
 
 ## Public archive
 
-The current display order defines the logical numbers:
-
-- `group1`, `group2`, `group3`, … are the ordered album tabs.
-- `subgroup1`, `subgroup2`, `subgroup3`, … are the ordered process, guest, or future child-category tabs inside the selected group.
-- Selecting “all” uses the parent group URL without a subgroup segment.
-
 | Surface | Canonical path |
 | --- | --- |
-| First album, all children | `/Memories/group1` |
-| Second album, third child | `/Memories/group2/subgroup3` |
-| English first album | `/Memories/en/group1` |
+| Album | `/Memories/albums/:albumKey` |
+| Label inside an album | `/Memories/albums/:albumKey/labels/:labelKey` |
+| English album | `/Memories/en/albums/:albumKey` |
 | Open photo | append `/photos/:photoId` |
 | Upload | `/Memories/upload` or `/Memories/en/upload` |
 | People placeholder | `/Memories/people` or `/Memories/en/people` |
 | Find-me placeholder | `/Memories/find` or `/Memories/en/find` |
-| Private upload management | `/Memories/manage/:batchToken` |
+| Private upload management | `/Memories/manage/:batchId#token=...` |
 
-Opening or refreshing a subgroup URL performs the same selection and gallery-anchor positioning as pressing that subgroup in the interface. Browser Back and Forward restore both selection and positioning.
+Album keys use the saved album identity. Wedding-process labels use their process identity. Guest labels use the normalized visitor label itself, URL encoded. The virtual latest-photo label uses the stable key `latest`.
 
-`/Memories/` and `/Memories/en/` are compatibility aliases for their respective `group1` paths. The former semantic album-ID routes remain readable and are replaced client-side with the corresponding logical-number route.
+Reordering albums or labels does not alter any canonical URL. Renaming or removing a guest uploader label removes that label identity; a stale route is treated as not found and replaced with the nearest valid parent route. A missing album redirects to the first available album, a missing label redirects to its album, and a missing photo redirects to its label or album. The replacement history entry records `{ status: 404, missingPath }`, and the application emits `memories:route-not-found` before recovery.
+
+Opening a label URL directly, clicking a label, refreshing, and browser Back/Forward all restore the same identity and request gallery-anchor positioning.
+
+`/Memories/` and `/Memories/en/` remain compatibility roots and redirect to the first available album. Previous ordinal routes such as `/Memories/group2/subgroup3` and older semantic routes remain readable only as migration aliases; after resolution they are replaced by the stable identity URL.
 
 ## Administrator
 
-Administrator tabs use their visible order:
+Administrator tabs use stable semantic identifiers:
 
-| Ordered tab | Canonical path |
+| Tab | Canonical path |
 | --- | --- |
-| First tab | `/Memories/admin/group1` |
-| Second tab | `/Memories/admin/group2` |
-| Third tab | `/Memories/admin/group3` |
-| Additional tabs | continue as `group4`, `group5`, … |
+| General | `/Memories/admin/general` |
+| Albums | `/Memories/admin/albums` |
+| Photos | `/Memories/admin/photos` |
+| Categories | `/Memories/admin/categories` |
 | Login | `/Memories/admin/login` |
 
-Deep administrator routes pass through the same server-side session authorization as `/Memories/admin/`. The previous semantic tab paths remain readable and are canonicalized to logical group paths.
+Moving or relabeling a tab does not change its route. Previous `/Memories/admin/groupN` paths remain migration aliases and are replaced with the semantic route.
 
-## Ordering rules
+## Identity rules
 
-A logical number always comes from the currently saved display order, never from a label, database ID, filename, or array key supplied by the visitor. Adding or reordering groups and subgroups updates their logical position consistently across clicks, refreshes, direct links, and browser history.
+- URLs are never generated from current display indexes.
+- Reordering an entity cannot change its URL.
+- A route resolves only while the referenced identity exists and is available on that surface.
+- Deleted or unavailable identities are marked as not found before replacement with the nearest valid parent.
+- Photo routes retain the existing opaque photo identity.
+- User-visible text is URL encoded and normalized with NFKC before use as a guest-label identity.

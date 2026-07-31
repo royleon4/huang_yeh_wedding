@@ -1,10 +1,28 @@
 const APP_SUFFIX = "/src/client/App.jsx";
+const ADMIN_APP_SUFFIX = "/src/client/AdminApp.jsx";
 
 function replaceOnce(source, search, replacement, label) {
   if (!source.includes(search)) {
     throw new Error(`Guest labels UI transform could not find ${label}`);
   }
   return source.replace(search, replacement);
+}
+
+function transformRegion(source, startMarker, endMarker, transform, label) {
+  const start = source.indexOf(startMarker);
+  const end = source.indexOf(endMarker, start + startMarker.length);
+  if (start < 0 || end < 0) {
+    throw new Error(`Guest labels UI transform could not find ${label}`);
+  }
+  return `${source.slice(0, start)}${transform(source.slice(start, end))}${source.slice(end)}`;
+}
+
+function replaceLast(source, search, replacement, label) {
+  const index = source.lastIndexOf(search);
+  if (index < 0) {
+    throw new Error(`Guest labels UI transform could not find ${label}`);
+  }
+  return `${source.slice(0, index)}${replacement}${source.slice(index + search.length)}`;
 }
 
 function transformApp(source) {
@@ -67,14 +85,43 @@ function transformApp(source) {
   return code;
 }
 
+function transformAdmin(source) {
+  let code = replaceOnce(
+    source,
+    `import "./admin-save-bar.css";`,
+    `import "./admin-save-bar.css";\nimport GuestLabelSettings from "./GuestLabelSettings.jsx";`,
+    "guest label administrator import",
+  );
+
+  code = transformRegion(
+    code,
+    "function AlbumEditor(",
+    "\nfunction CategoryEditor(",
+    (region) =>
+      replaceLast(
+        region,
+        `      </form>\n    </details>\n  );`,
+        `        {album.id === "guest" && (\n          <details className="admin-accordion admin-guest-label-accordion">\n            <summary className="admin-accordion-summary">\n              <span className="admin-accordion-title">訪客相簿標籤</span>\n              <span className="admin-accordion-secondary">顯示、排序與最新照片</span>\n            </summary>\n            <div className="admin-accordion-body">\n              <GuestLabelSettings />\n            </div>\n          </details>\n        )}\n      </form>\n    </details>\n  );`,
+        "guest album nested accordion",
+      ),
+    "album editor",
+  );
+  return code;
+}
+
 export function guestLabelsUiTransform() {
   return {
     name: "guest-labels-ui",
     enforce: "pre",
     transform(source, id) {
       const normalizedId = id.split("?")[0].replace(/\\/g, "/");
-      if (!normalizedId.endsWith(APP_SUFFIX)) return null;
-      return { code: transformApp(source), map: null };
+      if (normalizedId.endsWith(APP_SUFFIX)) {
+        return { code: transformApp(source), map: null };
+      }
+      if (normalizedId.endsWith(ADMIN_APP_SUFFIX)) {
+        return { code: transformAdmin(source), map: null };
+      }
+      return null;
     },
   };
 }
