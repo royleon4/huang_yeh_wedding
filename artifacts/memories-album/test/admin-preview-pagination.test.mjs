@@ -49,8 +49,8 @@ test("administrator photo tab renders only the current ten-photo preview batch",
   const source = await transformed("src/client/AdminPhotoWorkspace.jsx");
   assert.match(source, /URLSearchParams\(\{ limit: "10" \}\)/);
   assert.match(source, /visibleItems: previewPhotos/);
-  assert.match(source, /previewPhotos\.map\(\(photo\) =>/);
-  assert.doesNotMatch(source, /visiblePhotos\.map\(\(photo\) =>/);
+  assert.match(source, /\{previewPhotos\.map\(\(photo\) =>/);
+  assert.doesNotMatch(source, /\{visiblePhotos\.map\(\(photo\) =>/);
   assert.match(source, /visiblePhotos=\{previewPhotos\}/);
   assert.match(source, /bufferedPreviewCount < ADMIN_PREVIEW_BATCH_SIZE/);
   assert.match(source, /<ProgressivePreviewMoreButton/);
