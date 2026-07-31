@@ -8,6 +8,8 @@ import { publicBootstrapUiTransform } from "../public-bootstrap-ui-transform.mjs
 import { uploadSettingsUiTransform } from "../upload-settings-ui-transform.mjs";
 import {
   DEFAULT_UPLOAD_DESCRIPTION,
+  MAX_SUPPORTED_UPLOAD_PHOTOS,
+  MIN_UPLOAD_PHOTOS,
   normalizeUploadSettings,
   isValidAdminUploadMaxPhotos,
   isValidGuestUploadMaxPhotos,
@@ -30,7 +32,7 @@ function run(plugin, code, relativePath) {
   return plugin.transform(code, id)?.code ?? code;
 }
 
-test("upload settings only accept the tested guest and administrator limits", () => {
+test("upload settings accept any whole-number limit inside the supported range", () => {
   assert.deepEqual(normalizeUploadSettings(), {
     guestUploadMaxPhotos: 10,
     adminUploadMaxPhotos: 30,
@@ -38,22 +40,24 @@ test("upload settings only accept the tested guest and administrator limits", ()
   });
   assert.deepEqual(
     normalizeUploadSettings({
-      guestUploadMaxPhotos: 100,
-      adminUploadMaxPhotos: 100,
+      guestUploadMaxPhotos: 37,
+      adminUploadMaxPhotos: 82,
       uploadDescription: { zh: "自訂中文", en: "Custom English" },
     }),
     {
-      guestUploadMaxPhotos: 100,
-      adminUploadMaxPhotos: 100,
+      guestUploadMaxPhotos: 37,
+      adminUploadMaxPhotos: 82,
       uploadDescription: { zh: "自訂中文", en: "Custom English" },
     },
   );
-  assert.equal(isValidGuestUploadMaxPhotos(10), true);
-  assert.equal(isValidGuestUploadMaxPhotos(100), true);
-  assert.equal(isValidGuestUploadMaxPhotos(30), false);
-  assert.equal(isValidAdminUploadMaxPhotos(30), true);
-  assert.equal(isValidAdminUploadMaxPhotos(100), true);
-  assert.equal(isValidAdminUploadMaxPhotos(10), false);
+  for (const value of [MIN_UPLOAD_PHOTOS, 17, 64, MAX_SUPPORTED_UPLOAD_PHOTOS]) {
+    assert.equal(isValidGuestUploadMaxPhotos(value), true);
+    assert.equal(isValidAdminUploadMaxPhotos(value), true);
+  }
+  for (const value of [0, 1.5, 101, "not-a-number"]) {
+    assert.equal(isValidGuestUploadMaxPhotos(value), false);
+    assert.equal(isValidAdminUploadMaxPhotos(value), false);
+  }
   assert.equal(
     isValidUploadDescription({ zh: "中文", en: "English" }),
     true,
@@ -108,7 +112,7 @@ async function withUploadSettingsServer(runTest) {
   }
 }
 
-test("the Upload Method card saves mode, both limits, and bilingual text together", async () => {
+test("the Upload Method card saves arbitrary limits and bilingual text together", async () => {
   await withUploadSettingsServer(async (origin) => {
     const uploadDescription = {
       zh: "請選擇想分享的婚禮照片。",
@@ -119,16 +123,16 @@ test("the Upload Method card saves mode, both limits, and bilingual text togethe
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         driveUploadMode: "chunked",
-        guestUploadMaxPhotos: 100,
-        adminUploadMaxPhotos: 100,
+        guestUploadMaxPhotos: 37,
+        adminUploadMaxPhotos: 82,
         uploadDescription,
       }),
     });
     assert.equal(response.status, 200);
     assert.deepEqual(await response.json(), {
       driveUploadMode: "chunked",
-      guestUploadMaxPhotos: 100,
-      adminUploadMaxPhotos: 100,
+      guestUploadMaxPhotos: 37,
+      adminUploadMaxPhotos: 82,
       uploadDescription,
     });
 
@@ -136,18 +140,20 @@ test("the Upload Method card saves mode, both limits, and bilingual text togethe
     assert.equal(publicResponse.status, 200);
     assert.deepEqual(await publicResponse.json(), {
       driveUploadMode: "chunked",
-      guestUploadMaxPhotos: 100,
-      adminUploadMaxPhotos: 100,
+      guestUploadMaxPhotos: 37,
+      adminUploadMaxPhotos: 82,
       uploadDescription,
     });
   });
 });
 
-test("invalid upload limits and descriptions are rejected before persistence", async () => {
+test("out-of-range, fractional, and malformed upload settings are rejected", async () => {
   await withUploadSettingsServer(async (origin) => {
     for (const body of [
-      { guestUploadMaxPhotos: 30 },
-      { adminUploadMaxPhotos: 10 },
+      { guestUploadMaxPhotos: 0 },
+      { guestUploadMaxPhotos: 101 },
+      { adminUploadMaxPhotos: 2.5 },
+      { adminUploadMaxPhotos: "many" },
       { uploadDescription: { zh: "缺英文" } },
     ]) {
       const response = await fetch(`${origin}/admin/api/settings`, {
@@ -188,7 +194,7 @@ test("public and administrator upload surfaces use the saved limits and descript
   assert.match(adminWorkspace, /uploadSettings\.uploadDescription\.zh/);
 });
 
-test("the transformed fair queue accepts a configured one-hundred-photo selection", async () => {
+test("the transformed fair queue accepts an arbitrary configured selection", async () => {
   const plugin = uploadSettingsUiTransform();
   let transformed = run(
     plugin,
@@ -204,14 +210,14 @@ test("the transformed fair queue accepts a configured one-hundred-photo selectio
   );
   const moduleUrl = `data:text/javascript;base64,${Buffer.from(transformed).toString("base64")}`;
   const fairUpload = await import(moduleUrl);
-  const files = Array.from({ length: 100 }, (_, index) => ({
+  const files = Array.from({ length: 87 }, (_, index) => ({
     name: `${index}.jpg`,
   }));
   let uploaded = 0;
   const result = await fairUpload.uploadQueue({
     uploaderName: "Administrator",
     files,
-    maxPhotos: 100,
+    maxPhotos: 87,
     maxConcurrent: 4,
     createBatchFn: async () => ({
       batchId: "batch",
@@ -222,19 +228,24 @@ test("the transformed fair queue accepts a configured one-hundred-photo selectio
       return { id: file.name };
     },
   });
-  assert.equal(uploaded, 100);
-  assert.equal(result.summary.success, 100);
+  assert.equal(uploaded, 87);
+  assert.equal(result.summary.success, 87);
 });
 
-test("General exposes upload limits and descriptions inside the Upload Method card", async () => {
+test("General exposes free numeric upload limits inside the Upload Method card", async () => {
   const [component, config, repository] = await Promise.all([
     source("src/client/DriveUploadModeSettings.jsx"),
     source("vite.routes.config.js"),
     source("src/server/settings/repository.mjs"),
   ]);
   assert.match(component, /<h3 id="upload-method-title">上傳方式<\/h3>/);
-  assert.match(component, /GUEST_UPLOAD_LIMIT_OPTIONS/);
-  assert.match(component, /ADMIN_UPLOAD_LIMIT_OPTIONS/);
+  assert.equal((component.match(/type="number"/g) ?? []).length, 2);
+  assert.match(component, /min=\{MIN_UPLOAD_PHOTOS\}/);
+  assert.match(component, /max=\{MAX_SUPPORTED_UPLOAD_PHOTOS\}/);
+  assert.match(component, /updateLimit\("guestUploadMaxPhotos"/);
+  assert.match(component, /updateLimit\("adminUploadMaxPhotos"/);
+  assert.doesNotMatch(component, /GUEST_UPLOAD_LIMIT_OPTIONS/);
+  assert.doesNotMatch(component, /ADMIN_UPLOAD_LIMIT_OPTIONS/);
   assert.match(component, /中文說明/);
   assert.match(component, /English description/);
   assert.match(component, /uploadDescription: draft\.uploadDescription/);

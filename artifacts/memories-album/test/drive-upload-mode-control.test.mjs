@@ -7,7 +7,7 @@ const readClient = (name) =>
 const readServer = (name) =>
   readFile(new URL(`../src/server/${name}`, import.meta.url), "utf8");
 
-test("administrator can configure original transfer mode and upload limits together", async () => {
+test("administrator can configure original transfer mode and numeric upload limits together", async () => {
   const [control, general, generalCss, uploadCss] = await Promise.all([
     readClient("DriveUploadModeSettings.jsx"),
     readClient("GeneralSettings.jsx"),
@@ -18,16 +18,20 @@ test("administrator can configure original transfer mode and upload limits toget
   assert.match(control, /value: "single"/);
   assert.match(control, /value: "chunked"/);
   assert.match(control, /driveUploadMode: draft\.driveUploadMode/);
-  assert.match(control, /guestUploadMaxPhotos: draft\.guestUploadMaxPhotos/);
-  assert.match(control, /adminUploadMaxPhotos: draft\.adminUploadMaxPhotos/);
+  assert.match(control, /guestUploadMaxPhotos,/);
+  assert.match(control, /adminUploadMaxPhotos,/);
   assert.match(control, /uploadDescription: draft\.uploadDescription/);
   assert.match(control, /<h3 id="upload-method-title">上傳方式<\/h3>/);
   assert.match(control, /type="radio"/);
+  assert.equal((control.match(/type="number"/g) ?? []).length, 2);
+  assert.match(control, /min=\{MIN_UPLOAD_PHOTOS\}/);
+  assert.match(control, /max=\{MAX_SUPPORTED_UPLOAD_PHOTOS\}/);
   assert.match(general, /<DriveUploadModeSettings \/>/);
   assert.match(generalCss, /\.upload-mode-options/);
   assert.match(generalCss, /@media \(max-width: 680px\)/);
   assert.match(uploadCss, /\.upload-limit-grid/);
   assert.match(uploadCss, /\.upload-description-grid/);
+  assert.match(uploadCss, /input\[aria-invalid="true"\]/);
 });
 
 test("runtime snapshots the administrator upload mode for each new original", async () => {

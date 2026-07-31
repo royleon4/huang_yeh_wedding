@@ -2,6 +2,8 @@ import { isValidGalleryMediaOrder } from "./media-order.mjs";
 import { isValidPinnedPhotosByProcess } from "../../pinned-photo-settings.mjs";
 import { isValidSiteCopy } from "../../site-copy.mjs";
 import {
+  MAX_SUPPORTED_UPLOAD_PHOTOS,
+  MIN_UPLOAD_PHOTOS,
   isValidAdminUploadMaxPhotos,
   isValidGuestUploadMaxPhotos,
   isValidUploadDescription,
@@ -130,7 +132,7 @@ export function createAdminSettingsApi({ repository }) {
           !isValidGuestUploadMaxPhotos(body.guestUploadMaxPhotos)
         ) {
           json(response, 422, {
-            error: "guestUploadMaxPhotos must be either 10 or 100",
+            error: `guestUploadMaxPhotos must be an integer from ${MIN_UPLOAD_PHOTOS} to ${MAX_SUPPORTED_UPLOAD_PHOTOS}`,
             code: "INVALID_SETTING",
           });
           return true;
@@ -140,7 +142,7 @@ export function createAdminSettingsApi({ repository }) {
           !isValidAdminUploadMaxPhotos(body.adminUploadMaxPhotos)
         ) {
           json(response, 422, {
-            error: "adminUploadMaxPhotos must be either 30 or 100",
+            error: `adminUploadMaxPhotos must be an integer from ${MIN_UPLOAD_PHOTOS} to ${MAX_SUPPORTED_UPLOAD_PHOTOS}`,
             code: "INVALID_SETTING",
           });
           return true;

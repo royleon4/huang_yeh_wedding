@@ -1,5 +1,4 @@
-export const GUEST_UPLOAD_LIMIT_OPTIONS = Object.freeze([10, 100]);
-export const ADMIN_UPLOAD_LIMIT_OPTIONS = Object.freeze([30, 100]);
+export const MIN_UPLOAD_PHOTOS = 1;
 export const MAX_SUPPORTED_UPLOAD_PHOTOS = 100;
 export const UPLOAD_DESCRIPTION_MAX_LENGTH = 800;
 
@@ -9,14 +8,16 @@ export const DEFAULT_UPLOAD_DESCRIPTION = Object.freeze({
 });
 
 export const DEFAULT_UPLOAD_SETTINGS = Object.freeze({
-  guestUploadMaxPhotos: GUEST_UPLOAD_LIMIT_OPTIONS[0],
-  adminUploadMaxPhotos: ADMIN_UPLOAD_LIMIT_OPTIONS[0],
+  guestUploadMaxPhotos: 10,
+  adminUploadMaxPhotos: 30,
   uploadDescription: DEFAULT_UPLOAD_DESCRIPTION,
 });
 
-function allowedInteger(value, allowed, fallback) {
+function boundedInteger(value, fallback) {
   const normalized = Number(value);
-  return Number.isInteger(normalized) && allowed.includes(normalized)
+  return Number.isInteger(normalized) &&
+    normalized >= MIN_UPLOAD_PHOTOS &&
+    normalized <= MAX_SUPPORTED_UPLOAD_PHOTOS
     ? normalized
     : fallback;
 }
@@ -41,26 +42,33 @@ export function normalizeUploadDescription(value) {
 export function normalizeUploadSettings(value) {
   const source = value && typeof value === "object" ? value : {};
   return {
-    guestUploadMaxPhotos: allowedInteger(
+    guestUploadMaxPhotos: boundedInteger(
       source.guestUploadMaxPhotos,
-      GUEST_UPLOAD_LIMIT_OPTIONS,
       DEFAULT_UPLOAD_SETTINGS.guestUploadMaxPhotos,
     ),
-    adminUploadMaxPhotos: allowedInteger(
+    adminUploadMaxPhotos: boundedInteger(
       source.adminUploadMaxPhotos,
-      ADMIN_UPLOAD_LIMIT_OPTIONS,
       DEFAULT_UPLOAD_SETTINGS.adminUploadMaxPhotos,
     ),
     uploadDescription: normalizeUploadDescription(source.uploadDescription),
   };
 }
 
+export function isValidUploadMaxPhotos(value) {
+  const normalized = Number(value);
+  return (
+    Number.isInteger(normalized) &&
+    normalized >= MIN_UPLOAD_PHOTOS &&
+    normalized <= MAX_SUPPORTED_UPLOAD_PHOTOS
+  );
+}
+
 export function isValidGuestUploadMaxPhotos(value) {
-  return GUEST_UPLOAD_LIMIT_OPTIONS.includes(Number(value));
+  return isValidUploadMaxPhotos(value);
 }
 
 export function isValidAdminUploadMaxPhotos(value) {
-  return ADMIN_UPLOAD_LIMIT_OPTIONS.includes(Number(value));
+  return isValidUploadMaxPhotos(value);
 }
 
 export function isValidUploadDescription(value) {
