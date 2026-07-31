@@ -91,7 +91,7 @@ test("subcategory controls live inside General while category and video saves re
   assert.match(categoryEditor, /\/admin\/api\/process-content/);
 });
 
-test("administrator cards share a full-width contract and tall cards collapse at twice the Drive card height", async () => {
+test("administrator cards share a full-width contract and tall non-General cards collapse at twice the Drive card height", async () => {
   const [admin, manager, css] = await Promise.all([
     transformedAdmin(),
     clientSource("AdminAutoCollapseManager.jsx"),
@@ -101,6 +101,8 @@ test("administrator cards share a full-width contract and tall cards collapse at
   assert.match(manager, /drive-upload-mode-title/);
   assert.match(manager, /const collapseHeight = referenceHeight \* 2/);
   assert.match(manager, /card\.scrollHeight > collapseHeight \+ 1/);
+  assert.match(manager, /card\.closest\("\.general-settings"\)/);
+  assert.match(manager, /removeToggle\(card\);\s*continue;/);
   assert.match(manager, /展開編輯/);
   assert.match(manager, /收合卡片/);
   assert.match(css, /\.general-setting-card,[\s\S]*width: 100% !important/);
