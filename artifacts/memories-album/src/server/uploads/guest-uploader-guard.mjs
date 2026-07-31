@@ -1,4 +1,4 @@
-import { isReservedGuestUploaderName } from "../../guest-uploader-policy.mjs";
+import { isReservedGuestUploaderName } from "./guest-uploader-policy.mjs";
 
 export const RESERVED_GUEST_UPLOADER_ERROR_CODE = "RESERVED_UPLOADER_NAME";
 export const RESERVED_GUEST_UPLOADER_MESSAGE =
