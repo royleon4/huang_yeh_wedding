@@ -63,6 +63,7 @@ Browser payloads expose Memories UUIDs and controlled image routes. Drive IDs, f
 
 - Traditional Chinese is the default; English adds `/en` after `/Memories`.
 - Administrators can edit the public Chinese and English copy. Multiline archive titles preserve line breaks.
+- The public React root is created only after albums, processes, and public settings have been loaded and normalized. The first rendered frame therefore uses saved copy and settings instead of rendering bundled defaults and replacing them afterward.
 - Only `visibility = 'public'` rows are returned publicly.
 - Global media-group ordering remains authoritative. Album-specific random, time, photo-name or author sorting is applied only inside photo groups.
 - Random ordering remains stable for the current page load.
@@ -74,6 +75,18 @@ Browser payloads expose Memories UUIDs and controlled image routes. Drive IDs, f
 - The fullscreen viewer reuses loaded thumbnails, does not preload every original, and contain-fits portrait and landscape media.
 - Missing thumbnails can be repaired and may temporarily fall back to the original with `no-store`.
 - Known label surfaces wrap onto multiple lines instead of truncating with ellipses.
+
+### Public bootstrap contract
+
+`src/client/public-bootstrap.mjs` is the shared startup source for public configuration. Before the first public render it requests, in parallel:
+
+- `/Memories/api/albums`;
+- `/Memories/api/settings`;
+- `/Memories/api/processes`.
+
+The normalized snapshot is reused by the main gallery, editable site copy, media ordering, pinned photos, traditional/wheel selector, and guest-upload classification UI. Components do not independently refetch the same settings after mount. The loader is memoized, so each resource is requested once per page load.
+
+The three resources fail independently. A failed endpoint uses its safe local fallback while successful endpoint results remain active. The fallback is selected before React renders; it is not displayed briefly and then replaced by a late hydration effect.
 
 ## Guest upload
 
@@ -217,9 +230,9 @@ pnpm --filter @workspace/memories-album test:drive-live
 
 ## CI and architecture debt
 
-Standalone CI runs the Node test suite, a production client/server build and a real server health smoke. The legacy-boundary workflow protects the invitation and old photo API.
+Standalone CI runs the Node test suite, a production client/server build and a real server health smoke. Public-bootstrap tests verify single-load memoization, independent endpoint fallback, and the completed transform-chain removal of post-render settings requests. The legacy-boundary workflow protects the invitation and old photo API.
 
-CI does not yet run a real browser such as Playwright against the completed production transform chain. The largest remaining architecture risk is the collection of Vite pre-transforms that mutate `App.jsx` and `AdminApp.jsx` through exact string replacement. Treat these as a temporary compatibility boundary; any transform change should validate final generated code and a real browser render.
+CI does not yet run a real browser such as Playwright against the completed production transform chain. The largest remaining architecture risk is the collection of Vite pre-transforms that mutate `App.jsx` and `AdminApp.jsx` through exact string replacement. Public data loading is now centralized in a normal module, but `public-bootstrap-ui-transform.mjs` remains a compatibility bridge until the generated gallery behavior can be moved into ordinary React components. Any transform change should validate final generated code and a real browser render.
 
 Additional known limitations:
 
