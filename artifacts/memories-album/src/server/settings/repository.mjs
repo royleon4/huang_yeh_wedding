@@ -9,6 +9,14 @@ import {
   normalizeUploadDescription,
 } from "../../upload-settings.mjs";
 import {
+  DEFAULT_GUEST_LATEST_PHOTO_COUNT,
+  DEFAULT_GUEST_UPLOADER_LABELS_VISIBLE,
+  mergeGuestUploaderLabelOrder,
+  normalizeGuestLatestPhotoCount,
+  normalizeGuestUploaderLabel,
+  normalizeGuestUploaderLabelOrder,
+} from "../../guest-label-settings.mjs";
+import {
   DEFAULT_DRIVE_UPLOAD_MODE,
   normalizeDriveUploadMode,
 } from "./upload-mode.mjs";
@@ -25,6 +33,9 @@ const GALLERY_MEDIA_ORDER_KEY = "gallery_media_order";
 const PINNED_PHOTOS_BY_PROCESS_KEY = "pinned_photos_by_process";
 const DRIVE_UPLOAD_MODE_KEY = "drive_upload_mode";
 const SITE_COPY_KEY = "site_copy";
+const GUEST_UPLOADER_LABELS_VISIBLE_KEY = "guest_uploader_labels_visible";
+const GUEST_UPLOADER_LABEL_ORDER_KEY = "guest_uploader_label_order";
+const GUEST_LATEST_PHOTO_COUNT_KEY = "guest_latest_photo_count";
 
 function booleanSetting(rows, key, fallback) {
   const row = rows.find((item) => item.key === key);
@@ -62,31 +73,61 @@ function uploadDescriptionSetting(rows) {
   return normalizeUploadDescription(row?.value);
 }
 
+function guestUploaderLabelOrderSetting(rows, currentLabels) {
+  const row = rows.find((item) => item.key === GUEST_UPLOADER_LABEL_ORDER_KEY);
+  return mergeGuestUploaderLabelOrder(row?.value, currentLabels);
+}
+
 export class PostgresSettingsRepository {
   constructor(pool) {
     if (!pool?.query) throw new Error("A PostgreSQL pool is required");
     this.pool = pool;
   }
 
-  async getPublicSettings() {
+  async listGuestUploaderLabels() {
     const result = await this.pool.query(
-      `SELECT key, value
-       FROM memories_app_settings
-       WHERE key = ANY($1::text[])`,
-      [[
-        NAVIGATION_KEY,
-        GUEST_UPLOAD_CATEGORY_SELECTION_KEY,
-        GUEST_UPLOAD_MAX_PHOTOS_KEY,
-        ADMIN_UPLOAD_MAX_PHOTOS_KEY,
-        UPLOAD_DESCRIPTION_KEY,
-        PROCESS_WHEEL_ENABLED_KEY,
-        PROCESS_WHEEL_VISIBLE_COUNT_KEY,
-        GALLERY_MEDIA_ORDER_KEY,
-        PINNED_PHOTOS_BY_PROCESS_KEY,
-        DRIVE_UPLOAD_MODE_KEY,
-        SITE_COPY_KEY,
-      ]],
+      `SELECT p.uploader_name,
+              MIN(p.created_at) AS first_seen,
+              MIN(p.id::text) AS stable_id
+       FROM memories_photos p
+       INNER JOIN memories_photo_albums mpa
+         ON mpa.photo_id = p.id AND mpa.album_id = 'guest'
+       WHERE p.visibility <> 'trashed'
+         AND p.uploader_name IS NOT NULL
+         AND btrim(p.uploader_name) <> ''
+       GROUP BY p.uploader_name
+       ORDER BY MIN(p.created_at) ASC, MIN(p.id::text) ASC`,
     );
+    return normalizeGuestUploaderLabelOrder(
+      result.rows.map((row) => normalizeGuestUploaderLabel(row.uploader_name)),
+    );
+  }
+
+  async getPublicSettings() {
+    const [result, currentLabels] = await Promise.all([
+      this.pool.query(
+        `SELECT key, value
+         FROM memories_app_settings
+         WHERE key = ANY($1::text[])`,
+        [[
+          NAVIGATION_KEY,
+          GUEST_UPLOAD_CATEGORY_SELECTION_KEY,
+          GUEST_UPLOAD_MAX_PHOTOS_KEY,
+          ADMIN_UPLOAD_MAX_PHOTOS_KEY,
+          UPLOAD_DESCRIPTION_KEY,
+          PROCESS_WHEEL_ENABLED_KEY,
+          PROCESS_WHEEL_VISIBLE_COUNT_KEY,
+          GALLERY_MEDIA_ORDER_KEY,
+          PINNED_PHOTOS_BY_PROCESS_KEY,
+          DRIVE_UPLOAD_MODE_KEY,
+          SITE_COPY_KEY,
+          GUEST_UPLOADER_LABELS_VISIBLE_KEY,
+          GUEST_UPLOADER_LABEL_ORDER_KEY,
+          GUEST_LATEST_PHOTO_COUNT_KEY,
+        ]],
+      ),
+      this.listGuestUploaderLabels(),
+    ]);
     return {
       primaryNavigationVisible: booleanSetting(
         result.rows,
@@ -123,6 +164,22 @@ export class PostgresSettingsRepository {
       pinnedPhotoIdsByProcess: pinnedPhotosSetting(result.rows),
       driveUploadMode: driveUploadModeSetting(result.rows),
       siteCopy: siteCopySetting(result.rows),
+      guestUploaderLabelsVisible: booleanSetting(
+        result.rows,
+        GUEST_UPLOADER_LABELS_VISIBLE_KEY,
+        DEFAULT_GUEST_UPLOADER_LABELS_VISIBLE,
+      ),
+      guestUploaderLabelOrder: guestUploaderLabelOrderSetting(
+        result.rows,
+        currentLabels,
+      ),
+      guestLatestPhotoCount: normalizeGuestLatestPhotoCount(
+        integerSetting(
+          result.rows,
+          GUEST_LATEST_PHOTO_COUNT_KEY,
+          DEFAULT_GUEST_LATEST_PHOTO_COUNT,
+        ),
+      ),
     };
   }
 
@@ -219,6 +276,30 @@ export class PostgresSettingsRepository {
 
   async setSiteCopy(value) {
     return this.setJson(SITE_COPY_KEY, "siteCopy", normalizeSiteCopy(value));
+  }
+
+  async setGuestUploaderLabelsVisible(value) {
+    return this.setBoolean(
+      GUEST_UPLOADER_LABELS_VISIBLE_KEY,
+      "guestUploaderLabelsVisible",
+      value,
+    );
+  }
+
+  async setGuestUploaderLabelOrder(value) {
+    return this.setJson(
+      GUEST_UPLOADER_LABEL_ORDER_KEY,
+      "guestUploaderLabelOrder",
+      normalizeGuestUploaderLabelOrder(value),
+    );
+  }
+
+  async setGuestLatestPhotoCount(value) {
+    return this.setNumber(
+      GUEST_LATEST_PHOTO_COUNT_KEY,
+      "guestLatestPhotoCount",
+      normalizeGuestLatestPhotoCount(value),
+    );
   }
 
   async setBoolean(key, responseKey, value) {
