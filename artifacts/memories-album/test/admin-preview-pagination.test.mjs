@@ -62,12 +62,27 @@ test("administrator bootstrap requests only the first ten photo records", async 
   assert.doesNotMatch(source, /admin\/api\/photos\?limit=50/);
 });
 
-test("pinned-photo candidates render ten previews before showing more", async () => {
+test("pinned-photo candidates use previous and next pages of ten thumbnails", async () => {
   const source = await transformed("src/client/PinnedPhotoPicker.jsx");
-  assert.match(source, /visibleItems: previewCandidates/);
-  assert.match(source, /previewCandidates\.map\(\(photo\) =>/);
-  assert.doesNotMatch(source, /candidates\.map\(\(photo\) =>/);
-  assert.match(source, /remaining=\{bufferedCandidateCount\}/);
-  assert.match(source, /onClick=\{revealNextCandidateBatch\}/);
-  assert.match(source, /expanded \? "open" : "closed"/);
+  assert.match(source, /PREVIEW_PAGE_SIZE = 10/);
+  assert.match(source, /candidates\.slice\(/);
+  assert.match(source, /pageCandidates\.map\(\(photo\) =>/);
+  assert.match(source, /上一頁/);
+  assert.match(source, /下一頁/);
+  assert.match(source, /第 \{currentPage \+ 1\} \/ \{pageCount\} 頁/);
+  assert.doesNotMatch(source, /ProgressivePreviewMoreButton/);
+  assert.doesNotMatch(source, /previewCandidates/);
+});
+
+test("changing pinned-photo pages aborts hidden thumbnail requests", async () => {
+  const [picker, thumbnail] = await Promise.all([
+    transformed("src/client/PinnedPhotoPicker.jsx"),
+    readFile(path.join(root, "src/client/AbortableThumbnail.jsx"), "utf8"),
+  ]);
+  assert.match(picker, /<AbortableThumbnail/);
+  assert.match(picker, /key=\{`\$\{processKey\}:\$\{normalizedQuery\}:\$\{currentPage\}`\}/);
+  assert.match(thumbnail, /const controller = new AbortController\(\)/);
+  assert.match(thumbnail, /signal: controller\.signal/);
+  assert.match(thumbnail, /controller\.abort\(\)/);
+  assert.match(thumbnail, /URL\.revokeObjectURL/);
 });
