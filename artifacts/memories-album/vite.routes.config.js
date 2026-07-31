@@ -5,6 +5,7 @@ import { websiteCopyUiTransform } from "./website-copy-ui-transform.mjs";
 import { adminPreviewPaginationUiTransform } from "./admin-preview-pagination-ui-transform.mjs";
 import { adminSettingsConsolidationUiTransform } from "./admin-settings-consolidation-ui-transform.mjs";
 import { adminAccordionUiTransform } from "./admin-accordion-ui-transform.mjs";
+import { publicLayoutPolishUiTransform } from "./public-layout-polish-ui-transform.mjs";
 
 export default defineConfig({
   ...baseConfig,
@@ -15,5 +16,6 @@ export default defineConfig({
     adminPreviewPaginationUiTransform(),
     adminSettingsConsolidationUiTransform(),
     adminAccordionUiTransform(),
+    publicLayoutPolishUiTransform(),
   ],
 });
