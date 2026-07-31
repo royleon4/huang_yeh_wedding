@@ -108,6 +108,18 @@ export function createAdminSettingsApi({ repository }) {
         body,
         "guestUploaderLabelsVisible",
       );
+      const hasGuestLatestPhotosLabelVisible = Object.hasOwn(
+        body,
+        "guestLatestPhotosLabelVisible",
+      );
+      const hasGuestAllVisitorsLabelVisible = Object.hasOwn(
+        body,
+        "guestAllVisitorsLabelVisible",
+      );
+      const hasGuestNameLabelsVisible = Object.hasOwn(
+        body,
+        "guestNameLabelsVisible",
+      );
       const hasGuestUploaderLabelOrder = Object.hasOwn(
         body,
         "guestUploaderLabelOrder",
@@ -123,6 +135,9 @@ export function createAdminSettingsApi({ repository }) {
         hasUploadDescription;
       const hasGuestLabelSetting =
         hasGuestUploaderLabelsVisible ||
+        hasGuestLatestPhotosLabelVisible ||
+        hasGuestAllVisitorsLabelVisible ||
+        hasGuestNameLabelsVisible ||
         hasGuestUploaderLabelOrder ||
         hasGuestLatestPhotoCount;
 
@@ -214,12 +229,25 @@ export function createAdminSettingsApi({ repository }) {
       }
 
       if (hasGuestLabelSetting) {
+        const booleanGuestLabelSettings = [
+          [hasGuestUploaderLabelsVisible, body.guestUploaderLabelsVisible],
+          [
+            hasGuestLatestPhotosLabelVisible,
+            body.guestLatestPhotosLabelVisible,
+          ],
+          [
+            hasGuestAllVisitorsLabelVisible,
+            body.guestAllVisitorsLabelVisible,
+          ],
+          [hasGuestNameLabelsVisible, body.guestNameLabelsVisible],
+        ];
         if (
-          hasGuestUploaderLabelsVisible &&
-          typeof body.guestUploaderLabelsVisible !== "boolean"
+          booleanGuestLabelSettings.some(
+            ([present, value]) => present && typeof value !== "boolean",
+          )
         ) {
           json(response, 422, {
-            error: "guestUploaderLabelsVisible must be a boolean",
+            error: "Guest label visibility settings must be boolean values",
             code: "INVALID_SETTING",
           });
           return true;
@@ -251,6 +279,39 @@ export function createAdminSettingsApi({ repository }) {
             guestLabelUpdates,
             await repository.setGuestUploaderLabelsVisible(
               body.guestUploaderLabelsVisible,
+            ),
+            await repository.setGuestLatestPhotosLabelVisible(
+              body.guestUploaderLabelsVisible,
+            ),
+            await repository.setGuestAllVisitorsLabelVisible(
+              body.guestUploaderLabelsVisible,
+            ),
+            await repository.setGuestNameLabelsVisible(
+              body.guestUploaderLabelsVisible,
+            ),
+          );
+        }
+        if (hasGuestLatestPhotosLabelVisible) {
+          Object.assign(
+            guestLabelUpdates,
+            await repository.setGuestLatestPhotosLabelVisible(
+              body.guestLatestPhotosLabelVisible,
+            ),
+          );
+        }
+        if (hasGuestAllVisitorsLabelVisible) {
+          Object.assign(
+            guestLabelUpdates,
+            await repository.setGuestAllVisitorsLabelVisible(
+              body.guestAllVisitorsLabelVisible,
+            ),
+          );
+        }
+        if (hasGuestNameLabelsVisible) {
+          Object.assign(
+            guestLabelUpdates,
+            await repository.setGuestNameLabelsVisible(
+              body.guestNameLabelsVisible,
             ),
           );
         }

@@ -36,7 +36,7 @@ function transformApp(source) {
   code = replaceOnce(
     code,
     `  const initialPublicBootstrap = getPublicBootstrap();\n  const [albums] = useState(() => initialPublicBootstrap.albums);\n  const albumsResolved = true;`,
-    `  const initialPublicBootstrap = getPublicBootstrap();\n  const guestUploaderLabelsVisible =\n    initialPublicBootstrap.settings.guestUploaderLabelsVisible !== false;\n  const guestUploaderLabelOrder =\n    initialPublicBootstrap.settings.guestUploaderLabelOrder ?? [];\n  const guestLatestPhotoCount =\n    initialPublicBootstrap.settings.guestLatestPhotoCount;\n  const [albums] = useState(() => initialPublicBootstrap.albums);\n  const albumsResolved = true;`,
+    `  const initialPublicBootstrap = getPublicBootstrap();\n  const guestLatestPhotosLabelVisible =\n    initialPublicBootstrap.settings.guestLatestPhotosLabelVisible !== false;\n  const guestAllVisitorsLabelVisible =\n    initialPublicBootstrap.settings.guestAllVisitorsLabelVisible !== false;\n  const guestNameLabelsVisible =\n    initialPublicBootstrap.settings.guestNameLabelsVisible !== false;\n  const guestUploaderLabelOrder =\n    initialPublicBootstrap.settings.guestUploaderLabelOrder ?? [];\n  const guestLatestPhotoCount =\n    initialPublicBootstrap.settings.guestLatestPhotoCount;\n  const [albums] = useState(() => initialPublicBootstrap.albums);\n  const albumsResolved = true;`,
     "preloaded guest label settings",
   );
 
@@ -50,7 +50,7 @@ function transformApp(source) {
   code = replaceOnce(
     code,
     `  const filtered = useMemo(`,
-    `  const effectiveFilter =\n    activeCollection === "guest" && !guestUploaderLabelsVisible\n      ? "all"\n      : activeFilter;\n  const filtered = useMemo(`,
+    `  const activeGuestFilterVisible =\n    activeFilter === "all"\n      ? guestAllVisitorsLabelVisible\n      : activeFilter === LATEST_GUEST_FILTER_ID\n        ? guestLatestPhotosLabelVisible\n        : guestNameLabelsVisible;\n  const effectiveFilter =\n    activeCollection === "guest" && !activeGuestFilterVisible\n      ? "all"\n      : activeFilter;\n  const filtered = useMemo(`,
     "hidden guest label filter fallback",
   );
 
@@ -78,8 +78,8 @@ function transformApp(source) {
   code = replaceOnce(
     code,
     `          {activeCollection === "guest" && guestGroups.length > 0 && (\n            <ProcessSelector\n              ariaLabel={t.guest}\n              activeId={activeFilter}\n              onSelect={chooseFilter}\n              variant="guest"\n              items={[\n                { id: "all", label: t.allGuests + " (" + guestPhotoCount + ")" },\n                ...guestGroups.map((group) => ({\n                  id: group.id,\n                  label: group.name + " (" + group.count + ")",\n                })),\n              ]}\n            />\n          )}`,
-    `          {activeCollection === "guest" &&\n            guestUploaderLabelsVisible &&\n            guestGroups.length > 0 && (\n              <ProcessSelector\n                ariaLabel={t.guest}\n                activeId={effectiveFilter}\n                onSelect={chooseFilter}\n                variant="guest"\n                items={[\n                  {\n                    id: "all",\n                    label: t.allGuests + " (" + guestPhotoCount + ")",\n                  },\n                  {\n                    id: LATEST_GUEST_FILTER_ID,\n                    label:\n                      (lang === "zh" ? "最新照片" : "Latest photos") +\n                      " (" +\n                      Math.min(guestPhotoCount, guestLatestPhotoCount) +\n                      ")",\n                  },\n                  ...guestGroups.map((group) => ({\n                    id: group.id,\n                    label: group.name + " (" + group.count + ")",\n                  })),\n                ]}\n              />\n            )}`,
-    "guest selector visibility latest tab and order",
+    `          {activeCollection === "guest" &&\n            guestPhotoCount > 0 &&\n            (guestAllVisitorsLabelVisible ||\n              guestLatestPhotosLabelVisible ||\n              (guestNameLabelsVisible && guestGroups.length > 0)) && (\n              <ProcessSelector\n                ariaLabel={t.guest}\n                activeId={effectiveFilter}\n                onSelect={chooseFilter}\n                variant="guest"\n                items={[\n                  ...(guestAllVisitorsLabelVisible\n                    ? [\n                        {\n                          id: "all",\n                          label: t.allGuests + " (" + guestPhotoCount + ")",\n                        },\n                      ]\n                    : []),\n                  ...(guestLatestPhotosLabelVisible\n                    ? [\n                        {\n                          id: LATEST_GUEST_FILTER_ID,\n                          label:\n                            (lang === "zh" ? "最新照片" : "Latest photos") +\n                            " (" +\n                            Math.min(guestPhotoCount, guestLatestPhotoCount) +\n                            ")",\n                        },\n                      ]\n                    : []),\n                  ...(guestNameLabelsVisible\n                    ? guestGroups.map((group) => ({\n                        id: group.id,\n                        label: group.name + " (" + group.count + ")",\n                      }))\n                    : []),\n                ]}\n              />\n            )}`,
+    "independent guest selector visibility latest tab and order",
   );
 
   return code;
