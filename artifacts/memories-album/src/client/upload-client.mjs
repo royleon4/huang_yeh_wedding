@@ -7,7 +7,7 @@ import { MAX_SUPPORTED_UPLOAD_PHOTOS } from "../upload-settings.mjs";
 import {
   isReservedGuestUploaderName,
   normalizeGuestUploaderName,
-} from "../guest-uploader-policy.mjs";
+} from "../server/uploads/guest-uploader-policy.mjs";
 
 export * from "./upload-client-fair.mjs";
 
