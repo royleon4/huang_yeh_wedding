@@ -1,3 +1,8 @@
+import {
+  normalizeGalleryMediaOrder,
+  photoMediaKey,
+} from "./src/gallery-media-order.mjs";
+
 export const DEFAULT_ALBUM_PHOTO_SORT_MODE = "time-asc";
 
 export const ALBUM_PHOTO_SORT_MODES = Object.freeze([
@@ -11,6 +16,7 @@ export const ALBUM_PHOTO_SORT_MODES = Object.freeze([
 ]);
 
 const ALBUM_PHOTO_SORT_MODE_SET = new Set(ALBUM_PHOTO_SORT_MODES);
+const PHOTO_MEDIA_KEYS = new Set(["weddingPhotos", "guestPhotos"]);
 const collator = new Intl.Collator(["zh-Hant", "en"], {
   numeric: true,
   sensitivity: "base",
@@ -131,4 +137,31 @@ export function sortAlbumPhotos(
   });
 
   return ordered;
+}
+
+export function sortAlbumPhotosWithinMediaOrder(
+  photos,
+  mediaOrder,
+  mode = DEFAULT_ALBUM_PHOTO_SORT_MODE,
+  randomSeed = "album-photo-order",
+) {
+  const orderedMediaKeys = normalizeGalleryMediaOrder(mediaOrder).filter((key) =>
+    PHOTO_MEDIA_KEYS.has(key),
+  );
+  const grouped = new Map(orderedMediaKeys.map((key) => [key, []]));
+  const ungrouped = [];
+
+  for (const photo of photos ?? []) {
+    const key = photoMediaKey(photo);
+    const group = grouped.get(key);
+    if (group) group.push(photo);
+    else ungrouped.push(photo);
+  }
+
+  return [
+    ...orderedMediaKeys.flatMap((key) =>
+      sortAlbumPhotos(grouped.get(key), mode, `${randomSeed}:${key}`),
+    ),
+    ...sortAlbumPhotos(ungrouped, mode, `${randomSeed}:ungrouped`),
+  ];
 }
