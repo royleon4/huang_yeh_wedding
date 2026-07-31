@@ -45,28 +45,49 @@ const COMPACT_HERO_CSS = `
 
 const COMPACT_ALBUM_BUTTON_CSS = `
 
-/* Reduce only the album-button footprint; keep the nav shell and safe area intact. */
+/* Keep a 44px touch target while making the visible album chip much tighter. */
 .bottom-nav-side button {
-  flex-basis: min(4.55rem, 44%);
-  min-height: 2.95rem;
-  gap: 0.12rem;
-  border-radius: 0.75rem;
-  padding: 0.25rem 0.32rem;
+  position: relative;
+  isolation: isolate;
+  flex: 0 0 auto;
+  min-width: 3.55rem;
+  min-height: 2.75rem;
+  gap: 0.06rem;
+  border-radius: 0.68rem;
+  padding: 0.08rem 0.34rem;
+}
+
+.bottom-nav-side button.active {
+  background: transparent;
+}
+
+.bottom-nav-side button.active::before {
+  content: "";
+  position: absolute;
+  inset: 0.22rem 0.12rem;
+  z-index: -1;
+  border-radius: 0.58rem;
+  background: rgba(219, 226, 213, 0.68);
 }
 
 .bottom-nav-icon {
-  font-size: 1.04rem;
+  font-size: 0.96rem;
 }
 
 .bottom-nav-side small {
-  line-height: 1.25;
+  font-size: 0.62rem;
+  line-height: 1.1;
 }
 
 @media (max-width: 430px) {
   .bottom-nav-side button {
-    flex-basis: min(4.1rem, 44%);
-    min-height: 2.8rem;
-    padding: 0.2rem 0.22rem;
+    min-width: 3.3rem;
+    min-height: 2.75rem;
+    padding: 0.05rem 0.24rem;
+  }
+
+  .bottom-nav-side button.active::before {
+    inset: 0.24rem 0.08rem;
   }
 }
 `;
