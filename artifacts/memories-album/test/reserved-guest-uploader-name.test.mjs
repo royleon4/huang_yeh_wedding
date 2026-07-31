@@ -5,7 +5,7 @@ import { createGuestBatch } from "../src/client/upload-client.mjs";
 import {
   isReservedGuestUploaderName,
   normalizeGuestUploaderName,
-} from "../src/guest-uploader-policy.mjs";
+} from "../src/server/uploads/guest-uploader-policy.mjs";
 import {
   createGuestUploadRepositoryGuard,
   RESERVED_GUEST_UPLOADER_ERROR_CODE,
