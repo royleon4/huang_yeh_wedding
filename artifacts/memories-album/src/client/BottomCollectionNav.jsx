@@ -14,10 +14,12 @@ function CollectionButtons({ albums, active, isEnglish, onChoose }) {
       onClick={() => onChoose(album.id)}
       aria-current={active === album.id ? "page" : undefined}
     >
-      <span className="bottom-nav-icon" aria-hidden="true">
-        {iconFor(album.id)}
+      <span className="bottom-nav-chip">
+        <span className="bottom-nav-icon" aria-hidden="true">
+          {iconFor(album.id)}
+        </span>
+        <small>{isEnglish ? album.en : album.zh}</small>
       </span>
-      <small>{isEnglish ? album.en : album.zh}</small>
     </button>
   ));
 }
