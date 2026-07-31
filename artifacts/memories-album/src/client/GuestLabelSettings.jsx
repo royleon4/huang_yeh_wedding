@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   DEFAULT_GUEST_LATEST_PHOTO_COUNT,
+  GUEST_LABEL_VISIBILITY_KEYS,
+  GUEST_LABEL_VISIBILITY_SETTING_KEYS,
   MAX_GUEST_LATEST_PHOTO_COUNT,
   MIN_GUEST_LATEST_PHOTO_COUNT,
   normalizeGuestLabelVisibilitySettings,
@@ -10,6 +12,21 @@ import {
 import { adminErrorMessage, adminRequest } from "./admin-client.mjs";
 import { useAdminSaveSection } from "./AdminSaveCoordinator.jsx";
 import "./guest-label-settings.css";
+
+const VISIBILITY_CONTROLS = Object.freeze([
+  {
+    key: GUEST_LABEL_VISIBILITY_KEYS.latest,
+    label: "顯示最新照片標籤",
+  },
+  {
+    key: GUEST_LABEL_VISIBILITY_KEYS.all,
+    label: "顯示所有訪客標籤",
+  },
+  {
+    key: GUEST_LABEL_VISIBILITY_KEYS.names,
+    label: "顯示姓名標籤",
+  },
+]);
 
 function sameOrder(left, right) {
   return (
@@ -35,15 +52,34 @@ function moveLabel(labels, fromIndex, toIndex) {
 }
 
 function normalizedSnapshot(settings = {}) {
-  const visibility = normalizeGuestLabelVisibilitySettings(settings);
   return {
-    latestVisible: visibility.guestLatestPhotosLabelVisible,
-    allVisible: visibility.guestAllVisitorsLabelVisible,
-    namesVisible: visibility.guestNameLabelsVisible,
-    order: normalizeGuestUploaderLabelOrder(settings.guestUploaderLabelOrder),
-    latestCount: normalizeGuestLatestPhotoCount(
+    ...normalizeGuestLabelVisibilitySettings(settings),
+    guestUploaderLabelOrder: normalizeGuestUploaderLabelOrder(
+      settings.guestUploaderLabelOrder,
+    ),
+    guestLatestPhotoCount: normalizeGuestLatestPhotoCount(
       settings.guestLatestPhotoCount ?? DEFAULT_GUEST_LATEST_PHOTO_COUNT,
     ),
+  };
+}
+
+function sameSnapshot(left, right) {
+  return (
+    GUEST_LABEL_VISIBILITY_SETTING_KEYS.every(
+      (key) => left[key] === right[key],
+    ) &&
+    left.guestLatestPhotoCount === right.guestLatestPhotoCount &&
+    sameOrder(left.guestUploaderLabelOrder, right.guestUploaderLabelOrder)
+  );
+}
+
+function snapshotPayload(snapshot) {
+  return {
+    ...Object.fromEntries(
+      GUEST_LABEL_VISIBILITY_SETTING_KEYS.map((key) => [key, snapshot[key]]),
+    ),
+    guestUploaderLabelOrder: snapshot.guestUploaderLabelOrder,
+    guestLatestPhotoCount: snapshot.guestLatestPhotoCount,
   };
 }
 
@@ -56,15 +92,7 @@ export default function GuestLabelSettings() {
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
 
-  const changed = useMemo(
-    () =>
-      draft.latestVisible !== saved.latestVisible ||
-      draft.allVisible !== saved.allVisible ||
-      draft.namesVisible !== saved.namesVisible ||
-      draft.latestCount !== saved.latestCount ||
-      !sameOrder(draft.order, saved.order),
-    [draft, saved],
-  );
+  const changed = useMemo(() => !sameSnapshot(draft, saved), [draft, saved]);
 
   useEffect(() => {
     let cancelled = false;
@@ -90,8 +118,8 @@ export default function GuestLabelSettings() {
     };
   }, []);
 
-  const updateVisibility = (key, value) => {
-    setDraft((current) => ({ ...current, [key]: value }));
+  const updateDraft = (patch) => {
+    setDraft((current) => ({ ...current, ...patch }));
     setMessage("");
     setError("");
   };
@@ -99,7 +127,11 @@ export default function GuestLabelSettings() {
   const updateOrder = (fromIndex, toIndex) => {
     setDraft((current) => ({
       ...current,
-      order: moveLabel(current.order, fromIndex, toIndex),
+      guestUploaderLabelOrder: moveLabel(
+        current.guestUploaderLabelOrder,
+        fromIndex,
+        toIndex,
+      ),
     }));
     setMessage("");
     setError("");
@@ -111,24 +143,12 @@ export default function GuestLabelSettings() {
     setMessage("");
     setError("");
     try {
+      const requested = snapshotPayload(draft);
       const payload = await adminRequest("/admin/api/settings", {
         method: "PATCH",
-        body: {
-          guestLatestPhotosLabelVisible: draft.latestVisible,
-          guestAllVisitorsLabelVisible: draft.allVisible,
-          guestNameLabelsVisible: draft.namesVisible,
-          guestUploaderLabelOrder: draft.order,
-          guestLatestPhotoCount: draft.latestCount,
-        },
+        body: requested,
       });
-      const next = normalizedSnapshot({
-        guestLatestPhotosLabelVisible: draft.latestVisible,
-        guestAllVisitorsLabelVisible: draft.allVisible,
-        guestNameLabelsVisible: draft.namesVisible,
-        guestUploaderLabelOrder: draft.order,
-        guestLatestPhotoCount: draft.latestCount,
-        ...payload,
-      });
+      const next = normalizedSnapshot({ ...requested, ...payload });
       setSaved(next);
       setDraft(next);
       setMessage("訪客相簿標籤設定已儲存。");
@@ -165,41 +185,19 @@ export default function GuestLabelSettings() {
       ) : (
         <>
           <div className="guest-label-controls">
-            <label className="admin-check">
-              <input
-                type="checkbox"
-                checked={draft.latestVisible}
-                onChange={(event) =>
-                  updateVisibility("latestVisible", event.target.checked)
-                }
-                disabled={saving}
-              />
-              顯示最新照片標籤
-            </label>
-
-            <label className="admin-check">
-              <input
-                type="checkbox"
-                checked={draft.allVisible}
-                onChange={(event) =>
-                  updateVisibility("allVisible", event.target.checked)
-                }
-                disabled={saving}
-              />
-              顯示所有訪客標籤
-            </label>
-
-            <label className="admin-check">
-              <input
-                type="checkbox"
-                checked={draft.namesVisible}
-                onChange={(event) =>
-                  updateVisibility("namesVisible", event.target.checked)
-                }
-                disabled={saving}
-              />
-              顯示姓名標籤
-            </label>
+            {VISIBILITY_CONTROLS.map((control) => (
+              <label className="admin-check" key={control.key}>
+                <input
+                  type="checkbox"
+                  checked={draft[control.key]}
+                  onChange={(event) =>
+                    updateDraft({ [control.key]: event.target.checked })
+                  }
+                  disabled={saving}
+                />
+                {control.label}
+              </label>
+            ))}
 
             <label className="guest-latest-count-field">
               「最新照片」顯示張數
@@ -208,14 +206,13 @@ export default function GuestLabelSettings() {
                 min={MIN_GUEST_LATEST_PHOTO_COUNT}
                 max={MAX_GUEST_LATEST_PHOTO_COUNT}
                 step="1"
-                value={draft.latestCount}
-                onChange={(event) => {
-                  const value = Number(event.target.value);
-                  setDraft((current) => ({ ...current, latestCount: value }));
-                  setMessage("");
-                  setError("");
-                }}
-                disabled={saving || !draft.latestVisible}
+                value={draft.guestLatestPhotoCount}
+                onChange={(event) =>
+                  updateDraft({ guestLatestPhotoCount: Number(event.target.value) })
+                }
+                disabled={
+                  saving || !draft[GUEST_LABEL_VISIBILITY_KEYS.latest]
+                }
               />
               <small>
                 可設定 {MIN_GUEST_LATEST_PHOTO_COUNT}～{MAX_GUEST_LATEST_PHOTO_COUNT} 張。
@@ -228,12 +225,12 @@ export default function GuestLabelSettings() {
               <strong>姓名標籤排序</strong>
               <p>拖動標籤調整順序；手機也可以使用上下按鈕。</p>
             </div>
-            <span>{draft.order.length} 個姓名</span>
+            <span>{draft.guestUploaderLabelOrder.length} 個姓名</span>
           </div>
 
-          {draft.order.length > 0 ? (
+          {draft.guestUploaderLabelOrder.length > 0 ? (
             <ol className="guest-label-order-list">
-              {draft.order.map((label, index) => (
+              {draft.guestUploaderLabelOrder.map((label, index) => (
                 <li
                   key={label}
                   className={draggedIndex === index ? "is-dragging" : ""}
@@ -273,7 +270,10 @@ export default function GuestLabelSettings() {
                     <button
                       type="button"
                       onClick={() => updateOrder(index, index + 1)}
-                      disabled={saving || index === draft.order.length - 1}
+                      disabled={
+                        saving ||
+                        index === draft.guestUploaderLabelOrder.length - 1
+                      }
                       aria-label={`將 ${label} 往下移`}
                     >
                       ↓
