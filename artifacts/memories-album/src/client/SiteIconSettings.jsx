@@ -1,41 +1,77 @@
 import { useEffect, useMemo, useState } from "react";
 import {
+  EMPTY_SITE_ICON_METADATA,
   SITE_ICON_ACCEPTED_CONTENT_TYPES,
+  SITE_ICON_FILE_ERROR_CODES,
   SITE_ICON_MAX_UPLOAD_BYTES,
-  siteIconMetadata,
   siteIconUrl,
+  validateSiteIconFile,
 } from "../site-icon.mjs";
 import { adminErrorMessage } from "./admin-client.mjs";
 import { useAdminSaveSection } from "./AdminSaveCoordinator.jsx";
 import {
   applySiteIcon,
-  requestAdminSiteIcon,
+  loadAdminSiteIcon,
+  removeAdminSiteIcon,
+  replaceAdminSiteIcon,
 } from "./site-icon-client.mjs";
 import "./site-icon-settings.css";
 
-const EMPTY_ICON = siteIconMetadata(null);
+const UNCHANGED_DRAFT = Object.freeze({ kind: "unchanged", file: null });
 const MAX_UPLOAD_MB = SITE_ICON_MAX_UPLOAD_BYTES / (1024 * 1024);
 
+function useObjectUrl(file) {
+  const [url, setUrl] = useState("");
+  useEffect(() => {
+    if (!file) {
+      setUrl("");
+      return undefined;
+    }
+    const objectUrl = URL.createObjectURL(file);
+    setUrl(objectUrl);
+    return () => URL.revokeObjectURL(objectUrl);
+  }, [file]);
+  return url;
+}
+
+function fileValidationMessage(code) {
+  if (code === SITE_ICON_FILE_ERROR_CODES.unsupportedType) {
+    return "網站圖示只支援 PNG、JPEG 或 WebP。";
+  }
+  if (code === SITE_ICON_FILE_ERROR_CODES.tooLarge) {
+    return `網站圖示不能超過 ${MAX_UPLOAD_MB} MB。`;
+  }
+  return "請選擇網站圖示檔案。";
+}
+
+function draftStatusLabel(draft, saved) {
+  if (draft.kind === "replace") return draft.file.name;
+  if (draft.kind === "remove") return "將移除自訂圖示";
+  return saved.configured ? "目前使用自訂圖示" : "目前沒有自訂圖示";
+}
+
 export default function SiteIconSettings() {
-  const [saved, setSaved] = useState(EMPTY_ICON);
-  const [selectedFile, setSelectedFile] = useState(null);
-  const [removeRequested, setRemoveRequested] = useState(false);
-  const [localPreview, setLocalPreview] = useState("");
+  const [saved, setSaved] = useState(EMPTY_SITE_ICON_METADATA);
+  const [draft, setDraft] = useState(UNCHANGED_DRAFT);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
 
-  const changed = Boolean(selectedFile) || removeRequested;
+  const selectedFile = draft.kind === "replace" ? draft.file : null;
+  const localPreview = useObjectUrl(selectedFile);
+  const changed = draft.kind !== "unchanged";
   const previewUrl = useMemo(() => {
     if (localPreview) return localPreview;
-    if (!removeRequested && saved.configured) return siteIconUrl(saved.version);
+    if (draft.kind !== "remove" && saved.configured) {
+      return siteIconUrl(saved.version);
+    }
     return "";
-  }, [localPreview, removeRequested, saved]);
+  }, [draft.kind, localPreview, saved]);
 
   useEffect(() => {
     let cancelled = false;
-    void requestAdminSiteIcon()
+    void loadAdminSiteIcon()
       .then((metadata) => {
         if (cancelled) return;
         setSaved(metadata);
@@ -56,51 +92,42 @@ export default function SiteIconSettings() {
     };
   }, []);
 
-  useEffect(() => {
-    if (!selectedFile) {
-      setLocalPreview("");
-      return undefined;
-    }
-    const objectUrl = URL.createObjectURL(selectedFile);
-    setLocalPreview(objectUrl);
-    return () => URL.revokeObjectURL(objectUrl);
-  }, [selectedFile]);
-
-  const resetDraft = () => {
-    setSelectedFile(null);
-    setRemoveRequested(false);
+  const clearFeedback = () => {
     setMessage("");
     setError("");
   };
 
+  const resetDraft = () => {
+    setDraft(UNCHANGED_DRAFT);
+    clearFeedback();
+  };
+
   const chooseFile = (file) => {
-    setMessage("");
-    setError("");
-    if (!file) return;
-    if (!SITE_ICON_ACCEPTED_CONTENT_TYPES.includes(file.type)) {
-      setError("網站圖示只支援 PNG、JPEG 或 WebP。");
+    clearFeedback();
+    const validation = validateSiteIconFile(file);
+    if (!validation.valid) {
+      setError(fileValidationMessage(validation.code));
       return;
     }
-    if (file.size > SITE_ICON_MAX_UPLOAD_BYTES) {
-      setError(`網站圖示不能超過 ${MAX_UPLOAD_MB} MB。`);
-      return;
-    }
-    setSelectedFile(file);
-    setRemoveRequested(false);
+    setDraft({ kind: "replace", file });
+  };
+
+  const requestRemoval = () => {
+    setDraft({ kind: "remove", file: null });
+    clearFeedback();
   };
 
   const save = async () => {
     if (saving || !changed) return { succeeded: 0 };
     setSaving(true);
-    setMessage("");
-    setError("");
+    clearFeedback();
     try {
-      const next = selectedFile
-        ? await requestAdminSiteIcon({ method: "PUT", file: selectedFile })
-        : await requestAdminSiteIcon({ method: "DELETE" });
+      const next =
+        draft.kind === "replace"
+          ? await replaceAdminSiteIcon(draft.file)
+          : await removeAdminSiteIcon();
       setSaved(next);
-      setSelectedFile(null);
-      setRemoveRequested(false);
+      setDraft(UNCHANGED_DRAFT);
       applySiteIcon(next);
       setMessage(
         next.configured
@@ -151,15 +178,7 @@ export default function SiteIconSettings() {
 
           <div className="site-icon-controls">
             <div>
-              <strong>
-                {selectedFile
-                  ? selectedFile.name
-                  : removeRequested
-                    ? "將移除自訂圖示"
-                    : saved.configured
-                      ? "目前使用自訂圖示"
-                      : "目前沒有自訂圖示"}
-              </strong>
+              <strong>{draftStatusLabel(draft, saved)}</strong>
               <p>
                 支援 PNG、JPEG、WebP，檔案上限 {MAX_UPLOAD_MB} MB。建議使用正方形、有透明背景的圖片。
               </p>
@@ -178,12 +197,7 @@ export default function SiteIconSettings() {
               <button
                 type="button"
                 className="secondary"
-                onClick={() => {
-                  setSelectedFile(null);
-                  setRemoveRequested(true);
-                  setMessage("");
-                  setError("");
-                }}
+                onClick={requestRemoval}
                 disabled={saving || (!saved.configured && !selectedFile)}
               >
                 移除自訂圖示

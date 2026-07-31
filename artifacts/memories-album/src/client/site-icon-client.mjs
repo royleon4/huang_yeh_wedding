@@ -1,40 +1,50 @@
 import {
   SITE_ICON_ADMIN_PATH,
   SITE_ICON_PUBLIC_PATH,
+  normalizeSiteIconMetadata,
   siteIconUrl,
 } from "../site-icon.mjs";
 import { canonicalAdminRequestPath } from "../admin-route-paths.mjs";
 
-const VERSION_PATTERN = /^[a-f0-9]{64}$/;
+const SITE_ICON_LINKS = Object.freeze([
+  { rel: "icon", type: "image/png" },
+  { rel: "apple-touch-icon", type: null },
+]);
 
-export function applySiteIcon(metadata, documentRef = globalThis.document) {
+function ensureSiteIconLink(documentRef, { rel, type }) {
+  let link = documentRef.head.querySelector(
+    `link[rel="${rel}"][data-memories-site-icon]`,
+  );
+  if (!link) {
+    link = documentRef.createElement("link");
+    link.rel = rel;
+    link.dataset.memoriesSiteIcon = "true";
+    documentRef.head.append(link);
+  }
+  if (type) link.type = type;
+  return link;
+}
+
+export function applySiteIcon(
+  metadata,
+  documentRef = globalThis.document,
+  now = Date.now,
+) {
   if (!documentRef?.head) return;
-  const configured =
-    metadata?.configured === true &&
-    VERSION_PATTERN.test(String(metadata.version ?? "").toLowerCase());
-  const href = configured
-    ? siteIconUrl(metadata.version)
-    : `${SITE_ICON_PUBLIC_PATH}?removed=${Date.now()}`;
-  for (const rel of ["icon", "apple-touch-icon"]) {
-    let link = documentRef.head.querySelector(
-      `link[rel="${rel}"][data-memories-site-icon]`,
-    );
-    if (!link) {
-      link = documentRef.createElement("link");
-      link.rel = rel;
-      link.dataset.memoriesSiteIcon = "true";
-      documentRef.head.append(link);
-    }
-    link.href = href;
-    if (rel === "icon") link.type = "image/png";
+  const normalized = normalizeSiteIconMetadata(metadata);
+  const href = normalized.configured
+    ? siteIconUrl(normalized.version)
+    : `${SITE_ICON_PUBLIC_PATH}?removed=${now()}`;
+  for (const definition of SITE_ICON_LINKS) {
+    ensureSiteIconLink(documentRef, definition).href = href;
   }
 }
 
-export async function requestAdminSiteIcon({
-  method = "GET",
+async function requestAdminSiteIcon({
+  method,
   file = null,
   fetchImpl = globalThis.fetch,
-} = {}) {
+}) {
   const response = await fetchImpl(canonicalAdminRequestPath(SITE_ICON_ADMIN_PATH), {
     method,
     credentials: "same-origin",
@@ -52,5 +62,17 @@ export async function requestAdminSiteIcon({
     error.code = payload.code;
     throw error;
   }
-  return payload;
+  return normalizeSiteIconMetadata(payload);
+}
+
+export function loadAdminSiteIcon(options = {}) {
+  return requestAdminSiteIcon({ ...options, method: "GET" });
+}
+
+export function replaceAdminSiteIcon(file, options = {}) {
+  return requestAdminSiteIcon({ ...options, method: "PUT", file });
+}
+
+export function removeAdminSiteIcon(options = {}) {
+  return requestAdminSiteIcon({ ...options, method: "DELETE" });
 }
