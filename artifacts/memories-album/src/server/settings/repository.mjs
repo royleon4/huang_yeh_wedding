@@ -11,7 +11,11 @@ import {
 import {
   DEFAULT_GUEST_LATEST_PHOTO_COUNT,
   DEFAULT_GUEST_UPLOADER_LABELS_VISIBLE,
+  GUEST_LABEL_VISIBILITY_KEYS,
+  GUEST_LABEL_VISIBILITY_SETTING_KEYS,
+  LEGACY_GUEST_LABEL_VISIBILITY_KEY,
   mergeGuestUploaderLabelOrder,
+  normalizeGuestLabelVisibilitySettings,
   normalizeGuestLatestPhotoCount,
   normalizeGuestUploaderLabel,
   normalizeGuestUploaderLabelOrder,
@@ -34,11 +38,12 @@ const PINNED_PHOTOS_BY_PROCESS_KEY = "pinned_photos_by_process";
 const DRIVE_UPLOAD_MODE_KEY = "drive_upload_mode";
 const SITE_COPY_KEY = "site_copy";
 const GUEST_UPLOADER_LABELS_VISIBLE_KEY = "guest_uploader_labels_visible";
-const GUEST_LATEST_PHOTOS_LABEL_VISIBLE_KEY =
-  "guest_latest_photos_label_visible";
-const GUEST_ALL_VISITORS_LABEL_VISIBLE_KEY =
-  "guest_all_visitors_label_visible";
-const GUEST_NAME_LABELS_VISIBLE_KEY = "guest_name_labels_visible";
+const GUEST_LABEL_VISIBILITY_STORAGE_KEYS = Object.freeze({
+  [GUEST_LABEL_VISIBILITY_KEYS.latest]:
+    "guest_latest_photos_label_visible",
+  [GUEST_LABEL_VISIBILITY_KEYS.all]: "guest_all_visitors_label_visible",
+  [GUEST_LABEL_VISIBILITY_KEYS.names]: "guest_name_labels_visible",
+});
 const GUEST_UPLOADER_LABEL_ORDER_KEY = "guest_uploader_label_order";
 const GUEST_LATEST_PHOTO_COUNT_KEY = "guest_latest_photo_count";
 
@@ -81,6 +86,34 @@ function uploadDescriptionSetting(rows) {
 function guestUploaderLabelOrderSetting(rows, currentLabels) {
   const row = rows.find((item) => item.key === GUEST_UPLOADER_LABEL_ORDER_KEY);
   return mergeGuestUploaderLabelOrder(row?.value, currentLabels);
+}
+
+function guestLabelVisibilitySettings(rows) {
+  const legacyVisible = booleanSetting(
+    rows,
+    GUEST_UPLOADER_LABELS_VISIBLE_KEY,
+    DEFAULT_GUEST_UPLOADER_LABELS_VISIBLE,
+  );
+  const visibility = normalizeGuestLabelVisibilitySettings({
+    [LEGACY_GUEST_LABEL_VISIBILITY_KEY]: legacyVisible,
+    ...Object.fromEntries(
+      GUEST_LABEL_VISIBILITY_SETTING_KEYS.map((settingKey) => [
+        settingKey,
+        booleanSetting(
+          rows,
+          GUEST_LABEL_VISIBILITY_STORAGE_KEYS[settingKey],
+          legacyVisible,
+        ),
+      ]),
+    ),
+  });
+  return {
+    [LEGACY_GUEST_LABEL_VISIBILITY_KEY]:
+      GUEST_LABEL_VISIBILITY_SETTING_KEYS.every(
+        (settingKey) => visibility[settingKey],
+      ),
+    ...visibility,
+  };
 }
 
 export class PostgresSettingsRepository {
@@ -127,35 +160,13 @@ export class PostgresSettingsRepository {
           DRIVE_UPLOAD_MODE_KEY,
           SITE_COPY_KEY,
           GUEST_UPLOADER_LABELS_VISIBLE_KEY,
-          GUEST_LATEST_PHOTOS_LABEL_VISIBLE_KEY,
-          GUEST_ALL_VISITORS_LABEL_VISIBLE_KEY,
-          GUEST_NAME_LABELS_VISIBLE_KEY,
+          ...Object.values(GUEST_LABEL_VISIBILITY_STORAGE_KEYS),
           GUEST_UPLOADER_LABEL_ORDER_KEY,
           GUEST_LATEST_PHOTO_COUNT_KEY,
         ]],
       ),
       this.listGuestUploaderLabels(),
     ]);
-    const legacyGuestLabelsVisible = booleanSetting(
-      result.rows,
-      GUEST_UPLOADER_LABELS_VISIBLE_KEY,
-      DEFAULT_GUEST_UPLOADER_LABELS_VISIBLE,
-    );
-    const guestLatestPhotosLabelVisible = booleanSetting(
-      result.rows,
-      GUEST_LATEST_PHOTOS_LABEL_VISIBLE_KEY,
-      legacyGuestLabelsVisible,
-    );
-    const guestAllVisitorsLabelVisible = booleanSetting(
-      result.rows,
-      GUEST_ALL_VISITORS_LABEL_VISIBLE_KEY,
-      legacyGuestLabelsVisible,
-    );
-    const guestNameLabelsVisible = booleanSetting(
-      result.rows,
-      GUEST_NAME_LABELS_VISIBLE_KEY,
-      legacyGuestLabelsVisible,
-    );
     return {
       primaryNavigationVisible: booleanSetting(
         result.rows,
@@ -192,13 +203,7 @@ export class PostgresSettingsRepository {
       pinnedPhotoIdsByProcess: pinnedPhotosSetting(result.rows),
       driveUploadMode: driveUploadModeSetting(result.rows),
       siteCopy: siteCopySetting(result.rows),
-      guestUploaderLabelsVisible:
-        guestLatestPhotosLabelVisible &&
-        guestAllVisitorsLabelVisible &&
-        guestNameLabelsVisible,
-      guestLatestPhotosLabelVisible,
-      guestAllVisitorsLabelVisible,
-      guestNameLabelsVisible,
+      ...guestLabelVisibilitySettings(result.rows),
       guestUploaderLabelOrder: guestUploaderLabelOrderSetting(
         result.rows,
         currentLabels,
@@ -311,31 +316,33 @@ export class PostgresSettingsRepository {
   async setGuestUploaderLabelsVisible(value) {
     return this.setBoolean(
       GUEST_UPLOADER_LABELS_VISIBLE_KEY,
-      "guestUploaderLabelsVisible",
+      LEGACY_GUEST_LABEL_VISIBILITY_KEY,
       value,
     );
   }
 
+  async setGuestLabelVisibility(settingKey, value) {
+    const storageKey = GUEST_LABEL_VISIBILITY_STORAGE_KEYS[settingKey];
+    if (!storageKey) {
+      throw new RangeError(`Unsupported guest label visibility setting: ${settingKey}`);
+    }
+    return this.setBoolean(storageKey, settingKey, value);
+  }
+
   async setGuestLatestPhotosLabelVisible(value) {
-    return this.setBoolean(
-      GUEST_LATEST_PHOTOS_LABEL_VISIBLE_KEY,
-      "guestLatestPhotosLabelVisible",
+    return this.setGuestLabelVisibility(
+      GUEST_LABEL_VISIBILITY_KEYS.latest,
       value,
     );
   }
 
   async setGuestAllVisitorsLabelVisible(value) {
-    return this.setBoolean(
-      GUEST_ALL_VISITORS_LABEL_VISIBLE_KEY,
-      "guestAllVisitorsLabelVisible",
-      value,
-    );
+    return this.setGuestLabelVisibility(GUEST_LABEL_VISIBILITY_KEYS.all, value);
   }
 
   async setGuestNameLabelsVisible(value) {
-    return this.setBoolean(
-      GUEST_NAME_LABELS_VISIBLE_KEY,
-      "guestNameLabelsVisible",
+    return this.setGuestLabelVisibility(
+      GUEST_LABEL_VISIBILITY_KEYS.names,
       value,
     );
   }
