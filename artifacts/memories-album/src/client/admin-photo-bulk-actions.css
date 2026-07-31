@@ -30,6 +30,7 @@
 }
 
 .admin-photo-selection-actions button,
+.admin-photo-bulk-uploader button,
 .admin-photo-bulk-actions button {
   border: 1px solid rgba(53, 95, 77, 0.28);
   border-radius: 999px;
@@ -40,6 +41,7 @@
   cursor: pointer;
 }
 
+.admin-photo-bulk-uploader button,
 .admin-photo-bulk-actions button {
   border: 0;
   background: var(--leaf);
@@ -51,9 +53,54 @@
 }
 
 .admin-photo-selection-actions button:disabled,
+.admin-photo-bulk-uploader button:disabled,
 .admin-photo-bulk-actions button:disabled {
   cursor: not-allowed;
   opacity: 0.45;
+}
+
+.admin-photo-bulk-uploader {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 0.55rem 0.75rem;
+  border: 1px solid rgba(53, 95, 77, 0.16);
+  border-radius: 0.9rem;
+  background: rgba(255, 253, 247, 0.72);
+  padding: 0.8rem;
+}
+
+.admin-photo-bulk-uploader label {
+  display: grid;
+  min-width: 0;
+  gap: 0.38rem;
+  color: var(--ink);
+  font-size: 0.76rem;
+  font-weight: 700;
+}
+
+.admin-photo-bulk-uploader input {
+  width: 100%;
+  min-width: 0;
+  min-height: 2.7rem;
+  border: 1px solid rgba(53, 95, 77, 0.24);
+  border-radius: 0.72rem;
+  background: #fffdf7;
+  padding: 0.6rem 0.7rem;
+  color: var(--ink);
+}
+
+.admin-photo-bulk-uploader button {
+  min-height: 2.7rem;
+  white-space: normal;
+}
+
+.admin-photo-bulk-uploader p {
+  grid-column: 1 / -1;
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.72rem;
+  line-height: 1.45;
 }
 
 .admin-photo-bulk-grid {
@@ -164,8 +211,17 @@
 }
 
 @media (max-width: 800px) {
-  .admin-photo-bulk-grid {
+  .admin-photo-bulk-grid,
+  .admin-photo-bulk-uploader {
     grid-template-columns: 1fr;
+  }
+
+  .admin-photo-bulk-uploader p {
+    grid-column: auto;
+  }
+
+  .admin-photo-bulk-uploader button {
+    width: 100%;
   }
 
   .admin-photo-bulk-heading {
@@ -191,6 +247,7 @@
   }
 
   .admin-photo-selection-actions button,
+  .admin-photo-bulk-uploader button,
   .admin-photo-bulk-actions button {
     flex: 1 1 auto;
   }

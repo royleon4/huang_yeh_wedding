@@ -2,8 +2,10 @@ import { useMemo, useState } from "react";
 import { adminErrorMessage, adminRequest } from "./admin-client.mjs";
 import {
   buildBulkClassificationUpdates,
+  buildBulkUploaderRequest,
   isWeddingPhotographerProtected,
   successfulBulkPhotoResults,
+  successfulBulkUploaderResults,
 } from "./admin-photo-bulk-actions.mjs";
 import "./admin-photo-bulk-actions.css";
 
@@ -19,6 +21,39 @@ function mergeUpdatedPhotos(current, updates) {
           deleteProtected: Boolean(photo.deleteProtected),
         }
       : photo;
+  });
+}
+
+function mergeUpdatedUploaders(current, updates) {
+  const byId = new Map(updates.map((entry) => [entry.id, entry]));
+  return current.map((photo) => {
+    const saved = byId.get(photo.id);
+    return saved
+      ? {
+          ...photo,
+          uploaderName: saved.uploaderName,
+          deleteProtected: saved.deleteProtected,
+        }
+      : photo;
+  });
+}
+
+function mergeUploaderDrafts(setPhotoDrafts, updates) {
+  if (typeof setPhotoDrafts !== "function" || updates.length === 0) return;
+  const byId = new Map(updates.map((entry) => [entry.id, entry]));
+  setPhotoDrafts((current) => {
+    let changed = false;
+    const next = { ...current };
+    for (const [id, saved] of byId) {
+      if (!next[id]) continue;
+      next[id] = {
+        ...next[id],
+        uploaderName: saved.uploaderName,
+        deleteProtected: saved.deleteProtected,
+      };
+      changed = true;
+    }
+    return changed ? next : current;
   });
 }
 
@@ -47,6 +82,7 @@ export default function AdminPhotoBulkActions({
   const [albumIds, setAlbumIds] = useState([]);
   const [categoryMode, setCategoryMode] = useState("keep");
   const [categoryId, setCategoryId] = useState("");
+  const [bulkUploaderName, setBulkUploaderName] = useState("");
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
 
@@ -82,6 +118,40 @@ export default function AdminPhotoBulkActions({
       onBusyChange?.(false);
     }
   };
+
+  const applyUploaderName = () =>
+    runBusy(async () => {
+      const request = buildBulkUploaderRequest({
+        photos: selectedPhotos,
+        uploaderName: bulkUploaderName,
+      });
+      const payload = await adminRequest("/admin/api/photo-uploaders", {
+        method: "PATCH",
+        body: request,
+        timeoutMs: 120_000,
+      });
+      const saved = successfulBulkUploaderResults(payload);
+      const savedIds = new Set(saved.map((entry) => entry.id));
+      const missingIds = Array.isArray(payload.missingIds)
+        ? payload.missingIds.map(String)
+        : [];
+
+      if (saved.length > 0) {
+        setPhotos((current) => mergeUpdatedUploaders(current, saved));
+        mergeUploaderDrafts(setPhotoDrafts, saved);
+        setSelectedIds((current) => current.filter((id) => !savedIds.has(id)));
+      }
+      setBulkUploaderName("");
+      await onReload?.();
+
+      if (missingIds.length > 0) {
+        setError(
+          `${saved.length} 張已更新，${missingIds.length} 張已不存在或無法修改。`,
+        );
+      } else {
+        setMessage(`已將 ${saved.length} 張照片的上傳者改為「${request.uploaderName}」。`);
+      }
+    });
 
   const applyClassification = () =>
     runBusy(async () => {
@@ -233,6 +303,32 @@ export default function AdminPhotoBulkActions({
             清除選取
           </button>
         </div>
+      </div>
+
+      <div className="admin-photo-bulk-uploader">
+        <label>
+          批次更改上傳者／作者
+          <input
+            type="text"
+            value={bulkUploaderName}
+            onChange={(event) => setBulkUploaderName(event.target.value)}
+            placeholder="輸入要套用到所選照片的名稱"
+            maxLength={80}
+            disabled={disabled}
+          />
+        </label>
+        <button
+          type="button"
+          onClick={() => void applyUploaderName()}
+          disabled={
+            disabled ||
+            selectedPhotos.length === 0 ||
+            !bulkUploaderName.replace(/\s+/g, " ").trim()
+          }
+        >
+          更改 {selectedPhotos.length || ""} 張上傳者
+        </button>
+        <p>輸入「婚禮攝影」會將所選照片設為受保護的婚禮攝影照片。</p>
       </div>
 
       <div className="admin-photo-bulk-grid">
