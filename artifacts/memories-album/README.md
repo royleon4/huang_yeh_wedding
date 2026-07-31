@@ -2,35 +2,40 @@
 
 `@workspace/memories-album` owns the independent wedding archive under `/Memories/`: public gallery, guest uploads, private batch management, administrator application, Node HTTP APIs, immutable PostgreSQL migrations, and Google Drive media storage.
 
-It does **not** own the legacy invitation photo wall or legacy `/api/photos*` Object Storage implementation.
+It does **not** own the legacy invitation photo wall or the legacy `/api/photos*` Object Storage implementation.
 
 ## Canonical routes
 
+Public gallery routes use logical positions derived from the saved display order, not database IDs or editable labels.
+
 | Route | Purpose |
 | --- | --- |
-| `/Memories/` | Public gallery |
+| `/Memories/group1` | First public album |
+| `/Memories/group2/subgroup3` | Third subgroup in the second album |
+| `/Memories/en/group1` | English interface for the first album |
+| `.../photos/:photoId` | Open one photo on the current gallery route |
+| `/Memories/upload` | Guest upload |
+| `/Memories/en/upload` | English guest upload |
+| `/Memories/manage/:batchId#token=...` | Private batch management and permanent deletion |
+| `/Memories/admin/login` | Administrator login |
+| `/Memories/admin/group1` | First administrator tab; later tabs continue as `group2`, `group3`, … |
 | `/Memories/api/health` | Lightweight healthcheck without full runtime initialization |
 | `/Memories/api/albums` | Public album metadata |
 | `/Memories/api/processes` | Public process, video and rich-content metadata |
 | `/Memories/api/photos*` | Public listing and controlled image streaming |
 | `/Memories/api/upload-batches*` | Guest batches and per-photo uploads |
-| `/Memories/manage/:batchId#token=...` | Private batch management and permanent deletion |
-| `/Memories/admin/login` | Administrator login |
-| `/Memories/admin/` | Administrator application |
-| `/Memories/admin/api/session` | Login, session and logout |
-| `/Memories/admin/api/changes` | Patch-style global save API |
-| `/Memories/admin/api/albums*` | Album API |
-| `/Memories/admin/api/photos*` | Photo list, batch classification, edit and permanent-delete API |
-| `/Memories/admin/api/categories*` | Drive-backed process and video API |
-| `/Memories/admin/api/process-content*` | Process rich text and attachment API |
-| `/Memories/admin/api/settings` | UI, ordering, pinned-photo and upload-mode settings |
+| `/Memories/admin/api/*` | Administrator session, albums, photos, categories, content and settings APIs |
 | `/admin*` | Compatibility redirects only |
+
+`/Memories/` and `/Memories/en/` are compatibility aliases for the first album in each language. Older semantic album and administrator paths remain readable and are canonicalized to logical-number routes.
+
+Opening a subgroup URL directly, clicking a subgroup, refreshing, and browser Back/Forward all restore the same selection and request gallery-anchor positioning. Full rules are documented in [`docs/logical-routes.md`](docs/logical-routes.md).
 
 The Replit artifact router sends Memories routes to port 19316. Production health must target `/Memories/api/health`, not an authenticated administrator page.
 
 ## Stack
 
-- React 19 + Vite
+- React 19 + Vite 7
 - Node.js 24 HTTP server
 - PostgreSQL
 - Google Drive through `@replit/connectors-sdk`
@@ -41,7 +46,7 @@ The Replit artifact router sends Memories routes to port 19316. Production healt
 
 ## Source of truth
 
-Google Drive owns original files, generated thumbnails, attachments and numbered process folders. PostgreSQL owns public visibility, album/process relationships, capture time, author, process videos/articles, upload batches, token hashes, content hashes, resumable-upload state, settings, administrator overrides and login rate limits.
+Google Drive owns original files, generated thumbnails, attachments and numbered process folders. PostgreSQL owns public visibility, album/process relationships, capture time, author, process videos/articles, upload batches, token hashes, content hashes, resumable-upload state, UI settings, editable site copy, administrator overrides and login rate limits.
 
 Reserved folders:
 
@@ -56,15 +61,19 @@ Browser payloads expose Memories UUIDs and controlled image routes. Drive IDs, f
 
 ## Public gallery
 
+- Traditional Chinese is the default; English adds `/en` after `/Memories`.
+- Administrators can edit the public Chinese and English copy. Multiline archive titles preserve line breaks.
 - Only `visibility = 'public'` rows are returned publicly.
-- Album-specific ordering supports random, time ascending/descending, photo name ascending/descending and author ascending/descending.
+- Global media-group ordering remains authoritative. Album-specific random, time, photo-name or author sorting is applied only inside photo groups.
 - Random ordering remains stable for the current page load.
-- Wedding process media can contain video, bilingual rich text, attachments, pinned photos and the continuous photo wall.
-- General settings control media ordering.
+- Wedding process media can contain YouTube video, bilingual rich text, Drive attachments, divider spacing, one to three pinned photos and the continuous photo wall.
 - Traditional process buttons are the default; an optional centered wheel can be enabled and given a mobile density target.
+- Subgroup clicks and deep links use the same anchor-positioning behavior.
 - Public, pinned and private-management thumbnails use IntersectionObserver-based lazy loading. The network `src` is withheld until an image approaches the viewport.
 - Explicit “load more memories” pagination remains in place to prevent unbounded React and DOM growth.
+- The fullscreen viewer reuses loaded thumbnails, does not preload every original, and contain-fits portrait and landscape media.
 - Missing thumbnails can be repaired and may temporarily fall back to the original with `no-store`.
+- Known label surfaces wrap onto multiple lines instead of truncating with ellipses.
 
 ## Guest upload
 
@@ -74,16 +83,16 @@ Browser payloads expose Memories UUIDs and controlled image routes. Drive IDs, f
 4. Stream the request to a temporary file and normalize it with `sharp`.
 5. Claim durable `(batch_id, client_upload_id)` state and record a SHA-256 content hash.
 6. Upload the original through a Drive resumable session.
-7. Insert the completed photo and allow the background thumbnail service to build the derivative.
+7. Insert the completed photo and let the background thumbnail service build the derivative.
 
 Limits and behavior:
 
 - Maximum 10 selected guest photos per batch.
 - JPEG, PNG, WebP, HEIC and HEIF; 25 MB per file.
-- Administrator setting can allow Guest-only, Life or wedding-process classification; disabled mode falls back to Guest uploads.
-- Same filename with different bytes is allowed. Duplicate identity is content-based, never filename-based.
-- First pass allows two attempts per file. Retryable failures release the worker and enter the deferred pass after every photo has had a turn.
-- Deferred pass allows two more attempts. Permanent validation failures are not retried.
+- Administrator settings can allow Guest-only, Life or wedding-process classification; disabled mode falls back to Guest uploads.
+- The same filename with different bytes is allowed. Duplicate identity is content-based, never filename-based.
+- The first pass allows two attempts per file. Retryable failures release the worker and enter the deferred pass after every photo has had a turn.
+- The deferred pass allows two more attempts. Permanent validation failures are not retried.
 - Offline waiting does not consume an attempt.
 - Manual “continue unfinished photos” reuses the same batch, upload ID and Drive session.
 
@@ -94,7 +103,7 @@ New originals always use a resumable session. The General administrator setting 
 - `single` — default; one complete-file PUT within the resumable session.
 - `chunked` — 4 MiB chunks with persisted session URI, byte offset and update timestamp.
 
-An in-progress item keeps the mode with which it started. Session state queries and deterministic Drive names recover accepted work without creating duplicate files.
+An in-progress item keeps the mode with which it started. Session-state queries and deterministic Drive names recover accepted work without creating duplicate files.
 
 ## Private batch management
 
@@ -124,19 +133,30 @@ HttpOnly; Secure; SameSite=Strict; Path=/Memories/admin
 
 Current administrator capabilities:
 
-- create and edit albums;
-- control album summaries, visibility and photo ordering;
+- create, edit, reorder and show/hide albums;
+- control album summaries and photo ordering;
 - create, rename and reorder Drive-backed processes;
 - edit process video, autoplay, bilingual Tiptap content, attachments and divider spacing;
 - select and order up to three pinned photos per process;
+- edit public Chinese and English site copy, including multiline titles;
 - filter photos by album, process and author;
 - batch-upload up to 30 administrator photos through the reliable guest upload core, then finalize album/process memberships;
 - edit display name, capture time, author, visibility, albums and process;
+- select photos on the current page and bulk-add or replace albums, replace process classification, or permanently delete the eligible photo families;
 - permanently delete the complete photo family from every album/process;
 - refresh a selected album or process by deleting only generated thumbnails, rescanning originals and rebuilding derivatives;
-- keep JSON edits in local drafts and submit only changed fields through the global save action.
+- keep JSON edits in local drafts and submit changed general data through the global save action.
 
-The author `婚禮攝影` receives front-end and server-side deletion protection.
+Current administrator UI behavior:
+
+- Native manual accordions wrap refresh maintenance, new and existing albums, new-photo upload and every category editor.
+- Category summaries show display number, Chinese label and English label.
+- Administrator photo previews are paginated 10 at a time. Wide screens use five columns, then responsively reduce to four, three, two or one.
+- Pinned-photo candidates are paginated 10 at a time; page changes abort hidden thumbnail requests and release obsolete blob URLs.
+- Bulk selection and actions apply to the currently rendered photo page.
+- Text labels wrap instead of being clipped or ellipsized.
+
+The author `婚禮攝影` receives front-end and server-side deletion protection and is automatically skipped by bulk permanent deletion.
 
 ## Background synchronization
 
@@ -179,6 +199,8 @@ MEMORIES_TRUST_PROXY=1
 MEMORIES_SKIP_MIGRATIONS=1
 ```
 
+Secrets, Drive folder IDs, OAuth credentials and private tokens must not be committed to GitHub, `.replit` or a browser bundle.
+
 ## Commands
 
 ```bash
@@ -195,10 +217,16 @@ pnpm --filter @workspace/memories-album test:drive-live
 
 ## CI and architecture debt
 
-Standalone CI runs Node tests, a production build and a real server health smoke. The legacy-boundary workflow protects the invitation and old photo API.
+Standalone CI runs the Node test suite, a production client/server build and a real server health smoke. The legacy-boundary workflow protects the invitation and old photo API.
 
-The largest remaining architecture risk is the collection of Vite pre-transforms that mutate `App.jsx` and `AdminApp.jsx` through exact string replacement. Treat these as a temporary compatibility boundary. Any transform change should validate the complete production transform chain and a real browser render.
+CI does not yet run a real browser such as Playwright against the completed production transform chain. The largest remaining architecture risk is the collection of Vite pre-transforms that mutate `App.jsx` and `AdminApp.jsx` through exact string replacement. Treat these as a temporary compatibility boundary; any transform change should validate final generated code and a real browser render.
+
+Additional known limitations:
+
+- deletion is immediate and permanent; there is no seven-day trash or restore flow;
+- manually deleting a Drive original does not perform complete database cleanup;
+- people classification and selfie-based photo discovery remain future work;
+- broader iOS Safari, Android Chrome, LINE/Instagram webview and slow-network device validation is still needed;
+- administrator upload classification is still finalized by client-side follow-up PATCH requests rather than one atomic server command.
 
 Detailed smells and the staged extraction plan are documented in [`../../docs/code-health-audit-2026-07.md`](../../docs/code-health-audit-2026-07.md).
-
-This documentation-only and dead-code cleanup introduces no database schema change, no migration and no DROP statement.
