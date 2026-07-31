@@ -1,7 +1,10 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { PINNED_PHOTO_LIMIT } from "../pinned-photo-settings.mjs";
+import AbortableThumbnail from "./AbortableThumbnail.jsx";
 import LazyImage from "./LazyImage.jsx";
 import "./pinned-photo-admin.css";
+
+const PREVIEW_PAGE_SIZE = 10;
 
 function photoLabel(photo) {
   return photo.displayName || photo.originalFilename || photo.id;
@@ -16,6 +19,7 @@ export default function PinnedPhotoPicker({
 }) {
   const [expanded, setExpanded] = useState(false);
   const [query, setQuery] = useState("");
+  const [page, setPage] = useState(0);
   const selected = Array.isArray(selectedIds) ? selectedIds : [];
   const byId = useMemo(
     () => new Map((photos ?? []).map((photo) => [photo.id, photo])),
@@ -29,6 +33,20 @@ export default function PinnedPhotoPicker({
       .toLocaleLowerCase("zh-Hant")
       .includes(normalizedQuery);
   });
+  const pageCount = Math.max(1, Math.ceil(candidates.length / PREVIEW_PAGE_SIZE));
+  const currentPage = Math.min(page, pageCount - 1);
+  const pageCandidates = candidates.slice(
+    currentPage * PREVIEW_PAGE_SIZE,
+    (currentPage + 1) * PREVIEW_PAGE_SIZE,
+  );
+
+  useEffect(() => {
+    setPage(0);
+  }, [expanded, normalizedQuery, processKey]);
+
+  useEffect(() => {
+    setPage((current) => Math.min(current, pageCount - 1));
+  }, [pageCount]);
 
   const toggle = (photoId) => {
     if (selected.includes(photoId)) {
@@ -57,7 +75,7 @@ export default function PinnedPhotoPicker({
       {expanded && (
         <div className="pinned-photo-picker">
           <p className="admin-section-note">
-            可選擇 1～3 張。前端會依此順序顯示在文字與附件下方、一般照片上方；未選擇時不顯示置頂區塊。
+            可選擇 1～3 張。候選照片每頁只載入 10 張；切換頁面時，上一頁尚未完成的縮圖請求會立即中止。
           </p>
 
           {selectedPhotos.length > 0 && (
@@ -118,32 +136,59 @@ export default function PinnedPhotoPicker({
           {candidates.length === 0 ? (
             <p className="admin-section-note">此流程目前沒有可選的公開婚禮照片。</p>
           ) : (
-            <div className="pinned-candidate-grid">
-              {candidates.map((photo) => {
-                const index = selected.indexOf(photo.id);
-                const active = index >= 0;
-                const limitReached = !active && selected.length >= PINNED_PHOTO_LIMIT;
-                return (
-                  <button
-                    key={photo.id}
-                    type="button"
-                    className={active ? "selected" : ""}
-                    onClick={() => toggle(photo.id)}
-                    disabled={busy || limitReached}
-                    aria-pressed={active}
-                    title={photoLabel(photo)}
-                  >
-                    <LazyImage
-                      src={photo.thumbnailUrl}
-                      alt=""
-                      width={photo.width}
-                      height={photo.height}
-                    />
-                    <span>{active ? `置頂 ${index + 1}` : photoLabel(photo)}</span>
-                  </button>
-                );
-              })}
-            </div>
+            <>
+              <div
+                className="pinned-candidate-grid"
+                key={`${processKey}:${normalizedQuery}:${currentPage}`}
+              >
+                {pageCandidates.map((photo) => {
+                  const index = selected.indexOf(photo.id);
+                  const active = index >= 0;
+                  const limitReached = !active && selected.length >= PINNED_PHOTO_LIMIT;
+                  return (
+                    <button
+                      key={photo.id}
+                      type="button"
+                      className={active ? "selected" : ""}
+                      onClick={() => toggle(photo.id)}
+                      disabled={busy || limitReached}
+                      aria-pressed={active}
+                      title={photoLabel(photo)}
+                    >
+                      <AbortableThumbnail
+                        src={photo.thumbnailUrl}
+                        alt=""
+                        width={photo.width}
+                        height={photo.height}
+                      />
+                      <span>{active ? `置頂 ${index + 1}` : photoLabel(photo)}</span>
+                    </button>
+                  );
+                })}
+              </div>
+
+              <nav className="pinned-photo-pagination" aria-label="置頂圖片候選頁面">
+                <button
+                  type="button"
+                  onClick={() => setPage((current) => Math.max(0, current - 1))}
+                  disabled={busy || currentPage === 0}
+                >
+                  上一頁
+                </button>
+                <span aria-live="polite">
+                  第 {currentPage + 1} / {pageCount} 頁
+                </span>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setPage((current) => Math.min(pageCount - 1, current + 1))
+                  }
+                  disabled={busy || currentPage >= pageCount - 1}
+                >
+                  下一頁
+                </button>
+              </nav>
+            </>
           )}
         </div>
       )}

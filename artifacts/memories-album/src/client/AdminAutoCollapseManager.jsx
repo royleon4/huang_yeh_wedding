@@ -91,6 +91,10 @@ export default function AdminAutoCollapseManager() {
 
       const cards = [...document.querySelectorAll(CARD_SELECTOR)];
       for (const card of cards) {
+        if (card.closest(".general-settings")) {
+          removeToggle(card);
+          continue;
+        }
         if (card === reference || !visible(card)) continue;
         const tooTall = card.scrollHeight > collapseHeight + 1;
         if (!tooTall) {
