@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { adminErrorMessage, adminRequest } from "./admin-client.mjs";
+import { useAdminSaveSection } from "./AdminSaveCoordinator.jsx";
 
 export default function AdminFeatureSettings() {
   const [enabled, setEnabled] = useState(true);
@@ -8,6 +9,7 @@ export default function AdminFeatureSettings() {
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const changed = draft !== enabled;
 
   useEffect(() => {
     let cancelled = false;
@@ -34,7 +36,7 @@ export default function AdminFeatureSettings() {
   }, []);
 
   const save = async () => {
-    if (saving || draft === enabled) return;
+    if (saving || !changed) return { succeeded: 0 };
     setSaving(true);
     setMessage("");
     setError("");
@@ -47,19 +49,26 @@ export default function AdminFeatureSettings() {
       setEnabled(next);
       setDraft(next);
       setMessage(next ? "訪客分類選擇已開啟。" : "訪客分類選擇已關閉。");
+      return { succeeded: 1 };
     } catch (saveError) {
-      if (saveError?.status === 401) {
-        window.location.replace("/Memories/");
-        return;
-      }
+      if (saveError?.status === 401) window.location.replace("/Memories/");
       setError(adminErrorMessage(saveError));
+      throw saveError;
     } finally {
       setSaving(false);
     }
   };
 
+  useAdminSaveSection("guest-upload-category-selection", {
+    pendingCount: changed ? 1 : 0,
+    save,
+  });
+
   return (
-    <section className="admin-feature-settings" aria-labelledby="feature-settings-title">
+    <section
+      className="admin-feature-settings general-setting-card"
+      aria-labelledby="feature-settings-title"
+    >
       <div>
         <p className="admin-kicker">FEATURE SETTINGS</p>
         <h2 id="feature-settings-title">訪客上傳設定</h2>
@@ -85,13 +94,9 @@ export default function AdminFeatureSettings() {
             />
             允許訪客上傳時選擇照片分類
           </label>
-          <button
-            type="button"
-            onClick={() => void save()}
-            disabled={saving || draft === enabled}
-          >
-            {saving ? "儲存中…" : "儲存設定"}
-          </button>
+          <span className="admin-draft-hint">
+            {changed ? "訪客上傳設定有未儲存變更。" : "變更會由頁面底部統一儲存。"}
+          </span>
         </div>
       )}
 
