@@ -108,19 +108,37 @@ async function fetchJson(fetchImpl, path, signal) {
 }
 
 function normalizedAlbums(payload, fallback) {
-  const albums = normalizePublicAlbums(payload?.albums);
-  return albums.length > 0 ? albums : fallback;
+  try {
+    const albums = normalizePublicAlbums(payload?.albums);
+    return {
+      value: albums.length > 0 ? albums : fallback,
+      resolved: albums.length > 0,
+    };
+  } catch {
+    return { value: fallback, resolved: false };
+  }
 }
 
 function normalizedProcessPayload(payload, fallback) {
-  if (!Array.isArray(payload?.processes)) return fallback;
+  if (!Array.isArray(payload?.processes)) {
+    return { ...fallback, resolved: false };
+  }
   return {
     processes: payload.processes,
     allProcess:
       payload.allProcess && typeof payload.allProcess === "object"
         ? payload.allProcess
         : fallback.allProcess,
+    resolved: true,
   };
+}
+
+function normalizedSettings(payload, fallback) {
+  try {
+    return { value: normalizePublicSettings(payload), resolved: true };
+  } catch {
+    return { value: fallback, resolved: false };
+  }
 }
 
 export function createPublicBootstrapLoader({
@@ -147,29 +165,35 @@ export function createPublicBootstrapLoader({
             fetchJson(fetchImpl, "/Memories/api/processes", controller.signal),
           ]);
 
+        const albums =
+          albumsResult.status === "fulfilled"
+            ? normalizedAlbums(albumsResult.value, fallback.albums)
+            : { value: fallback.albums, resolved: false };
+        const settings =
+          settingsResult.status === "fulfilled"
+            ? normalizedSettings(settingsResult.value, fallback.settings)
+            : { value: fallback.settings, resolved: false };
         const processPayload =
           processesResult.status === "fulfilled"
-            ? normalizedProcessPayload(processesResult.value, fallback)
+            ? normalizedProcessPayload(processesResult.value, {
+                processes: fallback.processes,
+                allProcess: fallback.allProcess,
+              })
             : {
                 processes: fallback.processes,
                 allProcess: fallback.allProcess,
+                resolved: false,
               };
 
         currentSnapshot = {
-          albums:
-            albumsResult.status === "fulfilled"
-              ? normalizedAlbums(albumsResult.value, fallback.albums)
-              : fallback.albums,
-          settings:
-            settingsResult.status === "fulfilled"
-              ? normalizePublicSettings(settingsResult.value)
-              : fallback.settings,
+          albums: albums.value,
+          settings: settings.value,
           processes: processPayload.processes,
           allProcess: processPayload.allProcess,
           resolved: {
-            albums: albumsResult.status === "fulfilled",
-            settings: settingsResult.status === "fulfilled",
-            processes: processesResult.status === "fulfilled",
+            albums: albums.resolved,
+            settings: settings.resolved,
+            processes: processPayload.resolved,
           },
         };
         return currentSnapshot;
