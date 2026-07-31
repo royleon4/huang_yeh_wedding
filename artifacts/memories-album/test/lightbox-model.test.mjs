@@ -6,7 +6,23 @@ import {
   adjacentPhotoIndex,
   clampZoom,
   isHorizontalSwipe,
+  lightboxImageUrl,
 } from "../src/client/lightbox-model.mjs";
+
+test("uses the already loaded thumbnail for the fullscreen viewer", () => {
+  assert.equal(
+    lightboxImageUrl({
+      thumbnailUrl: "/thumbnail.webp",
+      mediaUrl: "/original.jpg",
+    }),
+    "/thumbnail.webp",
+  );
+  assert.equal(
+    lightboxImageUrl({ mediaUrl: "/original-only.jpg" }),
+    "/original-only.jpg",
+  );
+  assert.equal(lightboxImageUrl(null), "");
+});
 
 test("clamps photo zoom between the supported bounds", () => {
   assert.equal(clampZoom(0.2), MIN_ZOOM);
