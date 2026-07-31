@@ -8,27 +8,104 @@ export const MAX_GUEST_LATEST_PHOTO_COUNT = 50;
 export const MAX_GUEST_UPLOADER_LABELS = 500;
 export const MAX_GUEST_UPLOADER_LABEL_LENGTH = 80;
 export const LATEST_GUEST_FILTER_ID = "__latest_guest_photos__";
+export const LEGACY_GUEST_LABEL_VISIBILITY_KEY =
+  "guestUploaderLabelsVisible";
+export const GUEST_LABEL_VISIBILITY_KEYS = Object.freeze({
+  latest: "guestLatestPhotosLabelVisible",
+  all: "guestAllVisitorsLabelVisible",
+  names: "guestNameLabelsVisible",
+});
+export const GUEST_LABEL_VISIBILITY_SETTING_KEYS = Object.freeze(
+  Object.values(GUEST_LABEL_VISIBILITY_KEYS),
+);
 
 export function normalizeGuestLabelVisibilitySettings(value = {}) {
   const source = value && typeof value === "object" ? value : {};
   const legacyVisible =
-    source.guestUploaderLabelsVisible === undefined
+    source[LEGACY_GUEST_LABEL_VISIBILITY_KEY] === undefined
       ? DEFAULT_GUEST_UPLOADER_LABELS_VISIBLE
-      : source.guestUploaderLabelsVisible === true;
+      : source[LEGACY_GUEST_LABEL_VISIBILITY_KEY] === true;
   return {
-    guestLatestPhotosLabelVisible:
-      source.guestLatestPhotosLabelVisible === undefined
+    [GUEST_LABEL_VISIBILITY_KEYS.latest]:
+      source[GUEST_LABEL_VISIBILITY_KEYS.latest] === undefined
         ? legacyVisible
-        : source.guestLatestPhotosLabelVisible === true,
-    guestAllVisitorsLabelVisible:
-      source.guestAllVisitorsLabelVisible === undefined
+        : source[GUEST_LABEL_VISIBILITY_KEYS.latest] === true,
+    [GUEST_LABEL_VISIBILITY_KEYS.all]:
+      source[GUEST_LABEL_VISIBILITY_KEYS.all] === undefined
         ? legacyVisible
-        : source.guestAllVisitorsLabelVisible === true,
-    guestNameLabelsVisible:
-      source.guestNameLabelsVisible === undefined
+        : source[GUEST_LABEL_VISIBILITY_KEYS.all] === true,
+    [GUEST_LABEL_VISIBILITY_KEYS.names]:
+      source[GUEST_LABEL_VISIBILITY_KEYS.names] === undefined
         ? legacyVisible
-        : source.guestNameLabelsVisible === true,
+        : source[GUEST_LABEL_VISIBILITY_KEYS.names] === true,
   };
+}
+
+export function isGuestLabelFilterVisible(filterId, settings = {}) {
+  const visibility = normalizeGuestLabelVisibilitySettings(settings);
+  if (filterId === LATEST_GUEST_FILTER_ID) {
+    return visibility[GUEST_LABEL_VISIBILITY_KEYS.latest];
+  }
+  if (filterId === "all") {
+    return visibility[GUEST_LABEL_VISIBILITY_KEYS.all];
+  }
+  return visibility[GUEST_LABEL_VISIBILITY_KEYS.names];
+}
+
+export function buildGuestLabelSelectorItems({
+  settings,
+  allGuestsLabel,
+  latestPhotosLabel,
+  guestPhotoCount,
+  guestLatestPhotoCount,
+  guestGroups,
+}) {
+  const visibility = normalizeGuestLabelVisibilitySettings(settings);
+  const groups = Array.isArray(guestGroups) ? guestGroups : [];
+  const items = [];
+
+  if (visibility[GUEST_LABEL_VISIBILITY_KEYS.all]) {
+    items.push({
+      id: "all",
+      label: `${allGuestsLabel} (${guestPhotoCount})`,
+    });
+  }
+
+  if (visibility[GUEST_LABEL_VISIBILITY_KEYS.latest]) {
+    items.push({
+      id: LATEST_GUEST_FILTER_ID,
+      label: `${latestPhotosLabel} (${Math.min(
+        guestPhotoCount,
+        guestLatestPhotoCount,
+      )})`,
+    });
+  }
+
+  if (visibility[GUEST_LABEL_VISIBILITY_KEYS.names]) {
+    items.push(
+      ...groups.map((group) => ({
+        id: group.id,
+        label: `${group.name} (${group.count})`,
+      })),
+    );
+  }
+
+  return items;
+}
+
+export function guestLabelRouteItems(settings, guestGroups) {
+  const visibility = normalizeGuestLabelVisibilitySettings(settings);
+  const groups = Array.isArray(guestGroups) ? guestGroups : [];
+  const items = [];
+
+  if (visibility[GUEST_LABEL_VISIBILITY_KEYS.latest]) {
+    items.push({ id: LATEST_GUEST_FILTER_ID });
+  }
+  if (visibility[GUEST_LABEL_VISIBILITY_KEYS.names]) {
+    items.push(...groups);
+  }
+
+  return items;
 }
 
 export function normalizeGuestUploaderLabel(value) {
