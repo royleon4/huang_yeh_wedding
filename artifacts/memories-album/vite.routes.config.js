@@ -9,6 +9,7 @@ import { publicLayoutPolishUiTransform } from "./public-layout-polish-ui-transfo
 import { publicBootstrapUiTransform } from "./public-bootstrap-ui-transform.mjs";
 import { guestLabelsUiTransform } from "./guest-labels-ui-transform.mjs";
 import { uploadSettingsUiTransform } from "./upload-settings-ui-transform.mjs";
+import { stableIdentityRoutesUiTransform } from "./stable-identity-routes-ui-transform.mjs";
 
 export default defineConfig({
   ...baseConfig,
@@ -23,5 +24,6 @@ export default defineConfig({
     publicBootstrapUiTransform(),
     guestLabelsUiTransform(),
     uploadSettingsUiTransform(),
+    stableIdentityRoutesUiTransform(),
   ],
 });
