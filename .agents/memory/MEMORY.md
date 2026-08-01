@@ -1,3 +1,5 @@
-- [Current Memories project architecture](memories-project-overview.md) — canonical routes, data ownership, admin draft/save workflow, deployment, security, synchronization rules and current limitations.
-- [CSP blocks React preamble in dev](csp-dev-preamble.md) — production CSP (no 'unsafe-inline') silently blocks the @vitejs/plugin-react inline preamble script; strip CSP in vite.config.js dev middleware.
-- [Admin token env var name](admin-token-envvar.md) — server reads MEMORIES_ADMIN_TOKEN (not SECRET_TOKEN) for admin auth; all server and client documentation must use this exact name.
+- [Current Memories project architecture](memories-project-overview.md) — Product Phase 1 status, canonical documentation, routes, ownership, safety rules and open hardening work. Updated 2026-08-01T19:33:00+08:00.
+- [Developer and maintainer guide](../../MAINTAINER_GUIDE.md) — authoritative development workflow, change-impact checklist, migrations, transforms, tests, release and documentation ownership.
+- [Product Phase 1 closeout](../../docs/phase-1-closeout-2026-08-01.md) — dated completion record, accepted limitations and recommended next steps.
+- [CSP blocks React preamble in dev](csp-dev-preamble.md) — production CSP without `unsafe-inline` blocks the Vite React inline preamble in dev; strip CSP only in Vite development middleware.
+- [Admin token env var name](admin-token-envvar.md) — server reads `MEMORIES_ADMIN_TOKEN`, not `SECRET_TOKEN`, for administrator authentication.
