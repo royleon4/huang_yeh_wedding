@@ -3,6 +3,7 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
+import { adminPhotoUploaderUiTransform } from "../admin-photo-uploader-ui-transform.mjs";
 import { adminPhotoWorkspaceUiTransform } from "../admin-photo-workspace-ui-transform.mjs";
 import { logicalRouteUiTransform } from "../logical-route-ui-transform.mjs";
 import { processContentUiTransform } from "../process-content-ui-transform.mjs";
@@ -52,6 +53,7 @@ test("background failure keeps the initial gallery and abort is not shown as an 
 test("progressive loading remains compatible with the production transform chain", async () => {
   let app = await readFile(appPath, "utf8");
   app = run(progressivePhotoLoadingUiTransform(), app);
+  app = run(adminPhotoUploaderUiTransform(), app);
   app = run(processContentUiTransform(), app);
   app = run(adminPhotoWorkspaceUiTransform(), app);
   app = run(logicalRouteUiTransform(), app);
