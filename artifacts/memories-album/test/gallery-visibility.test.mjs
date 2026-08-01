@@ -11,7 +11,7 @@ async function read(relativePath) {
   return readFile(path.join(root, relativePath), "utf8");
 }
 
-test("lightbox shows a bounded uploader badge only when a name exists", async () => {
+test("lightbox shows a larger direct uploader label only when a name exists", async () => {
   const source = await read("src/client/PhotoLightbox.jsx");
   const css = await read("src/client/gallery-visibility.css");
 
@@ -19,8 +19,24 @@ test("lightbox shows a bounded uploader badge only when a name exists", async ()
   assert.match(source, /\{uploaderName && \(/);
   assert.match(source, /className="photo-viewer-uploader"/);
   assert.match(css, /\.photo-viewer-uploader \{/);
+  assert.match(css, /border: 0/);
+  assert.match(css, /border-radius: 0/);
+  assert.match(css, /background: transparent/);
+  assert.match(css, /font-size: clamp\(0\.92rem, 2\.8vw, 1\.08rem\)/);
   assert.match(css, /pointer-events: none/);
   assert.match(css, /text-overflow: ellipsis/);
+});
+
+test("lightbox page marker is centered directly below the photo", async () => {
+  const source = await read("src/client/PhotoLightbox.jsx");
+  const css = await read("src/client/gallery-visibility.css");
+
+  assert.match(source, /<footer className="photo-viewer-caption">/);
+  assert.match(source, /\{selectedIndex \+ 1\} \/ \{photos\.length\}/);
+  assert.match(css, /\.photo-viewer-caption > span \{/);
+  assert.match(css, /grid-column: 2/);
+  assert.match(css, /justify-self: center/);
+  assert.match(css, /text-align: center/);
 });
 
 test("load-more memory control has a visible button affordance", async () => {
