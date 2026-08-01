@@ -1,6 +1,5 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
-import { createServer } from "node:http";
 import path from "node:path";
 import test from "node:test";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -19,6 +18,12 @@ import {
   createAdminSettingsApi,
   createSettingsApi,
 } from "../src/server/settings/api.mjs";
+import { withRequestHandler } from "../test-support/http.mjs";
+import {
+  assertBooleanValidationCases,
+  assertJsonErrorCases,
+  patchJson,
+} from "../test-support/validation.mjs";
 
 const directory = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(directory, "..");
@@ -32,40 +37,7 @@ function run(plugin, code, relativePath) {
   return plugin.transform(code, id)?.code ?? code;
 }
 
-test("upload settings accept any whole-number limit inside the supported range", () => {
-  assert.deepEqual(normalizeUploadSettings(), {
-    guestUploadMaxPhotos: 10,
-    adminUploadMaxPhotos: 30,
-    uploadDescription: DEFAULT_UPLOAD_DESCRIPTION,
-  });
-  assert.deepEqual(
-    normalizeUploadSettings({
-      guestUploadMaxPhotos: 37,
-      adminUploadMaxPhotos: 82,
-      uploadDescription: { zh: "自訂中文", en: "Custom English" },
-    }),
-    {
-      guestUploadMaxPhotos: 37,
-      adminUploadMaxPhotos: 82,
-      uploadDescription: { zh: "自訂中文", en: "Custom English" },
-    },
-  );
-  for (const value of [MIN_UPLOAD_PHOTOS, 17, 64, MAX_SUPPORTED_UPLOAD_PHOTOS]) {
-    assert.equal(isValidGuestUploadMaxPhotos(value), true);
-    assert.equal(isValidAdminUploadMaxPhotos(value), true);
-  }
-  for (const value of [0, 1.5, 101, "not-a-number"]) {
-    assert.equal(isValidGuestUploadMaxPhotos(value), false);
-    assert.equal(isValidAdminUploadMaxPhotos(value), false);
-  }
-  assert.equal(
-    isValidUploadDescription({ zh: "中文", en: "English" }),
-    true,
-  );
-  assert.equal(isValidUploadDescription({ zh: "中文" }), false);
-});
-
-async function withUploadSettingsServer(runTest) {
+function createUploadSettingsFixture() {
   const state = {
     driveUploadMode: "single",
     guestUploadMaxPhotos: 10,
@@ -95,75 +67,138 @@ async function withUploadSettingsServer(runTest) {
   };
   const publicApi = createSettingsApi({ repository });
   const adminApi = createAdminSettingsApi({ repository });
-  const server = createServer(async (request, response) => {
-    if (!(await publicApi(request, response)) && !(await adminApi(request, response))) {
-      response.statusCode = 404;
-      response.end();
-    }
-  });
-  await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
-  const address = server.address();
-  try {
-    await runTest(`http://127.0.0.1:${address.port}`);
-  } finally {
-    await new Promise((resolve, reject) =>
-      server.close((error) => (error ? reject(error) : resolve())),
-    );
-  }
+
+  return {
+    withServer: (runTest) =>
+      withRequestHandler(
+        async (request, response) =>
+          (await publicApi(request, response)) ||
+          (await adminApi(request, response)),
+        runTest,
+      ),
+  };
 }
 
-test("the Upload Method card saves arbitrary limits and bilingual text together", async () => {
-  await withUploadSettingsServer(async (origin) => {
+const uploadLimitCases = {
+  valid: [
+    { name: "minimum", value: MIN_UPLOAD_PHOTOS },
+    { name: "ordinary integer", value: 17 },
+    { name: "larger integer", value: 64 },
+    { name: "maximum", value: MAX_SUPPORTED_UPLOAD_PHOTOS },
+  ],
+  invalid: [
+    { name: "below minimum", value: 0 },
+    { name: "fraction", value: 1.5 },
+    { name: "above maximum", value: 101 },
+    { name: "non-number", value: "not-a-number" },
+  ],
+};
+
+test("upload settings normalization preserves defaults and accepted values", () => {
+  assert.deepEqual(normalizeUploadSettings(), {
+    guestUploadMaxPhotos: 10,
+    adminUploadMaxPhotos: 30,
+    uploadDescription: DEFAULT_UPLOAD_DESCRIPTION,
+  });
+  assert.deepEqual(
+    normalizeUploadSettings({
+      guestUploadMaxPhotos: 37,
+      adminUploadMaxPhotos: 82,
+      uploadDescription: { zh: "自訂中文", en: "Custom English" },
+    }),
+    {
+      guestUploadMaxPhotos: 37,
+      adminUploadMaxPhotos: 82,
+      uploadDescription: { zh: "自訂中文", en: "Custom English" },
+    },
+  );
+});
+
+test("upload setting validators define explicit accepted and rejected domains", async (t) => {
+  await t.test("guest photo limit", (subtest) =>
+    assertBooleanValidationCases(
+      subtest,
+      isValidGuestUploadMaxPhotos,
+      uploadLimitCases,
+    ),
+  );
+  await t.test("administrator photo limit", (subtest) =>
+    assertBooleanValidationCases(
+      subtest,
+      isValidAdminUploadMaxPhotos,
+      uploadLimitCases,
+    ),
+  );
+  await t.test("bilingual upload description", (subtest) =>
+    assertBooleanValidationCases(subtest, isValidUploadDescription, {
+      valid: [
+        {
+          name: "Chinese and English text",
+          value: { zh: "中文", en: "English" },
+        },
+      ],
+      invalid: [
+        { name: "missing English text", value: { zh: "中文" } },
+        { name: "missing Chinese text", value: { en: "English" } },
+        { name: "non-object value", value: "description" },
+      ],
+    }),
+  );
+});
+
+test("the Upload Method card saves limits and bilingual text together", async () => {
+  const { withServer } = createUploadSettingsFixture();
+  await withServer(async (origin) => {
     const uploadDescription = {
       zh: "請選擇想分享的婚禮照片。",
       en: "Choose the wedding photos you would like to share.",
     };
-    const response = await fetch(`${origin}/admin/api/settings`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        driveUploadMode: "chunked",
-        guestUploadMaxPhotos: 37,
-        adminUploadMaxPhotos: 82,
-        uploadDescription,
-      }),
-    });
-    assert.equal(response.status, 200);
-    assert.deepEqual(await response.json(), {
+    const expected = {
       driveUploadMode: "chunked",
       guestUploadMaxPhotos: 37,
       adminUploadMaxPhotos: 82,
       uploadDescription,
-    });
+    };
+    const response = await patchJson(`${origin}/admin/api/settings`, expected);
+    assert.equal(response.status, 200);
+    assert.deepEqual(await response.json(), expected);
 
     const publicResponse = await fetch(`${origin}/Memories/api/settings`);
     assert.equal(publicResponse.status, 200);
-    assert.deepEqual(await publicResponse.json(), {
-      driveUploadMode: "chunked",
-      guestUploadMaxPhotos: 37,
-      adminUploadMaxPhotos: 82,
-      uploadDescription,
-    });
+    assert.deepEqual(await publicResponse.json(), expected);
   });
 });
 
-test("out-of-range, fractional, and malformed upload settings are rejected", async () => {
-  await withUploadSettingsServer(async (origin) => {
-    for (const body of [
-      { guestUploadMaxPhotos: 0 },
-      { guestUploadMaxPhotos: 101 },
-      { adminUploadMaxPhotos: 2.5 },
-      { adminUploadMaxPhotos: "many" },
-      { uploadDescription: { zh: "缺英文" } },
-    ]) {
-      const response = await fetch(`${origin}/admin/api/settings`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      });
-      assert.equal(response.status, 422);
-      assert.equal((await response.json()).code, "INVALID_SETTING");
-    }
+test("invalid upload settings are rejected consistently", async (t) => {
+  const { withServer } = createUploadSettingsFixture();
+  await withServer(async (origin) => {
+    await assertJsonErrorCases(
+      t,
+      [
+        {
+          name: "guest limit below minimum",
+          value: { guestUploadMaxPhotos: 0 },
+        },
+        {
+          name: "guest limit above maximum",
+          value: { guestUploadMaxPhotos: 101 },
+        },
+        {
+          name: "fractional administrator limit",
+          value: { adminUploadMaxPhotos: 2.5 },
+        },
+        {
+          name: "non-numeric administrator limit",
+          value: { adminUploadMaxPhotos: "many" },
+        },
+        {
+          name: "description missing English text",
+          value: { uploadDescription: { zh: "缺英文" } },
+        },
+      ],
+      (body) => patchJson(`${origin}/admin/api/settings`, body),
+      { status: 422, code: "INVALID_SETTING" },
+    );
   });
 });
 
