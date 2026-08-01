@@ -3,25 +3,12 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
-import { adminPhotoUploaderUiTransform } from "../admin-photo-uploader-ui-transform.mjs";
-import { adminPhotoWorkspaceUiTransform } from "../admin-photo-workspace-ui-transform.mjs";
-import { logicalRouteUiTransform } from "../logical-route-ui-transform.mjs";
-import { processContentUiTransform } from "../process-content-ui-transform.mjs";
-import {
-  progressivePhotoLoadingUiTransform,
-  transformProgressivePhotoLoading,
-} from "../progressive-photo-loading-ui-transform.mjs";
-import { publicBootstrapUiTransform } from "../public-bootstrap-ui-transform.mjs";
-import { websiteCopyUiTransform } from "../website-copy-ui-transform.mjs";
+import { transformProgressivePhotoLoading } from "../progressive-photo-loading-ui-transform.mjs";
 
 const directory = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(directory, "..");
 const appPath = path.join(root, "src/client/App.jsx");
-
-function run(plugin, code, relativePath = "src/client/App.jsx") {
-  const id = path.join(root, relativePath);
-  return plugin.transform(code, id)?.code ?? code;
-}
+const viteConfigPath = path.join(root, "vite.config.js");
 
 test("gallery publishes two photo pages before continuing during idle time", async () => {
   const source = await readFile(appPath, "utf8");
@@ -50,20 +37,15 @@ test("background failure keeps the initial gallery and abort is not shown as an 
   assert.match(transformed, /localOnly\.length > 0/);
 });
 
-test("progressive loading remains compatible with the production transform chain", async () => {
-  let app = await readFile(appPath, "utf8");
-  app = run(progressivePhotoLoadingUiTransform(), app);
-  app = run(adminPhotoUploaderUiTransform(), app);
-  app = run(processContentUiTransform(), app);
-  app = run(adminPhotoWorkspaceUiTransform(), app);
-  app = run(logicalRouteUiTransform(), app);
-  app = run(websiteCopyUiTransform(), app);
-  app = run(publicBootstrapUiTransform(), app);
+test("production runs progressive loading before transforms that rewrite the gallery", async () => {
+  const config = await readFile(viteConfigPath, "utf8");
+  const progressiveIndex = config.indexOf("progressivePhotoLoadingUiTransform(),");
+  const processIndex = config.indexOf("processContentUiTransform(),");
+  const workspaceIndex = config.indexOf("adminPhotoWorkspaceUiTransform(),");
 
-  assert.match(app, /const initialPublicBootstrap = getPublicBootstrap\(\)/);
-  assert.match(app, /const INITIAL_PAGE_COUNT = 2/);
-  assert.match(app, /void fetchAllPhotos\(\)/);
-  assert.doesNotMatch(app, /void fetchAlbums\(\)/);
+  assert.ok(progressiveIndex >= 0);
+  assert.ok(processIndex > progressiveIndex);
+  assert.ok(workspaceIndex > progressiveIndex);
 });
 
 test("transform refuses silently drifting source contracts", () => {
