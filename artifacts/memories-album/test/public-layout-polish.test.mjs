@@ -28,6 +28,28 @@ test("public hero removes the date divider and uses compact mobile spacing", asy
   assert.match(styles.code, /\.archive-subtitle:empty\s*\{\s*display: none/);
 });
 
+test("language switcher stays fixed at the viewport top right", async () => {
+  const controls = await readFile(
+    path.join(root, "src/client/feature-controls.css"),
+    "utf8",
+  );
+
+  assert.match(
+    controls,
+    /\.header-tools\s*\{[\s\S]*position: fixed;[\s\S]*top: max\(var\(--language-toggle-edge\), env\(safe-area-inset-top\)\);/,
+  );
+  assert.match(
+    controls,
+    /\.header-tools\s*\{[\s\S]*right: max\(var\(--language-toggle-edge\), env\(safe-area-inset-right\)\);[\s\S]*left: auto;/,
+  );
+  assert.match(controls, /--language-toggle-edge: clamp\(/);
+  assert.match(controls, /\.header-tools\s*\{[\s\S]*z-index: 65;/);
+  assert.match(
+    controls,
+    /\.header-tools \.quiet-button\s*\{[\s\S]*min-height: 2\.75rem;[\s\S]*pointer-events: auto;/,
+  );
+});
+
 test("bottom navigation stays compact while icons and labels grow responsively", async () => {
   const navigation = await readFile(
     path.join(root, "src/client/bottom-collection-nav.css"),
