@@ -7,9 +7,8 @@ function namedCase(testCase, index) {
     Object.hasOwn(testCase, "value")
   ) {
     return {
+      ...testCase,
       name: testCase.name ?? `case ${index + 1}`,
-      value: testCase.value,
-      expected: testCase.expected,
     };
   }
 
@@ -52,11 +51,16 @@ export async function assertJsonErrorCases(
   { status, code },
 ) {
   for (const [index, testCase] of cases.entries()) {
-    const { name, value } = namedCase(testCase, index);
+    const {
+      name,
+      value,
+      expectedStatus = status,
+      expectedCode = code,
+    } = namedCase(testCase, index);
     await t.test(name, async () => {
       const response = await request(value);
-      assert.equal(response.status, status);
-      assert.equal((await response.json()).code, code);
+      assert.equal(response.status, expectedStatus);
+      assert.equal((await response.json()).code, expectedCode);
     });
   }
 }
