@@ -25,50 +25,84 @@ function jsonRequest(method, body) {
   };
 }
 
-test("guest featured setting defaults to disabled and persists booleans", async () => {
-  let stored;
-  const pool = {
-    async query(sql, values) {
-      if (sql.includes("SELECT value")) {
-        return { rows: stored === undefined ? [] : [{ value: stored }] };
+function createPool() {
+  const stored = new Map();
+  return {
+    stored,
+    async query(sql, values = []) {
+      if (sql === "BEGIN" || sql === "COMMIT" || sql === "ROLLBACK") {
+        return { rows: [] };
       }
-      stored = JSON.parse(values[1]);
+      if (sql.includes("SELECT key, value")) {
+        return {
+          rows: [...stored].map(([key, value]) => ({ key, value })),
+        };
+      }
+      if (sql.includes("INSERT INTO memories_app_settings")) {
+        stored.set(values[0], JSON.parse(values[1]));
+        return { rows: [] };
+      }
       return { rows: [] };
     },
   };
+}
+
+test("guest featured compatibility endpoint persists numeric ranges", async () => {
+  const pool = createPool();
   const apis = createGuestFeaturedSettingsApis({ pool });
 
   const initial = responseRecorder();
-  assert.equal(
-    await apis.publicApi(
-      jsonRequest("GET"),
-      initial,
-      new URL("http://localhost/Memories/api/settings/guest-featured"),
-    ),
-    true,
+  await apis.publicApi(
+    jsonRequest("GET"),
+    initial,
+    new URL("http://localhost/Memories/api/settings/guest-featured"),
   );
   assert.equal(initial.body.guestRandomFeaturedPhotosEnabled, false);
+  assert.equal(initial.body.guestRandomFeaturedPhotosMin, 1);
+  assert.equal(initial.body.guestRandomFeaturedPhotosMax, 3);
 
   const saved = responseRecorder();
   await apis.adminApi(
-    jsonRequest("PATCH", { guestRandomFeaturedPhotosEnabled: true }),
+    jsonRequest("PATCH", {
+      guestRandomFeaturedPhotosEnabled: true,
+      guestRandomFeaturedPhotosMin: 0,
+      guestRandomFeaturedPhotosMax: 4,
+    }),
     saved,
     new URL("http://localhost/admin/api/settings/guest-featured"),
   );
   assert.equal(saved.status, 200);
   assert.equal(saved.body.guestRandomFeaturedPhotosEnabled, true);
-  assert.equal(stored, true);
+  assert.equal(saved.body.guestRandomFeaturedPhotosMin, 0);
+  assert.equal(saved.body.guestRandomFeaturedPhotosMax, 4);
 });
 
-test("guest featured setting rejects non-boolean values", async () => {
-  const pool = { query: async () => ({ rows: [] }) };
-  const apis = createGuestFeaturedSettingsApis({ pool });
-  const response = responseRecorder();
-  await apis.adminApi(
-    jsonRequest("PATCH", { guestRandomFeaturedPhotosEnabled: "yes" }),
-    response,
-    new URL("http://localhost/admin/api/settings/guest-featured"),
-  );
-  assert.equal(response.status, 422);
-  assert.equal(response.body.code, "INVALID_SETTING");
+test("guest featured compatibility endpoint rejects invalid ranges", async () => {
+  const apis = createGuestFeaturedSettingsApis({ pool: createPool() });
+  for (const body of [
+    {
+      guestRandomFeaturedPhotosEnabled: true,
+      guestRandomFeaturedPhotosMin: "one",
+      guestRandomFeaturedPhotosMax: 3,
+    },
+    {
+      guestRandomFeaturedPhotosEnabled: true,
+      guestRandomFeaturedPhotosMin: 4,
+      guestRandomFeaturedPhotosMax: 2,
+    },
+    {
+      guestRandomFeaturedPhotosEnabled: true,
+      guestRandomFeaturedPhotosMin: -1,
+      guestRandomFeaturedPhotosMax: 3,
+    },
+  ]) {
+    const response = responseRecorder();
+    await apis.adminApi(
+      jsonRequest("PATCH", body),
+      response,
+      new URL("http://localhost/admin/api/settings/guest-featured"),
+    );
+    assert.equal(response.status, 422);
+    assert.equal(response.body.code, "INVALID_SETTING");
+  }
 });
