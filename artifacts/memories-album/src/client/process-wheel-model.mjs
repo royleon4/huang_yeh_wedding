@@ -1,26 +1,21 @@
+function wheelEntry(item, key, clone, realIndex) {
+  return { item, key, clone, realIndex };
+}
+
 export function renderedWheelItems(items, loop) {
-  const real = items.map((item, index) => ({
-    item,
-    key: `real-${item.id}`,
-    clone: null,
-    realIndex: index,
-  }));
+  const real = items.map((item, index) =>
+    wheelEntry(item, `real-${item.id}`, null, index),
+  );
   if (!loop || items.length < 2) return real;
-  return [
-    {
-      item: items.at(-1),
-      key: `clone-start-${items.at(-1).id}`,
-      clone: "start",
-      realIndex: items.length - 1,
-    },
-    ...real,
-    {
-      item: items[0],
-      key: `clone-end-${items[0].id}`,
-      clone: "end",
-      realIndex: 0,
-    },
-  ];
+
+  const leading = items.map((item, index) =>
+    wheelEntry(item, `clone-start-${item.id}`, "start", index),
+  );
+  const trailing = items.map((item, index) =>
+    wheelEntry(item, `clone-end-${item.id}`, "end", index),
+  );
+
+  return [...leading, ...real, ...trailing];
 }
 
 export function logicalAdjacentIndex(index, length, direction, loop) {
