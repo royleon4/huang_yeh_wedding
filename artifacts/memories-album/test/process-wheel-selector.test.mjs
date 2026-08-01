@@ -10,20 +10,24 @@ import {
   processWheelLoopsForAlbum,
 } from "../src/process-selector-settings.mjs";
 
-test("wheel loop sentinels preserve logical order without duplicating identities", () => {
+test("wheel loop fills both sides with complete logical copies", () => {
   const items = [
     { id: "one", label: "One" },
     { id: "two", label: "Two" },
     { id: "three", label: "Three" },
   ];
   const rendered = renderedWheelItems(items, true);
-  assert.equal(rendered.length, 5);
-  assert.equal(rendered[0].item.id, "three");
-  assert.equal(rendered[0].clone, "start");
-  assert.equal(rendered.at(-1).item.id, "one");
-  assert.equal(rendered.at(-1).clone, "end");
+  assert.equal(rendered.length, 9);
+  assert.deepEqual(
+    rendered.filter((entry) => entry.clone === "start").map((entry) => entry.item.id),
+    ["one", "two", "three"],
+  );
   assert.deepEqual(
     rendered.filter((entry) => !entry.clone).map((entry) => entry.item.id),
+    ["one", "two", "three"],
+  );
+  assert.deepEqual(
+    rendered.filter((entry) => entry.clone === "end").map((entry) => entry.item.id),
     ["one", "two", "three"],
   );
   assert.equal(logicalAdjacentIndex(2, 3, 1, true), 0);
@@ -43,7 +47,7 @@ test("per-album loop settings normalize independently", () => {
   assert.equal(processWheelLoopsForAlbum(settings, "wedding"), false);
 });
 
-test("process wheel selects directly, reuses gallery positioning, and keeps readable responsive items", async () => {
+test("process wheel selects directly, fills both directions, and keeps every visible option clickable", async () => {
   const [component, selector, styles, settings] = await Promise.all([
     readFile(new URL("../src/client/ProcessWheel.jsx", import.meta.url), "utf8"),
     readFile(new URL("../src/client/ProcessSelector.jsx", import.meta.url), "utf8"),
@@ -59,7 +63,7 @@ test("process wheel selects directly, reuses gallery positioning, and keeps read
   assert.match(component, /programmaticTargetRef/);
   assert.match(component, /itemCenterOffset/);
   assert.match(component, /renderedWheelItems/);
-  assert.match(component, /data-wheel-clone/);
+  assert.match(component, /data-wheel-clone=\{clone \|\| undefined\}/);
   assert.match(component, /jumpCloneToRealItem/);
   assert.match(component, /logicalAdjacentIndex/);
   assert.match(component, /wheel\.scrollTo\(\{/);
@@ -68,6 +72,9 @@ test("process wheel selects directly, reuses gallery positioning, and keeps read
   assert.match(component, /onScroll=\{scheduleSelection\}/);
   assert.match(component, /onWheel=\{handleWheel\}/);
   assert.match(component, /role="tablist"/);
+  assert.match(component, /onClick=\{\(event\) => choose\(item\.id, event\.currentTarget\)\}/);
+  assert.match(component, /tabIndex=\{clone \? -1/);
+  assert.match(component, /role=\{clone \? undefined : "tab"\}/);
   assert.doesNotMatch(component, /scrollIntoView/);
   assert.doesNotMatch(component, /firstSelectedContent/);
   assert.doesNotMatch(component, /\.process-video-block/);
@@ -97,7 +104,8 @@ test("process wheel selects directly, reuses gallery positioning, and keeps read
   assert.match(styles, /scroll-snap-type: x mandatory/);
   assert.match(styles, /scroll-snap-align: center/);
   assert.match(styles, /scroll-snap-stop: normal/);
-  assert.match(styles, /process-wheel-clone/);
+  assert.match(styles, /\.process-wheel-clone\s*\{[\s\S]*cursor: pointer/);
+  assert.doesNotMatch(styles, /\.process-wheel-clone\s*\{[\s\S]*pointer-events: none/);
   assert.doesNotMatch(styles, /scroll-snap-stop: always/);
 
   assert.match(settings, /各相簿的無限左右滾動/);
