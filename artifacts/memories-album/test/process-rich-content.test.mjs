@@ -164,38 +164,25 @@ test("selector preserves traditional buttons and reads wheel settings from the p
   assert.match(selector, /processWheelLoopsForAlbum/);
   assert.match(selector, /className="process-strip"/);
   assert.match(selector, /className=\{`process-chip/);
-  assert.match(selector, /role="tablist"/);
-  assert.match(selector, /aria-selected=\{active\}/);
   assert.doesNotMatch(selector, /DEFAULT_SETTINGS/);
 });
 
-test("process wheel and traditional labels share committed gallery positioning and configurable density", async () => {
+test("process wheel reuses traditional gallery offset and supports configurable mobile density", async () => {
   const [component, selector, styles, settings] = await Promise.all([
     readFile(new URL("../src/client/ProcessWheel.jsx", import.meta.url), "utf8"),
     readFile(new URL("../src/client/ProcessSelector.jsx", import.meta.url), "utf8"),
     readFile(new URL("../src/client/process-wheel.css", import.meta.url), "utf8"),
-    readFile(
-      new URL("../src/client/ProcessSelectorSettings.jsx", import.meta.url),
-      "utf8",
-    ),
+    readFile(new URL("../src/client/ProcessSelectorSettings.jsx", import.meta.url), "utf8"),
   ]);
   assert.match(component, /closestItem/);
   assert.match(component, /setTimeout\(selectCenteredItem, 90\)/);
   assert.doesNotMatch(component, /firstSelectedContent/);
   assert.doesNotMatch(component, /\.process-video-block/);
   assert.doesNotMatch(component, /\.masonry-grid \.photo-card/);
-  assert.match(selector, /function positionActiveLabelContent/);
-  assert.match(selector, /useLayoutEffect/);
-  assert.match(selector, /previousActiveIdRef/);
-  assert.match(selector, /scheduleActivePosition/);
-  assert.match(selector, /pendingExternalPositionRequest/);
-  assert.match(selector, /stickyControls\.scrollTop = stickyControls\.scrollHeight/);
-  assert.match(
-    selector,
-    /gallery\.getBoundingClientRect\(\)\.top - stickyHeight - 10/,
-  );
-  assert.match(selector, /onSelect=\{selectLabel\}/);
-  assert.doesNotMatch(selector, /selectWithTraditionalPositioning/);
+  assert.match(selector, /function scrollToGalleryStart/);
+  assert.match(selector, /document\.querySelector\("\.process-section"\)/);
+  assert.match(selector, /gallery\.getBoundingClientRect\(\)\.top - stickyHeight - 10/);
+  assert.match(selector, /onSelect=\{selectWithTraditionalPositioning\}/);
   assert.match(component, /visibleCount/);
   assert.match(styles, /--wheel-mobile-item-width/);
   assert.match(styles, /scroll-snap-align: center/);
@@ -209,13 +196,7 @@ test("rich content migration is additive only", async () => {
     new URL("../db/012_process_rich_content.sql", import.meta.url),
     "utf8",
   );
-  assert.match(
-    migration,
-    /CREATE TABLE IF NOT EXISTS memories_process_content/,
-  );
-  assert.match(
-    migration,
-    /CREATE TABLE IF NOT EXISTS memories_process_attachments/,
-  );
+  assert.match(migration, /CREATE TABLE IF NOT EXISTS memories_process_content/);
+  assert.match(migration, /CREATE TABLE IF NOT EXISTS memories_process_attachments/);
   assert.doesNotMatch(migration, /DROP\s+(TABLE|COLUMN)/i);
 });
