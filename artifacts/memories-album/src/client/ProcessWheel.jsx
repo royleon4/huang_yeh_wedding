@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   logicalAdjacentIndex,
   renderedWheelItems,
@@ -43,6 +43,10 @@ function normalizedVisibleCount(value) {
   return Math.min(MAX_VISIBLE_COUNT, Math.max(MIN_VISIBLE_COUNT, parsed));
 }
 
+function realWheelKey(id) {
+  return `real-${String(id)}`;
+}
+
 export default function ProcessWheel({
   items,
   activeId,
@@ -57,6 +61,9 @@ export default function ProcessWheel({
   const frameRef = useRef(null);
   const programmaticTargetRef = useRef(null);
   const programmaticTimerRef = useRef(null);
+  const [activeVisualKey, setActiveVisualKey] = useState(() =>
+    realWheelKey(activeId),
+  );
   const mobileVisibleCount = normalizedVisibleCount(visibleCount);
   const mobileItemWidth = `calc(${100 / mobileVisibleCount}% - 0.46rem)`;
   const wheelItems = useMemo(
@@ -101,6 +108,8 @@ export default function ProcessWheel({
     const centered = closestItem(wheel);
     const item = jumpCloneToRealItem(centered);
     const id = item?.dataset.wheelId;
+    const visualKey = item?.dataset.wheelKey;
+    if (visualKey) setActiveVisualKey(String(visualKey));
     if (id && id !== activeId) onSelect(id);
   };
 
@@ -118,9 +127,10 @@ export default function ProcessWheel({
     const targetKey = String(element.dataset.wheelKey);
     const offset = itemCenterOffset(wheel, element);
     programmaticTargetRef.current = targetKey;
+    setActiveVisualKey(targetKey);
 
     if (Math.abs(offset) <= 2) {
-      cancelProgrammaticScroll();
+      scheduleSelection();
       return;
     }
 
@@ -137,16 +147,26 @@ export default function ProcessWheel({
 
   useEffect(() => {
     const wheel = wheelRef.current;
-    const active = wheel?.querySelector(
-      `[data-wheel-real-id="${CSS.escape(String(activeId))}"]`,
-    );
+    const pendingTargetKey = programmaticTargetRef.current;
+    const pendingTarget = pendingTargetKey
+      ? wheel?.querySelector(
+          `[data-wheel-key="${CSS.escape(pendingTargetKey)}"]`,
+        )
+      : null;
+    const active =
+      pendingTarget?.dataset.wheelId === String(activeId)
+        ? pendingTarget
+        : wheel?.querySelector(
+            `[data-wheel-real-id="${CSS.escape(String(activeId))}"]`,
+          );
     if (!wheel || !active) return;
     frameRef.current = globalThis.requestAnimationFrame(() => {
       const targetKey = String(active.dataset.wheelKey);
+      setActiveVisualKey(targetKey);
       const offset = itemCenterOffset(wheel, active);
       if (Math.abs(offset) <= 2) {
         if (programmaticTargetRef.current === targetKey) {
-          cancelProgrammaticScroll();
+          scheduleSelection();
         }
         return;
       }
@@ -233,18 +253,19 @@ export default function ProcessWheel({
         onKeyDown={handleKeyDown}
       >
         {wheelItems.map(({ item, key, clone }) => {
-          const active = item.id === activeId;
-          const className = `process-wheel-item ${active ? "active" : ""} ${
-            clone ? "process-wheel-clone" : ""
-          }`;
+          const logicallyActive = item.id === activeId;
+          const visuallyActive = key === activeVisualKey;
+          const className = `process-wheel-item ${
+            visuallyActive ? "active" : ""
+          } ${clone ? "process-wheel-clone" : ""}`;
           return (
             <button
               key={key}
               type="button"
               role={clone ? undefined : "tab"}
-              aria-selected={clone ? undefined : active}
+              aria-selected={clone ? undefined : logicallyActive}
               aria-label={clone ? item.label : undefined}
-              tabIndex={clone ? -1 : active ? 0 : -1}
+              tabIndex={clone ? -1 : logicallyActive ? 0 : -1}
               className={className}
               data-wheel-id={item.id}
               data-wheel-key={key}
