@@ -1,0 +1,57 @@
+:root {
+  --memories-hero-title-color: #223b31;
+  --memories-hero-date-color: #b96e5d;
+  --memories-hero-subtitle-color: #6e776f;
+  --memories-hero-overlay-layer: linear-gradient(
+    rgb(243 238 226 / 0.7),
+    rgb(243 238 226 / 0.7)
+  );
+  --memories-hero-background-image: none;
+  --memories-bottom-nav-background: #fcf8f0;
+  --memories-bottom-nav-text: #6e776f;
+  --memories-bottom-nav-active-background: #dbe2d5;
+}
+
+.archive-shell {
+  background: linear-gradient(
+    180deg,
+    var(--paper) 0%,
+    var(--paper-deep) 55%,
+    var(--paper) 100%
+  );
+}
+
+.archive-header {
+  isolation: isolate;
+  background-image: var(--memories-hero-background-image);
+  background-position: center;
+  background-size: cover;
+}
+
+:root[data-memories-hero-background="true"] .archive-header {
+  background-image:
+    var(--memories-hero-overlay-layer),
+    var(--memories-hero-background-image);
+}
+
+.archive-header > * {
+  position: relative;
+  z-index: 1;
+}
+
+.archive-header::before,
+.archive-header::after {
+  z-index: 0;
+}
+
+.archive-header h1 {
+  color: var(--memories-hero-title-color);
+}
+
+.archive-date {
+  color: var(--memories-hero-date-color);
+}
+
+.archive-subtitle {
+  color: var(--memories-hero-subtitle-color);
+}

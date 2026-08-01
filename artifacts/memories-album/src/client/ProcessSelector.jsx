@@ -1,27 +1,6 @@
-import { useEffect, useState } from "react";
+import { processWheelLoopsForAlbum } from "../process-selector-settings.mjs";
+import { getPublicBootstrap } from "./public-bootstrap.mjs";
 import ProcessWheel from "./ProcessWheel.jsx";
-
-const DEFAULT_SETTINGS = {
-  processWheelEnabled: false,
-  processWheelVisibleCount: 6,
-};
-
-let settingsPromise;
-
-async function processSelectorSettings() {
-  settingsPromise ??= fetch("/Memories/api/settings", {
-    headers: { Accept: "application/json" },
-  })
-    .then((response) => (response.ok ? response.json() : {}))
-    .then((settings) => ({
-      processWheelEnabled: settings.processWheelEnabled === true,
-      processWheelVisibleCount: Number.isInteger(settings.processWheelVisibleCount)
-        ? settings.processWheelVisibleCount
-        : DEFAULT_SETTINGS.processWheelVisibleCount,
-    }))
-    .catch(() => DEFAULT_SETTINGS);
-  return settingsPromise;
-}
 
 function scrollToGalleryStart() {
   const gallery = document.getElementById("archive-gallery");
@@ -60,17 +39,8 @@ function TraditionalSelector({ items, activeId, onSelect, ariaLabel, variant }) 
 }
 
 export default function ProcessSelector(props) {
-  const [settings, setSettings] = useState(DEFAULT_SETTINGS);
-
-  useEffect(() => {
-    let cancelled = false;
-    void processSelectorSettings().then((nextSettings) => {
-      if (!cancelled) setSettings(nextSettings);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+  const settings = getPublicBootstrap().settings;
+  const albumId = props.albumId ?? (props.variant === "guest" ? "guest" : "wedding");
 
   const selectWithTraditionalPositioning = (id) => {
     props.onSelect(id);
@@ -83,6 +53,7 @@ export default function ProcessSelector(props) {
         {...props}
         onSelect={selectWithTraditionalPositioning}
         visibleCount={settings.processWheelVisibleCount}
+        loop={processWheelLoopsForAlbum(settings, albumId)}
       />
     );
   }

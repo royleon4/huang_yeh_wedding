@@ -92,6 +92,8 @@ export const SITE_COPY_GROUPS = [
   },
 ];
 
+export const SITE_COPY_TITLE_KEY = "archive";
+
 export const DEFAULT_SITE_COPY = {
   zh: {
     headerEyebrow: "LEON & YEHY · WEDDING ARCHIVE",
@@ -187,6 +189,38 @@ export function normalizeSiteCopy(value) {
   );
 }
 
+export function normalizeSiteCopyPatch(value) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return {};
+  return Object.fromEntries(
+    ["zh", "en"].flatMap((language) => {
+      const source = value[language];
+      if (!source || typeof source !== "object" || Array.isArray(source)) return [];
+      const fields = Object.fromEntries(
+        Object.entries(source)
+          .filter(([key, fieldValue]) =>
+            FIELD_LIMITS.has(key) && typeof fieldValue === "string",
+          )
+          .map(([key, fieldValue]) => [
+            key,
+            normalizeText(fieldValue, "", FIELD_LIMITS.get(key)),
+          ]),
+      );
+      return Object.keys(fields).length ? [[language, fields]] : [];
+    }),
+  );
+}
+
+export function mergeSiteCopy(base, patch) {
+  const current = normalizeSiteCopy(base);
+  const normalizedPatch = normalizeSiteCopyPatch(patch);
+  return Object.fromEntries(
+    ["zh", "en"].map((language) => [
+      language,
+      { ...current[language], ...(normalizedPatch[language] ?? {}) },
+    ]),
+  );
+}
+
 export function isValidSiteCopy(value) {
   if (!value || typeof value !== "object" || Array.isArray(value)) return false;
   for (const language of ["zh", "en"]) {
@@ -198,4 +232,21 @@ export function isValidSiteCopy(value) {
     if (Object.keys(copy).some((key) => !FIELD_LIMITS.has(key))) return false;
   }
   return new TextEncoder().encode(JSON.stringify(value)).byteLength <= 24 * 1024;
+}
+
+export function isValidSiteCopyPatch(value) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  let fields = 0;
+  for (const [language, patch] of Object.entries(value)) {
+    if (!["zh", "en"].includes(language)) return false;
+    if (!patch || typeof patch !== "object" || Array.isArray(patch)) return false;
+    for (const [key, fieldValue] of Object.entries(patch)) {
+      const limit = FIELD_LIMITS.get(key);
+      if (!limit || typeof fieldValue !== "string" || fieldValue.length > limit) {
+        return false;
+      }
+      fields += 1;
+    }
+  }
+  return fields > 0 && new TextEncoder().encode(JSON.stringify(value)).byteLength <= 24 * 1024;
 }

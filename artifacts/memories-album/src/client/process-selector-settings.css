@@ -104,11 +104,8 @@
   color: #fffaf1;
 }
 
-.selector-density-card {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 1rem;
+.selector-density-card,
+.selector-loop-card {
   border: 1px solid rgba(53, 95, 77, 0.18);
   border-radius: 1rem;
   background: rgba(239, 232, 218, 0.5);
@@ -120,17 +117,27 @@
     opacity 0.18s ease;
 }
 
-.selector-density-card.enabled {
+.selector-density-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 1rem;
+}
+
+.selector-density-card.enabled,
+.selector-loop-card.enabled {
   border-color: rgba(53, 95, 77, 0.34);
   background: rgba(255, 252, 245, 0.88);
   opacity: 1;
 }
 
-.selector-density-card strong {
+.selector-density-card strong,
+.selector-loop-card legend {
   color: var(--ink);
 }
 
-.selector-density-card p {
+.selector-density-card p,
+.selector-loop-card > p {
   margin: 0.35rem 0 0;
   color: var(--muted);
   font-size: 0.82rem;
@@ -152,6 +159,32 @@
   background: #fffaf1;
   padding: 0.45rem 0.7rem;
   color: var(--ink);
+}
+
+.selector-loop-card {
+  min-width: 0;
+  margin: 0;
+  display: grid;
+  gap: 0.8rem;
+}
+
+.selector-loop-card legend {
+  padding: 0 0.35rem;
+  font-weight: 700;
+}
+
+.selector-loop-options {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.65rem;
+}
+
+.selector-loop-options .admin-check {
+  min-height: 2.75rem;
+  border: 1px solid rgba(53, 95, 77, 0.16);
+  border-radius: 0.8rem;
+  background: rgba(255, 252, 245, 0.72);
+  padding: 0.65rem 0.8rem;
 }
 
 .selector-settings-actions {
@@ -185,7 +218,8 @@
 }
 
 @media (max-width: 700px) {
-  .selector-mode-grid {
+  .selector-mode-grid,
+  .selector-loop-options {
     grid-template-columns: 1fr;
   }
 

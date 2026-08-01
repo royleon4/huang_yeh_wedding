@@ -1,6 +1,5 @@
 const APP_SUFFIX = "/src/client/App.jsx";
 const MAIN_SUFFIX = "/src/client/main.jsx";
-const PROCESS_SELECTOR_SUFFIX = "/src/client/ProcessSelector.jsx";
 const UPLOAD_MODAL_SUFFIX = "/src/client/UploadModal.jsx";
 
 function replaceOnce(source, search, replacement, label) {
@@ -29,8 +28,8 @@ function transformMain(source) {
   code = replaceOnce(
     code,
     `import { routeSurface } from "./route-state.mjs";`,
-    `import { routeSurface } from "./route-state.mjs";\nimport { loadPublicBootstrap } from "./public-bootstrap.mjs";`,
-    "public bootstrap import",
+    `import { routeSurface } from "./route-state.mjs";\nimport { loadPublicBootstrap } from "./public-bootstrap.mjs";\nimport { applySiteStyle } from "../site-style.mjs";`,
+    "public bootstrap and style imports",
   );
   code = replaceRange(
     code,
@@ -44,7 +43,7 @@ function transformMain(source) {
   if (renderStart < 0) {
     throw new Error("Public bootstrap UI transform could not find application render");
   }
-  return `${code.slice(0, renderStart)}async function renderApplication() {\n  if (!isBatchManagement && surface === "memories") {\n    const bootstrap = await loadPublicBootstrap();\n    applyServerProcesses(bootstrap.processes, bootstrap.allProcess);\n  }\n\n  const content = isBatchManagement ? (\n    <BatchManagementPage />\n  ) : surface === "login" ? (\n    <AdminLoginPage />\n  ) : surface === "admin" ? (\n    <AdminApp />\n  ) : (\n    <MemoriesRoot />\n  );\n\n  createRoot(document.getElementById("root")).render(\n    <React.StrictMode>\n      <MemoriesErrorBoundary>{content}</MemoriesErrorBoundary>\n    </React.StrictMode>,\n  );\n}\n\nvoid renderApplication();\n`;
+  return `${code.slice(0, renderStart)}async function renderApplication() {\n  if (!isBatchManagement && surface === "memories") {\n    const bootstrap = await loadPublicBootstrap();\n    applySiteStyle({\n      siteStyle: bootstrap.settings.siteStyle,\n      heroBackground: bootstrap.settings.heroBackground,\n    });\n    applyServerProcesses(bootstrap.processes, bootstrap.allProcess);\n  }\n\n  const content = isBatchManagement ? (\n    <BatchManagementPage />\n  ) : surface === "login" ? (\n    <AdminLoginPage />\n  ) : surface === "admin" ? (\n    <AdminApp />\n  ) : (\n    <MemoriesRoot />\n  );\n\n  createRoot(document.getElementById("root")).render(\n    <React.StrictMode>\n      <MemoriesErrorBoundary>{content}</MemoriesErrorBoundary>\n    </React.StrictMode>,\n  );\n}\n\nvoid renderApplication();\n`;
 }
 
 function transformApp(source) {
@@ -53,6 +52,12 @@ function transformApp(source) {
     `import { DEFAULT_SITE_COPY, normalizeSiteCopy } from "../site-copy.mjs";`,
     `import { normalizeSiteCopy } from "../site-copy.mjs";\nimport { getPublicBootstrap } from "./public-bootstrap.mjs";`,
     "public bootstrap app import",
+  );
+  code = replaceOnce(
+    code,
+    `  DEFAULT_GALLERY_MEDIA_ORDER,\n`,
+    ``,
+    "obsolete gallery order default import",
   );
   code = replaceRange(
     code,
@@ -98,30 +103,6 @@ function transformApp(source) {
     `  const sourcePhotos =`,
     ``,
     "duplicate settings request",
-  );
-  return code;
-}
-
-function transformProcessSelector(source) {
-  let code = replaceOnce(
-    source,
-    `import { useEffect, useState } from "react";\nimport ProcessWheel from "./ProcessWheel.jsx";`,
-    `import ProcessWheel from "./ProcessWheel.jsx";\nimport { getPublicBootstrap } from "./public-bootstrap.mjs";`,
-    "selector bootstrap import",
-  );
-  code = replaceRange(
-    code,
-    `const DEFAULT_SETTINGS = {`,
-    `function scrollToGalleryStart() {`,
-    ``,
-    "selector settings request",
-  );
-  code = replaceRange(
-    code,
-    `export default function ProcessSelector(props) {`,
-    `  const selectWithTraditionalPositioning = (id) => {`,
-    `export default function ProcessSelector(props) {\n  const settings = getPublicBootstrap().settings;\n\n`,
-    "selector post-render hydration",
   );
   return code;
 }
@@ -202,9 +183,6 @@ export function publicBootstrapUiTransform() {
       }
       if (normalizedId.endsWith(APP_SUFFIX)) {
         return { code: transformApp(source), map: null };
-      }
-      if (normalizedId.endsWith(PROCESS_SELECTOR_SUFFIX)) {
-        return { code: transformProcessSelector(source), map: null };
       }
       if (normalizedId.endsWith(UPLOAD_MODAL_SUFFIX)) {
         return { code: transformUploadModal(source), map: null };

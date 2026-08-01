@@ -15,12 +15,15 @@ import {
   normalizeGuestUploaderLabelOrder,
 } from "../guest-label-settings.mjs";
 import { normalizePinnedPhotosByProcess } from "../pinned-photo-settings.mjs";
+import { normalizeProcessSelectorSettings } from "../process-selector-settings.mjs";
 import { normalizeSiteCopy } from "../site-copy.mjs";
+import {
+  normalizeHeroBackgroundMetadata,
+  normalizeSiteStyle,
+} from "../site-style.mjs";
 import { normalizeUploadSettings } from "../upload-settings.mjs";
 
 const DEFAULT_TIMEOUT_MS = 8000;
-const DEFAULT_WHEEL_VISIBLE_COUNT = 6;
-const ALLOWED_WHEEL_VISIBLE_COUNTS = new Set([3, 4, 5, 6, 7, 8]);
 
 function fallbackAlbums() {
   return COLLECTION_DEFINITIONS.map((album, index) => ({
@@ -51,7 +54,9 @@ function fallbackProcessPayload() {
       id: "all",
       labelZh: ALL_PROCESS_DEFINITION.zh || "全部流程",
       labelEn:
-        ALL_PROCESS_DEFINITION.en || ALL_PROCESS_DEFINITION.zh || "All moments",
+        ALL_PROCESS_DEFINITION.en ||
+        ALL_PROCESS_DEFINITION.zh ||
+        "All moments",
       youtubeVideoId: ALL_PROCESS_DEFINITION.youtubeVideoId ?? null,
       youtubeAutoplay: Boolean(ALL_PROCESS_DEFINITION.youtubeAutoplay),
       showAllPhotos: ALL_PROCESS_DEFINITION.showAllPhotos !== false,
@@ -67,22 +72,18 @@ function fallbackProcessPayload() {
 
 export function normalizePublicSettings(value) {
   const source = value && typeof value === "object" ? value : {};
-  const requestedVisibleCount = Number(source.processWheelVisibleCount);
   return {
     ...source,
     ...normalizeUploadSettings(source),
     ...normalizeGuestLabelVisibilitySettings(source),
+    ...normalizeProcessSelectorSettings(source),
     galleryMediaOrder: normalizeGalleryMediaOrder(source.galleryMediaOrder),
     pinnedPhotoIdsByProcess: normalizePinnedPhotosByProcess(
       source.pinnedPhotoIdsByProcess,
     ),
     siteCopy: normalizeSiteCopy(source.siteCopy),
-    processWheelEnabled: source.processWheelEnabled === true,
-    processWheelVisibleCount: ALLOWED_WHEEL_VISIBLE_COUNTS.has(
-      requestedVisibleCount,
-    )
-      ? requestedVisibleCount
-      : DEFAULT_WHEEL_VISIBLE_COUNT,
+    siteStyle: normalizeSiteStyle(source.siteStyle),
+    heroBackground: normalizeHeroBackgroundMetadata(source.heroBackground),
     guestUploadCategorySelectionEnabled:
       source.guestUploadCategorySelectionEnabled !== false,
     guestUploaderLabelOrder: normalizeGuestUploaderLabelOrder(

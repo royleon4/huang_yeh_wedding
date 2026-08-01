@@ -21,13 +21,22 @@ function run(plugin, code, relativePath) {
   return plugin.transform(code, id)?.code ?? code;
 }
 
-test("public application waits for one shared bootstrap before first React render", async () => {
+test("public application waits for one shared bootstrap and applies style before first React render", async () => {
   let main = await source("src/client/main.jsx");
   main = run(logicalRouteUiTransform(), main, "src/client/main.jsx");
   main = run(publicBootstrapUiTransform(), main, "src/client/main.jsx");
 
-  assert.match(main, /await loadPublicBootstrap\(\)/);
-  assert.match(main, /applyServerProcesses\(bootstrap\.processes, bootstrap\.allProcess\)/);
+  const bootstrapIndex = main.indexOf("await loadPublicBootstrap()");
+  const styleIndex = main.indexOf("applySiteStyle({");
+  const renderIndex = main.indexOf("createRoot(document.getElementById");
+  assert.ok(bootstrapIndex >= 0);
+  assert.ok(styleIndex > bootstrapIndex);
+  assert.ok(renderIndex > styleIndex);
+  assert.match(
+    main,
+    /applyServerProcesses\(bootstrap\.processes, bootstrap\.allProcess\)/,
+  );
+  assert.match(main, /heroBackground: bootstrap\.settings\.heroBackground/);
   assert.match(main, /surface === "memories"/);
   assert.match(main, /void renderApplication\(\)/);
   assert.doesNotMatch(main, /hydrateProcessesFromServer/);
@@ -50,14 +59,18 @@ test("public gallery first render uses edited albums, copy, and settings", async
   assert.match(app, /const albumsResolved = true/);
   assert.doesNotMatch(app, /fetchAlbums/);
   assert.doesNotMatch(app, /fetch\("\/Memories\/api\/settings"/);
-  assert.doesNotMatch(app, /setSiteCopy|setGalleryMediaOrder|setPinnedPhotoIdsByProcess/);
+  assert.doesNotMatch(
+    app,
+    /setSiteCopy|setGalleryMediaOrder|setPinnedPhotoIdsByProcess/,
+  );
 });
 
-test("selector and upload modal reuse bootstrap instead of refetching settings", async () => {
+test("selector reads bootstrap directly and upload modal is transformed to reuse it", async () => {
   const plugin = publicBootstrapUiTransform();
+  const selectorSource = await source("src/client/ProcessSelector.jsx");
   const selector = run(
     plugin,
-    await source("src/client/ProcessSelector.jsx"),
+    selectorSource,
     "src/client/ProcessSelector.jsx",
   );
   const upload = run(
@@ -66,12 +79,17 @@ test("selector and upload modal reuse bootstrap instead of refetching settings",
     "src/client/UploadModal.jsx",
   );
 
+  assert.equal(selector, selectorSource, "selector no longer needs a source transform");
   assert.match(selector, /getPublicBootstrap\(\)\.settings/);
+  assert.match(selector, /processWheelLoopsForAlbum/);
   assert.doesNotMatch(selector, /settingsPromise|processSelectorSettings|api\/settings/);
   assert.doesNotMatch(selector, /useEffect|useState/);
 
   assert.match(upload, /const publicBootstrap = getPublicBootstrap\(\)/);
-  assert.match(upload, /publicBootstrap\.settings\.guestUploadCategorySelectionEnabled/);
+  assert.match(
+    upload,
+    /publicBootstrap\.settings\.guestUploadCategorySelectionEnabled/,
+  );
   assert.match(upload, /normalizeProcesses\(publicBootstrap\.processes\)/);
   assert.doesNotMatch(upload, /Promise\.all/);
   assert.doesNotMatch(upload, /api\/settings|api\/processes/);

@@ -8,7 +8,10 @@ import { processContentUiTransform } from "../process-content-ui-transform.mjs";
 import { websiteCopyUiTransform } from "../website-copy-ui-transform.mjs";
 import {
   DEFAULT_SITE_COPY,
+  SITE_COPY_TITLE_KEY,
   isValidSiteCopy,
+  isValidSiteCopyPatch,
+  mergeSiteCopy,
   normalizeSiteCopy,
 } from "../src/site-copy.mjs";
 import {
@@ -64,6 +67,24 @@ test("site copy normalization preserves deliberate title line breaks", () => {
   assert.equal(isValidSiteCopy({ zh: {}, en: {} }), false);
 });
 
+test("partial copy merges let title and other text cards save without overwriting each other", () => {
+  const current = customCopy();
+  const titlePatch = {
+    zh: { [SITE_COPY_TITLE_KEY]: "新的中文標題" },
+    en: { [SITE_COPY_TITLE_KEY]: "New English title" },
+  };
+  const titleUpdate = mergeSiteCopy(current, titlePatch);
+  assert.equal(isValidSiteCopyPatch(titlePatch), true);
+  assert.equal(titleUpdate.zh.archive, "新的中文標題");
+  assert.equal(titleUpdate.zh.subtitle, "我們自己編輯的網站說明");
+
+  const bodyUpdate = mergeSiteCopy(titleUpdate, {
+    zh: { subtitle: "更新後說明" },
+  });
+  assert.equal(bodyUpdate.zh.archive, "新的中文標題");
+  assert.equal(bodyUpdate.zh.subtitle, "更新後說明");
+});
+
 test("administrator website copy saves and is returned by the public settings API", async () => {
   await withSettingsServer(async (origin) => {
     const expected = customCopy();
@@ -113,17 +134,25 @@ test("production transform chain hydrates website copy after route and gallery t
   assert.doesNotMatch(finalCode, /albumRandomSeedRef/);
 });
 
-test("administrator general settings exposes the website copy editor", async () => {
-  const [general, editor, repository, vite, routes] = await Promise.all([
-    readFile(new URL("../src/client/GeneralSettings.jsx", import.meta.url), "utf8"),
-    readFile(new URL("../src/client/WebsiteCopySettings.jsx", import.meta.url), "utf8"),
-    readFile(new URL("../src/server/settings/repository.mjs", import.meta.url), "utf8"),
-    readFile(new URL("../vite.config.js", import.meta.url), "utf8"),
-    readFile(new URL("../vite.routes.config.js", import.meta.url), "utf8"),
-  ]);
+test("administrator separates title styling from the remaining website copy", async () => {
+  const [general, editor, styleEditor, repository, vite, routes] =
+    await Promise.all([
+      readFile(new URL("../src/client/GeneralSettings.jsx", import.meta.url), "utf8"),
+      readFile(new URL("../src/client/WebsiteCopySettings.jsx", import.meta.url), "utf8"),
+      readFile(new URL("../src/client/SiteStyleSettings.jsx", import.meta.url), "utf8"),
+      readFile(new URL("../src/server/settings/repository.mjs", import.meta.url), "utf8"),
+      readFile(new URL("../vite.config.js", import.meta.url), "utf8"),
+      readFile(new URL("../vite.routes.config.js", import.meta.url), "utf8"),
+    ]);
+  assert.match(general, /<SiteStyleSettings \/>/);
   assert.match(general, /<WebsiteCopySettings \/>/);
-  assert.match(editor, /body: \{ siteCopy: draft \}/);
-  assert.match(editor, /rows=\{field\.key === "archive" \? 3 : 4\}/);
+  assert.match(editor, /SITE_COPY_TITLE_KEY/);
+  assert.match(editor, /field\.key !== SITE_COPY_TITLE_KEY/);
+  assert.match(editor, /mergeSiteCopy/);
+  assert.match(editor, /body: \{ siteCopy: merged \}/);
+  assert.match(styleEditor, /網站主標題/);
+  assert.match(styleEditor, /titlePatch/);
+  assert.match(styleEditor, /mergeSiteCopy/);
   assert.match(repository, /SITE_COPY_KEY/);
   assert.match(repository, /setSiteCopy/);
   assert.doesNotMatch(vite, /websiteCopyUiTransform/);
