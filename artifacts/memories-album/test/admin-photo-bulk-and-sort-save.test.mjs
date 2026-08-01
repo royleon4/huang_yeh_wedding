@@ -172,8 +172,9 @@ test("new albums persist their selected photo order setting in PostgreSQL", asyn
     repository.indexOf("async updateAlbum"),
   );
   assert.match(createAlbumBody, /BEGIN/);
-  assert.match(createAlbumBody, /PHOTO_SORT_KEY_PREFIX/);
-  assert.match(createAlbumBody, /upsertSetting/);
+  assert.match(createAlbumBody, /writeAlbumSettings/);
+  assert.match(repository, /PHOTO_SORT_KEY_PREFIX/);
+  assert.match(repository, /upsertSetting/);
   assert.match(adminClient, /persistAlbumPhotoSortChanges/);
   assert.match(bulkComponent, /method: "DELETE"/);
   assert.match(bulkComponent, /isWeddingPhotographerProtected/);
