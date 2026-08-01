@@ -1,6 +1,5 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
-import { createServer } from "node:http";
 import test from "node:test";
 import { adminPhotoWorkspaceUiTransform } from "../admin-photo-workspace-ui-transform.mjs";
 import { logicalRouteUiTransform } from "../logical-route-ui-transform.mjs";
@@ -18,6 +17,12 @@ import {
   createAdminSettingsApi,
   createSettingsApi,
 } from "../src/server/settings/api.mjs";
+import { withRequestHandler } from "../test-support/http.mjs";
+import {
+  assertBooleanValidationCases,
+  assertJsonErrorCases,
+  patchJson,
+} from "../test-support/validation.mjs";
 
 function customCopy() {
   const copy = normalizeSiteCopy(DEFAULT_SITE_COPY);
@@ -27,7 +32,7 @@ function customCopy() {
   return copy;
 }
 
-async function withSettingsServer(run) {
+function createSettingsFixture() {
   let siteCopy = normalizeSiteCopy(DEFAULT_SITE_COPY);
   const repository = {
     async getPublicSettings() {
@@ -40,21 +45,16 @@ async function withSettingsServer(run) {
   };
   const publicApi = createSettingsApi({ repository });
   const adminApi = createAdminSettingsApi({ repository });
-  const server = createServer(async (request, response) => {
-    if (!(await publicApi(request, response)) && !(await adminApi(request, response))) {
-      response.statusCode = 404;
-      response.end();
-    }
-  });
-  await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
-  const address = server.address();
-  try {
-    await run(`http://127.0.0.1:${address.port}`);
-  } finally {
-    await new Promise((resolve, reject) =>
-      server.close((error) => (error ? reject(error) : resolve())),
-    );
-  }
+
+  return {
+    withServer: (run) =>
+      withRequestHandler(
+        async (request, response) =>
+          (await publicApi(request, response)) ||
+          (await adminApi(request, response)),
+        run,
+      ),
+  };
 }
 
 test("site copy normalization preserves deliberate title line breaks", () => {
@@ -63,18 +63,49 @@ test("site copy normalization preserves deliberate title line breaks", () => {
   });
   assert.equal(normalized.zh.archive, "詠葉婚禮\n照片檔案館");
   assert.equal(normalized.en.archive, DEFAULT_SITE_COPY.en.archive);
-  assert.equal(isValidSiteCopy(customCopy()), true);
-  assert.equal(isValidSiteCopy({ zh: {}, en: {} }), false);
 });
 
-test("partial copy merges let title and other text cards save without overwriting each other", () => {
+test("site copy validators define complete and patch contracts", async (t) => {
+  await t.test("complete copy", (subtest) =>
+    assertBooleanValidationCases(subtest, isValidSiteCopy, {
+      valid: [{ name: "normalized bilingual copy", value: customCopy() }],
+      invalid: [
+        { name: "missing required fields", value: { zh: {}, en: {} } },
+        { name: "non-object value", value: "copy" },
+      ],
+    }),
+  );
+
+  await t.test("partial copy", (subtest) =>
+    assertBooleanValidationCases(subtest, isValidSiteCopyPatch, {
+      valid: [
+        {
+          name: "bilingual title patch",
+          value: {
+            zh: { [SITE_COPY_TITLE_KEY]: "新的中文標題" },
+            en: { [SITE_COPY_TITLE_KEY]: "New English title" },
+          },
+        },
+        {
+          name: "single-language body patch",
+          value: { zh: { subtitle: "更新後說明" } },
+        },
+      ],
+      invalid: [
+        { name: "unknown field", value: { zh: { unknown: "value" } } },
+        { name: "non-object value", value: null },
+      ],
+    }),
+  );
+});
+
+test("partial copy merges do not overwrite unrelated fields", () => {
   const current = customCopy();
   const titlePatch = {
     zh: { [SITE_COPY_TITLE_KEY]: "新的中文標題" },
     en: { [SITE_COPY_TITLE_KEY]: "New English title" },
   };
   const titleUpdate = mergeSiteCopy(current, titlePatch);
-  assert.equal(isValidSiteCopyPatch(titlePatch), true);
   assert.equal(titleUpdate.zh.archive, "新的中文標題");
   assert.equal(titleUpdate.zh.subtitle, "我們自己編輯的網站說明");
 
@@ -85,13 +116,12 @@ test("partial copy merges let title and other text cards save without overwritin
   assert.equal(bodyUpdate.zh.subtitle, "更新後說明");
 });
 
-test("administrator website copy saves and is returned by the public settings API", async () => {
-  await withSettingsServer(async (origin) => {
+test("administrator website copy saves and reaches the public settings API", async () => {
+  const { withServer } = createSettingsFixture();
+  await withServer(async (origin) => {
     const expected = customCopy();
-    const update = await fetch(`${origin}/admin/api/settings`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ siteCopy: expected }),
+    const update = await patchJson(`${origin}/admin/api/settings`, {
+      siteCopy: expected,
     });
     assert.equal(update.status, 200);
     assert.deepEqual((await update.json()).siteCopy, expected);
@@ -102,17 +132,25 @@ test("administrator website copy saves and is returned by the public settings AP
   });
 });
 
-test("invalid or oversized website copy is rejected", async () => {
-  await withSettingsServer(async (origin) => {
-    const invalid = customCopy();
-    invalid.zh.archive = "x".repeat(201);
-    const response = await fetch(`${origin}/admin/api/settings`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ siteCopy: invalid }),
-    });
-    assert.equal(response.status, 422);
-    assert.equal((await response.json()).code, "INVALID_SETTING");
+test("invalid website copy is rejected consistently", async (t) => {
+  const { withServer } = createSettingsFixture();
+  await withServer(async (origin) => {
+    const oversized = customCopy();
+    oversized.zh.archive = "x".repeat(201);
+
+    await assertJsonErrorCases(
+      t,
+      [
+        { name: "oversized title", value: { siteCopy: oversized } },
+        {
+          name: "missing required fields",
+          value: { siteCopy: { zh: {}, en: {} } },
+        },
+        { name: "non-object site copy", value: { siteCopy: "copy" } },
+      ],
+      (body) => patchJson(`${origin}/admin/api/settings`, body),
+      { status: 422, code: "INVALID_SETTING" },
+    );
   });
 });
 
