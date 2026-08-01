@@ -115,6 +115,12 @@
     box-shadow 0.18s ease;
 }
 
+.process-wheel-clone {
+  pointer-events: none;
+  cursor: default;
+  user-select: none;
+}
+
 .process-wheel-item span {
   color: var(--gold);
   font-family: "Playfair Display", serif;
