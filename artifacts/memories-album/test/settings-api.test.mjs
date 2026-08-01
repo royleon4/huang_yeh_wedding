@@ -11,6 +11,7 @@ async function withApis(run) {
   let guestUploadCategorySelectionEnabled = true;
   let processWheelEnabled = false;
   let processWheelVisibleCount = 6;
+  let processWheelLoopAlbumIds = [];
   let galleryMediaOrder = [...DEFAULT_GALLERY_MEDIA_ORDER];
   let driveUploadMode = "single";
   const repository = {
@@ -20,6 +21,7 @@ async function withApis(run) {
         guestUploadCategorySelectionEnabled,
         processWheelEnabled,
         processWheelVisibleCount,
+        processWheelLoopAlbumIds,
         galleryMediaOrder,
         driveUploadMode,
       };
@@ -35,6 +37,10 @@ async function withApis(run) {
     async setProcessWheelVisibleCount(value) {
       processWheelVisibleCount = Number(value);
       return { processWheelVisibleCount };
+    },
+    async setProcessWheelLoopAlbumIds(value) {
+      processWheelLoopAlbumIds = [...value];
+      return { processWheelLoopAlbumIds };
     },
     async setGalleryMediaOrder(value) {
       galleryMediaOrder = [...value];
@@ -67,7 +73,7 @@ async function withApis(run) {
   }
 }
 
-test("public settings default to single-request uploads, traditional buttons, six wheel items, and official photos before guests", async () => {
+test("public settings default to single-request uploads, traditional buttons, finite wheel albums, and official photos before guests", async () => {
   await withApis(async (origin) => {
     const response = await fetch(`${origin}/Memories/api/settings`);
     assert.equal(response.status, 200);
@@ -76,6 +82,7 @@ test("public settings default to single-request uploads, traditional buttons, si
       guestUploadCategorySelectionEnabled: true,
       processWheelEnabled: false,
       processWheelVisibleCount: 6,
+      processWheelLoopAlbumIds: [],
       galleryMediaOrder: [
         "video",
         "text",
@@ -127,7 +134,7 @@ test("administrator can switch between single-request and chunked Drive uploads"
   });
 });
 
-test("administrator can enable the wheel and choose its mobile visible count", async () => {
+test("administrator can enable the wheel, choose density, and loop each album independently", async () => {
   await withApis(async (origin) => {
     const update = await fetch(`${origin}/admin/api/settings`, {
       method: "PATCH",
@@ -135,12 +142,14 @@ test("administrator can enable the wheel and choose its mobile visible count", a
       body: JSON.stringify({
         processWheelEnabled: true,
         processWheelVisibleCount: 7,
+        processWheelLoopAlbumIds: ["guest"],
       }),
     });
     assert.equal(update.status, 200);
     assert.deepEqual(await update.json(), {
       processWheelEnabled: true,
       processWheelVisibleCount: 7,
+      processWheelLoopAlbumIds: ["guest"],
     });
 
     const publicResponse = await fetch(`${origin}/Memories/api/settings`);
@@ -148,6 +157,7 @@ test("administrator can enable the wheel and choose its mobile visible count", a
     const settings = await publicResponse.json();
     assert.equal(settings.processWheelEnabled, true);
     assert.equal(settings.processWheelVisibleCount, 7);
+    assert.deepEqual(settings.processWheelLoopAlbumIds, ["guest"]);
   });
 });
 
@@ -195,6 +205,21 @@ test("administrator settings reject invalid upload mode, wheel, and media order 
       });
       assert.equal(countResponse.status, 422);
       assert.equal((await countResponse.json()).code, "INVALID_SETTING");
+    }
+
+    for (const invalidLoops of [
+      ["unknown"],
+      ["guest", "guest"],
+      ["guest", "wedding", "extra"],
+      "guest",
+    ]) {
+      const loopResponse = await fetch(`${origin}/admin/api/settings`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ processWheelLoopAlbumIds: invalidLoops }),
+      });
+      assert.equal(loopResponse.status, 422);
+      assert.equal((await loopResponse.json()).code, "INVALID_SETTING");
     }
 
     for (const invalidOrder of [
