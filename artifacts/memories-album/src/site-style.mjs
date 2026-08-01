@@ -130,11 +130,16 @@ function hexToRgbChannels(hex) {
     .join(" ");
 }
 
-export function siteStyleCssVariables(style, heroBackground = EMPTY_IMAGE_SETTING_METADATA) {
+export function siteStyleCssVariables(
+  style,
+  heroBackground = EMPTY_IMAGE_SETTING_METADATA,
+) {
   const value = normalizeSiteStyle(style);
   const background = heroBackground?.configured
     ? `url("${heroBackgroundUrl(heroBackground.version)}")`
     : "none";
+  const overlayChannels = hexToRgbChannels(value.heroOverlayColor);
+  const overlayLayer = `linear-gradient(rgb(${overlayChannels} / ${value.heroOverlayOpacity}), rgb(${overlayChannels} / ${value.heroOverlayOpacity}))`;
   return {
     "--paper": value.paperColor,
     "--paper-deep": value.paperDeepColor,
@@ -150,6 +155,7 @@ export function siteStyleCssVariables(style, heroBackground = EMPTY_IMAGE_SETTIN
     "--memories-hero-subtitle-color": value.heroSubtitleColor,
     "--memories-hero-overlay-color": value.heroOverlayColor,
     "--memories-hero-overlay-opacity": String(value.heroOverlayOpacity),
+    "--memories-hero-overlay-layer": overlayLayer,
     "--memories-hero-background-image": background,
     "--memories-bottom-nav-background": value.bottomNavBackgroundColor,
     "--memories-bottom-nav-text": value.bottomNavTextColor,
