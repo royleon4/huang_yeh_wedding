@@ -3,6 +3,7 @@ import { EMPTY_IMAGE_SETTING_METADATA } from "../image-setting.mjs";
 import {
   DEFAULT_SITE_COPY,
   SITE_COPY_TITLE_KEY,
+  mergeSiteCopy,
   normalizeSiteCopy,
 } from "../site-copy.mjs";
 import {
@@ -10,7 +11,6 @@ import {
   HERO_BACKGROUND_ACCEPTED_CONTENT_TYPES,
   HERO_BACKGROUND_MAX_UPLOAD_BYTES,
   HERO_BACKGROUND_RECOMMENDED_SIZE,
-  applySiteStyle,
   heroBackgroundUrl,
   normalizeHeroBackgroundMetadata,
   normalizeSiteStyle,
@@ -87,6 +87,13 @@ function titleSnapshot(siteCopy) {
   return {
     zh: normalized.zh[SITE_COPY_TITLE_KEY],
     en: normalized.en[SITE_COPY_TITLE_KEY],
+  };
+}
+
+function titlePatch(titles) {
+  return {
+    zh: { [SITE_COPY_TITLE_KEY]: titles.zh },
+    en: { [SITE_COPY_TITLE_KEY]: titles.en },
   };
 }
 
@@ -221,14 +228,11 @@ export default function SiteStyleSettings() {
       }
 
       if (titlesChanged) {
+        const current = await adminRequest("/admin/api/settings");
+        const merged = mergeSiteCopy(current.siteCopy, titlePatch(draftTitles));
         const response = await adminRequest("/admin/api/settings", {
           method: "PATCH",
-          body: {
-            siteCopyPatch: {
-              zh: { [SITE_COPY_TITLE_KEY]: draftTitles.zh },
-              en: { [SITE_COPY_TITLE_KEY]: draftTitles.en },
-            },
-          },
+          body: { siteCopy: merged },
         });
         const next = titleSnapshot(response.siteCopy);
         setSavedTitles(next);
@@ -249,8 +253,9 @@ export default function SiteStyleSettings() {
         setBackgroundDraft(UNCHANGED_BACKGROUND);
       }
 
-      applySiteStyle({ siteStyle: draftStyle, heroBackground: nextBackground });
-      setMessage("網站樣式已儲存；公開網站重新整理後會套用新的首圖、標題與配色。");
+      setMessage(
+        "網站樣式已儲存；公開網站重新整理後會套用新的首圖、標題與配色。",
+      );
       return { succeeded };
     } catch (saveError) {
       if (saveError?.status === 401) window.location.replace("/Memories/");
@@ -294,7 +299,10 @@ export default function SiteStyleSettings() {
       ) : (
         <>
           <div className="site-style-preview" style={previewVariables}>
-            <div className="site-style-preview-background" aria-hidden="true" />
+            <div
+              className="site-style-preview-background"
+              aria-hidden="true"
+            />
             <div className="site-style-preview-content">
               <small>LEON & YEHY · WEDDING ARCHIVE</small>
               <strong>{draftTitles.zh || "（空白標題）"}</strong>
@@ -307,7 +315,9 @@ export default function SiteStyleSettings() {
             <fieldset className="site-style-panel site-style-background-panel">
               <legend>首頁背景圖片</legend>
               <p>
-                建議上傳 {HERO_BACKGROUND_RECOMMENDED_SIZE}、16:9 橫式圖片。支援 PNG、JPG／JPEG、WebP，最大 {MAX_BACKGROUND_MB} MB；儲存時會置中裁切並轉為 1600 × 900 WebP。
+                建議上傳 {HERO_BACKGROUND_RECOMMENDED_SIZE}、16:9
+                橫式圖片。支援 PNG、JPG／JPEG、WebP，最大 {MAX_BACKGROUND_MB}
+                MB；儲存時會置中裁切並轉為 1600 × 900 WebP。
               </p>
               <div className="site-style-file-actions">
                 <label className="site-style-file-button">
@@ -353,7 +363,9 @@ export default function SiteStyleSettings() {
               <label className="site-style-range">
                 <span>
                   背景遮罩透明度
-                  <strong>{Math.round(draftStyle.heroOverlayOpacity * 100)}%</strong>
+                  <strong>
+                    {Math.round(draftStyle.heroOverlayOpacity * 100)}%
+                  </strong>
                 </span>
                 <input
                   type="range"
