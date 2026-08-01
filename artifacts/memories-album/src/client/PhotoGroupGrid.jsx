@@ -1,4 +1,5 @@
 import LazyImage from "./LazyImage.jsx";
+import { useMasonryGrid } from "./use-masonry-grid.mjs";
 
 export default function PhotoGroupGrid({
   photos,
@@ -8,11 +9,12 @@ export default function PhotoGroupGrid({
   onOpen,
   mediaKey,
 }) {
+  const gridRef = useMasonryGrid(photos);
   if (!photos.length) return null;
 
   return (
     <section className="process-photo-group" data-media-block={mediaKey}>
-      <div className="masonry-grid">
+      <div ref={gridRef} className="masonry-grid">
         {photos.map((photo) => {
           const index = Math.max(
             0,
