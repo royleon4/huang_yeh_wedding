@@ -237,32 +237,19 @@ export default function ProcessWheel({
           const className = `process-wheel-item ${active ? "active" : ""} ${
             clone ? "process-wheel-clone" : ""
           }`;
-          if (clone) {
-            return (
-              <div
-                key={key}
-                className={className}
-                data-wheel-id={item.id}
-                data-wheel-key={key}
-                data-wheel-clone={clone}
-                aria-hidden="true"
-              >
-                {item.number && <span>{item.number}</span>}
-                <strong>{item.label}</strong>
-              </div>
-            );
-          }
           return (
             <button
               key={key}
               type="button"
-              role="tab"
-              aria-selected={active}
-              tabIndex={active ? 0 : -1}
+              role={clone ? undefined : "tab"}
+              aria-selected={clone ? undefined : active}
+              aria-label={clone ? item.label : undefined}
+              tabIndex={clone ? -1 : active ? 0 : -1}
               className={className}
               data-wheel-id={item.id}
               data-wheel-key={key}
-              data-wheel-real-id={item.id}
+              data-wheel-clone={clone || undefined}
+              data-wheel-real-id={clone ? undefined : item.id}
               onClick={(event) => choose(item.id, event.currentTarget)}
             >
               {item.number && <span>{item.number}</span>}
