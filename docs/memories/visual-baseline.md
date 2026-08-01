@@ -1,37 +1,53 @@
 # Approved Memories visual baseline
 
+> **Status:** Historical design baseline; partly superseded  
+> **Reviewed:** 2026-08-01T19:33:00+08:00 (Asia/Taipei)  
+> **Current contract:** `main`, [`../../README.md`](../../README.md), [`../../MAINTAINER_GUIDE.md`](../../MAINTAINER_GUIDE.md), [`../../artifacts/memories-album/README.md`](../../artifacts/memories-album/README.md) and current route/administrator documentation
+
+This file preserves the original visual direction and early Product Phase 1 assumptions. It is **not** a current functional specification.
+
+Important superseded assumptions include:
+
+- wedding processes are no longer a bundled fixed list; numbered Google Drive folders are canonical;
+- guest originals remain physically in `訪客上傳`, but they may be logically classified into wedding or life collections;
+- current navigation, guest-label visibility and route behavior are defined by saved settings and stable identity routes;
+- Product Phase 1 is complete, while People and Find-me remain unimplemented future features;
+- the screenshot matrix below was an early acceptance plan, not evidence that those captures were completed.
+
+Keep this document for visual provenance. Do not implement a current feature solely from this file without reconciling it against `main` and the Current documents indexed by [`../../DOCUMENTATION.md`](../../DOCUMENTATION.md).
+
 Issue: #26
 
-## Source of truth
+## Source of truth at the time of the original baseline
 
-The visual source of truth is the project-chat prototype:
+The original visual source of truth was the project-chat prototype:
 
 - Product title: **詠葉婚禮照片檔案館**
 - Selected direction: **靜謐婚禮檔案館**
 - Prototype: `https://yongye-photo-archive.royleon4.chatgpt.site`
 
-The React implementation must reproduce the prototype rather than reinterpret it. Changes are permitted only for accessibility, responsive correctness, performance, browser compatibility, or real-data integration, and each visible deviation must be recorded.
+The React implementation was originally expected to reproduce the prototype rather than reinterpret it. Changes were permitted for accessibility, responsive correctness, performance, browser compatibility, or real-data integration, with visible deviations intended to be recorded.
 
-## Product composition
+## Original product composition
 
-The approved page is a quiet, archival wedding gallery rather than a social-media feed.
+The approved page direction was a quiet, archival wedding gallery rather than a social-media feed.
 
 1. A restrained wedding-archive masthead establishes the couple, date, and archival mood.
-2. Four persistent primary destinations remain visible:
+2. Four persistent primary destinations were planned:
    - 全部照片 / All photos
    - 人物 / People
    - 上傳 / Upload
    - 找找我 / Find me
-3. During Phase 1, People and Find me remain in their original visual positions and show `即將推出 / Coming soon`; they make no face-related request.
-4. A horizontally scrollable wedding-process rail sits before the gallery on mobile.
-5. Photos use a varied-height waterfall/masonry arrangement rather than square cropping.
-6. Administrator presentation includes process add, delete, rename, reorder, and photo membership controls.
-7. A process with no photos shows a deliberate archive-style waiting state rather than an empty white area.
-8. Guest uploads are a separate visible category and are never assigned to wedding processes.
+3. During the original Phase 1 plan, People and Find me remained in their original visual positions and showed `即將推出 / Coming soon`; they made no face-related request.
+4. A horizontally scrollable wedding-process rail sat before the gallery on mobile.
+5. Photos used a varied-height waterfall/masonry arrangement rather than square cropping.
+6. Administrator presentation included process add, delete, rename, reorder, and photo membership controls.
+7. A process with no photos showed a deliberate archive-style waiting state rather than an empty white area.
+8. Guest uploads were treated as a separate visible category in the original baseline.
 
-## Twelve default wedding processes
+## Original twelve-process inventory
 
-These labels and this order are binding:
+The following list was the original design inventory. It is retained for history and is no longer the current source of truth for process creation or identity.
 
 | Order | Traditional Chinese | English working label | Stable key |
 |---:|---|---|---|
@@ -48,7 +64,7 @@ These labels and this order are binding:
 | 11 | 退場 | Recessional | `recessional` |
 | 12 | 分組照相 | Group Photos | `group-photo` |
 
-`訪客上傳 / Guest uploads` is a separate category and is not process number 13.
+`訪客上傳 / Guest uploads` was treated as a separate category rather than process number 13.
 
 ## Visual inventory
 
@@ -62,7 +78,7 @@ These labels and this order are binding:
 
 ### Colour roles
 
-These are implementation starting points and should be visually compared with the prototype:
+These were implementation starting points for comparison with the prototype:
 
 | Role | Working value | Use |
 |---|---|---|
@@ -113,9 +129,9 @@ These are implementation starting points and should be visually compared with th
 - administrator process rows may place controls inline;
 - do not turn the page into a dense desktop dashboard.
 
-## State inventory
+## Original state inventory
 
-The visual acceptance pass must include:
+The original visual acceptance pass was intended to include:
 
 - loading/skeleton;
 - normal gallery;
@@ -131,24 +147,24 @@ The visual acceptance pass must include:
 - photo lightbox;
 - bilingual Traditional Chinese and English.
 
-## Screenshot matrix
+## Original screenshot matrix
 
-The following comparison assets are still required before #26 can close:
+The following comparison assets were still pending when the baseline was written:
 
-| View | Prototype | React implementation | Status |
+| View | Prototype | React implementation | Historical status |
 |---|---|---|---|
-| Phone, gallery top | pending capture | pending capture | open |
-| Phone, process rail | pending capture | pending capture | open |
-| Phone, lightbox | pending capture | pending capture | open |
-| Tablet, full page | pending capture | pending capture | open |
-| Desktop, full page | pending capture | pending capture | open |
-| Admin process editor | pending capture | pending capture | open |
-| Empty process | pending capture | pending capture | open |
-| People/Find-me Coming soon | pending capture | pending capture | open |
+| Phone, gallery top | pending capture | pending capture | not recorded here |
+| Phone, process rail | pending capture | pending capture | not recorded here |
+| Phone, lightbox | pending capture | pending capture | not recorded here |
+| Tablet, full page | pending capture | pending capture | not recorded here |
+| Desktop, full page | pending capture | pending capture | not recorded here |
+| Admin process editor | pending capture | pending capture | not recorded here |
+| Empty process | pending capture | pending capture | not recorded here |
+| People/Find-me Coming soon | pending capture | pending capture | not recorded here |
 
-The prototype site could not be fetched by the automated repository workflow at the time this baseline was written. The owner-provided prototype or screenshots remain authoritative; this document does not replace visual side-by-side review.
+The prototype site could not be fetched by the automated repository workflow at the time this baseline was written. The owner-provided prototype or screenshots were authoritative for the original design review; this historical document did not replace visual side-by-side review.
 
-## Deviation log template
+## Historical deviation log template
 
 | Component | Prototype behaviour | Implementation difference | Technical reason | Owner accepted |
 |---|---|---|---|---|
