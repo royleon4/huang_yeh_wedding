@@ -3,7 +3,6 @@ import react from "@vitejs/plugin-react";
 import { adminPhotoUploaderUiTransform } from "./admin-photo-uploader-ui-transform.mjs";
 import { processContentUiTransform } from "./process-content-ui-transform.mjs";
 import { adminPhotoWorkspaceUiTransform } from "./admin-photo-workspace-ui-transform.mjs";
-import { progressivePhotoLoadingUiTransform } from "./progressive-photo-loading-ui-transform.mjs";
 import {
   LEGACY_ADMIN_API_PATH,
   LEGACY_ADMIN_PATH,
@@ -227,7 +226,6 @@ function memoriesDevelopmentRoutes() {
 export default defineConfig({
   base: `${MEMORIES_BASE_PATH}/`,
   plugins: [
-    progressivePhotoLoadingUiTransform(),
     adminPhotoUploaderUiTransform(),
     processContentUiTransform(),
     adminPhotoWorkspaceUiTransform(),
