@@ -177,4 +177,9 @@ export function applySiteStyle(
   )) {
     root.style.setProperty(name, cssValue);
   }
+  if (root.dataset) {
+    root.dataset.memoriesHeroBackground = heroBackground.configured
+      ? "true"
+      : "false";
+  }
 }
