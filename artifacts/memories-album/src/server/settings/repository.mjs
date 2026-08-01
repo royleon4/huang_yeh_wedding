@@ -9,6 +9,14 @@ import {
   siteIconMetadata,
 } from "../../site-icon.mjs";
 import {
+  heroBackgroundMetadata,
+  normalizeSiteStyle,
+  normalizeStoredHeroBackground,
+} from "../../site-style.mjs";
+import {
+  normalizeProcessWheelLoopAlbumIds,
+} from "../../process-selector-settings.mjs";
+import {
   DEFAULT_UPLOAD_SETTINGS,
   normalizeUploadDescription,
 } from "../../upload-settings.mjs";
@@ -37,11 +45,14 @@ const ADMIN_UPLOAD_MAX_PHOTOS_KEY = "admin_upload_max_photos";
 const UPLOAD_DESCRIPTION_KEY = "upload_description";
 const PROCESS_WHEEL_ENABLED_KEY = "process_wheel_enabled";
 const PROCESS_WHEEL_VISIBLE_COUNT_KEY = "process_wheel_visible_count";
+const PROCESS_WHEEL_LOOP_ALBUM_IDS_KEY = "process_wheel_loop_album_ids";
 const GALLERY_MEDIA_ORDER_KEY = "gallery_media_order";
 const PINNED_PHOTOS_BY_PROCESS_KEY = "pinned_photos_by_process";
 const DRIVE_UPLOAD_MODE_KEY = "drive_upload_mode";
 const SITE_COPY_KEY = "site_copy";
 const SITE_ICON_KEY = "site_icon";
+const SITE_STYLE_KEY = "site_style";
+const HERO_BACKGROUND_KEY = "hero_background";
 const GUEST_UPLOADER_LABELS_VISIBLE_KEY = "guest_uploader_labels_visible";
 const GUEST_LABEL_VISIBILITY_STORAGE_KEYS = Object.freeze({
   [GUEST_LABEL_VISIBILITY_KEYS.latest]:
@@ -52,50 +63,63 @@ const GUEST_LABEL_VISIBILITY_STORAGE_KEYS = Object.freeze({
 const GUEST_UPLOADER_LABEL_ORDER_KEY = "guest_uploader_label_order";
 const GUEST_LATEST_PHOTO_COUNT_KEY = "guest_latest_photo_count";
 
+function rowValue(rows, key) {
+  return rows.find((item) => item.key === key)?.value;
+}
+
 function booleanSetting(rows, key, fallback) {
-  const row = rows.find((item) => item.key === key);
-  return row ? row.value === true : fallback;
+  const value = rowValue(rows, key);
+  return value === undefined ? fallback : value === true;
 }
 
 function integerSetting(rows, key, fallback) {
-  const row = rows.find((item) => item.key === key);
-  const value = Number(row?.value);
+  const value = Number(rowValue(rows, key));
   return Number.isInteger(value) ? value : fallback;
 }
 
 function mediaOrderSetting(rows) {
-  const row = rows.find((item) => item.key === GALLERY_MEDIA_ORDER_KEY);
-  return normalizeGalleryMediaOrder(row?.value ?? DEFAULT_GALLERY_MEDIA_ORDER);
+  return normalizeGalleryMediaOrder(
+    rowValue(rows, GALLERY_MEDIA_ORDER_KEY) ?? DEFAULT_GALLERY_MEDIA_ORDER,
+  );
 }
 
 function pinnedPhotosSetting(rows) {
-  const row = rows.find((item) => item.key === PINNED_PHOTOS_BY_PROCESS_KEY);
-  return normalizePinnedPhotosByProcess(row?.value);
+  return normalizePinnedPhotosByProcess(
+    rowValue(rows, PINNED_PHOTOS_BY_PROCESS_KEY),
+  );
 }
 
 function driveUploadModeSetting(rows) {
-  const row = rows.find((item) => item.key === DRIVE_UPLOAD_MODE_KEY);
-  return normalizeDriveUploadMode(row?.value ?? DEFAULT_DRIVE_UPLOAD_MODE);
+  return normalizeDriveUploadMode(
+    rowValue(rows, DRIVE_UPLOAD_MODE_KEY) ?? DEFAULT_DRIVE_UPLOAD_MODE,
+  );
 }
 
 function siteCopySetting(rows) {
-  const row = rows.find((item) => item.key === SITE_COPY_KEY);
-  return normalizeSiteCopy(row?.value);
+  return normalizeSiteCopy(rowValue(rows, SITE_COPY_KEY));
 }
 
 function siteIconSetting(rows) {
-  const row = rows.find((item) => item.key === SITE_ICON_KEY);
-  return normalizeStoredSiteIcon(row?.value);
+  return normalizeStoredSiteIcon(rowValue(rows, SITE_ICON_KEY));
+}
+
+function siteStyleSetting(rows) {
+  return normalizeSiteStyle(rowValue(rows, SITE_STYLE_KEY));
+}
+
+function heroBackgroundSetting(rows) {
+  return normalizeStoredHeroBackground(rowValue(rows, HERO_BACKGROUND_KEY));
 }
 
 function uploadDescriptionSetting(rows) {
-  const row = rows.find((item) => item.key === UPLOAD_DESCRIPTION_KEY);
-  return normalizeUploadDescription(row?.value);
+  return normalizeUploadDescription(rowValue(rows, UPLOAD_DESCRIPTION_KEY));
 }
 
 function guestUploaderLabelOrderSetting(rows, currentLabels) {
-  const row = rows.find((item) => item.key === GUEST_UPLOADER_LABEL_ORDER_KEY);
-  return mergeGuestUploaderLabelOrder(row?.value, currentLabels);
+  return mergeGuestUploaderLabelOrder(
+    rowValue(rows, GUEST_UPLOADER_LABEL_ORDER_KEY),
+    currentLabels,
+  );
 }
 
 function guestLabelVisibilitySettings(rows) {
@@ -165,11 +189,14 @@ export class PostgresSettingsRepository {
           UPLOAD_DESCRIPTION_KEY,
           PROCESS_WHEEL_ENABLED_KEY,
           PROCESS_WHEEL_VISIBLE_COUNT_KEY,
+          PROCESS_WHEEL_LOOP_ALBUM_IDS_KEY,
           GALLERY_MEDIA_ORDER_KEY,
           PINNED_PHOTOS_BY_PROCESS_KEY,
           DRIVE_UPLOAD_MODE_KEY,
           SITE_COPY_KEY,
           SITE_ICON_KEY,
+          SITE_STYLE_KEY,
+          HERO_BACKGROUND_KEY,
           GUEST_UPLOADER_LABELS_VISIBLE_KEY,
           ...Object.values(GUEST_LABEL_VISIBILITY_STORAGE_KEYS),
           GUEST_UPLOADER_LABEL_ORDER_KEY,
@@ -210,11 +237,18 @@ export class PostgresSettingsRepository {
         PROCESS_WHEEL_VISIBLE_COUNT_KEY,
         6,
       ),
+      processWheelLoopAlbumIds: normalizeProcessWheelLoopAlbumIds(
+        rowValue(result.rows, PROCESS_WHEEL_LOOP_ALBUM_IDS_KEY),
+      ),
       galleryMediaOrder: mediaOrderSetting(result.rows),
       pinnedPhotoIdsByProcess: pinnedPhotosSetting(result.rows),
       driveUploadMode: driveUploadModeSetting(result.rows),
       siteCopy: siteCopySetting(result.rows),
       siteIcon: siteIconMetadata(siteIconSetting(result.rows)),
+      siteStyle: siteStyleSetting(result.rows),
+      heroBackground: heroBackgroundMetadata(
+        heroBackgroundSetting(result.rows),
+      ),
       ...guestLabelVisibilitySettings(result.rows),
       guestUploaderLabelOrder: guestUploaderLabelOrderSetting(
         result.rows,
@@ -242,14 +276,25 @@ export class PostgresSettingsRepository {
   }
 
   async getSiteIcon() {
+    return this.getStoredSetting(SITE_ICON_KEY, normalizeStoredSiteIcon);
+  }
+
+  async getHeroBackground() {
+    return this.getStoredSetting(
+      HERO_BACKGROUND_KEY,
+      normalizeStoredHeroBackground,
+    );
+  }
+
+  async getStoredSetting(key, normalize) {
     const result = await this.pool.query(
       `SELECT value
        FROM memories_app_settings
        WHERE key = $1
        LIMIT 1`,
-      [SITE_ICON_KEY],
+      [key],
     );
-    return normalizeStoredSiteIcon(result.rows[0]?.value);
+    return normalize(result.rows[0]?.value);
   }
 
   async setPrimaryNavigationVisible(value) {
@@ -308,6 +353,14 @@ export class PostgresSettingsRepository {
     );
   }
 
+  async setProcessWheelLoopAlbumIds(value) {
+    return this.setJson(
+      PROCESS_WHEEL_LOOP_ALBUM_IDS_KEY,
+      "processWheelLoopAlbumIds",
+      normalizeProcessWheelLoopAlbumIds(value),
+    );
+  }
+
   async setGalleryMediaOrder(value) {
     return this.setJson(
       GALLERY_MEDIA_ORDER_KEY,
@@ -336,6 +389,10 @@ export class PostgresSettingsRepository {
     return this.setJson(SITE_COPY_KEY, "siteCopy", normalizeSiteCopy(value));
   }
 
+  async setSiteStyle(value) {
+    return this.setJson(SITE_STYLE_KEY, "siteStyle", normalizeSiteStyle(value));
+  }
+
   async setSiteIcon(value) {
     const icon = normalizeStoredSiteIcon(value);
     if (!icon) throw new TypeError("A valid normalized site icon is required");
@@ -344,10 +401,27 @@ export class PostgresSettingsRepository {
   }
 
   async clearSiteIcon() {
+    return this.clearSetting(SITE_ICON_KEY);
+  }
+
+  async setHeroBackground(value) {
+    const background = normalizeStoredHeroBackground(value);
+    if (!background) {
+      throw new TypeError("A valid normalized hero background is required");
+    }
+    await this.setJson(HERO_BACKGROUND_KEY, "heroBackground", background);
+    return background;
+  }
+
+  async clearHeroBackground() {
+    return this.clearSetting(HERO_BACKGROUND_KEY);
+  }
+
+  async clearSetting(key) {
     await this.pool.query(
       `DELETE FROM memories_app_settings
        WHERE key = $1`,
-      [SITE_ICON_KEY],
+      [key],
     );
     return null;
   }
