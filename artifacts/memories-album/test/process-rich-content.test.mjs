@@ -152,17 +152,19 @@ test("UI transform integrates selector, general settings, ordered media, and ric
   assert.doesNotMatch(admin, /upload\.albumIds/);
 });
 
-test("selector preserves traditional buttons and passes wheel settings", async () => {
+test("selector preserves traditional buttons and reads wheel settings from the public bootstrap", async () => {
   const selector = await readFile(
     new URL("../src/client/ProcessSelector.jsx", import.meta.url),
     "utf8",
   );
+  assert.match(selector, /getPublicBootstrap\(\)\.settings/);
   assert.match(selector, /processWheelEnabled/);
   assert.match(selector, /processWheelVisibleCount/);
   assert.match(selector, /visibleCount=\{settings\.processWheelVisibleCount\}/);
+  assert.match(selector, /processWheelLoopsForAlbum/);
   assert.match(selector, /className="process-strip"/);
   assert.match(selector, /className=\{`process-chip/);
-  assert.match(selector, /DEFAULT_SETTINGS/);
+  assert.doesNotMatch(selector, /DEFAULT_SETTINGS/);
 });
 
 test("process wheel reuses traditional gallery offset and supports configurable mobile density", async () => {
@@ -181,11 +183,12 @@ test("process wheel reuses traditional gallery offset and supports configurable 
   assert.match(selector, /document\.querySelector\("\.process-section"\)/);
   assert.match(selector, /gallery\.getBoundingClientRect\(\)\.top - stickyHeight - 10/);
   assert.match(selector, /onSelect=\{selectWithTraditionalPositioning\}/);
-  assert.match(component, /processWheelVisibleCount|visibleCount/);
+  assert.match(component, /visibleCount/);
   assert.match(styles, /--wheel-mobile-item-width/);
   assert.match(styles, /scroll-snap-align: center/);
   assert.match(styles, /scroll-snap-type: x mandatory/);
-  assert.match(settings, /VISIBLE_COUNT_OPTIONS = \[3, 4, 5, 6, 7, 8\]/);
+  assert.match(settings, /PROCESS_WHEEL_VISIBLE_COUNTS/);
+  assert.match(settings, /PROCESS_WHEEL_LOOP_SUPPORTED_ALBUMS/);
 });
 
 test("rich content migration is additive only", async () => {
