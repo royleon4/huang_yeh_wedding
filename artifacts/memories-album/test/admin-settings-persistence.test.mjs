@@ -3,6 +3,7 @@ import { createServer } from "node:http";
 import test from "node:test";
 import { DEFAULT_GALLERY_MEDIA_ORDER } from "../src/gallery-media-order.mjs";
 import { DEFAULT_SITE_COPY, normalizeSiteCopy } from "../src/site-copy.mjs";
+import { DEFAULT_SITE_STYLE, normalizeSiteStyle } from "../src/site-style.mjs";
 import {
   createAdminSettingsApi,
   createSettingsApi,
@@ -11,10 +12,12 @@ import {
 async function withSettingsServer(run) {
   const state = {
     siteCopy: normalizeSiteCopy(DEFAULT_SITE_COPY),
+    siteStyle: normalizeSiteStyle(DEFAULT_SITE_STYLE),
     driveUploadMode: "single",
     galleryMediaOrder: [...DEFAULT_GALLERY_MEDIA_ORDER],
     processWheelEnabled: false,
     processWheelVisibleCount: 6,
+    processWheelLoopAlbumIds: [],
     guestUploadCategorySelectionEnabled: true,
   };
   const repository = {
@@ -24,6 +27,10 @@ async function withSettingsServer(run) {
     async setSiteCopy(value) {
       state.siteCopy = normalizeSiteCopy(value);
       return { siteCopy: state.siteCopy };
+    },
+    async setSiteStyle(value) {
+      state.siteStyle = normalizeSiteStyle(value);
+      return { siteStyle: state.siteStyle };
     },
     async setDriveUploadMode(value) {
       state.driveUploadMode = value;
@@ -40,6 +47,10 @@ async function withSettingsServer(run) {
     async setProcessWheelVisibleCount(value) {
       state.processWheelVisibleCount = Number(value);
       return { processWheelVisibleCount: state.processWheelVisibleCount };
+    },
+    async setProcessWheelLoopAlbumIds(value) {
+      state.processWheelLoopAlbumIds = [...value];
+      return { processWheelLoopAlbumIds: state.processWheelLoopAlbumIds };
     },
     async setGuestUploadCategorySelectionEnabled(value) {
       state.guestUploadCategorySelectionEnabled = value === true;
@@ -91,6 +102,14 @@ test("each setting consolidated under Save All persists through its own request"
     assert.deepEqual((await patch(origin, { siteCopy })).siteCopy, siteCopy);
     assert.deepEqual((await publicSettings(origin)).siteCopy, siteCopy);
 
+    const siteStyle = normalizeSiteStyle({
+      ...DEFAULT_SITE_STYLE,
+      primaryColor: "#245a47",
+      heroOverlayOpacity: 0.55,
+    });
+    assert.deepEqual((await patch(origin, { siteStyle })).siteStyle, siteStyle);
+    assert.deepEqual((await publicSettings(origin)).siteStyle, siteStyle);
+
     assert.equal(
       (await patch(origin, { driveUploadMode: "chunked" })).driveUploadMode,
       "chunked",
@@ -115,12 +134,15 @@ test("each setting consolidated under Save All persists through its own request"
     const selectorUpdate = await patch(origin, {
       processWheelEnabled: true,
       processWheelVisibleCount: 8,
+      processWheelLoopAlbumIds: ["wedding", "guest"],
     });
     assert.equal(selectorUpdate.processWheelEnabled, true);
     assert.equal(selectorUpdate.processWheelVisibleCount, 8);
+    assert.deepEqual(selectorUpdate.processWheelLoopAlbumIds, ["wedding", "guest"]);
     const selectorSettings = await publicSettings(origin);
     assert.equal(selectorSettings.processWheelEnabled, true);
     assert.equal(selectorSettings.processWheelVisibleCount, 8);
+    assert.deepEqual(selectorSettings.processWheelLoopAlbumIds, ["wedding", "guest"]);
 
     assert.equal(
       (
