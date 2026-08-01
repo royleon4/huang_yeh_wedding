@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - agent/sca-20260802-workflow
+  pull_request:
+    branches:
+      - main
 
 permissions:
   contents: read
