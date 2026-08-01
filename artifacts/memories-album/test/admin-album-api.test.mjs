@@ -99,6 +99,9 @@ test("administrators can add and edit albums while visitors only see visible alb
         isSystem: false,
         showSummary: true,
         photoSortMode: "name-asc",
+        featuredPhotosEnabled: false,
+        featuredPhotoMin: 1,
+        featuredPhotoMax: 3,
       },
     });
 
@@ -117,6 +120,21 @@ test("administrators can add and edit albums while visitors only see visible alb
     assert.equal(invalidSort.status, 422);
     assert.equal((await invalidSort.json()).code, "INVALID_ALBUM_SORT");
 
+    const invalidRange = await fetch(
+      `${origin}/admin/api/albums/11111111-1111-4111-8111-111111111111`,
+      {
+        method: "PATCH",
+        headers: {
+          Cookie: cookie,
+          "Content-Type": "application/json",
+          "X-Memories-Admin": "1",
+        },
+        body: JSON.stringify({ featuredPhotoMin: 4, featuredPhotoMax: 2 }),
+      },
+    );
+    assert.equal(invalidRange.status, 422);
+    assert.equal((await invalidRange.json()).code, "INVALID_ALBUM_FEATURED_RANGE");
+
     const updated = await fetch(
       `${origin}/admin/api/albums/11111111-1111-4111-8111-111111111111`,
       {
@@ -131,6 +149,9 @@ test("administrators can add and edit albums while visitors only see visible alb
           isVisible: false,
           showSummary: false,
           photoSortMode: "author-desc",
+          featuredPhotosEnabled: true,
+          featuredPhotoMin: 0,
+          featuredPhotoMax: 4,
         }),
       },
     );
@@ -139,6 +160,9 @@ test("administrators can add and edit albums while visitors only see visible alb
     assert.equal(updatedAlbum.titleZh, "交往回憶");
     assert.equal(updatedAlbum.showSummary, false);
     assert.equal(updatedAlbum.photoSortMode, "author-desc");
+    assert.equal(updatedAlbum.featuredPhotosEnabled, true);
+    assert.equal(updatedAlbum.featuredPhotoMin, 0);
+    assert.equal(updatedAlbum.featuredPhotoMax, 4);
 
     const adminList = await fetch(`${origin}/admin/api/albums`, {
       headers: { Cookie: cookie },
