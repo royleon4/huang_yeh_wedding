@@ -3,7 +3,7 @@ const ADMIN_APP_SUFFIX = "/src/client/AdminApp.jsx";
 
 function replaceOnce(source, search, replacement, label) {
   if (!source.includes(search)) {
-    throw new Error(`Guest featured photos UI transform could not find ${label}`);
+    throw new Error(`Album featured photos UI transform could not find ${label}`);
   }
   return source.replace(search, replacement);
 }
@@ -12,29 +12,15 @@ function transformApp(source) {
   let code = replaceOnce(
     source,
     `} from "../guest-label-settings.mjs";`,
-    `} from "../guest-label-settings.mjs";\nimport {\n  pageGuestFeaturedPhotos,\n  selectGuestFeaturedPhotoIds,\n  useGuestRandomFeaturedPhotosSettings,\n} from "./guest-featured-photos.mjs";\nimport "./guest-featured-photos.css";`,
-    "guest featured-photo imports",
+    `} from "../guest-label-settings.mjs";\nimport {\n  pageFeaturedPhotos,\n  selectFeaturedPhotoIds,\n} from "./guest-featured-photos.mjs";\nimport "./guest-featured-photos.css";`,
+    "album featured-photo imports",
   );
 
   code = replaceOnce(
     code,
-    `  const guestLatestPhotoCount =\n    initialPublicBootstrap.settings.guestLatestPhotoCount;`,
-    `  const guestLatestPhotoCount =\n    initialPublicBootstrap.settings.guestLatestPhotoCount;\n  const guestFeaturedPhotoSettings =\n    useGuestRandomFeaturedPhotosSettings();`,
-    "guest featured-photo setting hook",
-  );
-
-  code = replaceOnce(
-    code,
-    `      selectGuestFeaturedPhotoIds(regularFiltered, {\n        activeCollection,\n        activeFilter: effectiveFilter,\n        enabled: guestRandomFeaturedPhotosEnabled,\n      }),`,
-    `      selectGuestFeaturedPhotoIds(regularFiltered, {\n        activeCollection,\n        activeFilter: effectiveFilter,\n        enabled: guestFeaturedPhotoSettings.enabled,\n        minimum: guestFeaturedPhotoSettings.minimum,\n        maximum: guestFeaturedPhotoSettings.maximum,\n      }),`,
-    "guest featured-photo range",
-  );
-
-  code = replaceOnce(
-    code,
-    `      guestRandomFeaturedPhotosEnabled,\n`,
-    `      guestFeaturedPhotoSettings.enabled,\n      guestFeaturedPhotoSettings.minimum,\n      guestFeaturedPhotoSettings.maximum,\n`,
-    "guest featured-photo dependencies",
+    `  const visible = useMemo(\n    () => pagePhotos(regularFiltered, pageSize, 0).items,\n    [regularFiltered, pageSize],\n  );`,
+    `  const featuredPhotoIds = useMemo(\n    () =>\n      selectFeaturedPhotoIds(regularFiltered, {\n        activeCollection,\n        activeFilter: effectiveFilter,\n        enabled: activeCollectionDefinition?.featuredPhotosEnabled === true,\n        minimum: Number(activeCollectionDefinition?.featuredPhotoMin ?? 1),\n        maximum: Number(activeCollectionDefinition?.featuredPhotoMax ?? 3),\n      }),\n    [\n      regularFiltered,\n      activeCollection,\n      effectiveFilter,\n      activeCollectionDefinition?.featuredPhotosEnabled,\n      activeCollectionDefinition?.featuredPhotoMin,\n      activeCollectionDefinition?.featuredPhotoMax,\n    ],\n  );\n  const visible = useMemo(\n    () => pageFeaturedPhotos(regularFiltered, pageSize, featuredPhotoIds),\n    [regularFiltered, pageSize, featuredPhotoIds],\n  );`,
+    "album featured-photo paging",
   );
 
   return code;
@@ -43,23 +29,31 @@ function transformApp(source) {
 function transformAdmin(source) {
   let code = replaceOnce(
     source,
-    `import GuestLabelSettings from "./GuestLabelSettings.jsx";`,
-    `import GuestLabelSettings from "./GuestLabelSettings.jsx";\nimport GuestFeaturedPhotoSettings from "./GuestFeaturedPhotoSettings.jsx";`,
-    "guest featured-photo administrator import",
+    `      <div className="admin-card-actions">`,
+    `      <section className="album-featured-setting" aria-label="隨機置頂照片設定">\n        <label className="admin-check">\n          <input\n            type="checkbox"\n            checked={draft.featuredPhotosEnabled === true}\n            onChange={(event) =>\n              onChange({ featuredPhotosEnabled: event.target.checked })\n            }\n            disabled={busy}\n          />\n          啟用隨機置頂照片\n        </label>\n        <div className="album-featured-range">\n          <label>\n            最少張數\n            <input\n              type="number"\n              min="0"\n              step="1"\n              inputMode="numeric"\n              value={draft.featuredPhotoMin}\n              onChange={(event) =>\n                onChange({ featuredPhotoMin: Number(event.target.value) })\n              }\n              disabled={busy}\n            />\n          </label>\n          <label>\n            最多張數\n            <input\n              type="number"\n              min="0"\n              step="1"\n              inputMode="numeric"\n              value={draft.featuredPhotoMax}\n              onChange={(event) =>\n                onChange({ featuredPhotoMax: Number(event.target.value) })\n              }\n              disabled={busy}\n            />\n          </label>\n        </div>\n        <small>只能輸入非負整數，且最多張數不得小於最少張數，例如 1～4、2～6 或 0～3。此設定套用於本相簿內的所有標籤。</small>\n      </section>\n      <div className="admin-card-actions">`,
+    "per-album featured-photo controls",
   );
 
   code = replaceOnce(
     code,
-    `              <GuestLabelSettings />`,
-    `              <GuestLabelSettings />\n              <GuestFeaturedPhotoSettings />`,
-    "guest featured-photo administrator control",
+    `  isVisible: true,\n};`,
+    `  isVisible: true,\n  featuredPhotosEnabled: false,\n  featuredPhotoMin: 1,\n  featuredPhotoMax: 3,\n};`,
+    "new album featured-photo defaults",
   );
+
+  code = replaceOnce(
+    code,
+    `import "./admin-save-bar.css";`,
+    `import "./admin-save-bar.css";\nimport "./guest-featured-photos.css";`,
+    "album featured-photo styles",
+  );
+
   return code;
 }
 
 export function guestFeaturedPhotosUiTransform() {
   return {
-    name: "guest-featured-photos-ui",
+    name: "album-featured-photos-ui",
     enforce: "pre",
     transform(source, id) {
       const normalizedId = id.split("?")[0].replace(/\\/g, "/");
