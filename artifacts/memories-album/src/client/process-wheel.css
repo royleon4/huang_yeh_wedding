@@ -116,9 +116,7 @@
 }
 
 .process-wheel-clone {
-  pointer-events: none;
-  cursor: default;
-  user-select: none;
+  cursor: pointer;
 }
 
 .process-wheel-item span {
