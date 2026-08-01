@@ -108,7 +108,11 @@ Under **子分類操作方式**, the administrator can enable infinite horizonta
 - 婚禮流程 (`wedding`)
 - 訪客上傳 (`guest`)
 
-When looping is disabled, the wheel remains finite. When enabled, the component renders non-interactive start/end sentinels, recenters on the corresponding real item, and keeps one logical identity for each album label. Arrow-key navigation follows the same wrap rule.
+When looping is disabled, the wheel remains finite.
+
+When looping is enabled, the wheel renders one complete interactive copy of the logical items before and after the real sequence. This fills both sides instead of showing empty space near an edge. A visible copied item can be clicked and selects the same logical label as its real counterpart.
+
+Copied items are deliberately excluded from the tab role and keyboard tab order, so assistive technology still has one canonical tab identity for each logical item. After scrolling or choosing a copy, the wheel recenters on the matching real item without changing the selected route. Arrow-key navigation follows the same wrap rule.
 
 The setting is stored as `process_wheel_loop_album_ids`. Unsupported or duplicate album IDs are rejected by the administrator API.
 
@@ -156,7 +160,8 @@ Preservation coverage includes:
 - 192 × 192 PNG icon normalization;
 - pre-render style application;
 - independent title and copy merging;
-- wheel sentinel order and keyboard wrapping;
+- complete clickable looping copies on both sides;
+- canonical tab semantics and keyboard wrapping;
 - per-album loop persistence and validation;
 - responsive bottom-navigation sizing;
 - hero-contained language control;
