@@ -20,7 +20,7 @@ export default function PhotoGroupGrid({
           );
           return (
             <article
-              className={`photo-card${photo.guestFeatured ? " is-guest-featured" : ""}`}
+              className={`photo-card${photo.albumFeatured ? " is-album-featured" : ""}`}
               key={photo.id}
             >
               <button
