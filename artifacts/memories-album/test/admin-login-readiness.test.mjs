@@ -1,29 +1,23 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { createServer } from "../src/app.mjs";
+import { withListeningServer } from "../test-support/http.mjs";
 
-async function withServer(run) {
-  const server = createServer({
-    env: { MEMORIES_ADMIN_TOKEN: "correct-password" },
-    getRuntime: async () => {
-      const error = new Error("Drive unavailable");
-      error.code = "DRIVE_RETRYABLE";
-      throw error;
-    },
-  });
-  await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
-  const address = server.address();
-  try {
-    await run(`http://127.0.0.1:${address.port}`);
-  } finally {
-    await new Promise((resolve, reject) =>
-      server.close((error) => (error ? reject(error) : resolve())),
-    );
-  }
+const STORAGE_ERROR = "DRIVE_RETRYABLE";
+
+function unavailableRuntime() {
+  const error = new Error("Drive unavailable");
+  error.code = STORAGE_ERROR;
+  throw error;
 }
 
-test("admin login succeeds even when Drive runtime is unavailable", async () => {
-  await withServer(async (origin) => {
+test("admin login remains available while public storage data degrades", async () => {
+  const server = createServer({
+    env: { MEMORIES_ADMIN_TOKEN: "correct-password" },
+    getRuntime: unavailableRuntime,
+  });
+
+  await withListeningServer(server, async (origin) => {
     const login = await fetch(`${origin}/admin/api/session`, {
       method: "POST",
       headers: { Authorization: "Bearer correct-password" },
@@ -31,27 +25,36 @@ test("admin login succeeds even when Drive runtime is unavailable", async () => 
     assert.equal(login.status, 200);
     assert.deepEqual(await login.json(), { authenticated: true });
 
-    const processes = await fetch(`${origin}/Memories/api/processes`);
-    assert.equal(processes.status, 200);
-    assert.deepEqual(await processes.json(), {
-      allProcess: {
-        id: "all",
-        labelZh: "全部流程",
-        labelEn: "All moments",
-        showAllPhotos: true,
+    const degradedCases = [
+      {
+        path: "/Memories/api/processes",
+        expected: {
+          allProcess: {
+            id: "all",
+            labelZh: "全部流程",
+            labelEn: "All moments",
+            showAllPhotos: true,
+          },
+          processes: [],
+          degraded: true,
+          storageError: STORAGE_ERROR,
+        },
       },
-      processes: [],
-      degraded: true,
-      storageError: "DRIVE_RETRYABLE",
-    });
+      {
+        path: "/Memories/api/settings",
+        expected: {
+          primaryNavigationVisible: false,
+          guestUploadCategorySelectionEnabled: true,
+          degraded: true,
+          storageError: STORAGE_ERROR,
+        },
+      },
+    ];
 
-    const settings = await fetch(`${origin}/Memories/api/settings`);
-    assert.equal(settings.status, 200);
-    assert.deepEqual(await settings.json(), {
-      primaryNavigationVisible: false,
-      guestUploadCategorySelectionEnabled: true,
-      degraded: true,
-      storageError: "DRIVE_RETRYABLE",
-    });
+    for (const { path, expected } of degradedCases) {
+      const response = await fetch(`${origin}${path}`);
+      assert.equal(response.status, 200, path);
+      assert.deepEqual(await response.json(), expected, path);
+    }
   });
 });
