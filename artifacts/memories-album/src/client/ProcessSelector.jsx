@@ -31,15 +31,15 @@ export default function ProcessSelector(props) {
   const albumId =
     props.albumId ?? (props.variant === "guest" ? "guest" : "wedding");
 
-  const selector = settings.processWheelEnabled ? (
-    <ProcessWheel
-      {...props}
-      visibleCount={settings.processWheelVisibleCount}
-      loop={processWheelLoopsForAlbum(settings, albumId)}
-    />
-  ) : (
-    <TraditionalSelector {...props} />
-  );
+  if (settings.processWheelEnabled) {
+    return (
+      <ProcessWheel
+        {...props}
+        visibleCount={settings.processWheelVisibleCount}
+        loop={processWheelLoopsForAlbum(settings, albumId)}
+      />
+    );
+  }
 
-  return <div className="process-selector-sticky">{selector}</div>;
+  return <TraditionalSelector {...props} />;
 }
