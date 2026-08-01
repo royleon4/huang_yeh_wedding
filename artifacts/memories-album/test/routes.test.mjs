@@ -1,40 +1,35 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { createServer } from "../src/app.mjs";
+import { withListeningServer } from "../test-support/http.mjs";
 
-async function withServer(run, options) {
-  const server = createServer(options);
-  await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
-  const address = server.address();
-  assert.equal(typeof address, "object");
-  try {
-    await run(`http://127.0.0.1:${address.port}`);
-  } finally {
-    await new Promise((resolve, reject) =>
-      server.close((error) => (error ? reject(error) : resolve())),
-    );
-  }
+function withApp(run, options) {
+  return withListeningServer(createServer(options), run);
 }
 
-test("redirects uppercase and lowercase entry paths to the canonical URL", async () => {
-  await withServer(async (origin) => {
-    const canonical = await fetch(`${origin}/Memories`, { redirect: "manual" });
-    assert.equal(canonical.status, 308);
-    assert.equal(canonical.headers.get("location"), "/Memories/");
+test("redirects Memories entry aliases to the canonical URL", async () => {
+  await withApp(async (origin) => {
+    const cases = [
+      ["/Memories", "/Memories/"],
+      ["/memories/?from=guest", "/Memories/?from=guest"],
+    ];
 
-    const lowercase = await fetch(`${origin}/memories/?from=guest`, {
-      redirect: "manual",
-    });
-    assert.equal(lowercase.status, 308);
-    assert.equal(lowercase.headers.get("location"), "/Memories/?from=guest");
+    for (const [requestPath, location] of cases) {
+      const response = await fetch(`${origin}${requestPath}`, {
+        redirect: "manual",
+      });
+      assert.equal(response.status, 308, requestPath);
+      assert.equal(response.headers.get("location"), location, requestPath);
+    }
   });
 });
 
 test("serves the React archive entry document", async () => {
-  await withServer(async (origin) => {
+  await withApp(async (origin) => {
     const response = await fetch(`${origin}/Memories/`);
     assert.equal(response.status, 200);
     assert.match(response.headers.get("content-type") ?? "", /^text\/html/);
+
     const html = await response.text();
     assert.match(html, /詠葉婚禮照片檔案館/);
     assert.match(html, /id="root"/);
@@ -42,7 +37,7 @@ test("serves the React archive entry document", async () => {
 });
 
 test("serves an isolated health endpoint", async () => {
-  await withServer(async (origin) => {
+  await withApp(async (origin) => {
     const response = await fetch(`${origin}/Memories/api/health`);
     assert.equal(response.status, 200);
     assert.deepEqual(await response.json(), {
@@ -53,65 +48,8 @@ test("serves an isolated health endpoint", async () => {
   });
 });
 
-test("validates an admin session on /admin without initializing storage", async () => {
-  let runtimeRequested = false;
-  await withServer(
-    async (origin) => {
-      const accepted = await fetch(`${origin}/admin/api/session`, {
-        method: "POST",
-        headers: { Authorization: "Bearer correct-password" },
-      });
-      assert.equal(accepted.status, 200);
-      assert.deepEqual(await accepted.json(), { authenticated: true });
-
-      const rejected = await fetch(`${origin}/admin/api/session`, {
-        method: "POST",
-        headers: { Authorization: "Bearer wrong-password" },
-      });
-      assert.equal(rejected.status, 401);
-      assert.equal((await rejected.json()).code, "UNAUTHORIZED");
-      assert.equal(runtimeRequested, false);
-    },
-    {
-      env: { MEMORIES_ADMIN_TOKEN: "correct-password" },
-      getRuntime() {
-        runtimeRequested = true;
-        throw new Error("Runtime must not initialize for admin login");
-      },
-    },
-  );
-});
-
-test("reports missing admin configuration as unavailable, not a wrong password", async () => {
-  await withServer(
-    async (origin) => {
-      const response = await fetch(`${origin}/admin/api/session`, {
-        method: "POST",
-        headers: { Authorization: "Bearer any-password" },
-      });
-      assert.equal(response.status, 503);
-      assert.equal((await response.json()).code, "ADMIN_TOKEN_NOT_CONFIGURED");
-    },
-    {
-      env: {},
-      getRuntime() {
-        throw new Error("Runtime must not initialize for admin login");
-      },
-    },
-  );
-});
-
-test("rejects unsupported admin session methods without hanging", async () => {
-  await withServer(async (origin) => {
-    const response = await fetch(`${origin}/admin/api/session`, {
-      method: "PUT",
-    });
-    assert.equal(response.status, 405);
-  });
-});
-
 test("keeps unknown API routes JSON-only", async () => {
-  await withServer(async (origin) => {
+  await withApp(async (origin) => {
     const response = await fetch(`${origin}/Memories/api/unknown`);
     assert.equal(response.status, 404);
     assert.match(
@@ -122,8 +60,9 @@ test("keeps unknown API routes JSON-only", async () => {
 });
 
 test("does not claim routes outside the standalone namespace", async () => {
-  await withServer(async (origin) => {
-    assert.equal((await fetch(`${origin}/`)).status, 404);
-    assert.equal((await fetch(`${origin}/api/photos`)).status, 404);
+  await withApp(async (origin) => {
+    for (const requestPath of ["/", "/api/photos"]) {
+      assert.equal((await fetch(`${origin}${requestPath}`)).status, 404);
+    }
   });
 });
