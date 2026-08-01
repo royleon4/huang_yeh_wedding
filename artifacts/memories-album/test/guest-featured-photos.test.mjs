@@ -4,7 +4,8 @@ import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 import {
-  isGuestNameFilter,
+  isGuestFilter,
+  normalizeGuestFeaturedRange,
   pageGuestFeaturedPhotos,
   selectGuestFeaturedPhotoIds,
 } from "../src/client/guest-featured-photos.mjs";
@@ -13,25 +14,54 @@ import { LATEST_GUEST_FILTER_ID } from "../src/guest-label-settings.mjs";
 const directory = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(directory, "..");
 
-test("featured guest photos apply only to individual guest-name filters", () => {
-  assert.equal(isGuestNameFilter("guest", "guest:amy"), true);
-  assert.equal(isGuestNameFilter("guest", "all"), false);
-  assert.equal(isGuestNameFilter("guest", LATEST_GUEST_FILTER_ID), false);
-  assert.equal(isGuestNameFilter("wedding", "guest:amy"), false);
+test("featured guest photos apply to every guest label", () => {
+  assert.equal(isGuestFilter("guest", "guest:amy"), true);
+  assert.equal(isGuestFilter("guest", "all"), true);
+  assert.equal(isGuestFilter("guest", LATEST_GUEST_FILTER_ID), true);
+  assert.equal(isGuestFilter("wedding", "guest:amy"), false);
 });
 
-test("an individual guest filter selects between one and three photos", () => {
-  const photos = Array.from({ length: 8 }, (_, index) => ({ id: `p${index}` }));
-  const randomValues = [0.9, 0.1, 0.8, 0.2, 0.7, 0.3, 0.6, 0.99];
-  let cursor = 0;
+test("configured ranges select an inclusive number of unique photos", () => {
+  const photos = Array.from({ length: 12 }, (_, index) => ({ id: `p${index}` }));
   const selected = selectGuestFeaturedPhotoIds(photos, {
     activeCollection: "guest",
-    activeFilter: "guest:amy",
+    activeFilter: "all",
     enabled: true,
-    random: () => randomValues[cursor++ % randomValues.length],
+    minimum: 2,
+    maximum: 6,
+    random: () => 0.5,
   });
-  assert.ok(selected.length >= 1 && selected.length <= 3);
+  assert.ok(selected.length >= 2 && selected.length <= 6);
   assert.equal(new Set(selected).size, selected.length);
+});
+
+test("zero is accepted as the lower and upper bound", () => {
+  const photos = [{ id: "a" }, { id: "b" }];
+  assert.deepEqual(
+    selectGuestFeaturedPhotoIds(photos, {
+      activeCollection: "guest",
+      activeFilter: LATEST_GUEST_FILTER_ID,
+      enabled: true,
+      minimum: 0,
+      maximum: 0,
+    }),
+    [],
+  );
+  assert.deepEqual(normalizeGuestFeaturedRange({
+    guestRandomFeaturedPhotosMin: 0,
+    guestRandomFeaturedPhotosMax: 3,
+  }), { minimum: 0, maximum: 3 });
+});
+
+test("invalid ranges fall back to one through three", () => {
+  assert.deepEqual(normalizeGuestFeaturedRange({
+    guestRandomFeaturedPhotosMin: 4,
+    guestRandomFeaturedPhotosMax: 2,
+  }), { minimum: 1, maximum: 3 });
+  assert.deepEqual(normalizeGuestFeaturedRange({
+    guestRandomFeaturedPhotosMin: "one",
+    guestRandomFeaturedPhotosMax: 3,
+  }), { minimum: 1, maximum: 3 });
 });
 
 test("featured photos are placed first and marked without increasing page size", () => {
@@ -47,10 +77,14 @@ test("featured photos are placed first and marked without increasing page size",
   );
 });
 
-test("UI transform is ordered after guest labels and renders the admin control", async () => {
+test("UI transform is ordered after guest labels and renders range controls", async () => {
   const config = await readFile(path.join(root, "vite.routes.config.js"), "utf8");
   const transform = await readFile(
     path.join(root, "guest-featured-photos-ui-transform.mjs"),
+    "utf8",
+  );
+  const settings = await readFile(
+    path.join(root, "src/client/GuestFeaturedPhotoSettings.jsx"),
     "utf8",
   );
   const guestLabelsIndex = config.indexOf("guestLabelsUiTransform(),");
@@ -58,7 +92,12 @@ test("UI transform is ordered after guest labels and renders the admin control",
   assert.ok(guestLabelsIndex >= 0);
   assert.ok(featuredIndex > guestLabelsIndex);
   assert.match(transform, /<GuestFeaturedPhotoSettings \/>/);
-  assert.match(transform, /pageGuestFeaturedPhotos/);
+  assert.match(transform, /guestFeaturedPhotoSettings\.minimum/);
+  assert.match(transform, /guestFeaturedPhotoSettings\.maximum/);
+  assert.match(settings, /最少張數/);
+  assert.match(settings, /最多張數/);
+  assert.match(settings, /type="number"/);
+  assert.match(settings, /0～3/);
 });
 
 test("featured card spans two grid columns", async () => {
