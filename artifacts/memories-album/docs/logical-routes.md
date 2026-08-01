@@ -1,5 +1,8 @@
 # Memories identity routes
 
+> **Status:** Current route contract  
+> **Reviewed:** 2026-08-01T19:33:00+08:00 (Asia/Taipei)
+
 Canonical URLs are tied to the stable identity of the album, label, administrator tab, or photo they represent. Display order is presentation only and never changes an existing URL.
 
 ## Language
@@ -11,7 +14,7 @@ Traditional Chinese is the default and has no language segment. English adds `/e
 | Traditional Chinese | `/Memories/albums/guest/labels/Leon` |
 | English | `/Memories/en/albums/guest/labels/Leon` |
 
-Changing the language updates only the language segment while preserving the selected album, label, and opened photo.
+Changing the language updates only the language segment while preserving the selected album, label, and opened photo when that identity remains available.
 
 ## Public archive
 
@@ -30,7 +33,13 @@ Album keys use the saved album identity. Wedding-process labels use their proces
 
 The guest album itself, `/Memories/albums/guest`, is also the all-visitors view. Hiding the “所有訪客” selector chip does not invalidate that parent album route. Hiding “最新照片” makes `/labels/latest` unavailable; hiding name labels makes every guest-name `/labels/:name` route unavailable while the names are hidden.
 
-Reordering albums or labels does not alter any canonical URL. Renaming, removing, or hiding an otherwise addressable guest label removes that route from the current public surface. A stale route is treated as not found and replaced with the nearest valid parent route. A missing album redirects to the first available album, a missing label redirects to its album, and a missing photo redirects to its label or album. The replacement history entry records `{ status: 404, missingPath }`, and the application emits `memories:route-not-found` before recovery.
+Reordering albums or labels does not alter any canonical URL. Renaming, removing, or hiding an otherwise addressable guest label removes that route from the current public surface. A stale route is treated as not found and replaced with the nearest valid parent route.
+
+- A missing album recovers to the first available album.
+- A missing label recovers to its album.
+- A missing photo recovers to its label or album.
+- The replacement history entry records `{ status: 404, missingPath }`.
+- The application emits `memories:route-not-found` before recovery.
 
 Opening a label URL directly, clicking a label, refreshing, and browser Back/Forward all restore the same identity and request gallery-anchor positioning.
 
@@ -50,6 +59,8 @@ Administrator tabs use stable semantic identifiers:
 
 Moving or relabeling a tab does not change its route. Previous `/Memories/admin/groupN` paths remain migration aliases and are replaced with the semantic route.
 
+`/Memories/admin/` and old `/admin*` are compatibility entries, not additional canonical tab identities. Removed `/Memories/api/admin/*` endpoints are not part of the current namespace.
+
 ## Identity rules
 
 - URLs are never generated from current display indexes.
@@ -59,3 +70,19 @@ Moving or relabeling a tab does not change its route. Previous `/Memories/admin/
 - The guest album parent route remains valid even when its all-visitors selector chip is hidden.
 - Photo routes retain the existing opaque photo identity.
 - User-visible text is URL encoded and normalized with NFKC before use as a guest-label identity.
+- A language change preserves the current identity rather than selecting by display position.
+- Browser Back/Forward and direct loading must use the same route reducer as clicks.
+
+## Maintainer requirements
+
+A route change must include tests for:
+
+1. Traditional Chinese and English forms;
+2. direct load, refresh and Back/Forward;
+3. reorder stability;
+4. hidden, removed and missing identities;
+5. opened-photo preservation and recovery;
+6. administrator tab stability;
+7. compatibility aliases replacing themselves with canonical paths.
+
+Update this file, [`../../../MAINTAINER_GUIDE.md`](../../../MAINTAINER_GUIDE.md) and user-facing documentation when a route contract changes.
