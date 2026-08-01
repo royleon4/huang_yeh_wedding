@@ -1,74 +1,83 @@
-# 婚禮照片網站｜超簡單使用說明
+# 婚禮照片網站｜親友超簡單使用說明
 
 這份說明是寫給第一次使用網站的人。
 
-**不用懂電腦。照著一步一步做就好。**
+**不用懂電腦。一次只做一個步驟就好。**
 
-> 這是「親友／賓客」使用說明，不是管理員後台說明。
+> 這是親友／賓客說明。管理員請看 [`ADMIN_GUIDE.md`](ADMIN_GUIDE.md)。
+
+## 先選擇你要做什麼
+
+- [我只想看照片](#我只想看照片)
+- [我想換成英文](#我想換成英文)
+- [我想上傳照片](#我想上傳照片)
+- [我想管理自己上傳的照片](#我想管理自己上傳的照片)
+- [畫面怪怪的怎麼辦](#畫面怪怪的怎麼辦)
 
 ---
 
 ## 我只想看照片
 
-### 1. 打開網站
+### 1. 打開 Memories
 
 打開婚禮網站，進入 **Memories／婚禮回憶**。
 
 ### 2. 選一個相簿
 
-畫面上方會有不同的相簿或分類。
-
-例如：
+畫面下方或頁面上的導覽會顯示相簿，例如：
 
 - 婚禮流程
 - 訪客上傳
 - 生活照
 - 其他相簿
 
-**按一下你想看的名字。**
+**按一下想看的名字。**
 
 ### 3. 選一個小分類
 
-有些相簿下面還有小分類，例如婚禮中的不同流程。
+有些相簿還有小分類。
 
-訪客相簿也可能顯示：
+婚禮流程可能顯示不同儀式階段；訪客相簿可能顯示：
 
 - 最新照片
 - 所有訪客
 - 不同上傳者的姓名
 
-管理員可以決定哪些標籤要顯示，所以每次看到的項目可能不同。
+管理員可以決定哪些項目要顯示，所以你每次看到的選項可能不同。
 
-**按一下小分類，畫面會自己移到那一區。**
+按一下後，網站會移到照片內容的位置。
 
 ### 4. 往下滑
 
-用手指往上滑畫面，就可以繼續往下看照片。
+用手指向上滑，就可以繼續看照片。
 
-照片很多時，下面會有 **「載入更多回憶」**。
-
-**按一下，就會出現更多照片。**
+看到 **「載入更多回憶」** 時，按一下就會出現更多照片。
 
 ### 5. 把照片打開
 
-**按一下照片**，照片會放大。
+按一下照片，照片會放大。
 
 放大後可以：
 
-- 按「上一張」看前一張
-- 按「下一張」看下一張
-- 縮放照片
-- 按關閉按鈕回到照片牆
+- 使用上一張／下一張
+- 手機用兩指縮放
+- 電腦使用滑鼠滾輪縮放
+- 放大後拖動照片
+- 按左上角 **「查看原圖」**，在新分頁開啟原圖
+- 按右上角關閉，回到照片牆
+
+網站會先使用已載入的縮圖，讓照片更快出現。需要完整原圖時再按「查看原圖」。
 
 ---
 
 ## 我想換成英文
 
-找到語言按鈕，選擇 **English**。
+在首頁標題區找到語言按鈕。
 
-想換回中文，就選擇 **中文**。
+- 選 **English**：改成英文
+- 選 **中文**：改回中文
 
-換語言後，你正在看的相簿不會不見。
+網站會盡量保留你正在看的相簿或分類。
 
 ---
 
@@ -78,23 +87,21 @@
 
 找到 **上傳照片／Upload** 按鈕並按下去。
 
-### 2. 填寫你的名字
+### 2. 填寫名字
 
 輸入你的真實姓名，讓新人知道照片是誰分享的。
 
-`婚禮攝影` 是保留名稱，訪客不能用這個名字上傳。
+`婚禮攝影` 是保留名稱，親友不能使用這個名字上傳。
 
-### 3. 選照片
+### 3. 先看畫面上的限制
 
-按 **選擇照片**。
+選擇照片旁會顯示這次最多能選幾張。
 
-按鈕旁會顯示這次最多可以選幾張。管理員可以把限制設為 1～100 張，網站預設是 **10 張**。
-
-選取數量不要超過畫面顯示的限制。
+管理員可以把限制設為 **1～100 張**；預設是 **10 張**。
 
 每張照片不能超過 **25 MB**。
 
-可以上傳：
+支援：
 
 - JPEG／JPG
 - PNG
@@ -102,203 +109,191 @@
 - HEIC
 - HEIF
 
-選擇照片下面也可能有新人自訂的中文或英文說明，請先看完。
+選擇按鈕下面可能有新人寫的中文或英文提醒，請先看完。
 
-### 4. 選擇照片要放哪裡
+### 4. 選照片
 
-網站有顯示分類選項時，選擇最適合的地方。
+按 **選擇照片**，不要超過畫面顯示的張數。
 
-看不到分類選項也沒關係，網站會把照片放到預設位置。
+即使一次選很多張，網站也只會同時處理少量照片，不會一次全部傳送。
 
-### 5. 按「開始上傳」
+### 5. 選分類
 
-按下上傳按鈕後：
+網站有顯示分類時，選擇最適合的位置。
 
+沒有分類選項也沒關係，網站會放到目前允許的預設位置。
+
+### 6. 按一次上傳
+
+按下上傳後：
+
+- 不要重複按按鈕
 - 不要立刻關掉頁面
-- 不要一直重複按按鈕
-- 等畫面告訴你完成了
-
-即使一次選很多張，網站也會分批處理，不會全部同時傳送。
+- 保持手機或電腦連上網路
+- 等畫面告訴你完成
 
 網路不穩時，網站會自己再試。
 
 看到 **「繼續未完成照片」** 時，按一下就可以繼續。
 
-### 6. 保存私人管理連結
+### 7. 保存私人管理連結
 
-上傳完成後，網站會給你一個 **私人管理連結**。
+完成後，網站會給你一個 **私人管理連結**。
 
-**請把它存起來。**
-
-你可以：
+請立刻保存，例如：
 
 - 傳給自己的 LINE
-- 加到書籤
+- 加入瀏覽器書籤
 - 複製到備忘錄
 
-這個連結像一把小鑰匙。
+這個連結像一把鑰匙，可以管理你上傳的照片。
 
-**不要隨便傳給別人。**
+**不要傳給不信任的人。**
 
 ---
 
-## 我想刪除自己上傳的照片
+## 我想管理自己上傳的照片
 
 ### 1. 打開私人管理連結
 
 使用上傳完成時保存的連結。
 
-### 2. 找到照片
+只有這個連結對應的那一批照片會出現。
 
-找到你想刪除的照片。
+### 2. 更新私人連結
 
-### 3. 按「永久刪除」
+需要時可以更新私人連結。
 
-網站會再問一次。
+更新後：
 
-確定後才按下去。
+- 舊連結立刻失效
+- 新連結要重新保存
 
-> **刪除後不能復原。照片會真的不見。**
+### 3. 永久刪除照片
 
-如果你更新了私人管理連結，舊連結會不能使用。請保存新的連結。
+找到照片，按 **永久刪除**。
+
+網站會再問一次。確定真的不要了，才按確認。
+
+> **永久刪除不能復原。原圖、縮圖與網站紀錄都會真的消失。**
 
 ---
 
-## 畫面怪怪的，怎麼辦？
+## 畫面怪怪的怎麼辦
 
-### 照片還沒出現
+### 照片是空白的
 
-先等一下。
+1. 先等一下。
+2. 檢查網路。
+3. 往上或往下滑一點。
+4. 重新整理頁面。
 
-照片只有靠近你正在看的地方時，才會開始載入。
+照片靠近你正在看的位置時才會開始載入。
 
-還是沒有時：
+### 按分類後看不到照片
 
-1. 檢查網路。
-2. 往上或往下滑一點。
-3. 重新整理頁面。
+畫面可能已經移到比較下面。
+
+稍微往上或往下滑，就會看到內容。
 
 ### 上傳停住了
 
-1. 不要重新選一大堆照片。
-2. 看看有沒有 **「繼續未完成照片」**。
-3. 有的話，按下去。
-4. 確認手機或電腦仍有網路。
+1. 不要重新選一大批相同照片。
+2. 檢查網路。
+3. 看有沒有 **「繼續未完成照片」**。
+4. 有的話按下去。
 
-### 按了分類，但看不到照片
+### 找不到私人管理連結
 
-畫面可能已經移到比較下面的位置。
+網站不能替你找回沒有保存的私人連結。
 
-稍微往上或往下滑，就會看到。
+先檢查：
 
-### 我找不到私人管理連結
-
-網站不能知道你以前把連結存在哪裡。
-
-可以先找：
-
-- LINE 的「Keep」或傳給自己的訊息
-- 手機瀏覽器書籤
+- 傳給自己的 LINE 訊息
+- 瀏覽器書籤
 - 備忘錄
 - 瀏覽器歷史紀錄
 
+### 舊網址自己變成新網址
+
+這通常是正常的。
+
+網站會把舊的相簿編號網址改成現在使用的穩定網址，不代表照片消失。
+
 ---
 
-## 最重要的三件事
+## 最重要的四件事
 
 1. **上傳時不要太快關掉頁面。**
-2. **保存私人管理連結。**
-3. **永久刪除真的不能復原。**
+2. **不要超過畫面顯示的張數限制。**
+3. **保存私人管理連結。**
+4. **永久刪除不能復原。**
 
 ---
 
-# Wedding Photo Website｜Very Easy Guide
+# Wedding Photo Website｜Very Easy Guest Guide
 
 This guide is for guests using the website for the first time.
 
-**You do not need to understand computers. Just follow one step at a time.**
+**You do not need to understand computers. Do one step at a time.**
 
-## I only want to see photos
+## View photos
 
 1. Open the wedding website and enter **Memories**.
-2. Tap the album you want to see.
-3. Tap a smaller category when one is shown.
+2. Choose an album.
+3. Choose a smaller category when one is shown.
 4. In Guest uploads, you may see Latest photos, All guests, or uploader names. The administrator decides which labels are visible.
-5. Scroll down to see the photos.
-6. Tap **Load more memories** when you want more photos.
-7. Tap a photo to make it bigger.
-8. Use **Previous**, **Next**, zoom, or the close button.
+5. Scroll down and tap **Load more memories** when needed.
+6. Tap a photo to open it.
+7. Use Previous or Next, pinch or mouse-wheel zoom, and drag while zoomed.
+8. Tap **View original** at the upper left to open the original in a new tab.
+9. Tap the close button at the upper right to return to the gallery.
 
-## Change the language
+## Change language
 
-Tap the language button and choose **English** or **中文**.
+Use the language control inside the hero/title area.
 
-The website will keep you in the same album when possible.
+Choose **English** or **中文**. The website keeps the current album or label when possible.
 
 ## Upload photos
 
 1. Tap **Upload**.
 2. Type your real name. Guests cannot use the reserved name `婚禮攝影`.
-3. Check the number shown beside the photo selector. The administrator can set the limit from 1 to 100; the default is **10 photos**.
-4. Do not choose more than the limit shown on the page.
-5. Each photo must be no larger than **25 MB**.
-6. Read any custom upload guidance shown below the selector.
-7. Choose a category when the website shows category choices.
+3. Read the current limit beside the photo selector. The administrator can set it from 1 to 100; the default is 10.
+4. Each photo must be no larger than 25 MB.
+5. Supported types are JPEG/JPG, PNG, WebP, HEIC, and HEIF.
+6. Read any custom guidance shown under the selector.
+7. Choose a category when the website offers one.
 8. Tap the upload button once.
-9. Keep the page open until the website says it is finished.
-10. Tap **Continue unfinished photos** if that button appears.
+9. Keep the page open until it finishes.
+10. Tap **Continue unfinished photos** if shown.
 
-Supported photo types:
+## Save the private management link
 
-- JPEG／JPG
-- PNG
-- WebP
-- HEIC
-- HEIF
+After uploading, save the private link in your bookmarks, notes, or a message to yourself.
 
-The website processes a limited number of photos at the same time, even when you select a large batch.
+Do not share it with untrusted people. It can manage your uploaded batch.
 
-## Save your private management link
+## Manage your uploaded photos
 
-After uploading, the website gives you a private link.
+Open the saved private link to see that batch.
 
-**Save it somewhere safe.**
+You may rotate the private link. The old link stops working immediately, so save the new one.
 
-You can send it to yourself, bookmark it, or put it in your notes.
+You may permanently delete a photo only after confirming the warning.
 
-Do not share it with other people. It lets someone manage your uploaded photos.
+> **Permanent deletion removes the original, thumbnail, and website record and cannot be undone.**
 
-## Delete one of your photos
+## When something is wrong
 
-1. Open your saved private management link.
-2. Find the photo.
-3. Tap **Permanently delete**.
-4. Read the warning.
-5. Confirm only when you are sure.
+- Blank photo: wait, check the connection, scroll a little, then refresh.
+- Upload stopped: keep the page open, check the connection, and use **Continue unfinished photos**.
+- Old URL changed: the site may be replacing an old route with its current stable route.
+- Lost private link: check bookmarks, notes, messages to yourself, and browser history.
 
-> **A permanently deleted photo cannot be restored.**
+## Remember
 
-When you create a new private link, the old link stops working. Save the new one.
-
-## Something is not working
-
-### A photo is blank
-
-1. Wait a moment.
-2. Check your internet connection.
-3. Scroll a little.
-4. Refresh the page.
-
-Photos begin loading when they get close to the part of the page you are viewing.
-
-### An upload stopped
-
-1. Keep the page open.
-2. Check the internet connection.
-3. Tap **Continue unfinished photos** when shown.
-
-## Remember these three things
-
-1. **Keep the page open while uploading.**
-2. **Save your private management link.**
-3. **Permanent deletion cannot be undone.**
+1. Keep the page open while uploading.
+2. Follow the limit shown on the page.
+3. Save the private management link.
+4. Permanent deletion cannot be undone.
