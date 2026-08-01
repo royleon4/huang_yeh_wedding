@@ -111,7 +111,9 @@ The language switcher remains inside the hero header rather than floating indepe
 
 ### Per-album wheel looping
 
-Under **子分類操作方式**, infinite horizontal looping can be enabled independently for the `wedding` and `guest` albums. Disabled wheels remain finite. Enabled wheels use non-interactive sentinels, recenter on real items, preserve one logical identity per label, and apply the same wrap rule to arrow-key navigation.
+Under **子分類操作方式**, infinite horizontal looping can be enabled independently for the `wedding` and `guest` albums. Disabled wheels remain finite.
+
+Enabled wheels render a complete clickable copy of the logical items before and after the real sequence, filling both directions without empty edge space. Copy buttons select the same logical item as their real counterpart, but they are excluded from canonical tab semantics and keyboard tab order. After scrolling or choosing a copy, the component recenters on the matching real item. Arrow-key navigation follows the same wrap rule.
 
 ### Fullscreen photo viewer
 
@@ -327,7 +329,7 @@ pnpm --filter @workspace/memories-album test:drive-live
 
 Standalone CI runs the Node test suite, a production client/server build, final transform-chain structural checks, and a real server health smoke. The legacy-boundary workflow protects the invitation and old photo API.
 
-Preservation tests cover public-bootstrap memoization/fallback, guest-label rules, stable routes, appearance validation, hero and icon assets, wheel looping, responsive navigation, photo-viewer behavior, unified saves, and settings persistence.
+Preservation tests cover public-bootstrap memoization/fallback, guest-label rules, stable routes, appearance validation, hero and icon assets, fully interactive wheel copies and canonical tab semantics, responsive navigation, photo-viewer behavior, unified saves, and settings persistence.
 
 CI does not yet run a real browser such as Playwright against the completed production transform chain. The largest remaining architecture risk is the collection of Vite pre-transforms that mutate `App.jsx` and `AdminApp.jsx` through exact string replacement. Any transform change should validate final generated code and a real browser render.
 
