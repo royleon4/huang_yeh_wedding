@@ -1,12 +1,10 @@
-import { useEffect, useState } from "react";
+export const DEFAULT_FEATURED_PHOTO_MIN = 1;
+export const DEFAULT_FEATURED_PHOTO_MAX = 3;
 
-export const DEFAULT_GUEST_FEATURED_MIN = 1;
-export const DEFAULT_GUEST_FEATURED_MAX = 3;
-
-export function normalizeGuestFeaturedRange(value = {}) {
+export function normalizeFeaturedPhotoRange(value = {}) {
   const source = value && typeof value === "object" ? value : {};
-  const minimum = Number(source.guestRandomFeaturedPhotosMin);
-  const maximum = Number(source.guestRandomFeaturedPhotosMax);
+  const minimum = Number(source.featuredPhotoMin);
+  const maximum = Number(source.featuredPhotoMax);
   if (
     Number.isInteger(minimum) &&
     Number.isInteger(maximum) &&
@@ -16,28 +14,28 @@ export function normalizeGuestFeaturedRange(value = {}) {
     return { minimum, maximum };
   }
   return {
-    minimum: DEFAULT_GUEST_FEATURED_MIN,
-    maximum: DEFAULT_GUEST_FEATURED_MAX,
+    minimum: DEFAULT_FEATURED_PHOTO_MIN,
+    maximum: DEFAULT_FEATURED_PHOTO_MAX,
   };
 }
 
-export function isGuestFilter(activeCollection, activeFilter) {
-  return activeCollection === "guest" && Boolean(activeFilter);
+export function isAlbumFilter(activeCollection, activeFilter) {
+  return Boolean(activeCollection) && Boolean(activeFilter);
 }
 
-export function selectGuestFeaturedPhotoIds(
+export function selectFeaturedPhotoIds(
   photos,
   {
     activeCollection,
     activeFilter,
     enabled,
-    minimum = DEFAULT_GUEST_FEATURED_MIN,
-    maximum = DEFAULT_GUEST_FEATURED_MAX,
+    minimum = DEFAULT_FEATURED_PHOTO_MIN,
+    maximum = DEFAULT_FEATURED_PHOTO_MAX,
     random = Math.random,
   } = {},
 ) {
   const items = Array.isArray(photos) ? photos : [];
-  if (!enabled || !isGuestFilter(activeCollection, activeFilter)) return [];
+  if (!enabled || !isAlbumFilter(activeCollection, activeFilter)) return [];
   if (items.length === 0) return [];
 
   const minCount = Math.max(0, Number.isInteger(minimum) ? minimum : 0);
@@ -60,54 +58,15 @@ export function selectGuestFeaturedPhotoIds(
     .map((photo) => photo.id);
 }
 
-export function pageGuestFeaturedPhotos(photos, pageSize, featuredIds) {
+export function pageFeaturedPhotos(photos, pageSize, featuredIds) {
   const items = Array.isArray(photos) ? photos : [];
   const limit = Math.max(0, Number(pageSize) || 0);
   const featuredSet = new Set(Array.isArray(featuredIds) ? featuredIds : []);
   const featured = items
     .filter((photo) => featuredSet.has(photo.id))
-    .map((photo) => ({ ...photo, guestFeatured: true }));
+    .map((photo) => ({ ...photo, albumFeatured: true }));
   const regular = items
     .filter((photo) => !featuredSet.has(photo.id))
-    .map((photo) => ({ ...photo, guestFeatured: false }));
+    .map((photo) => ({ ...photo, albumFeatured: false }));
   return [...featured, ...regular].slice(0, limit);
-}
-
-export function useGuestRandomFeaturedPhotosSettings() {
-  const [settings, setSettings] = useState({
-    enabled: false,
-    minimum: DEFAULT_GUEST_FEATURED_MIN,
-    maximum: DEFAULT_GUEST_FEATURED_MAX,
-  });
-
-  useEffect(() => {
-    const controller = new AbortController();
-    void fetch("/Memories/api/settings/guest-featured", {
-      headers: { Accept: "application/json" },
-      signal: controller.signal,
-    })
-      .then((response) => {
-        if (!response.ok) throw new Error("Guest featured-photo settings failed");
-        return response.json();
-      })
-      .then((body) => {
-        const range = normalizeGuestFeaturedRange(body);
-        setSettings({
-          enabled: body.guestRandomFeaturedPhotosEnabled === true,
-          ...range,
-        });
-      })
-      .catch((error) => {
-        if (error?.name !== "AbortError") {
-          setSettings({
-            enabled: false,
-            minimum: DEFAULT_GUEST_FEATURED_MIN,
-            maximum: DEFAULT_GUEST_FEATURED_MAX,
-          });
-        }
-      });
-    return () => controller.abort();
-  }, []);
-
-  return settings;
 }
