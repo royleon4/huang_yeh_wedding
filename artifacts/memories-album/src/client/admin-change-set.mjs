@@ -191,9 +191,8 @@ export function buildAdminChangeSet({
 
 export function successfulResultKeys(results) {
   return new Set(
-    (Array.isArray(results) ? results : [])
-      .filter((result) => result?.ok)
-      .map((result) => String(result.key ?? ""))
-      .filter(Boolean),
+    (results ?? [])
+      .filter((result) => result?.status === "ok" && result?.key)
+      .map((result) => result.key),
   );
 }
