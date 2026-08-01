@@ -33,6 +33,9 @@ function fallbackAlbums() {
     descriptionZh: "",
     descriptionEn: "",
     displayOrder: index + 1,
+    featuredPhotosEnabled: false,
+    featuredPhotoMin: 1,
+    featuredPhotoMax: 3,
   }));
 }
 
