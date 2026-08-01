@@ -2,6 +2,7 @@ import {
   EMPTY_IMAGE_SETTING_METADATA,
   imageSettingMetadata,
   imageSettingUrl,
+  normalizeImageSettingMetadata,
   normalizeStoredImageSetting,
   validateImageSettingFile,
 } from "./image-setting.mjs";
@@ -103,6 +104,10 @@ export function normalizeStoredHeroBackground(value) {
   return normalizeStoredImageSetting(value, HERO_EXPECTED_ASSET);
 }
 
+export function normalizeHeroBackgroundMetadata(value) {
+  return normalizeImageSettingMetadata(value, HERO_EXPECTED_ASSET);
+}
+
 export function heroBackgroundMetadata(value) {
   return imageSettingMetadata(value, HERO_EXPECTED_ASSET);
 }
@@ -158,7 +163,9 @@ export function applySiteStyle(
 ) {
   if (!root?.style) return;
   const style = normalizeSiteStyle(value?.siteStyle ?? value);
-  const heroBackground = value?.heroBackground ?? EMPTY_IMAGE_SETTING_METADATA;
+  const heroBackground = normalizeHeroBackgroundMetadata(
+    value?.heroBackground ?? EMPTY_IMAGE_SETTING_METADATA,
+  );
   for (const [name, cssValue] of Object.entries(
     siteStyleCssVariables(style, heroBackground),
   )) {
