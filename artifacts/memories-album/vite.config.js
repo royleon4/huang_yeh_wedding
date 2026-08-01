@@ -227,10 +227,10 @@ function memoriesDevelopmentRoutes() {
 export default defineConfig({
   base: `${MEMORIES_BASE_PATH}/`,
   plugins: [
+    progressivePhotoLoadingUiTransform(),
     adminPhotoUploaderUiTransform(),
     processContentUiTransform(),
     adminPhotoWorkspaceUiTransform(),
-    progressivePhotoLoadingUiTransform(),
     react(),
     memoriesDevelopmentRoutes(),
   ],
