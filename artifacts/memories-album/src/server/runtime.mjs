@@ -28,6 +28,7 @@ import {
   createAdminSettingsApi,
   createSettingsApi,
 } from "./settings/api.mjs";
+import { createGuestFeaturedSettingsApis } from "./settings/guest-featured-api.mjs";
 import { createAlbumApi } from "./albums/api.mjs";
 import { createAdminAlbumApi } from "./albums/admin-api.mjs";
 import { PostgresAlbumRepository } from "./albums/postgres-repository.mjs";
@@ -88,6 +89,7 @@ async function createRuntime(env) {
   const processRepository = new PostgresProcessRepository(pool);
   const processContentRepository = new PostgresProcessContentRepository(pool);
   const settingsRepository = new PostgresSettingsRepository(pool);
+  const guestFeaturedSettingsApis = createGuestFeaturedSettingsApis({ pool });
   const chunkedUploadOriginal = drive.uploadOriginal.bind(drive);
   drive.uploadOriginal = async (options) => {
     const uploadMode = await settingsRepository.getDriveUploadMode();
@@ -192,6 +194,13 @@ async function createRuntime(env) {
     return backfillPromise;
   };
 
+  const baseAdminSettingsApi = createAdminSettingsApi({
+    repository: settingsRepository,
+  });
+  const baseSettingsApi = createSettingsApi({
+    repository: settingsRepository,
+  });
+
   const runtime = {
     pool,
     repository,
@@ -239,9 +248,12 @@ async function createRuntime(env) {
       refreshService,
       adminToken: env.MEMORIES_ADMIN_TOKEN,
     }),
-    adminSettingsApi: createAdminSettingsApi({
-      repository: settingsRepository,
-    }),
+    adminSettingsApi: async (request, response, url) => {
+      if (await guestFeaturedSettingsApis.adminApi(request, response, url)) {
+        return true;
+      }
+      return baseAdminSettingsApi(request, response, url);
+    },
     uploadApi,
     processApi: createProcessApi({
       repository: processRepository,
@@ -251,9 +263,12 @@ async function createRuntime(env) {
       repository: processContentRepository,
       drive,
     }),
-    settingsApi: createSettingsApi({
-      repository: settingsRepository,
-    }),
+    settingsApi: async (request, response, url) => {
+      if (await guestFeaturedSettingsApis.publicApi(request, response, url)) {
+        return true;
+      }
+      return baseSettingsApi(request, response, url);
+    },
   };
 
   let synchronizationPromise = null;
