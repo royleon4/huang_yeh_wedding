@@ -25,7 +25,6 @@ const LEGACY_FETCH_ALL_PHOTOS = `async function fetchAllPhotos() {
 }`;
 
 const PROGRESSIVE_FETCH_ALL_PHOTOS = `async function fetchAllPhotos() {
-  const PAGE_LIMIT = 100;
   const INITIAL_PAGE_COUNT = 2;
   const MAX_PAGE_COUNT = 20;
   const controller = new AbortController();
@@ -81,7 +80,7 @@ const PROGRESSIVE_FETCH_ALL_PHOTOS = `async function fetchAllPhotos() {
 
   const fetchNextPage = async () => {
     if (signal.aborted) throw createAbortError();
-    const query = new URLSearchParams({ limit: String(PAGE_LIMIT) });
+    const query = new URLSearchParams({ limit: "100" });
     if (cursor) query.set("cursor", cursor);
     const response = await fetch(\`/Memories/api/photos?\${query}\`, {
       headers: { Accept: "application/json" },
