@@ -32,13 +32,20 @@ test("the dedicated admin route owns album, photo, and category management", asy
   assert.match(loginSource, /MEMORIES_ADMIN_TOKEN/);
 });
 
-test("collection controls remain sticky and span the viewport", async () => {
+test("only the label selector stays sticky and spans the viewport", async () => {
   const styles = await readClient("feature-controls.css");
+  assert.doesNotMatch(
+    styles,
+    /\.process-section\s*{[^}]*position: sticky;/s,
+  );
   assert.match(
     styles,
-    /\.process-section\s*{[^}]*position: sticky;[^}]*top: 0;/s,
+    /\.process-selector-sticky\s*{[^}]*position: sticky;[^}]*top: 0;/s,
   );
-  assert.match(styles, /\.process-section\s*{[^}]*width: 100vw;/s);
+  assert.match(
+    styles,
+    /\.process-selector-sticky\s*{[^}]*width: 100vw;/s,
+  );
   assert.match(styles, /margin-left: calc\(50% - 50vw\)/);
 });
 
@@ -60,14 +67,22 @@ test("dynamic albums and upload use explicit React callbacks in bottom navigatio
   assert.match(appSource, /<BottomCollectionNav/);
 });
 
-test("changing a collection or process scrolls to the first gallery item", async () => {
-  const source = await readClient("GalleryEnhancements.jsx");
-  assert.match(source, /closest\("\.process-chip, \.collection-tab"\)/);
-  assert.match(source, /document\.getElementById\("archive-gallery"\)/);
-  assert.match(
-    source,
-    /window\.scrollTo\(\{ top: Math\.max\(0, top\), behavior: "smooth" \}\)/,
+test("label changes do not run a second vertical positioning system", async () => {
+  const [selector, enhancements, layoutTransform] = await Promise.all([
+    readClient("ProcessSelector.jsx"),
+    readClient("GalleryEnhancements.jsx"),
+    readFile(
+      new URL("../native-label-layout-ui-transform.mjs", import.meta.url),
+      "utf8",
+    ),
+  ]);
+  assert.doesNotMatch(
+    `${selector}\n${enhancements}`,
+    /window\.scrollTo|window\.scrollBy|scrollIntoView|getBoundingClientRect/,
   );
+  assert.match(layoutTransform, /process-selector-sticky/);
+  assert.match(layoutTransform, /SECTION_CLOSE/);
+  assert.match(layoutTransform, /GALLERY_START/);
 });
 
 test("React renders before the process API finishes", async () => {

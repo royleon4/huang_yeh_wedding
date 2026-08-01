@@ -167,7 +167,7 @@ test("selector preserves traditional buttons and reads wheel settings from the p
   assert.doesNotMatch(selector, /DEFAULT_SETTINGS/);
 });
 
-test("process wheel reuses traditional gallery offset and supports configurable mobile density", async () => {
+test("process wheel stays horizontal and leaves vertical layout to CSS", async () => {
   const [component, selector, styles, settings] = await Promise.all([
     readFile(new URL("../src/client/ProcessWheel.jsx", import.meta.url), "utf8"),
     readFile(new URL("../src/client/ProcessSelector.jsx", import.meta.url), "utf8"),
@@ -179,10 +179,9 @@ test("process wheel reuses traditional gallery offset and supports configurable 
   assert.doesNotMatch(component, /firstSelectedContent/);
   assert.doesNotMatch(component, /\.process-video-block/);
   assert.doesNotMatch(component, /\.masonry-grid \.photo-card/);
-  assert.match(selector, /function scrollToGalleryStart/);
-  assert.match(selector, /document\.querySelector\("\.process-section"\)/);
-  assert.match(selector, /gallery\.getBoundingClientRect\(\)\.top - stickyHeight - 10/);
-  assert.match(selector, /onSelect=\{selectWithTraditionalPositioning\}/);
+  assert.doesNotMatch(selector, /window\.scrollTo|window\.scrollBy|scrollIntoView/);
+  assert.doesNotMatch(selector, /getBoundingClientRect/);
+  assert.match(selector, /return <TraditionalSelector \{\.\.\.props\} \/>/);
   assert.match(component, /visibleCount/);
   assert.match(styles, /--wheel-mobile-item-width/);
   assert.match(styles, /scroll-snap-align: center/);
