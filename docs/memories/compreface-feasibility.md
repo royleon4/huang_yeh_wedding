@@ -1,12 +1,18 @@
 # CompreFace feasibility for standalone Memories
 
+> **Status:** Research only; deferred after Product Phase 1  
+> **Reviewed:** 2026-08-01T19:33:00+08:00 (Asia/Taipei)  
+> **Approval state:** No face provider, hosting model, biometric retention policy or Product Phase 2 implementation is approved
+
 Issue: #18
 
-Status: **preliminary technical assessment — provider and hosting are not approved**
+This document is a preliminary technical assessment. It must not be read as permission to upload wedding photos, faces, embeddings or temporary selfies to CompreFace or any external provider.
+
+Before implementation, the owner must approve the Phase 2 scope, privacy notice, consent model, provider/hosting, recurring cost, retention, deletion, correction and incident responsibilities described in [`../phase-1-closeout-2026-08-01.md`](../phase-1-closeout-2026-08-01.md).
 
 ## Preliminary answer
 
-CompreFace can supply the low-level face capabilities needed by Memories:
+CompreFace can supply the low-level face capabilities that a future Memories feature might need:
 
 - face detection for one or many faces in an image;
 - face embeddings and bounding boxes;
@@ -85,9 +91,13 @@ The final interface may differ after benchmarking, but application services must
 
    The service endpoint and API key must remain server-side and privately reachable. Logs must exclude image bytes, embeddings where unnecessary, API keys, and temporary selfies. Permanent deletion must also remove provider references.
 
+6. **Consent and data-subject rights**
+
+   Wedding guests may not expect biometric processing merely because a photo is visible in the archive. A future design must define notice, opt-out, correction, deletion and access rules before processing begins.
+
 ## Required benchmark
 
-Use a representative, owner-approved test set containing:
+Use only a representative, owner-approved and consented test set containing:
 
 - individual portraits;
 - group photos with several faces;
@@ -104,7 +114,9 @@ Measure:
 - temporary-selfie top-result quality;
 - CPU time per photo and per detected face;
 - startup time, memory use, and sustained queue throughput;
-- failure behaviour, retries, deletion, and restart persistence.
+- failure behaviour, retries, deletion, and restart persistence;
+- storage growth and deletion completeness;
+- false-match review burden and user complaint handling.
 
 ## Decision checkpoint
 
@@ -113,8 +125,22 @@ Do not implement a production adapter until the owner chooses one of:
 1. CompreFace on an approved Docker-capable host;
 2. Amazon Rekognition;
 3. another provider;
-4. defer face features while shipping the gallery/upload system.
+4. defer face features while continuing gallery/upload maintenance;
+5. reject biometric processing for this project.
+
+The decision must also record:
+
+- provider and region;
+- maximum cost;
+- source-photo and embedding retention;
+- temporary-selfie deletion timing;
+- consent and notice model;
+- administrator correction workflow;
+- permanent deletion propagation;
+- incident and breach responsibilities.
 
 ## Current recommendation
 
-Proceed with the benchmark and provider-neutral application design. CompreFace is technically plausible and may reduce per-request vendor charges, but it should not yet be treated as the final provider because hosting, maintenance, and unknown-person clustering remain unproven for this wedding workload.
+Keep face features deferred until release confidence and architecture P0 work are complete. A provider-neutral benchmark may follow only after owner approval of the privacy and test-data plan.
+
+CompreFace remains technically plausible, but hosting, maintenance, unknown-person clustering, privacy and operational ownership are unproven for this wedding workload.

@@ -1,5 +1,11 @@
 # Code health audit — 2026-07
 
+> **Status:** Current architecture-debt inventory; dated audit  
+> **Reviewed again:** 2026-08-01T19:33:00+08:00 (Asia/Taipei)  
+> **Terminology:** Product Phase 1 is complete. The staged work in this document is an **architecture hardening roadmap** and remains partly open.
+
+The original audit used “Phase 1–4” for refactoring stages. To avoid confusion with the completed product phase, this reviewed version names them **Hardening Stage A–D**. The work itself is unchanged unless a later merged PR updates its status.
+
 ## Scope
 
 This audit reviewed the repository-level package graph, Replit artifacts, application entry points, GitHub Actions boundaries, Memories upload/runtime paths, Vite transform chain, current READMEs and recent merged feature history.
@@ -46,7 +52,7 @@ Removed root `googleapis` and its unused API-server externalization entry. The l
 
 The source `AdminApp.jsx` still contained a legacy single-photo uploader, upload state, save branch, photo pagination function and full photo-tab UI. Production never rendered that code because `admin-photo-workspace-ui-transform.mjs` replaced the entire photo tab with `AdminPhotoWorkspace` before React compilation.
 
-The audit removes the unreachable implementation and keeps only an explicit transform placeholder. It also removes process-content transform rules that targeted the already-replaced legacy form.
+The audit removed the unreachable implementation and kept only an explicit transform placeholder. It also removed process-content transform rules that targeted the already-replaced legacy form.
 
 ## Code-smell inventory
 
@@ -263,35 +269,43 @@ Keep focused unit tests, then add a required Playwright layer:
 - validate private batch management routing;
 - assert no console errors during core flows.
 
-## Refactoring order
+## Architecture hardening order
 
-### Phase 1 — risk containment
+### Hardening Stage A — risk containment
 
 - Add production Playwright smoke tests.
 - Add one test that runs the complete transform chain in official Vite order.
 - Introduce central route and settings registries.
 - Finish deleting transformed-away source blocks.
 
-### Phase 2 — remove Shotgun Surgery
+**Status at 2026-08-01T19:33:00+08:00:** partially complete. Full transform-chain structural tests and dead-source cleanup exist, but required Playwright coverage and central registries remain open.
+
+### Hardening Stage B — remove Shotgun Surgery
 
 - Directly render `AdminPhotoWorkspace`.
 - Directly render process/general settings tabs.
 - Extract `ProcessMediaSequence` from the public gallery.
 - Delete transforms feature by feature.
 
-### Phase 3 — domain services
+**Status:** open.
+
+### Hardening Stage C — domain services
 
 - Add administrator photo command service.
 - Move process editor data loading/persistence into a service.
 - Consolidate all-photo pagination helpers.
 - Model upload stages explicitly.
 
-### Phase 4 — legacy and dependency hygiene
+**Status:** open.
+
+### Hardening Stage D — legacy and dependency hygiene
 
 - Generate an invitation import graph.
 - Remove unused shadcn files and dependencies.
 - Replace the speculative esbuild external list.
 - Decide whether legacy photo wall and API should be archived, retained or migrated.
+
+**Status:** open; requires legacy-boundary and owner decisions.
 
 ## Priority matrix
 
@@ -306,6 +320,8 @@ Keep focused unit tests, then add a required Playwright layer:
 | P2 | Invitation import-graph cleanup | Reduce dependencies and generated dead inventory |
 | P3 | Legacy API external-list cleanup | Remove speculative build configuration |
 
+The dated execution suggestion is maintained in [`phase-1-closeout-2026-08-01.md`](phase-1-closeout-2026-08-01.md).
+
 ## Definition of done for future refactors
 
 A refactor is complete only when:
@@ -315,4 +331,4 @@ A refactor is complete only when:
 - production build renders in a real browser without console errors;
 - no migration or destructive schema plan is introduced accidentally;
 - legacy-boundary changes are explicit and owner-approved;
-- README and architecture notes match the merged implementation.
+- README, maintainer guide and architecture notes match the merged implementation.

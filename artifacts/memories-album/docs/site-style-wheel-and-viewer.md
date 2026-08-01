@@ -1,5 +1,8 @@
 # Site style, site icon, wheel looping, and photo viewer
 
+> **Status:** Current feature contract  
+> **Reviewed:** 2026-08-01T19:33:00+08:00 (Asia/Taipei)
+
 This document describes the administrator and public behavior for Memories appearance controls, the editable website icon, per-album wheel looping, responsive bottom navigation, language control, and fullscreen photo viewer.
 
 ## Administrator location and save model
@@ -110,9 +113,11 @@ Under **子分類操作方式**, the administrator can enable infinite horizonta
 
 When looping is disabled, the wheel remains finite.
 
-When looping is enabled, the wheel renders one complete interactive copy of the logical items before and after the real sequence. This fills both sides instead of showing empty space near an edge. A visible copied item can be clicked and selects the same logical label as its real counterpart.
+When looping is enabled, the wheel renders complete interactive copies of the logical sequence before and after the real items so visible options fill both directions without empty edge space. A visible copied item can be clicked and selects the same logical label as its real counterpart.
 
-Copied items are deliberately excluded from the tab role and keyboard tab order, so assistive technology still has one canonical tab identity for each logical item. After scrolling or choosing a copy, the wheel recenters on the matching real item without changing the selected route. Arrow-key navigation follows the same wrap rule.
+Copied items are deliberately excluded from the canonical tab role and keyboard tab order, so assistive technology still has one semantic tab identity for each logical item. After scrolling or choosing a copy, the wheel recenters on the matching real item without changing the selected route. Arrow-key navigation follows the same wrap rule.
+
+Only one visible wheel item receives the active visual state. The real logical item retains canonical `aria-selected` and keyboard focus semantics even when a repeated copy was clicked.
 
 The setting is stored as `process_wheel_loop_album_ids`. Unsupported or duplicate album IDs are rejected by the administrator API.
 
@@ -139,7 +144,7 @@ The loading message is the neutral **正在載入照片… / Loading photo…**.
 
 ## Persistence and migration
 
-These features reuse the existing `memories_app_settings` JSON key/value table. They introduce no database migration and make no Google Drive schema or folder change.
+These features reuse the existing `memories_app_settings` JSON key/value table. They introduce no database migration and make no Google Drive folder change.
 
 Stored settings include:
 
@@ -161,10 +166,27 @@ Preservation coverage includes:
 - pre-render style application;
 - independent title and copy merging;
 - complete clickable looping copies on both sides;
-- canonical tab semantics and keyboard wrapping;
+- one visual active wheel item and canonical tab semantics;
+- keyboard wrapping;
 - per-album loop persistence and validation;
 - responsive bottom-navigation sizing;
 - hero-contained language control;
 - thumbnail viewer behavior and true-original link;
 - global save coordination;
 - production build and server health smoke test.
+
+Current CI does not yet render the completed surface through a required Playwright browser gate. Transform-sensitive appearance or wheel changes require a real-browser check in addition to source-contract tests.
+
+## Maintainer change checklist
+
+When changing these surfaces:
+
+1. preserve the General-tab save coordinator contract;
+2. keep image bytes out of public settings JSON;
+3. verify title and body copy cannot overwrite one another;
+4. verify Safe Area, label wrapping and minimum touch targets;
+5. test finite and looping wheels with mouse, touch and keyboard;
+6. keep clone semantics separate from canonical tabs;
+7. verify the viewer on portrait and landscape photos;
+8. run the final production transform chain and browser check;
+9. update [`../../../ADMIN_GUIDE.md`](../../../ADMIN_GUIDE.md) and [`../../../MAINTAINER_GUIDE.md`](../../../MAINTAINER_GUIDE.md) when behavior changes.
