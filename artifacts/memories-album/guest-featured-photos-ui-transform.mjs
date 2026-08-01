@@ -12,22 +12,29 @@ function transformApp(source) {
   let code = replaceOnce(
     source,
     `} from "../guest-label-settings.mjs";`,
-    `} from "../guest-label-settings.mjs";\nimport {\n  pageGuestFeaturedPhotos,\n  selectGuestFeaturedPhotoIds,\n  useGuestRandomFeaturedPhotosEnabled,\n} from "./guest-featured-photos.mjs";\nimport "./guest-featured-photos.css";`,
+    `} from "../guest-label-settings.mjs";\nimport {\n  pageGuestFeaturedPhotos,\n  selectGuestFeaturedPhotoIds,\n  useGuestRandomFeaturedPhotosSettings,\n} from "./guest-featured-photos.mjs";\nimport "./guest-featured-photos.css";`,
     "guest featured-photo imports",
   );
 
   code = replaceOnce(
     code,
     `  const guestLatestPhotoCount =\n    initialPublicBootstrap.settings.guestLatestPhotoCount;`,
-    `  const guestLatestPhotoCount =\n    initialPublicBootstrap.settings.guestLatestPhotoCount;\n  const guestRandomFeaturedPhotosEnabled =\n    useGuestRandomFeaturedPhotosEnabled();`,
+    `  const guestLatestPhotoCount =\n    initialPublicBootstrap.settings.guestLatestPhotoCount;\n  const guestFeaturedPhotoSettings =\n    useGuestRandomFeaturedPhotosSettings();`,
     "guest featured-photo setting hook",
   );
 
   code = replaceOnce(
     code,
-    `  const visible = useMemo(\n    () => pagePhotos(regularFiltered, pageSize, 0).items,\n    [regularFiltered, pageSize],\n  );`,
-    `  const guestFeaturedPhotoIds = useMemo(\n    () =>\n      selectGuestFeaturedPhotoIds(regularFiltered, {\n        activeCollection,\n        activeFilter: effectiveFilter,\n        enabled: guestRandomFeaturedPhotosEnabled,\n      }),\n    [\n      regularFiltered,\n      activeCollection,\n      effectiveFilter,\n      guestRandomFeaturedPhotosEnabled,\n    ],\n  );\n  const visible = useMemo(\n    () =>\n      pageGuestFeaturedPhotos(\n        regularFiltered,\n        pageSize,\n        guestFeaturedPhotoIds,\n      ),\n    [regularFiltered, pageSize, guestFeaturedPhotoIds],\n  );`,
-    "guest featured-photo paging",
+    `      selectGuestFeaturedPhotoIds(regularFiltered, {\n        activeCollection,\n        activeFilter: effectiveFilter,\n        enabled: guestRandomFeaturedPhotosEnabled,\n      }),`,
+    `      selectGuestFeaturedPhotoIds(regularFiltered, {\n        activeCollection,\n        activeFilter: effectiveFilter,\n        enabled: guestFeaturedPhotoSettings.enabled,\n        minimum: guestFeaturedPhotoSettings.minimum,\n        maximum: guestFeaturedPhotoSettings.maximum,\n      }),`,
+    "guest featured-photo range",
+  );
+
+  code = replaceOnce(
+    code,
+    `      guestRandomFeaturedPhotosEnabled,\n`,
+    `      guestFeaturedPhotoSettings.enabled,\n      guestFeaturedPhotoSettings.minimum,\n      guestFeaturedPhotoSettings.maximum,\n`,
+    "guest featured-photo dependencies",
   );
 
   return code;
