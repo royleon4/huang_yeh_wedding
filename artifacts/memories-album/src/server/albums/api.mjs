@@ -1,7 +1,22 @@
 import { normalizeAlbumPhotoSortMode } from "../../../album-photo-order.mjs";
 import { sendAdminJson } from "../admin/auth.mjs";
 
+function normalizedFeaturedRange(album) {
+  const minimum = Number(album.featuredPhotoMin);
+  const maximum = Number(album.featuredPhotoMax);
+  if (
+    Number.isInteger(minimum) &&
+    Number.isInteger(maximum) &&
+    minimum >= 0 &&
+    maximum >= minimum
+  ) {
+    return { minimum, maximum };
+  }
+  return { minimum: 1, maximum: 3 };
+}
+
 function publicAlbum(album) {
+  const featuredRange = normalizedFeaturedRange(album);
   return {
     id: album.id,
     titleZh: album.titleZh,
@@ -11,6 +26,9 @@ function publicAlbum(album) {
     displayOrder: album.displayOrder,
     showSummary: album.showSummary !== false,
     photoSortMode: normalizeAlbumPhotoSortMode(album.photoSortMode),
+    featuredPhotosEnabled: album.featuredPhotosEnabled === true,
+    featuredPhotoMin: featuredRange.minimum,
+    featuredPhotoMax: featuredRange.maximum,
   };
 }
 
