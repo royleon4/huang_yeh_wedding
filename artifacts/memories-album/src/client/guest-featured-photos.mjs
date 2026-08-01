@@ -41,8 +41,12 @@ export function pageGuestFeaturedPhotos(photos, pageSize, featuredIds) {
   const items = Array.isArray(photos) ? photos : [];
   const limit = Math.max(0, Number(pageSize) || 0);
   const featuredSet = new Set(Array.isArray(featuredIds) ? featuredIds : []);
-  const featured = items.filter((photo) => featuredSet.has(photo.id));
-  const regular = items.filter((photo) => !featuredSet.has(photo.id));
+  const featured = items
+    .filter((photo) => featuredSet.has(photo.id))
+    .map((photo) => ({ ...photo, guestFeatured: true }));
+  const regular = items
+    .filter((photo) => !featuredSet.has(photo.id))
+    .map((photo) => ({ ...photo, guestFeatured: false }));
   return [...featured, ...regular].slice(0, limit);
 }
 
