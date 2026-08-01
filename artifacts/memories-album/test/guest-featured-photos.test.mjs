@@ -4,6 +4,7 @@ import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 import {
+  createFeaturedPhotoSelectionSession,
   isAlbumFilter,
   normalizeFeaturedPhotoRange,
   pageFeaturedPhotos,
@@ -113,6 +114,56 @@ test("featured photos are placed first and marked without increasing page size",
   );
 });
 
+test("one page session reuses the same featured photos after lightbox rerenders", () => {
+  const photos = ["a", "b", "c", "d"].map((id) => ({ id }));
+  let randomCalls = 0;
+  const session = createFeaturedPhotoSelectionSession({
+    random: () => {
+      randomCalls += 1;
+      return 0;
+    },
+  });
+  const options = {
+    activeCollection: "guest",
+    activeFilter: "all",
+    enabled: true,
+    minimum: 2,
+    maximum: 2,
+  };
+
+  const first = session.select(photos, options);
+  const callsAfterFirstSelection = randomCalls;
+  const second = session.select(photos, options);
+
+  assert.deepEqual(first, ["b", "c"]);
+  assert.deepEqual(second, first);
+  assert.equal(randomCalls, callsAfterFirstSelection);
+  assert.deepEqual(
+    pageFeaturedPhotos(photos, 4, first).map((photo) => photo.id),
+    pageFeaturedPhotos(photos, 4, second).map((photo) => photo.id),
+  );
+});
+
+test("a new page session may choose a new featured-photo arrangement", () => {
+  const photos = ["a", "b", "c", "d"].map((id) => ({ id }));
+  const options = {
+    activeCollection: "life",
+    activeFilter: "all",
+    enabled: true,
+    minimum: 2,
+    maximum: 2,
+  };
+  const firstSession = createFeaturedPhotoSelectionSession({ random: () => 0 });
+  const reloadedSession = createFeaturedPhotoSelectionSession({
+    random: () => 0.999,
+  });
+
+  assert.notDeepEqual(
+    firstSession.select(photos, options),
+    reloadedSession.select(photos, options),
+  );
+});
+
 test("UI transform places numeric controls inside every album editor", async () => {
   const config = await readFile(path.join(root, "vite.routes.config.js"), "utf8");
   const transform = await readFile(
@@ -129,6 +180,8 @@ test("UI transform places numeric controls inside every album editor", async () 
   assert.match(transform, /type=\"number\"/);
   assert.match(transform, /0～3/);
   assert.match(transform, /featuredAlbumDefinition/);
+  assert.match(transform, /createFeaturedPhotoSelectionSession/);
+  assert.match(transform, /featuredPhotoSelectionSession\.select/);
 });
 
 test("featured card spans two grid columns", async () => {
