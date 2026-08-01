@@ -2,18 +2,46 @@ import { useEffect, useMemo, useState } from "react";
 import {
   DEFAULT_SITE_COPY,
   SITE_COPY_GROUPS,
+  SITE_COPY_TITLE_KEY,
   normalizeSiteCopy,
 } from "../site-copy.mjs";
 import { adminErrorMessage, adminRequest } from "./admin-client.mjs";
 import { useAdminSaveSection } from "./AdminSaveCoordinator.jsx";
 import "./website-copy-settings.css";
 
+const EDITABLE_GROUPS = SITE_COPY_GROUPS.map((group) => ({
+  ...group,
+  fields: group.fields.filter((field) => field.key !== SITE_COPY_TITLE_KEY),
+})).filter((group) => group.fields.length > 0);
+const EDITABLE_KEYS = new Set(
+  EDITABLE_GROUPS.flatMap((group) => group.fields.map((field) => field.key)),
+);
+
 function cloneCopy(value) {
   return normalizeSiteCopy(JSON.parse(JSON.stringify(value ?? {})));
 }
 
+function editableSnapshot(value) {
+  const copy = normalizeSiteCopy(value);
+  return Object.fromEntries(
+    ["zh", "en"].map((language) => [
+      language,
+      Object.fromEntries(
+        Object.entries(copy[language]).filter(([key]) => EDITABLE_KEYS.has(key)),
+      ),
+    ]),
+  );
+}
+
 function sameCopy(left, right) {
-  return JSON.stringify(left) === JSON.stringify(right);
+  return JSON.stringify(editableSnapshot(left)) === JSON.stringify(editableSnapshot(right));
+}
+
+function defaultCopyPreservingTitle(current) {
+  const next = cloneCopy(DEFAULT_SITE_COPY);
+  next.zh[SITE_COPY_TITLE_KEY] = current.zh[SITE_COPY_TITLE_KEY];
+  next.en[SITE_COPY_TITLE_KEY] = current.en[SITE_COPY_TITLE_KEY];
+  return next;
 }
 
 export default function WebsiteCopySettings() {
@@ -67,7 +95,7 @@ export default function WebsiteCopySettings() {
     try {
       const response = await adminRequest("/admin/api/settings", {
         method: "PATCH",
-        body: { siteCopy: draft },
+        body: { siteCopyPatch: editableSnapshot(draft) },
         timeoutMs: 30_000,
       });
       const next = normalizeSiteCopy(response.siteCopy);
@@ -101,9 +129,9 @@ export default function WebsiteCopySettings() {
       <div className="website-copy-heading">
         <div>
           <p className="admin-kicker">WEBSITE COPY</p>
-          <h2 id="website-copy-title">網站文字</h2>
+          <h2 id="website-copy-title">其他網站文字</h2>
           <p>
-            編輯公開照片牆的中英文文字。主標題支援換行，輸入幾行就會在前台顯示幾行。
+            編輯公開照片牆的中英文說明、日期與系統文字。網站主標題已移到「樣式與首頁首圖」，避免兩個區塊同時修改同一份資料。
           </p>
         </div>
         <div className="website-copy-actions">
@@ -111,7 +139,7 @@ export default function WebsiteCopySettings() {
             type="button"
             className="secondary"
             onClick={() => {
-              setDraft(cloneCopy(DEFAULT_SITE_COPY));
+              setDraft((current) => defaultCopyPreservingTitle(current));
               setMessage("");
               setError("");
             }}
@@ -122,12 +150,7 @@ export default function WebsiteCopySettings() {
         </div>
       </div>
 
-      <div className="website-title-preview" aria-label="主標題預覽">
-        <small>主標題預覽</small>
-        <strong>{draft.zh.archive || "（空白）"}</strong>
-      </div>
-
-      {SITE_COPY_GROUPS.map((group, groupIndex) => (
+      {EDITABLE_GROUPS.map((group, groupIndex) => (
         <details className="website-copy-group" key={group.id} open={groupIndex === 0}>
           <summary>{group.label}</summary>
           <div className="website-copy-language-grid">
@@ -146,7 +169,7 @@ export default function WebsiteCopySettings() {
                         onChange={(event) =>
                           update(language, field.key, event.target.value)
                         }
-                        rows={field.key === "archive" ? 3 : 4}
+                        rows="4"
                         maxLength={field.maxLength}
                         disabled={saving}
                       />
