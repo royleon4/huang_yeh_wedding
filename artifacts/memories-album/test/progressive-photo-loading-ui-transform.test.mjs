@@ -51,9 +51,9 @@ test("background failure keeps the initial gallery and abort is not shown as an 
 
 test("progressive loading remains compatible with the production transform chain", async () => {
   let app = await readFile(appPath, "utf8");
+  app = run(progressivePhotoLoadingUiTransform(), app);
   app = run(processContentUiTransform(), app);
   app = run(adminPhotoWorkspaceUiTransform(), app);
-  app = run(progressivePhotoLoadingUiTransform(), app);
   app = run(logicalRouteUiTransform(), app);
   app = run(websiteCopyUiTransform(), app);
   app = run(publicBootstrapUiTransform(), app);
