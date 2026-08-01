@@ -19,7 +19,10 @@ export default function PhotoGroupGrid({
             allVisiblePhotos.findIndex((item) => item.id === photo.id),
           );
           return (
-            <article className="photo-card" key={photo.id}>
+            <article
+              className={`photo-card${photo.guestFeatured ? " is-guest-featured" : ""}`}
+              key={photo.id}
+            >
               <button
                 type="button"
                 className="photo-open"
