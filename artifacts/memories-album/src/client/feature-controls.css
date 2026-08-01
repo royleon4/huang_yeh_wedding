@@ -1,5 +1,19 @@
 .header-tools {
+  --language-toggle-edge: clamp(0.65rem, 2.5vw, 1.1rem);
+  position: fixed;
+  top: max(var(--language-toggle-edge), env(safe-area-inset-top));
+  right: max(var(--language-toggle-edge), env(safe-area-inset-right));
+  left: auto;
+  width: max-content;
+  display: flex;
   justify-content: flex-end;
+  z-index: 65;
+  pointer-events: none;
+}
+
+.header-tools .quiet-button {
+  min-height: 2.75rem;
+  pointer-events: auto;
 }
 
 .archive-shell {
