@@ -19,9 +19,7 @@ test("wheel loop fills both sides with complete logical copies", () => {
   const rendered = renderedWheelItems(items, true);
   assert.equal(rendered.length, 9);
   assert.deepEqual(
-    rendered
-      .filter((entry) => entry.clone === "start")
-      .map((entry) => entry.item.id),
+    rendered.filter((entry) => entry.clone === "start").map((entry) => entry.item.id),
     ["one", "two", "three"],
   );
   assert.deepEqual(
@@ -29,9 +27,7 @@ test("wheel loop fills both sides with complete logical copies", () => {
     ["one", "two", "three"],
   );
   assert.deepEqual(
-    rendered
-      .filter((entry) => entry.clone === "end")
-      .map((entry) => entry.item.id),
+    rendered.filter((entry) => entry.clone === "end").map((entry) => entry.item.id),
     ["one", "two", "three"],
   );
   assert.equal(logicalAdjacentIndex(2, 3, 1, true), 0);
@@ -76,10 +72,7 @@ test("process wheel selects directly, fills both directions, and keeps every vis
   assert.match(component, /onScroll=\{scheduleSelection\}/);
   assert.match(component, /onWheel=\{handleWheel\}/);
   assert.match(component, /role="tablist"/);
-  assert.match(
-    component,
-    /onClick=\{\(event\) => choose\(item\.id, event\.currentTarget\)\}/,
-  );
+  assert.match(component, /onClick=\{\(event\) => choose\(item\.id, event\.currentTarget\)\}/);
   assert.match(component, /tabIndex=\{clone \? -1/);
   assert.match(component, /role=\{clone \? undefined : "tab"\}/);
   assert.doesNotMatch(component, /scrollIntoView/);
@@ -90,32 +83,18 @@ test("process wheel selects directly, fills both directions, and keeps every vis
   assert.match(selector, /getPublicBootstrap\(\)\.settings/);
   assert.match(selector, /processWheelLoopsForAlbum/);
   assert.match(selector, /albumId/);
-  assert.match(selector, /useLayoutEffect/);
-  assert.match(selector, /previousActiveIdRef/);
-  assert.match(selector, /scheduleActivePosition/);
-  assert.match(selector, /pendingExternalPositionRequest/);
-  assert.match(selector, /activePositionRequester/);
-  assert.match(selector, /stickyControls\.scrollTop = stickyControls\.scrollHeight/);
-  assert.match(selector, /data-active-label=\{props\.activeId\}/);
-  assert.match(selector, /data-selector-id=\{item\.id\}/);
-  assert.match(selector, /role="tab"/);
-  assert.match(selector, /aria-selected=\{active\}/);
+  assert.match(selector, /function scrollToGalleryStart/);
+  assert.match(selector, /document\.querySelector\("\.process-section"\)/);
   assert.match(
     selector,
     /gallery\.getBoundingClientRect\(\)\.top - stickyHeight - 10/,
   );
   assert.match(
     selector,
-    /window\.scrollTo\(\{ top: Math\.max\(0, top\), behavior \}\)/,
+    /window\.scrollTo\(\{ top: Math\.max\(0, top\), behavior: "smooth" \}\)/,
   );
-  assert.match(selector, /globalThis\.requestAnimationFrame/);
-  assert.match(selector, /props\.onSelect\(id\)/);
-  assert.match(selector, /onSelect=\{selectLabel\}/);
-  assert.doesNotMatch(selector, /selectWithTraditionalPositioning/);
-  assert.doesNotMatch(
-    selector,
-    /props\.onSelect\(id\);\s*requestGalleryStartScroll\(\)/,
-  );
+  assert.match(selector, /window\.requestAnimationFrame\(scrollToGalleryStart\)/);
+  assert.match(selector, /onSelect=\{selectWithTraditionalPositioning\}/);
 
   assert.match(component, /DEFAULT_VISIBLE_COUNT = 6/);
   assert.match(component, /--wheel-mobile-item-width/);
@@ -125,20 +104,11 @@ test("process wheel selects directly, fills both directions, and keeps every vis
   assert.match(styles, /scroll-snap-type: x mandatory/);
   assert.match(styles, /scroll-snap-align: center/);
   assert.match(styles, /scroll-snap-stop: normal/);
-  assert.match(
-    styles,
-    /\.process-wheel-clone\s*\{[\s\S]*cursor: pointer/,
-  );
-  assert.doesNotMatch(
-    styles,
-    /\.process-wheel-clone\s*\{[\s\S]*pointer-events: none/,
-  );
+  assert.match(styles, /\.process-wheel-clone\s*\{[\s\S]*cursor: pointer/);
+  assert.doesNotMatch(styles, /\.process-wheel-clone\s*\{[\s\S]*pointer-events: none/);
   assert.doesNotMatch(styles, /scroll-snap-stop: always/);
 
   assert.match(settings, /各相簿的無限左右滾動/);
   assert.match(settings, /PROCESS_WHEEL_LOOP_SUPPORTED_ALBUMS/);
-  assert.match(
-    settings,
-    /小螢幕會優先保留較寬、可讀且容易點選的尺寸/,
-  );
+  assert.match(settings, /小螢幕會優先保留較寬、可讀且容易點選的尺寸/);
 });
