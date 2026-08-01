@@ -58,6 +58,53 @@ export function selectFeaturedPhotoIds(
     .map((photo) => photo.id);
 }
 
+function selectionKey({
+  activeCollection,
+  activeFilter,
+  minimum,
+  maximum,
+}) {
+  return JSON.stringify([
+    String(activeCollection ?? ""),
+    String(activeFilter ?? ""),
+    Number(minimum),
+    Number(maximum),
+  ]);
+}
+
+export function createFeaturedPhotoSelectionSession({
+  random = Math.random,
+} = {}) {
+  const selections = new Map();
+
+  return {
+    select(photos, options = {}) {
+      const items = Array.isArray(photos) ? photos : [];
+      if (
+        !options.enabled ||
+        !isAlbumFilter(options.activeCollection, options.activeFilter) ||
+        items.length === 0
+      ) {
+        return [];
+      }
+
+      const key = selectionKey(options);
+      if (!selections.has(key)) {
+        selections.set(
+          key,
+          selectFeaturedPhotoIds(items, {
+            ...options,
+            random,
+          }),
+        );
+      }
+
+      const availableIds = new Set(items.map((photo) => photo.id));
+      return selections.get(key).filter((id) => availableIds.has(id));
+    },
+  };
+}
+
 export function pageFeaturedPhotos(photos, pageSize, featuredIds) {
   const items = Array.isArray(photos) ? photos : [];
   const limit = Math.max(0, Number(pageSize) || 0);
