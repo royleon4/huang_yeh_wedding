@@ -83,18 +83,11 @@ test("process wheel selects directly, fills both directions, and keeps every vis
   assert.match(selector, /getPublicBootstrap\(\)\.settings/);
   assert.match(selector, /processWheelLoopsForAlbum/);
   assert.match(selector, /albumId/);
-  assert.match(selector, /function scrollToGalleryStart/);
-  assert.match(selector, /document\.querySelector\("\.process-section"\)/);
-  assert.match(
-    selector,
-    /gallery\.getBoundingClientRect\(\)\.top - stickyHeight - 10/,
-  );
-  assert.match(
-    selector,
-    /window\.scrollTo\(\{ top: Math\.max\(0, top\), behavior: "smooth" \}\)/,
-  );
-  assert.match(selector, /window\.requestAnimationFrame\(scrollToGalleryStart\)/);
-  assert.match(selector, /onSelect=\{selectWithTraditionalPositioning\}/);
+  assert.doesNotMatch(selector, /window\.scrollTo|window\.scrollBy|scrollIntoView/);
+  assert.doesNotMatch(selector, /getBoundingClientRect/);
+  assert.doesNotMatch(selector, /selectWithTraditionalPositioning/);
+  assert.match(selector, /<ProcessWheel[\s\S]*\{\.\.\.props\}/);
+  assert.match(selector, /return <TraditionalSelector \{\.\.\.props\} \/>/);
 
   assert.match(component, /DEFAULT_VISIBLE_COUNT = 6/);
   assert.match(component, /--wheel-mobile-item-width/);
