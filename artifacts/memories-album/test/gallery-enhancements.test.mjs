@@ -58,19 +58,27 @@ test("masonry row spans cover the rendered card height", () => {
   assert.equal(masonryRowSpan(250, 8, 10), 15);
 });
 
-test("Memories hides the redundant nav and wires delegated title taps", async () => {
-  const css = await readFile(
-    new URL("../src/client/gallery-tweaks.css", import.meta.url),
-    "utf8",
-  );
-  const enhancement = await readFile(
-    new URL("../src/client/GalleryEnhancements.jsx", import.meta.url),
-    "utf8",
-  );
+test("Memories hides the redundant nav and separates public enhancements from masonry", async () => {
+  const [css, enhancement, masonry] = await Promise.all([
+    readFile(
+      new URL("../src/client/gallery-tweaks.css", import.meta.url),
+      "utf8",
+    ),
+    readFile(
+      new URL("../src/client/GalleryEnhancements.jsx", import.meta.url),
+      "utf8",
+    ),
+    readFile(
+      new URL("../src/client/use-masonry-grid.mjs", import.meta.url),
+      "utf8",
+    ),
+  ]);
 
   assert.match(css, /\.primary-nav\s*\{[\s\S]*display:\s*none\s*!important/);
   assert.match(css, /grid-auto-rows:\s*8px/);
   assert.match(enhancement, /\.archive-header h1/);
   assert.match(enhancement, /adminEntryDestination/);
-  assert.match(enhancement, /masonryRowSpan/);
+  assert.doesNotMatch(enhancement, /masonryRowSpan|ResizeObserver|window\.scroll/);
+  assert.match(masonry, /masonryRowSpan/);
+  assert.match(masonry, /ResizeObserver/);
 });
