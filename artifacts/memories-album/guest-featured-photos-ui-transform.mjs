@@ -12,14 +12,14 @@ function transformApp(source) {
   let code = replaceOnce(
     source,
     `} from "../guest-label-settings.mjs";`,
-    `} from "../guest-label-settings.mjs";\nimport {\n  pageFeaturedPhotos,\n  selectFeaturedPhotoIds,\n} from "./guest-featured-photos.mjs";\nimport "./guest-featured-photos.css";`,
+    `} from "../guest-label-settings.mjs";\nimport {\n  createFeaturedPhotoSelectionSession,\n  pageFeaturedPhotos,\n} from "./guest-featured-photos.mjs";\nimport "./guest-featured-photos.css";\n\nconst featuredPhotoSelectionSession =\n  createFeaturedPhotoSelectionSession();`,
     "album featured-photo imports",
   );
 
   code = replaceOnce(
     code,
     `  const visible = useMemo(\n    () => pagePhotos(regularFiltered, pageSize, 0).items,\n    [regularFiltered, pageSize],\n  );`,
-    `  const featuredAlbumDefinition =\n    albums.find((album) => album.id === activeCollection) ?? albums[0];\n  const featuredPhotoIds = useMemo(\n    () =>\n      selectFeaturedPhotoIds(regularFiltered, {\n        activeCollection,\n        activeFilter: effectiveFilter,\n        enabled: featuredAlbumDefinition?.featuredPhotosEnabled === true,\n        minimum: Number(featuredAlbumDefinition?.featuredPhotoMin ?? 1),\n        maximum: Number(featuredAlbumDefinition?.featuredPhotoMax ?? 3),\n      }),\n    [\n      regularFiltered,\n      activeCollection,\n      effectiveFilter,\n      featuredAlbumDefinition?.featuredPhotosEnabled,\n      featuredAlbumDefinition?.featuredPhotoMin,\n      featuredAlbumDefinition?.featuredPhotoMax,\n    ],\n  );\n  const visible = useMemo(\n    () => pageFeaturedPhotos(regularFiltered, pageSize, featuredPhotoIds),\n    [regularFiltered, pageSize, featuredPhotoIds],\n  );`,
+    `  const featuredAlbumDefinition =\n    albums.find((album) => album.id === activeCollection) ?? albums[0];\n  const featuredPhotoIds = useMemo(\n    () =>\n      featuredPhotoSelectionSession.select(regularFiltered, {\n        activeCollection,\n        activeFilter: effectiveFilter,\n        enabled: featuredAlbumDefinition?.featuredPhotosEnabled === true,\n        minimum: Number(featuredAlbumDefinition?.featuredPhotoMin ?? 1),\n        maximum: Number(featuredAlbumDefinition?.featuredPhotoMax ?? 3),\n      }),\n    [\n      regularFiltered,\n      activeCollection,\n      effectiveFilter,\n      featuredAlbumDefinition?.featuredPhotosEnabled,\n      featuredAlbumDefinition?.featuredPhotoMin,\n      featuredAlbumDefinition?.featuredPhotoMax,\n    ],\n  );\n  const visible = useMemo(\n    () => pageFeaturedPhotos(regularFiltered, pageSize, featuredPhotoIds),\n    [regularFiltered, pageSize, featuredPhotoIds],\n  );`,
     "album featured-photo paging",
   );
 
