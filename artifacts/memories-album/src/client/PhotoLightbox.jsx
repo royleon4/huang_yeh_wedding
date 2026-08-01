@@ -34,6 +34,8 @@ export default function PhotoLightbox({
   const isEnglish = labels.close === "Close";
   const loadingLabel = isEnglish ? "Loading photo…" : "正在載入照片…";
   const viewOriginalLabel = isEnglish ? "View original" : "查看原圖";
+  const uploaderLabel = isEnglish ? "Uploaded by" : "上傳者";
+  const uploaderName = String(photo?.uploaderName ?? "").trim();
 
   const resetView = () => {
     setZoom(MIN_ZOOM);
@@ -273,6 +275,14 @@ export default function PhotoLightbox({
           onError={() => setLoading(false)}
           style={{ transform }}
         />
+        {uploaderName && (
+          <div
+            className="photo-viewer-uploader"
+            aria-label={`${uploaderLabel}：${uploaderName}`}
+          >
+            {uploaderName}
+          </div>
+        )}
       </div>
 
       <button
@@ -289,9 +299,6 @@ export default function PhotoLightbox({
         <span>
           {selectedIndex + 1} / {photos.length}
         </span>
-        <strong>
-          {photo.source === "guest" ? labels.guest : photo.uploaderName}
-        </strong>
         <small>{labels.zoomHint}</small>
       </footer>
     </section>
