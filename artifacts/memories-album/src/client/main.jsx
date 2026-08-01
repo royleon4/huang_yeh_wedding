@@ -11,6 +11,7 @@ import {
   PROCESS_DEFINITIONS,
 } from "./gallery-model.mjs";
 import "./styles.css";
+import "./site-style-public.css";
 import "./collections.css";
 import "./upload.css";
 import "./photo-lightbox.css";
