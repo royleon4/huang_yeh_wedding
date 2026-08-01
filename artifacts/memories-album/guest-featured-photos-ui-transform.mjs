@@ -36,13 +36,6 @@ function transformAdmin(source) {
 
   code = replaceOnce(
     code,
-    `  isVisible: true,\n};`,
-    `  isVisible: true,\n  featuredPhotosEnabled: false,\n  featuredPhotoMin: 1,\n  featuredPhotoMax: 3,\n};`,
-    "new album featured-photo defaults",
-  );
-
-  code = replaceOnce(
-    code,
     `import "./admin-save-bar.css";`,
     `import "./admin-save-bar.css";\nimport "./guest-featured-photos.css";`,
     "album featured-photo styles",
