@@ -2,18 +2,22 @@
 
 婚禮邀請網站與照片檔案館的 pnpm monorepo。
 
-目前主要開發的是 **Standalone Memories**：部署於 `/Memories/` 的雙語婚禮相簿，包含訪客上傳、私人批次管理、Google Drive 原圖與縮圖、PostgreSQL 索引，以及管理後台。
+目前主要開發的是 **Standalone Memories**：部署於 `/Memories/` 的雙語婚禮相簿，包含公開照片牆、訪客上傳、私人批次管理、Google Drive 原圖與縮圖、PostgreSQL 索引，以及管理後台。
 
-> 文件與功能盤點日期：2026-08-01
+> 文件與功能盤點日期：2026-08-01  
+> 不確定該讀哪一份時，先看 [`DOCUMENTATION.md`](DOCUMENTATION.md)。
 
-## 從這裡開始
+## 先選擇你的角色
 
-| 你是誰 | 建議先看 |
-| --- | --- |
-| 親友／賓客 | [婚禮照片網站超簡單使用說明](EASY_USER_GUIDE.md) |
-| 網站管理員 | [管理員超簡單操作說明](ADMIN_GUIDE.md) |
-| 開發者 | [Standalone Memories 技術文件](artifacts/memories-album/README.md) |
-| 維護或重構程式的人 | [程式品質稽核與重構路線](docs/code-health-audit-2026-07.md) |
+| 角色 | 建議先看 | 可以完成的事 |
+| --- | --- | --- |
+| 只想看照片的親友 | [親友／賓客超簡單說明](EASY_USER_GUIDE.md#我只想看照片) | 選相簿、看流程、放大照片、開啟原圖、切換中英文 |
+| 想分享照片的親友 | [上傳照片說明](EASY_USER_GUIDE.md#我想上傳照片) | 上傳照片、繼續未完成項目、保存私人管理連結 |
+| 已上傳照片的人 | [私人管理說明](EASY_USER_GUIDE.md#我想管理自己上傳的照片) | 查看該批照片、更新私人連結、永久刪除自己的照片 |
+| 網站管理員／內容編輯者 | [管理員操作說明](ADMIN_GUIDE.md) | 管理外觀、文字、相簿、流程、照片、訪客標籤與上傳設定 |
+| 網站擁有者／部署維運者 | [部署與維運說明](OPERATIONS_GUIDE.md) | 設定 Replit、Drive、Secrets、migration、發布與事故排查 |
+| 開發者 | [Standalone Memories 技術文件](artifacts/memories-album/README.md) | 本機啟動、測試、API、資料責任與架構邊界 |
+| 重構或長期維護者 | [程式品質稽核與重構路線](docs/code-health-audit-2026-07.md) | 理解 transform 風險、技術債與安全重構順序 |
 
 ## 專案組成
 
@@ -36,21 +40,21 @@ Memories 與舊邀請網站是不同的應用：
 
 ### 公開相簿
 
-- 繁體中文與英文介面；英文網址在 `/Memories` 後加入 `/en`。
-- 相簿、流程、訪客姓名標籤及管理分頁使用**穩定身分網址**；重新排序不會改變既有網址。
-- 已刪除或被隱藏而不可使用的標籤網址會被視為找不到，再導向最近的有效相簿網址。
+- 繁體中文與英文介面；英文網址在 `/Memories` 後加入 `/en`，語言切換按鈕位於首頁標題區。
+- 相簿、流程、訪客姓名標籤、管理分頁與照片使用**穩定身分網址**；重新排序不會改變既有網址。
 - 點選子分類、直接開啟網址、重新整理，以及瀏覽器上一頁／下一頁，會還原選擇並定位到照片區。
 - 婚禮流程可包含 YouTube、雙語文章、Drive 附件、分隔空間、1～3 張置頂照片與瀑布牆。
-- 訪客相簿可獨立顯示或隱藏「最新照片」、「所有訪客」與姓名標籤；姓名順序由管理員拖曳，新名字加在最後。
+- 訪客相簿可獨立顯示或隱藏「最新照片」、「所有訪客」與姓名標籤；姓名順序由管理員保存，新名字加在最後。
 - 「最新照片」標籤可設定顯示最近 30～50 張照片。
-- 管理員可編輯公開網站的中英文文字；主標題支援換行。
-- 公開頁面會在第一次 React render 前，一次讀取相簿、流程與公開設定。正常載入時，第一個畫面直接使用管理員已儲存的文字、輪盤模式、排序、標籤與置頂設定，不會先顯示 bundled defaults 再切換。
+- 管理員可調整首頁背景、遮罩、主標題、全站配色、底部導覽顏色與網站圖示。
+- 傳統子分類按鈕與輪盤式選擇器皆可使用；婚禮流程與訪客相簿可分別開啟輪盤循環。
+- 公開頁面會在第一次 React render 前讀取並正規化相簿、流程、文字、樣式與公開設定，避免先顯示預設值再跳動。
 - 圖片使用 lazy loading；大量照片以「載入更多回憶」限制 DOM 與記憶體用量。
-- 全螢幕檢視器重用已載入縮圖，並完整顯示直式與橫式照片。
+- 全螢幕檢視器先重用已載入縮圖；左上角的「查看原圖」會在新分頁開啟受控原圖，右上角可關閉。
 
 ### 訪客上傳與私人管理
 
-- 每批可上傳張數由管理員設定為 **1～100 張**；預設為 **10 張**，前台會顯示目前限制。
+- 每批可選張數由管理員設定為 **1～100 張**；預設為 **10 張**，前台會顯示目前限制。
 - 每張最多 **25 MB**，支援 JPEG、PNG、WebP、HEIC 與 HEIF。
 - 管理員可以自訂中英文上傳說明。
 - 瀏覽器最多同時處理 3 張，並使用公平兩輪重試；提高選取上限不會讓所有照片同時傳送。
@@ -71,19 +75,20 @@ Memories 與舊邀請網站是不同的應用：
 
 管理員可以：
 
+- 編輯首頁首圖、遮罩、網站主標題、整體／首頁／底部導覽配色。
+- 上傳或移除瀏覽器分頁與手機主畫面使用的網站圖示。
+- 編輯中英文網站文字；主標題與其他文案由不同卡片管理，避免彼此覆蓋。
+- 選擇傳統按鈕或輪盤式子分類操作，並按相簿決定是否循環。
 - 新增、編輯、排序及顯示／隱藏相簿。
 - 新增、改名、排序及維護 Drive-backed 婚禮流程。
 - 編輯影片、自動播放、雙語文章、附件、分隔空間與置頂照片。
-- 編輯中英文網站文字及多行主標題。
-- 在「訪客上傳」相簿內設定三種標籤可見性、姓名標籤順序與最新照片張數。
+- 在「訪客上傳」相簿內設定三種標籤可見性、姓名順序與最新照片張數。
 - 設定訪客與管理員每次可選取 **1～100 張**照片；預設分別為 10 與 30 張。
-- 依相簿、流程與作者篩選照片。
-- 編輯照片名稱、拍攝時間、作者、公開狀態、相簿與流程關聯。
-- 在目前照片頁多選照片，批次調整分類、批次修改上傳者／作者，或永久刪除。
+- 依相簿、流程與作者篩選照片，編輯照片資料，並在目前頁面執行批次分類、作者修改或永久刪除。
 - 重新掃描 Drive、清理縮圖並重建背景衍生圖。
 - 使用全域「儲存所有變更」保存一般 draft；失敗時保留未儲存內容。
 
-管理畫面目前使用手動 Accordion；照片預覽每頁 10 張，桌面每列 5 張，窄畫面會自動減少欄數。作者為 `婚禮攝影` 的照片有前端與伺服器端刪除保護。
+管理畫面使用收合區塊。照片預覽每頁 10 張，桌面每列 5 張，窄畫面會自動減少欄數。作者為 `婚禮攝影` 的照片有前端與伺服器端刪除保護。
 
 ## 主要網址
 
@@ -126,13 +131,9 @@ flowchart LR
 
 ### 公開頁面啟動流程
 
-公開相簿不再讓各元件分別抓取相同設定。`public-bootstrap.mjs` 會在建立 React root 前平行讀取：
+`public-bootstrap.mjs` 會在建立公開 React root 前，平行讀取相簿、設定與流程。完成正規化後，同一份 snapshot 提供給網站文字、首頁樣式、網站圖示、相簿、流程選擇器、訪客標籤、媒體順序、置頂圖片及訪客上傳分類。
 
-1. `/Memories/api/albums`
-2. `/Memories/api/settings`
-3. `/Memories/api/processes`
-
-完成正規化後，同一份 snapshot 會提供給標題文字、相簿、流程選擇器、訪客標籤、媒體順序、置頂圖片及訪客上傳分類。若個別 endpoint 暫時失敗，成功取得的資源仍保留，失敗的部分才使用安全 fallback；不會先 render 預設內容再二次改畫面。
+若個別 endpoint 暫時失敗，成功取得的資源仍保留，失敗部分才使用安全 fallback；不會先 render 預設內容再二次切換。
 
 ## Repository 結構
 
@@ -146,7 +147,7 @@ flowchart LR
 | `lib/api-zod` | `@workspace/api-zod` | legacy API 使用的 Zod 產物 |
 | `lib/db` | `@workspace/db` | legacy API 的 Drizzle／PostgreSQL 層 |
 | `scripts` | `@workspace/scripts` | workspace build、安全檢查與邊界工具 |
-| `docs` | 技術文件 | 架構、Drive、部署、安全與重構文件 |
+| `docs` | 技術與維運文件 | 架構、Drive、部署、安全、故障排查與重構文件 |
 
 ## 資料與安全責任
 
@@ -158,7 +159,7 @@ flowchart LR
 | 編號流程名稱與排序 | Google Drive 資料夾，鏡像至 PostgreSQL |
 | 影片、文章與附件 metadata | PostgreSQL；附件 bytes 在 Drive |
 | 上傳批次、token hash、內容雜湊與續傳狀態 | PostgreSQL |
-| UI、網站文字、排序、標籤、置頂圖與上傳模式 | PostgreSQL `memories_app_settings` |
+| UI、網站文字、樣式、圖示、排序、標籤、置頂圖與上傳模式 | PostgreSQL `memories_app_settings` |
 | 管理密碼 | Replit Secret `MEMORIES_ADMIN_TOKEN` |
 | 管理 session | 30 分鐘 HMAC-signed HttpOnly cookie |
 
@@ -237,7 +238,7 @@ Migration runner 會保存 checksum、使用 PostgreSQL advisory lock，並只�
 
 Standalone Memories CI 目前包含：
 
-1. Node test runner 全套測試，包括 public bootstrap 的 partial-failure、單次載入與訪客標籤行為保存測試。
+1. Node test runner 全套測試，包括 public bootstrap、設定保存與路由行為測試。
 2. 完整 Vite transform chain 的最終程式結構檢查。
 3. Vite production build 與 server bundle。
 4. 啟動 `dist/server.mjs` 並檢查 `/Memories/api/health`。
@@ -245,24 +246,23 @@ Standalone Memories CI 目前包含：
 
 CI 尚未以 Playwright 或其他真實瀏覽器執行完整 React render。涉及 build-time transforms 的變更，仍應檢查最終輸出與實際瀏覽器畫面。
 
-### 變更後結構整理原則
-
-完成並驗證功能變更後，才可另外進行小範圍、行為不變的結構整理。這個 pass 應由既有測試與新增的 preservation tests 保護，只針對剛完成的功能移除重複決策、集中共同規則；不應藉機做 repository-wide cleanup。
-
 ## 已知限制
 
 - 目前刪除為立即永久刪除，沒有七天垃圾桶或復原流程。
 - 直接從 Drive 刪除原圖不會完成網站資料清理；請使用管理後台或私人管理頁。
 - 人物分類與自拍找照片仍是後續功能。
 - 仍需更多 iOS Safari、Android Chrome、LINE／Instagram 內建瀏覽器及慢速網路實機驗收。
-- 多個 Vite pre-transform 仍以 exact-string replacement 修改 React source，是目前最大的維護風險；公開資料載入與訪客標籤決策已集中到共享純函式，但仍需逐步把相容 transform 搬回正式元件。
+- 多個 Vite pre-transform 仍以 exact-string replacement 修改 React source，是目前最大的維護風險。
 - 管理員上傳後的分類仍由前端追加 PATCH，尚未整合成伺服器端原子 command。
 
-## 文件索引
+## 文件入口
 
+- [依角色選文件與判斷文件狀態](DOCUMENTATION.md)
 - [親友／賓客使用說明](EASY_USER_GUIDE.md)
 - [管理員操作說明](ADMIN_GUIDE.md)
+- [部署與維運說明](OPERATIONS_GUIDE.md)
 - [Standalone Memories 技術文件](artifacts/memories-album/README.md)
+- [首頁樣式、輪盤循環與照片檢視器](artifacts/memories-album/docs/site-style-wheel-and-viewer.md)
 - [穩定身分網址規格](artifacts/memories-album/docs/logical-routes.md)
 - [架構邊界](docs/memories/architecture-boundary.md)
 - [Google Drive 儲存](docs/memories/storage-drive.md)

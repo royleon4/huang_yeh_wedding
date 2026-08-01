@@ -1,8 +1,8 @@
-# Site style, wheel looping, and photo viewer
+# Site style, site icon, wheel looping, and photo viewer
 
-This document describes the administrator and public behavior introduced for the Memories appearance controls, per-album wheel looping, responsive bottom navigation, and fullscreen photo viewer.
+This document describes the administrator and public behavior for Memories appearance controls, the editable website icon, per-album wheel looping, responsive bottom navigation, language control, and fullscreen photo viewer.
 
-## Administrator location
+## Administrator location and save model
 
 Open:
 
@@ -10,7 +10,16 @@ Open:
 /Memories/admin/general
 ```
 
-The General tab contains **樣式與首頁首圖**. Changes participate in the existing page-level **儲存所有變更** workflow. Choosing, removing, or resetting an image remains a draft until that global action succeeds.
+The General tab contains:
+
+- **樣式與首頁首圖**
+- **其他網站文字**
+- **網站圖示**
+- **上傳方式**
+- **媒體順序**
+- **子分類操作方式**
+
+Appearance and icon changes participate in the page-level **儲存所有變更** workflow. Choosing, removing, resetting, or previewing an image remains a draft until the global action succeeds.
 
 ## Hero background
 
@@ -46,9 +55,34 @@ Editable color groups cover:
 
 Colors are stored as six-digit hexadecimal values. Public CSS variables are applied before React creates the public gallery root, avoiding a flash of the bundled default palette.
 
-## Website title
+## Website title and other copy
 
-The style card owns the bilingual website title, including deliberate line breaks. The separate website-copy card edits the remaining text only. Both cards read the latest saved copy before merging their own fields, so saving one card cannot overwrite pending or newly saved fields owned by the other card.
+The style card owns the bilingual website title, including deliberate line breaks.
+
+The separate **其他網站文字** card edits dates, descriptions, and remaining public interface text. It does not edit the title.
+
+Both sections read the latest saved copy before merging fields, so saving one section cannot overwrite fields owned by the other.
+
+## Site icon
+
+The **網站圖示** card accepts:
+
+- PNG
+- JPG or JPEG
+- WebP
+- up to 5 MB
+
+A square, centered source with a transparent background is recommended. The server normalizes the saved icon to a **192 × 192 PNG**.
+
+The administrator can:
+
+- select or replace an icon;
+- remove the custom icon;
+- cancel a pending icon draft.
+
+The controlled public icon route supplies the browser favicon and touch icon. Metadata is exposed to the client; stored image bytes are not embedded in the public settings JSON.
+
+Browsers may cache favicons. After a successful save, refreshing or reopening the page may be required before the new tab icon appears.
 
 ## Responsive bottom navigation
 
@@ -59,7 +93,13 @@ The bottom navigation keeps its compact, Safe-Area-aware container while using r
 - the central upload action;
 - button widths and spacing.
 
-Labels wrap instead of truncating. Buttons retain at least a 44-pixel-equivalent touch target. The administrator-selected navigation colors reuse the global style variables.
+Labels wrap instead of truncating. Buttons retain at least a 44-pixel-equivalent touch target. Administrator-selected navigation colors reuse global style variables.
+
+## Language switcher
+
+The Chinese/English switcher remains inside the hero header. It is not a viewport-fixed floating control.
+
+Changing language preserves the current album, label, and photo identity when that route is available in the other language.
 
 ## Per-album wheel looping
 
@@ -68,7 +108,11 @@ Under **子分類操作方式**, the administrator can enable infinite horizonta
 - 婚禮流程 (`wedding`)
 - 訪客上傳 (`guest`)
 
-When looping is disabled, the wheel remains finite. When enabled, the component renders non-interactive start/end sentinels, recenters on the corresponding real item, and keeps one logical identity for each album label. Arrow-key navigation follows the same wrap rule.
+When looping is disabled, the wheel remains finite.
+
+When looping is enabled, the wheel renders one complete interactive copy of the logical items before and after the real sequence. This fills both sides instead of showing empty space near an edge. A visible copied item can be clicked and selects the same logical label as its real counterpart.
+
+Copied items are deliberately excluded from the tab role and keyboard tab order, so assistive technology still has one canonical tab identity for each logical item. After scrolling or choosing a copy, the wheel recenters on the matching real item without changing the selected route. Arrow-key navigation follows the same wrap rule.
 
 The setting is stored as `process_wheel_loop_album_ids`. Unsupported or duplicate album IDs are rejected by the administrator API.
 
@@ -81,7 +125,9 @@ The toolbar contains:
 - **查看原圖 / View original** at the upper left; it opens the controlled `mediaUrl` in a new tab with `noopener noreferrer`;
 - the close control at the upper right.
 
-Visible minus, percentage, and plus controls are removed. Existing interaction remains available through:
+Previous and next navigation remain available for the current gallery sequence.
+
+Visible minus, percentage, and plus controls are removed. Existing zoom interaction remains available through:
 
 - mouse wheel;
 - pinch gesture;
@@ -93,27 +139,32 @@ The loading message is the neutral **正在載入照片… / Loading photo…**.
 
 ## Persistence and migration
 
-The feature reuses the existing `memories_app_settings` JSON key/value table. It introduces no database migration and makes no Google Drive schema or folder change.
+These features reuse the existing `memories_app_settings` JSON key/value table. They introduce no database migration and make no Google Drive schema or folder change.
 
-Stored keys:
+Stored settings include:
 
 ```text
 site_style
 hero_background
+site_icon
 process_wheel_loop_album_ids
 ```
 
 ## Tests
 
-The preservation coverage includes:
+Preservation coverage includes:
 
 - site-style validation and generated CSS variables;
 - metadata-only public settings;
-- 1600 × 900 WebP normalization;
-- pre-render bootstrap application;
+- 1600 × 900 WebP hero normalization;
+- 192 × 192 PNG icon normalization;
+- pre-render style application;
 - independent title and copy merging;
-- wheel sentinel order and keyboard wrapping;
+- complete clickable looping copies on both sides;
+- canonical tab semantics and keyboard wrapping;
 - per-album loop persistence and validation;
 - responsive bottom-navigation sizing;
+- hero-contained language control;
 - thumbnail viewer behavior and true-original link;
+- global save coordination;
 - production build and server health smoke test.
