@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { adminRequest } from "../src/client/admin-client.mjs";
+import { DEFAULT_SITE_STYLE } from "../src/site-style.mjs";
 
 function ok(body) {
   return { ok: true, json: async () => body };
@@ -178,9 +179,19 @@ test("global save retains a draft when the success payload does not contain the 
 });
 
 test("every settings save button requires the server to echo the stored value", async () => {
+  const siteStyle = {
+    ...DEFAULT_SITE_STYLE,
+    primaryColor: "#245a47",
+    heroOverlayOpacity: 0.55,
+  };
   const cases = [
     { guestUploadCategorySelectionEnabled: false },
-    { processWheelEnabled: true, processWheelVisibleCount: 7 },
+    {
+      processWheelEnabled: true,
+      processWheelVisibleCount: 7,
+      processWheelLoopAlbumIds: ["guest"],
+    },
+    { siteStyle },
     { galleryMediaOrder: ["text", "video", "guestPhotos", "weddingPhotos"] },
     { pinnedPhotoIdsByProcess: { all: ["photo-1", "photo-2"] } },
   ];
