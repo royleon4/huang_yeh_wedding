@@ -51,13 +51,20 @@ export function normalizeStoredImageSetting(value, expected = {}) {
   );
   if (!metadata.configured || !data || !BASE64_PATTERN.test(data)) return null;
   if (byteLengthFromBase64(data) !== metadata.byteLength) return null;
-  return { ...metadata, data, configured: undefined };
+  return {
+    contentType: metadata.contentType,
+    data,
+    version: metadata.version,
+    byteLength: metadata.byteLength,
+    width: metadata.width,
+    height: metadata.height,
+  };
 }
 
 export function imageSettingMetadata(value, expected = {}) {
   const stored = normalizeStoredImageSetting(value, expected);
   if (!stored) return EMPTY_IMAGE_SETTING_METADATA;
-  const { data: _data, configured: _configured, ...metadata } = stored;
+  const { data: _data, ...metadata } = stored;
   return { configured: true, ...metadata };
 }
 
