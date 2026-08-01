@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
-  MAX_ZOOM,
   MIN_ZOOM,
   ZOOM_STEP,
   adjacentPhotoIndex,
@@ -32,7 +31,9 @@ export default function PhotoLightbox({
 
   const canPrevious = selectedIndex > 0;
   const canNext = selectedIndex < photos.length - 1;
-  const zoomPercent = Math.round(zoom * 100);
+  const isEnglish = labels.close === "Close";
+  const loadingLabel = isEnglish ? "Loading photo…" : "正在載入照片…";
+  const viewOriginalLabel = isEnglish ? "View original" : "查看原圖";
 
   const resetView = () => {
     setZoom(MIN_ZOOM);
@@ -216,35 +217,27 @@ export default function PhotoLightbox({
       aria-label={`${labels.photo} ${selectedIndex + 1}`}
     >
       <div className="photo-viewer-toolbar">
+        {photo.mediaUrl ? (
+          <a
+            className="photo-viewer-original-link"
+            href={photo.mediaUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            {viewOriginalLabel}
+          </a>
+        ) : (
+          <span />
+        )}
         <button
           ref={closeButtonRef}
+          className="photo-viewer-close"
           type="button"
           onClick={onClose}
           aria-label={labels.close}
         >
           ×
         </button>
-        <div className="photo-viewer-zoom-controls" aria-label={labels.zoomControls}>
-          <button
-            type="button"
-            disabled={zoom <= MIN_ZOOM}
-            onClick={() => setBoundedZoom(zoom - ZOOM_STEP)}
-            aria-label={labels.zoomOut}
-          >
-            −
-          </button>
-          <button type="button" onClick={resetView} aria-label={labels.resetZoom}>
-            {zoomPercent}%
-          </button>
-          <button
-            type="button"
-            disabled={zoom >= MAX_ZOOM}
-            onClick={() => setBoundedZoom(zoom + ZOOM_STEP)}
-            aria-label={labels.zoomIn}
-          >
-            ＋
-          </button>
-        </div>
       </div>
 
       <button
@@ -266,7 +259,9 @@ export default function PhotoLightbox({
         onPointerUp={onPointerEnd}
         onPointerCancel={onPointerEnd}
       >
-        {loading && <div className="photo-viewer-loading">{labels.loading}</div>}
+        {loading && (
+          <div className="photo-viewer-loading">{loadingLabel}</div>
+        )}
         <img
           key={photo.id}
           src={viewerUrl}
@@ -291,7 +286,9 @@ export default function PhotoLightbox({
       </button>
 
       <footer className="photo-viewer-caption">
-        <span>{selectedIndex + 1} / {photos.length}</span>
+        <span>
+          {selectedIndex + 1} / {photos.length}
+        </span>
         <strong>
           {photo.source === "guest" ? labels.guest : photo.uploaderName}
         </strong>
