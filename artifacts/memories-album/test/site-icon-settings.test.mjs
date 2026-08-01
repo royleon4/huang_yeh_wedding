@@ -1,6 +1,5 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
-import { createServer } from "node:http";
 import test from "node:test";
 import sharp from "sharp";
 import {
@@ -26,8 +25,13 @@ import {
   createAdminSettingsApi,
   createSettingsApi,
 } from "../src/server/settings/api.mjs";
+import { withRequestHandler } from "../test-support/http.mjs";
+import {
+  assertJsonErrorCases,
+  assertValidationResultCases,
+} from "../test-support/validation.mjs";
 
-async function withSiteIconServer(run) {
+function createSiteIconFixture() {
   let icon = null;
   const repository = {
     async getPublicSettings() {
@@ -47,25 +51,20 @@ async function withSiteIconServer(run) {
   };
   const publicApi = createSettingsApi({ repository });
   const adminApi = createAdminSettingsApi({ repository });
-  const server = createServer(async (request, response) => {
-    const url = new URL(request.url ?? "/", "http://localhost");
-    if (
-      !(await publicApi(request, response, url)) &&
-      !(await adminApi(request, response, url))
-    ) {
-      response.statusCode = 404;
-      response.end();
-    }
-  });
-  await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
-  const address = server.address();
-  try {
-    await run(`http://127.0.0.1:${address.port}`);
-  } finally {
-    await new Promise((resolve, reject) =>
-      server.close((error) => (error ? reject(error) : resolve())),
-    );
-  }
+
+  return {
+    withServer: (run) =>
+      withRequestHandler(
+        async (request, response) => {
+          const url = new URL(request.url ?? "/", "http://localhost");
+          return (
+            (await publicApi(request, response, url)) ||
+            (await adminApi(request, response, url))
+          );
+        },
+        run,
+      ),
+  };
 }
 
 async function sourcePng() {
@@ -129,26 +128,41 @@ test("stored site icon and public metadata share one validated contract", () => 
   );
 });
 
-test("site icon file validation is shared by the administrator editor", () => {
-  assert.deepEqual(validateSiteIconFile(null), {
-    valid: false,
-    code: SITE_ICON_FILE_ERROR_CODES.required,
-  });
-  assert.deepEqual(validateSiteIconFile({ type: "image/gif", size: 10 }), {
-    valid: false,
-    code: SITE_ICON_FILE_ERROR_CODES.unsupportedType,
-  });
-  assert.deepEqual(
-    validateSiteIconFile({
-      type: "image/png",
-      size: SITE_ICON_MAX_UPLOAD_BYTES + 1,
-    }),
-    { valid: false, code: SITE_ICON_FILE_ERROR_CODES.tooLarge },
-  );
-  assert.deepEqual(validateSiteIconFile({ type: "image/webp", size: 10 }), {
-    valid: true,
-    code: null,
-  });
+test("site icon file validation returns stable error codes", async (t) => {
+  await assertValidationResultCases(t, validateSiteIconFile, [
+    {
+      name: "requires a selected file",
+      value: null,
+      expected: {
+        valid: false,
+        code: SITE_ICON_FILE_ERROR_CODES.required,
+      },
+    },
+    {
+      name: "rejects an unsupported MIME type",
+      value: { type: "image/gif", size: 10 },
+      expected: {
+        valid: false,
+        code: SITE_ICON_FILE_ERROR_CODES.unsupportedType,
+      },
+    },
+    {
+      name: "rejects an oversized image",
+      value: {
+        type: "image/png",
+        size: SITE_ICON_MAX_UPLOAD_BYTES + 1,
+      },
+      expected: {
+        valid: false,
+        code: SITE_ICON_FILE_ERROR_CODES.tooLarge,
+      },
+    },
+    {
+      name: "accepts a supported image inside the limit",
+      value: { type: "image/webp", size: 10 },
+      expected: { valid: true, code: null },
+    },
+  ]);
 });
 
 test("site icon client commands preserve request methods and normalize responses", async () => {
@@ -201,7 +215,8 @@ test("browser and Apple icon links use the same validated metadata", () => {
 });
 
 test("administrator uploads a normalized PNG favicon and can remove it", async () => {
-  await withSiteIconServer(async (origin) => {
+  const { withServer } = createSiteIconFixture();
+  await withServer(async (origin) => {
     const before = await fetch(`${origin}${SITE_ICON_ADMIN_PATH}`);
     assert.equal(before.status, 200);
     assert.equal((await before.json()).configured, false);
@@ -241,23 +256,38 @@ test("administrator uploads a normalized PNG favicon and can remove it", async (
   });
 });
 
-test("site icon upload rejects unsupported or invalid files", async () => {
-  await withSiteIconServer(async (origin) => {
-    const unsupported = await fetch(`${origin}${SITE_ICON_ADMIN_PATH}`, {
-      method: "PUT",
-      headers: { "Content-Type": "image/gif" },
-      body: Buffer.from("gif"),
-    });
-    assert.equal(unsupported.status, 415);
-    assert.equal((await unsupported.json()).code, "UNSUPPORTED_SITE_ICON_TYPE");
-
-    const invalid = await fetch(`${origin}${SITE_ICON_ADMIN_PATH}`, {
-      method: "PUT",
-      headers: { "Content-Type": "image/png" },
-      body: Buffer.from("not-an-image"),
-    });
-    assert.equal(invalid.status, 422);
-    assert.equal((await invalid.json()).code, "INVALID_SITE_ICON");
+test("site icon upload rejects invalid payloads consistently", async (t) => {
+  const { withServer } = createSiteIconFixture();
+  await withServer(async (origin) => {
+    await assertJsonErrorCases(
+      t,
+      [
+        {
+          name: "unsupported GIF content type",
+          value: {
+            headers: { "Content-Type": "image/gif" },
+            body: Buffer.from("gif"),
+          },
+          expectedCode: "UNSUPPORTED_SITE_ICON_TYPE",
+          expectedStatus: 415,
+        },
+        {
+          name: "malformed PNG bytes",
+          value: {
+            headers: { "Content-Type": "image/png" },
+            body: Buffer.from("not-an-image"),
+          },
+          expectedCode: "INVALID_SITE_ICON",
+          expectedStatus: 422,
+        },
+      ],
+      async (options) =>
+        fetch(`${origin}${SITE_ICON_ADMIN_PATH}`, {
+          method: "PUT",
+          ...options,
+        }),
+      { status: 422, code: "INVALID_SITE_ICON" },
+    );
   });
 });
 
