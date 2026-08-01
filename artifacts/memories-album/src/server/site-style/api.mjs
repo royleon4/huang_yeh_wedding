@@ -24,7 +24,8 @@ function heroBackgroundError(reason) {
         ? "Hero background file is required"
         : "The selected file is not a valid supported hero background",
   );
-  error.status = reason === "too-large" ? 413 : reason === "unsupported-type" ? 415 : 422;
+  error.status =
+    reason === "too-large" ? 413 : reason === "unsupported-type" ? 415 : 422;
   error.code =
     reason === "too-large"
       ? "HERO_BACKGROUND_TOO_LARGE"
@@ -61,6 +62,9 @@ async function normalizeHeroBackground(input) {
 }
 
 export function createHeroBackgroundApi({ repository }) {
+  if (typeof repository?.getHeroBackground !== "function") {
+    return async () => false;
+  }
   return createPublicImageAssetApi({
     path: HERO_BACKGROUND_PUBLIC_PATH,
     load: () => repository.getHeroBackground(),
@@ -69,6 +73,13 @@ export function createHeroBackgroundApi({ repository }) {
 }
 
 export function createAdminHeroBackgroundApi({ repository }) {
+  if (
+    typeof repository?.getHeroBackground !== "function" ||
+    typeof repository?.setHeroBackground !== "function" ||
+    typeof repository?.clearHeroBackground !== "function"
+  ) {
+    return async () => false;
+  }
   return createAdminImageAssetApi({
     path: HERO_BACKGROUND_ADMIN_PATH,
     load: () => repository.getHeroBackground(),
