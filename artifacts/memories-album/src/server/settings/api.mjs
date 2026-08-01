@@ -1,6 +1,10 @@
 import { isValidGalleryMediaOrder } from "./media-order.mjs";
 import { isValidPinnedPhotosByProcess } from "../../pinned-photo-settings.mjs";
 import { isValidSiteCopy } from "../../site-copy.mjs";
+import { isValidSiteStyle } from "../../site-style.mjs";
+import {
+  isValidProcessWheelLoopAlbumIds,
+} from "../../process-selector-settings.mjs";
 import {
   GUEST_LABEL_VISIBILITY_SETTING_KEYS,
   LEGACY_GUEST_LABEL_VISIBILITY_KEY,
@@ -20,6 +24,10 @@ import {
   createAdminSiteIconApi,
   createSiteIconApi,
 } from "../site-icon/api.mjs";
+import {
+  createAdminHeroBackgroundApi,
+  createHeroBackgroundApi,
+} from "../site-style/api.mjs";
 import { isValidDriveUploadMode } from "./upload-mode.mjs";
 
 const GUEST_LABEL_BOOLEAN_SETTING_KEYS = Object.freeze([
@@ -96,6 +104,7 @@ async function applyGuestLabelVisibilityUpdates(
 export function createSettingsApi({ repository }) {
   if (!repository) throw new Error("Settings repository is required");
   const siteIconApi = createSiteIconApi({ repository });
+  const heroBackgroundApi = createHeroBackgroundApi({ repository });
 
   return async function handleSettingsApi(
     request,
@@ -103,6 +112,7 @@ export function createSettingsApi({ repository }) {
     url = new URL(request.url ?? "/", "http://localhost"),
   ) {
     if (await siteIconApi(request, response, url)) return true;
+    if (await heroBackgroundApi(request, response, url)) return true;
     if (request.method !== "GET" || url.pathname !== "/Memories/api/settings") {
       return false;
     }
@@ -114,6 +124,7 @@ export function createSettingsApi({ repository }) {
 export function createAdminSettingsApi({ repository }) {
   if (!repository) throw new Error("Settings repository is required");
   const adminSiteIconApi = createAdminSiteIconApi({ repository });
+  const adminHeroBackgroundApi = createAdminHeroBackgroundApi({ repository });
 
   return async function handleAdminSettingsApi(
     request,
@@ -121,6 +132,7 @@ export function createAdminSettingsApi({ repository }) {
     url = new URL(request.url ?? "/", "http://localhost"),
   ) {
     if (await adminSiteIconApi(request, response, url)) return true;
+    if (await adminHeroBackgroundApi(request, response, url)) return true;
     if (url.pathname !== "/admin/api/settings") return false;
 
     if (request.method === "GET") {
@@ -133,10 +145,15 @@ export function createAdminSettingsApi({ repository }) {
     try {
       const body = await readJson(request);
       const hasSiteCopy = Object.hasOwn(body, "siteCopy");
+      const hasSiteStyle = Object.hasOwn(body, "siteStyle");
       const hasWheelEnabled = Object.hasOwn(body, "processWheelEnabled");
       const hasWheelVisibleCount = Object.hasOwn(
         body,
         "processWheelVisibleCount",
+      );
+      const hasWheelLoopAlbumIds = Object.hasOwn(
+        body,
+        "processWheelLoopAlbumIds",
       );
       const hasGalleryMediaOrder = Object.hasOwn(body, "galleryMediaOrder");
       const hasPinnedPhotoIds = Object.hasOwn(
@@ -184,6 +201,18 @@ export function createAdminSettingsApi({ repository }) {
           return true;
         }
         json(response, 200, await repository.setSiteCopy(body.siteCopy));
+        return true;
+      }
+
+      if (hasSiteStyle) {
+        if (!isValidSiteStyle(body.siteStyle)) {
+          json(response, 422, {
+            error: "siteStyle must contain valid six-digit colors and a hero overlay opacity from 0 to 0.95",
+            code: "INVALID_SETTING",
+          });
+          return true;
+        }
+        json(response, 200, await repository.setSiteStyle(body.siteStyle));
         return true;
       }
 
@@ -342,6 +371,17 @@ export function createAdminSettingsApi({ repository }) {
         return true;
       }
 
+      if (
+        hasWheelLoopAlbumIds &&
+        !isValidProcessWheelLoopAlbumIds(body.processWheelLoopAlbumIds)
+      ) {
+        json(response, 422, {
+          error: "processWheelLoopAlbumIds contains an unsupported or duplicate album ID",
+          code: "INVALID_SETTING",
+        });
+        return true;
+      }
+
       if (hasPinnedPhotoIds) {
         if (!isValidPinnedPhotosByProcess(body.pinnedPhotoIdsByProcess)) {
           json(response, 422, {
@@ -376,7 +416,7 @@ export function createAdminSettingsApi({ repository }) {
         return true;
       }
 
-      if (hasWheelEnabled || hasWheelVisibleCount) {
+      if (hasWheelEnabled || hasWheelVisibleCount || hasWheelLoopAlbumIds) {
         const wheelUpdates = {};
         if (hasWheelEnabled) {
           Object.assign(
@@ -388,6 +428,14 @@ export function createAdminSettingsApi({ repository }) {
           Object.assign(
             wheelUpdates,
             await repository.setProcessWheelVisibleCount(wheelVisibleCount),
+          );
+        }
+        if (hasWheelLoopAlbumIds) {
+          Object.assign(
+            wheelUpdates,
+            await repository.setProcessWheelLoopAlbumIds(
+              body.processWheelLoopAlbumIds,
+            ),
           );
         }
         json(response, 200, wheelUpdates);
