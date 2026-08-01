@@ -74,7 +74,7 @@ test("process wheel selects directly, fills both directions, and keeps every vis
   assert.match(component, /role="tablist"/);
   assert.match(component, /onClick=\{\(event\) => choose\(item\.id, event\.currentTarget\)\}/);
   assert.match(component, /tabIndex=\{clone \? -1/);
-  assert.doesNotMatch(component, /aria-hidden="true"[\s\S]*data-wheel-clone/);
+  assert.match(component, /role=\{clone \? undefined : "tab"\}/);
   assert.doesNotMatch(component, /scrollIntoView/);
   assert.doesNotMatch(component, /firstSelectedContent/);
   assert.doesNotMatch(component, /\.process-video-block/);
