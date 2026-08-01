@@ -7,6 +7,7 @@ import {
   mergeGuestUploaderLabelOrder,
   normalizeGuestLatestPhotoCount,
 } from "../guest-label-settings.mjs";
+import { normalizeFeaturedPhotoRange } from "./guest-featured-photos.mjs";
 
 export { LATEST_GUEST_FILTER_ID };
 
@@ -48,15 +49,21 @@ export function normalizePublicAlbums(albums) {
   if (!Array.isArray(albums)) {
     throw new TypeError("Public albums must be an array");
   }
-  return albums.map((album) => ({
-    ...album,
-    zh: album.titleZh,
-    en: album.titleEn || album.titleZh,
-    showSummary: album.showSummary !== false,
-    photoSortMode: normalizeAlbumPhotoSortMode(
-      album.photoSortMode ?? DEFAULT_ALBUM_PHOTO_SORT_MODE,
-    ),
-  }));
+  return albums.map((album) => {
+    const featuredRange = normalizeFeaturedPhotoRange(album);
+    return {
+      ...album,
+      zh: album.titleZh,
+      en: album.titleEn || album.titleZh,
+      showSummary: album.showSummary !== false,
+      photoSortMode: normalizeAlbumPhotoSortMode(
+        album.photoSortMode ?? DEFAULT_ALBUM_PHOTO_SORT_MODE,
+      ),
+      featuredPhotosEnabled: album.featuredPhotosEnabled === true,
+      featuredPhotoMin: featuredRange.minimum,
+      featuredPhotoMax: featuredRange.maximum,
+    };
+  });
 }
 
 function collectionForPhoto(photo) {
