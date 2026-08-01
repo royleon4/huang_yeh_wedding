@@ -1,7 +1,7 @@
 :root {
   --memories-bottom-nav-height: clamp(4.35rem, 11.5vw, 4.75rem);
-  --memories-bottom-nav-inline-padding: clamp(0.35rem, 1.5vw, 0.7rem);
-  --memories-bottom-nav-block-padding: clamp(0.22rem, 0.8vw, 0.34rem);
+  --memories-bottom-nav-inline-padding: clamp(0.28rem, 1.25vw, 0.62rem);
+  --memories-bottom-nav-block-padding: clamp(0.16rem, 0.65vw, 0.28rem);
 }
 
 .collection-tabs,
@@ -44,7 +44,11 @@
   border: 1px solid rgba(53, 95, 77, 0.18);
   border-bottom: 0;
   border-radius: 1.2rem 1.2rem 0 0;
-  background: rgba(252, 248, 240, 0.96);
+  background: color-mix(
+    in srgb,
+    var(--memories-bottom-nav-background, #fcf8f0) 96%,
+    transparent
+  );
   padding:
     var(--memories-bottom-nav-block-padding)
     max(var(--memories-bottom-nav-inline-padding), env(safe-area-inset-right))
@@ -59,7 +63,7 @@
   min-height: 0;
   display: flex;
   align-items: stretch;
-  gap: clamp(0.12rem, 0.6vw, 0.28rem);
+  gap: clamp(0.08rem, 0.5vw, 0.22rem);
   overflow-x: auto;
   scrollbar-width: none;
 }
@@ -87,33 +91,38 @@
   display: grid;
   place-items: center;
   align-content: center;
-  gap: clamp(0.06rem, 0.35vw, 0.14rem);
+  gap: clamp(0.08rem, 0.45vw, 0.2rem);
   border: 0;
   border-radius: clamp(0.72rem, 2.4vw, 0.95rem);
   background: transparent;
   padding:
-    clamp(0.18rem, 0.6vw, 0.32rem)
-    clamp(0.28rem, 1vw, 0.56rem);
-  color: #6e776f;
+    clamp(0.16rem, 0.55vw, 0.28rem)
+    clamp(0.22rem, 0.8vw, 0.46rem);
+  color: var(--memories-bottom-nav-text, #6e776f);
   cursor: pointer;
 }
 
 .bottom-nav-side button.active {
-  color: #355f4d;
-  background: rgba(219, 226, 213, 0.68);
+  color: var(--leaf, #355f4d);
+  background: color-mix(
+    in srgb,
+    var(--memories-bottom-nav-active-background, #dbe2d5) 78%,
+    transparent
+  );
 }
 
 .bottom-nav-icon {
   font-family: Arial, sans-serif;
-  font-size: clamp(1rem, 3vw, 1.2rem);
-  line-height: 1;
+  font-size: clamp(1.35rem, 4.6vw, 1.78rem);
+  line-height: 0.95;
 }
 
 .bottom-nav-side small {
   max-width: 100%;
   overflow: visible;
-  font-size: clamp(0.62rem, 1.8vw, 0.72rem);
-  line-height: 1.15;
+  font-size: clamp(0.72rem, 2.15vw, 0.88rem);
+  font-weight: 560;
+  line-height: 1.12;
   text-align: center;
   text-overflow: clip;
   white-space: normal;
@@ -123,16 +132,22 @@
 .bottom-upload-action {
   align-self: start;
   justify-self: center;
-  width: clamp(4.35rem, 12.5vw, 4.9rem);
-  height: clamp(4.35rem, 12.5vw, 4.9rem);
+  width: clamp(4.45rem, 13vw, 5.05rem);
+  height: clamp(4.45rem, 13vw, 5.05rem);
   display: grid;
   place-items: center;
   align-content: center;
-  gap: 0.1rem;
-  margin-top: clamp(-1.45rem, -3.8vw, -1.15rem);
-  border: clamp(0.26rem, 0.8vw, 0.32rem) solid #f8f3e9;
+  gap: clamp(0.08rem, 0.4vw, 0.16rem);
+  margin-top: clamp(-1.5rem, -3.9vw, -1.2rem);
+  border: clamp(0.24rem, 0.75vw, 0.3rem) solid
+    var(--memories-bottom-nav-background, #f8f3e9);
   border-radius: 50%;
-  background: linear-gradient(145deg, #d95f72, #b96e5d 58%, #b59657);
+  background: linear-gradient(
+    145deg,
+    color-mix(in srgb, var(--coral, #b96e5d) 82%, #ef6b82),
+    var(--coral, #b96e5d) 58%,
+    var(--gold, #b59657)
+  );
   color: #fff;
   box-shadow: 0 12px 30px rgba(185, 110, 93, 0.42);
   cursor: pointer;
@@ -140,13 +155,14 @@
 
 .bottom-upload-action span {
   font-family: Arial, sans-serif;
-  font-size: clamp(1.5rem, 4vw, 1.7rem);
-  line-height: 0.9;
+  font-size: clamp(1.7rem, 4.8vw, 2rem);
+  line-height: 0.84;
 }
 
 .bottom-upload-action strong {
-  font-size: clamp(0.62rem, 1.8vw, 0.68rem);
-  letter-spacing: 0.06em;
+  font-size: clamp(0.72rem, 2vw, 0.82rem);
+  line-height: 1;
+  letter-spacing: 0.04em;
 }
 
 .bottom-upload-action:hover,
@@ -165,7 +181,7 @@
 @media (max-width: 430px) {
   :root {
     --memories-bottom-nav-height: clamp(4.2rem, 18vw, 4.55rem);
-    --memories-bottom-nav-inline-padding: clamp(0.24rem, 1vw, 0.38rem);
+    --memories-bottom-nav-inline-padding: clamp(0.18rem, 0.8vw, 0.32rem);
   }
 
   .bottom-collection-nav {
@@ -178,5 +194,13 @@
   .bottom-nav-side button {
     min-width: clamp(3.35rem, 17vw, 4.15rem);
     max-width: clamp(4.25rem, 23vw, 5rem);
+  }
+
+  .bottom-nav-icon {
+    font-size: clamp(1.3rem, 5.3vw, 1.62rem);
+  }
+
+  .bottom-nav-side small {
+    font-size: clamp(0.7rem, 2.75vw, 0.82rem);
   }
 }
