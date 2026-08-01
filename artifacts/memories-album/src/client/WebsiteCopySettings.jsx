@@ -3,6 +3,7 @@ import {
   DEFAULT_SITE_COPY,
   SITE_COPY_GROUPS,
   SITE_COPY_TITLE_KEY,
+  mergeSiteCopy,
   normalizeSiteCopy,
 } from "../site-copy.mjs";
 import { adminErrorMessage, adminRequest } from "./admin-client.mjs";
@@ -34,7 +35,10 @@ function editableSnapshot(value) {
 }
 
 function sameCopy(left, right) {
-  return JSON.stringify(editableSnapshot(left)) === JSON.stringify(editableSnapshot(right));
+  return (
+    JSON.stringify(editableSnapshot(left)) ===
+    JSON.stringify(editableSnapshot(right))
+  );
 }
 
 function defaultCopyPreservingTitle(current) {
@@ -93,9 +97,14 @@ export default function WebsiteCopySettings() {
     setMessage("");
     setError("");
     try {
+      const current = await adminRequest("/admin/api/settings");
+      const merged = mergeSiteCopy(
+        current.siteCopy,
+        editableSnapshot(draft),
+      );
       const response = await adminRequest("/admin/api/settings", {
         method: "PATCH",
-        body: { siteCopyPatch: editableSnapshot(draft) },
+        body: { siteCopy: merged },
         timeoutMs: 30_000,
       });
       const next = normalizeSiteCopy(response.siteCopy);
@@ -151,7 +160,11 @@ export default function WebsiteCopySettings() {
       </div>
 
       {EDITABLE_GROUPS.map((group, groupIndex) => (
-        <details className="website-copy-group" key={group.id} open={groupIndex === 0}>
+        <details
+          className="website-copy-group"
+          key={group.id}
+          open={groupIndex === 0}
+        >
           <summary>{group.label}</summary>
           <div className="website-copy-language-grid">
             {[
