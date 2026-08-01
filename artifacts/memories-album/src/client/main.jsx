@@ -15,6 +15,7 @@ import "./site-style-public.css";
 import "./collections.css";
 import "./upload.css";
 import "./photo-lightbox.css";
+import "./gallery-visibility.css";
 import "./feature-controls.css";
 import "./bottom-collection-nav.css";
 import "./admin.css";
