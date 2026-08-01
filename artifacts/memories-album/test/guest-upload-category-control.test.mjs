@@ -43,7 +43,9 @@ test("runtime wires authenticated administrator settings API", async () => {
     readServer("runtime.mjs"),
     readServer("settings/api.mjs"),
   ]);
-  assert.match(runtime, /adminSettingsApi: createAdminSettingsApi/);
+  assert.match(runtime, /const baseAdminSettingsApi = createAdminSettingsApi/);
+  assert.match(runtime, /adminSettingsApi: async \(request, response, url\)/);
+  assert.match(runtime, /return baseAdminSettingsApi\(request, response, url\)/);
   assert.match(settingsApi, /url\.pathname !== "\/admin\/api\/settings"/);
   assert.match(settingsApi, /guestUploadCategorySelectionEnabled must be a boolean/);
 });
