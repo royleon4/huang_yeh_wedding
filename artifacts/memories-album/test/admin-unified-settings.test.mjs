@@ -52,6 +52,7 @@ test("all ordinary administrator settings participate in the single save-all act
   assert.equal((admin.match(/儲存所有變更/g) ?? []).length, 1);
 
   const components = await Promise.all([
+    clientSource("SiteStyleSettings.jsx"),
     clientSource("WebsiteCopySettings.jsx"),
     clientSource("DriveUploadModeSettings.jsx"),
     clientSource("GalleryMediaOrderSettings.jsx"),
@@ -66,28 +67,34 @@ test("all ordinary administrator settings participate in the single save-all act
     );
   }
 
-  assert.match(components[0], /body: \{ siteCopy: draft \}/);
-  assert.match(components[1], /driveUploadMode: draft\.driveUploadMode/);
-  assert.match(components[1], /guestUploadMaxPhotos,/);
-  assert.match(components[1], /adminUploadMaxPhotos,/);
-  assert.match(components[1], /uploadDescription: draft\.uploadDescription/);
-  assert.match(components[1], /isValidGuestUploadMaxPhotos/);
-  assert.match(components[1], /isValidAdminUploadMaxPhotos/);
-  assert.match(components[2], /body: \{ galleryMediaOrder: draftOrder \}/);
-  assert.match(components[3], /processWheelEnabled: draftMode === "wheel"/);
-  assert.match(components[3], /processWheelVisibleCount: draftVisibleCount/);
+  assert.match(components[0], /body: \{ siteStyle: draftStyle \}/);
+  assert.match(components[0], /replaceHeroBackground/);
+  assert.match(components[0], /removeHeroBackground/);
+  assert.match(components[0], /body: \{ siteCopy: merged \}/);
+  assert.match(components[1], /body: \{ siteCopy: merged \}/);
+  assert.match(components[1], /mergeSiteCopy/);
+  assert.match(components[2], /driveUploadMode: draft\.driveUploadMode/);
+  assert.match(components[2], /guestUploadMaxPhotos,/);
+  assert.match(components[2], /adminUploadMaxPhotos,/);
+  assert.match(components[2], /uploadDescription: draft\.uploadDescription/);
+  assert.match(components[2], /isValidGuestUploadMaxPhotos/);
+  assert.match(components[2], /isValidAdminUploadMaxPhotos/);
+  assert.match(components[3], /body: \{ galleryMediaOrder: draftOrder \}/);
+  assert.match(components[4], /body: draft/);
+  assert.match(components[4], /processWheelLoopAlbumIds/);
   assert.match(
-    components[4],
+    components[5],
     /body: \{ guestUploadCategorySelectionEnabled: draft \}/,
   );
 });
 
-test("subcategory controls live inside General while category and video saves remain separate", async () => {
+test("style and subcategory controls live inside General while category and video saves remain separate", async () => {
   const [admin, general, categoryEditor] = await Promise.all([
     transformedAdmin(),
     clientSource("GeneralSettings.jsx"),
     clientSource("ProcessContentEditor.jsx"),
   ]);
+  assert.match(general, /<SiteStyleSettings \/>/);
   assert.match(general, /<ProcessSelectorSettings \/>/);
   assert.doesNotMatch(admin, /\["subcategory-ui", "子分類操作"\]/);
   assert.doesNotMatch(admin, /tab === "subcategory-ui"/);
@@ -99,7 +106,10 @@ test("subcategory controls live inside General while category and video saves re
 test("administrator cards stay full width and never receive automatic collapse controls", async () => {
   const [admin, transform, css] = await Promise.all([
     transformedAdmin(),
-    readFile(path.join(root, "admin-settings-consolidation-ui-transform.mjs"), "utf8"),
+    readFile(
+      path.join(root, "admin-settings-consolidation-ui-transform.mjs"),
+      "utf8",
+    ),
     clientSource("admin-unified-layout.css"),
   ]);
   assert.match(admin, /import "\.\/admin-unified-layout\.css"/);
