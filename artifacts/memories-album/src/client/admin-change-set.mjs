@@ -11,6 +11,9 @@ const ALBUM_FIELDS = [
   "isVisible",
   "showSummary",
   "photoSortMode",
+  "featuredPhotosEnabled",
+  "featuredPhotoMin",
+  "featuredPhotoMax",
 ];
 const CATEGORY_FIELDS = ["labelZh", "labelEn"];
 const PHOTO_FIELDS = [
@@ -56,6 +59,9 @@ export function albumDraft(album) {
     photoSortMode: normalizeAlbumPhotoSortMode(
       album.photoSortMode ?? DEFAULT_ALBUM_PHOTO_SORT_MODE,
     ),
+    featuredPhotosEnabled: album.featuredPhotosEnabled === true,
+    featuredPhotoMin: Number(album.featuredPhotoMin ?? 1),
+    featuredPhotoMax: Number(album.featuredPhotoMax ?? 3),
   };
 }
 
@@ -106,6 +112,9 @@ export function buildAdminChangeSet({
           ...album,
           showSummary: album.showSummary !== false,
           photoSortMode: normalizeAlbumPhotoSortMode(album.photoSortMode),
+          featuredPhotosEnabled: album.featuredPhotosEnabled === true,
+          featuredPhotoMin: Number(album.featuredPhotoMin ?? 1),
+          featuredPhotoMax: Number(album.featuredPhotoMax ?? 3),
         },
         albumDrafts[album.id] ?? albumDraft(album),
         ALBUM_FIELDS,
@@ -148,6 +157,9 @@ export function buildAdminChangeSet({
           values: {
             ...newAlbum,
             photoSortMode: normalizeAlbumPhotoSortMode(newAlbum.photoSortMode),
+            featuredPhotosEnabled: newAlbum.featuredPhotosEnabled === true,
+            featuredPhotoMin: Number(newAlbum.featuredPhotoMin ?? 1),
+            featuredPhotoMax: Number(newAlbum.featuredPhotoMax ?? 3),
           },
         },
       ]
@@ -179,8 +191,9 @@ export function buildAdminChangeSet({
 
 export function successfulResultKeys(results) {
   return new Set(
-    (results ?? [])
-      .filter((result) => result?.status === "ok" && result?.key)
-      .map((result) => result.key),
+    (Array.isArray(results) ? results : [])
+      .filter((result) => result?.ok)
+      .map((result) => String(result.key ?? ""))
+      .filter(Boolean),
   );
 }
