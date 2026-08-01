@@ -48,6 +48,9 @@ test("administrators can add and edit albums while visitors only see visible alb
       isSystem: true,
       showSummary: true,
       photoSortMode: "time-asc",
+      featuredPhotosEnabled: true,
+      featuredPhotoMin: 2,
+      featuredPhotoMax: 4,
     },
   ]);
   const adminApi = createAdminAlbumApi({
@@ -186,6 +189,9 @@ test("administrators can add and edit albums while visitors only see visible alb
           displayOrder: 1,
           showSummary: true,
           photoSortMode: "time-asc",
+          featuredPhotosEnabled: true,
+          featuredPhotoMin: 2,
+          featuredPhotoMax: 4,
         },
       ],
     });
