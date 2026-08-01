@@ -53,6 +53,12 @@ function transformApp(source) {
     `import { normalizeSiteCopy } from "../site-copy.mjs";\nimport { getPublicBootstrap } from "./public-bootstrap.mjs";`,
     "public bootstrap app import",
   );
+  code = replaceOnce(
+    code,
+    `  DEFAULT_GALLERY_MEDIA_ORDER,\n`,
+    ``,
+    "obsolete gallery order default import",
+  );
   code = replaceRange(
     code,
     `function fallbackAlbums() {`,
