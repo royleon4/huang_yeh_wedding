@@ -4,7 +4,7 @@ import test from "node:test";
 import {
   logicalAdjacentIndex,
   renderedWheelItems,
-} from "../src/client/ProcessWheel.jsx";
+} from "../src/client/process-wheel-model.mjs";
 import {
   normalizeProcessSelectorSettings,
   processWheelLoopsForAlbum,
