@@ -41,6 +41,29 @@ function normalizePhotoSortMode(value, fallback = DEFAULT_ALBUM_PHOTO_SORT_MODE)
   return normalizeAlbumPhotoSortMode(candidate);
 }
 
+function normalizeFeaturedRange(body, existing = null) {
+  const minimum = Number(
+    body.featuredPhotoMin ?? existing?.featuredPhotoMin ?? 1,
+  );
+  const maximum = Number(
+    body.featuredPhotoMax ?? existing?.featuredPhotoMax ?? 3,
+  );
+  if (
+    !Number.isInteger(minimum) ||
+    !Number.isInteger(maximum) ||
+    minimum < 0 ||
+    maximum < minimum
+  ) {
+    const error = new Error(
+      "Featured-photo range must contain non-negative integers and maximum must be greater than or equal to minimum",
+    );
+    error.status = 422;
+    error.code = "INVALID_ALBUM_FEATURED_RANGE";
+    throw error;
+  }
+  return { minimum, maximum };
+}
+
 function albumPayload(album) {
   return {
     id: album.id,
@@ -53,10 +76,14 @@ function albumPayload(album) {
     isSystem: album.isSystem,
     showSummary: album.showSummary !== false,
     photoSortMode: normalizeAlbumPhotoSortMode(album.photoSortMode),
+    featuredPhotosEnabled: album.featuredPhotosEnabled === true,
+    featuredPhotoMin: Number(album.featuredPhotoMin ?? 1),
+    featuredPhotoMax: Number(album.featuredPhotoMax ?? 3),
   };
 }
 
 function inputFrom(body, existing = null) {
+  const featuredRange = normalizeFeaturedRange(body, existing);
   return {
     titleZh: normalizeText(body.titleZh ?? existing?.titleZh, 80, {
       required: true,
@@ -82,6 +109,12 @@ function inputFrom(body, existing = null) {
       body.photoSortMode,
       existing?.photoSortMode ?? DEFAULT_ALBUM_PHOTO_SORT_MODE,
     ),
+    featuredPhotosEnabled:
+      typeof body.featuredPhotosEnabled === "boolean"
+        ? body.featuredPhotosEnabled
+        : existing?.featuredPhotosEnabled === true,
+    featuredPhotoMin: featuredRange.minimum,
+    featuredPhotoMax: featuredRange.maximum,
   };
 }
 
