@@ -1,6 +1,5 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
-import { createServer } from "node:http";
 import test from "node:test";
 import sharp from "sharp";
 import { DEFAULT_SITE_COPY, normalizeSiteCopy } from "../src/site-copy.mjs";
@@ -21,6 +20,8 @@ import {
   createAdminSettingsApi,
   createSettingsApi,
 } from "../src/server/settings/api.mjs";
+import { withRequestHandler } from "../test-support/http.mjs";
+import { assertBooleanValidationCases } from "../test-support/validation.mjs";
 
 function customStyle() {
   return {
@@ -46,7 +47,7 @@ async function sourceImage() {
     .toBuffer();
 }
 
-async function withStyleServer(run) {
+function createStyleFixture() {
   let siteStyle = normalizeSiteStyle(DEFAULT_SITE_STYLE);
   let siteCopy = normalizeSiteCopy(DEFAULT_SITE_COPY);
   let heroBackground = null;
@@ -80,36 +81,50 @@ async function withStyleServer(run) {
   };
   const publicApi = createSettingsApi({ repository });
   const adminApi = createAdminSettingsApi({ repository });
-  const server = createServer(async (request, response) => {
-    const url = new URL(request.url ?? "/", "http://localhost");
-    if (
-      !(await publicApi(request, response, url)) &&
-      !(await adminApi(request, response, url))
-    ) {
-      response.statusCode = 404;
-      response.end();
-    }
-  });
-  await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
-  const address = server.address();
-  try {
-    await run(`http://127.0.0.1:${address.port}`);
-  } finally {
-    await new Promise((resolve, reject) =>
-      server.close((error) => (error ? reject(error) : resolve())),
-    );
-  }
+
+  return {
+    withServer: (run) =>
+      withRequestHandler(
+        async (request, response) => {
+          const url = new URL(request.url ?? "/", "http://localhost");
+          return (
+            (await publicApi(request, response, url)) ||
+            (await adminApi(request, response, url))
+          );
+        },
+        run,
+      ),
+  };
 }
 
-test("site style validation and CSS variables keep a readable typed contract", () => {
+test("site style validation defines the accepted typed contract", async (t) => {
   const style = customStyle();
-  assert.equal(isValidSiteStyle(style), true);
-  assert.equal(isValidSiteStyle({ ...style, primaryColor: "green" }), false);
-  assert.equal(isValidSiteStyle({ ...style, heroOverlayOpacity: 1 }), false);
+  await assertBooleanValidationCases(t, isValidSiteStyle, {
+    valid: [{ name: "complete normalized style", value: style }],
+    invalid: [
+      {
+        name: "named color instead of hex",
+        value: { ...style, primaryColor: "green" },
+      },
+      {
+        name: "overlay opacity at the excluded upper bound",
+        value: { ...style, heroOverlayOpacity: 1 },
+      },
+      {
+        name: "non-object style",
+        value: "style",
+      },
+    ],
+  });
+});
+
+test("site style normalization clamps overlay opacity", () => {
   assert.equal(normalizeSiteStyle({ heroOverlayOpacity: -1 }).heroOverlayOpacity, 0);
   assert.equal(normalizeSiteStyle({ heroOverlayOpacity: 4 }).heroOverlayOpacity, 0.95);
+});
 
-  const variables = siteStyleCssVariables(style);
+test("site style CSS variables preserve validated values", () => {
+  const variables = siteStyleCssVariables(customStyle());
   assert.equal(variables["--paper"], "#eee8dc");
   assert.equal(variables["--leaf"], "#245a47");
   assert.equal(variables["--memories-hero-title-color"], "#173b31");
@@ -145,7 +160,8 @@ test("site style is applied before render without exposing image bytes", () => {
 });
 
 test("administrator can save colors and a normalized 1600 by 900 WebP hero background", async () => {
-  await withStyleServer(async (origin) => {
+  const { withServer } = createStyleFixture();
+  await withServer(async (origin) => {
     const style = customStyle();
     const styleResponse = await fetch(`${origin}/admin/api/settings`, {
       method: "PATCH",

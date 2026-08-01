@@ -1,0 +1,74 @@
+import assert from "node:assert/strict";
+
+function namedCase(testCase, index) {
+  if (
+    testCase &&
+    typeof testCase === "object" &&
+    Object.hasOwn(testCase, "value")
+  ) {
+    return {
+      ...testCase,
+      name: testCase.name ?? `case ${index + 1}`,
+    };
+  }
+
+  return { name: `case ${index + 1}`, value: testCase };
+}
+
+export async function assertBooleanValidationCases(
+  t,
+  validator,
+  { valid = [], invalid = [] },
+) {
+  for (const [index, testCase] of valid.entries()) {
+    const { name, value } = namedCase(testCase, index);
+    await t.test(`accepts ${name}`, () => {
+      assert.equal(validator(value), true);
+    });
+  }
+
+  for (const [index, testCase] of invalid.entries()) {
+    const { name, value } = namedCase(testCase, index);
+    await t.test(`rejects ${name}`, () => {
+      assert.equal(validator(value), false);
+    });
+  }
+}
+
+export async function assertValidationResultCases(t, validator, cases) {
+  for (const [index, testCase] of cases.entries()) {
+    const { name, value, expected } = namedCase(testCase, index);
+    await t.test(name, () => {
+      assert.deepEqual(validator(value), expected);
+    });
+  }
+}
+
+export async function assertJsonErrorCases(
+  t,
+  cases,
+  request,
+  { status, code },
+) {
+  for (const [index, testCase] of cases.entries()) {
+    const {
+      name,
+      value,
+      expectedStatus = status,
+      expectedCode = code,
+    } = namedCase(testCase, index);
+    await t.test(name, async () => {
+      const response = await request(value);
+      assert.equal(response.status, expectedStatus);
+      assert.equal((await response.json()).code, expectedCode);
+    });
+  }
+}
+
+export function patchJson(url, body, fetchImpl = fetch) {
+  return fetchImpl(url, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+}
