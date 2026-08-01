@@ -27,7 +27,7 @@ export default defineConfig({
     guestLabelsUiTransform(),
     guestFeaturedPhotosUiTransform(),
     uploadSettingsUiTransform(),
-    stableIdentityRoutesUiTransform(),
     nativeLabelLayoutUiTransform(),
+    stableIdentityRoutesUiTransform(),
   ],
 });
