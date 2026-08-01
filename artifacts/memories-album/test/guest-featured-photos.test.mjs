@@ -9,6 +9,7 @@ import {
   pageFeaturedPhotos,
   selectFeaturedPhotoIds,
 } from "../src/client/guest-featured-photos.mjs";
+import { normalizePublicAlbums } from "../src/client/gallery-model.mjs";
 
 const directory = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(directory, "..");
@@ -35,6 +36,39 @@ test("configured ranges select an inclusive number of unique photos", () => {
   });
   assert.ok(selected.length >= 2 && selected.length <= 6);
   assert.equal(new Set(selected).size, selected.length);
+});
+
+test("public album settings reach selection and featured-card paging", () => {
+  const [album] = normalizePublicAlbums([
+    {
+      id: "wedding",
+      titleZh: "婚禮流程",
+      titleEn: "Wedding moments",
+      featuredPhotosEnabled: true,
+      featuredPhotoMin: 2,
+      featuredPhotoMax: 2,
+    },
+  ]);
+  const photos = ["a", "b", "c", "d"].map((id) => ({ id }));
+  const selected = selectFeaturedPhotoIds(photos, {
+    activeCollection: album.id,
+    activeFilter: "all",
+    enabled: album.featuredPhotosEnabled,
+    minimum: album.featuredPhotoMin,
+    maximum: album.featuredPhotoMax,
+    random: () => 0.5,
+  });
+  const visible = pageFeaturedPhotos(photos, 4, selected);
+
+  assert.equal(selected.length, 2);
+  assert.equal(
+    visible.filter((photo) => photo.albumFeatured).length,
+    2,
+  );
+  assert.deepEqual(
+    visible.slice(0, 2).map((photo) => photo.albumFeatured),
+    [true, true],
+  );
 });
 
 test("zero is accepted as the lower and upper bound", () => {
