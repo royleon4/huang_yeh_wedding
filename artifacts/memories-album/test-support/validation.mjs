@@ -9,6 +9,7 @@ function namedCase(testCase, index) {
     return {
       name: testCase.name ?? `case ${index + 1}`,
       value: testCase.value,
+      expected: testCase.expected,
     };
   }
 
@@ -31,6 +32,15 @@ export async function assertBooleanValidationCases(
     const { name, value } = namedCase(testCase, index);
     await t.test(`rejects ${name}`, () => {
       assert.equal(validator(value), false);
+    });
+  }
+}
+
+export async function assertValidationResultCases(t, validator, cases) {
+  for (const [index, testCase] of cases.entries()) {
+    const { name, value, expected } = namedCase(testCase, index);
+    await t.test(name, () => {
+      assert.deepEqual(validator(value), expected);
     });
   }
 }
