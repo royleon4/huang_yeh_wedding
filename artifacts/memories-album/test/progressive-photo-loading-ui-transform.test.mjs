@@ -3,12 +3,15 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
+import { adminPhotoWorkspaceUiTransform } from "../admin-photo-workspace-ui-transform.mjs";
+import { logicalRouteUiTransform } from "../logical-route-ui-transform.mjs";
 import { processContentUiTransform } from "../process-content-ui-transform.mjs";
 import {
   progressivePhotoLoadingUiTransform,
   transformProgressivePhotoLoading,
 } from "../progressive-photo-loading-ui-transform.mjs";
 import { publicBootstrapUiTransform } from "../public-bootstrap-ui-transform.mjs";
+import { websiteCopyUiTransform } from "../website-copy-ui-transform.mjs";
 
 const directory = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(directory, "..");
@@ -49,7 +52,10 @@ test("background failure keeps the initial gallery and abort is not shown as an 
 test("progressive loading remains compatible with the production transform chain", async () => {
   let app = await readFile(appPath, "utf8");
   app = run(processContentUiTransform(), app);
+  app = run(adminPhotoWorkspaceUiTransform(), app);
   app = run(progressivePhotoLoadingUiTransform(), app);
+  app = run(logicalRouteUiTransform(), app);
+  app = run(websiteCopyUiTransform(), app);
   app = run(publicBootstrapUiTransform(), app);
 
   assert.match(app, /const initialPublicBootstrap = getPublicBootstrap\(\)/);
