@@ -1,0 +1,128 @@
+name: One-time Software Composition Analysis
+
+on:
+  push:
+    branches:
+      - agent/sca-20260802-workflow
+
+permissions:
+  contents: read
+
+jobs:
+  sca:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.15.1
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install frozen workspace
+        run: pnpm install --frozen-lockfile
+
+      - name: Record tool and revision metadata
+        shell: bash
+        run: |
+          mkdir -p sca-output
+          {
+            echo "repository=${GITHUB_REPOSITORY}"
+            echo "commit=${GITHUB_SHA}"
+            echo "run_id=${GITHUB_RUN_ID}"
+            echo "run_attempt=${GITHUB_RUN_ATTEMPT}"
+            echo "node=$(node --version)"
+            echo "pnpm=$(pnpm --version)"
+            echo "generated_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          } > sca-output/scan-metadata.txt
+
+      - name: Export full dependency tree
+        shell: bash
+        run: |
+          set +e
+          pnpm list -r --depth Infinity --json > sca-output/pnpm-dependency-tree.json 2>sca-output/pnpm-dependency-tree.stderr.txt
+          echo $? > sca-output/pnpm-dependency-tree.exit.txt
+          exit 0
+
+      - name: Run pnpm vulnerability audit
+        shell: bash
+        run: |
+          set +e
+          pnpm audit --json > sca-output/pnpm-audit.json 2>sca-output/pnpm-audit.stderr.txt
+          echo $? > sca-output/pnpm-audit.exit.txt
+          exit 0
+
+      - name: Collect license inventory
+        shell: bash
+        run: |
+          set +e
+          pnpm licenses list --json > sca-output/pnpm-licenses.json 2>sca-output/pnpm-licenses.stderr.txt
+          echo $? > sca-output/pnpm-licenses.exit.txt
+          exit 0
+
+      - name: Collect outdated package inventory
+        shell: bash
+        run: |
+          set +e
+          pnpm outdated -r --format json > sca-output/pnpm-outdated.json 2>sca-output/pnpm-outdated.stderr.txt
+          echo $? > sca-output/pnpm-outdated.exit.txt
+          exit 0
+
+      - name: Generate CycloneDX SBOM
+        shell: bash
+        env:
+          FETCH_LICENSE: "true"
+        run: |
+          set +e
+          pnpm dlx @cyclonedx/cdxgen@12.2.1 -t js -r --spec-version 1.6 -o sca-output/cyclonedx-sbom.json . > sca-output/cdxgen.stdout.txt 2>sca-output/cdxgen.stderr.txt
+          echo $? > sca-output/cdxgen.exit.txt
+          exit 0
+
+      - name: Run OSV vulnerability scan
+        shell: bash
+        run: |
+          set +e
+          docker run --rm \
+            -v "${GITHUB_WORKSPACE}:/src" \
+            ghcr.io/google/osv-scanner:v2.3.8 \
+            scan source --recursive --format json \
+            --output-file /src/sca-output/osv-results.json /src \
+            > sca-output/osv.stdout.txt 2>sca-output/osv.stderr.txt
+          echo $? > sca-output/osv.exit.txt
+          exit 0
+
+      - name: Run OSV license and deprecation enrichment
+        shell: bash
+        run: |
+          set +e
+          docker run --rm \
+            -v "${GITHUB_WORKSPACE}:/src" \
+            ghcr.io/google/osv-scanner:v2.3.8 \
+            scan source --recursive --licenses --experimental-flag-deprecated-packages \
+            --format json --output-file /src/sca-output/osv-enriched-results.json /src \
+            > sca-output/osv-enriched.stdout.txt 2>sca-output/osv-enriched.stderr.txt
+          echo $? > sca-output/osv-enriched.exit.txt
+          exit 0
+
+      - name: Write file inventory and checksums
+        shell: bash
+        run: |
+          find sca-output -maxdepth 1 -type f -printf '%f\n' | sort > sca-output/files.txt
+          sha256sum sca-output/* > sca-output/SHA256SUMS.txt
+
+      - name: Upload SCA evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: software-composition-analysis-20260802
+          path: sca-output
+          if-no-files-found: error
+          retention-days: 30
