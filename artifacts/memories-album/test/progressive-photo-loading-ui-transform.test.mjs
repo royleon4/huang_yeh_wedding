@@ -15,7 +15,10 @@ test("gallery publishes two photo pages before continuing during idle time", asy
   const transformed = transformProgressivePhotoLoading(source);
 
   assert.match(transformed, /const INITIAL_PAGE_COUNT = 2/);
-  assert.match(transformed, /const PAGE_LIMIT = 100/);
+  assert.match(
+    transformed,
+    /const query = new URLSearchParams\(\{ limit: "100" \}\)/,
+  );
   assert.match(transformed, /while \(hasMore && pages < INITIAL_PAGE_COUNT\)/);
   assert.match(transformed, /initialPhotos\.then\(\(photos\) =>/);
   assert.match(transformed, /return continueLoading\(\(nextPhotos\) =>/);
