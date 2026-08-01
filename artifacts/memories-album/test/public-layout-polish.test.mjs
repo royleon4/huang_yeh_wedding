@@ -41,21 +41,21 @@ test("language switcher stays at the hero top right and scrolls away with it", a
   assert.match(styles, /\.archive-header\s*\{[\s\S]*position: relative;/);
   assert.match(
     controls,
-    /\.header-tools\s*\{[\s\S]*position: absolute;[\s\S]*top: max\(var\(--language-toggle-edge\), env\(safe-area-inset-top\)\);/,
+    /\.header-tools\s*\{[^}]*position: absolute;[^}]*top: max\(var\(--language-toggle-edge\), env\(safe-area-inset-top\)\);/,
   );
   assert.match(
     controls,
-    /\.header-tools\s*\{[\s\S]*right: max\(var\(--language-toggle-edge\), env\(safe-area-inset-right\)\);[\s\S]*left: auto;/,
+    /\.header-tools\s*\{[^}]*right: max\(var\(--language-toggle-edge\), env\(safe-area-inset-right\)\);[^}]*left: auto;/,
   );
   assert.match(controls, /--language-toggle-edge: clamp\(/);
-  assert.match(controls, /\.header-tools\s*\{[\s\S]*z-index: 2;/);
+  assert.match(controls, /\.header-tools\s*\{[^}]*z-index: 2;/);
   assert.doesNotMatch(
     controls,
-    /\.header-tools\s*\{[\s\S]*position: fixed;/,
+    /\.header-tools\s*\{[^}]*position: fixed;/,
   );
   assert.match(
     controls,
-    /\.header-tools \.quiet-button\s*\{[\s\S]*min-height: 2\.75rem;[\s\S]*pointer-events: auto;/,
+    /\.header-tools \.quiet-button\s*\{[^}]*min-height: 2\.75rem;[^}]*pointer-events: auto;/,
   );
 });
 
