@@ -1,22 +1,12 @@
 import { processWheelLoopsForAlbum } from "../process-selector-settings.mjs";
 import { getPublicBootstrap } from "./public-bootstrap.mjs";
+import LabelAutoScroll from "./LabelAutoScroll.jsx";
 import ProcessWheel from "./ProcessWheel.jsx";
 
-function scrollToGalleryStart() {
-  const gallery = document.getElementById("archive-gallery");
-  if (!gallery) return;
-  const stickyControls = document.querySelector(".process-section");
-  const stickyHeight = stickyControls?.getBoundingClientRect().height ?? 0;
-  const top =
-    window.scrollY + gallery.getBoundingClientRect().top - stickyHeight - 10;
-  window.scrollTo({ top: Math.max(0, top), behavior: "smooth" });
-}
-
-export function requestGalleryStartScroll() {
-  window.requestAnimationFrame(() =>
-    window.requestAnimationFrame(scrollToGalleryStart),
-  );
-}
+// Kept as a compatibility export while the transformed route module still
+// imports it. Label and route changes intentionally no longer position the page
+// from the route layer.
+export function requestGalleryStartScroll() {}
 
 function TraditionalSelector({ items, activeId, onSelect, ariaLabel, variant }) {
   return (
@@ -40,28 +30,26 @@ function TraditionalSelector({ items, activeId, onSelect, ariaLabel, variant }) 
 
 export default function ProcessSelector(props) {
   const settings = getPublicBootstrap().settings;
-  const albumId = props.albumId ?? (props.variant === "guest" ? "guest" : "wedding");
-
-  const selectWithTraditionalPositioning = (id) => {
-    props.onSelect(id);
-    requestGalleryStartScroll();
-  };
-
-  if (settings.processWheelEnabled) {
-    return (
-      <ProcessWheel
-        {...props}
-        onSelect={selectWithTraditionalPositioning}
-        visibleCount={settings.processWheelVisibleCount}
-        loop={processWheelLoopsForAlbum(settings, albumId)}
-      />
-    );
-  }
+  const albumId =
+    props.albumId ?? (props.variant === "guest" ? "guest" : "wedding");
+  const selector = settings.processWheelEnabled ? (
+    <ProcessWheel
+      {...props}
+      visibleCount={settings.processWheelVisibleCount}
+      loop={processWheelLoopsForAlbum(settings, albumId)}
+    />
+  ) : (
+    <TraditionalSelector {...props} />
+  );
 
   return (
-    <TraditionalSelector
-      {...props}
-      onSelect={selectWithTraditionalPositioning}
-    />
+    <>
+      <LabelAutoScroll
+        albumId={albumId}
+        activeId={props.activeId}
+        enabled={settings.processLabelAutoScrollEnabled !== false}
+      />
+      {selector}
+    </>
   );
 }

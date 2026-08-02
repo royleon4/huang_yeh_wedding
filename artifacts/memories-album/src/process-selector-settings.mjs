@@ -2,6 +2,7 @@ export const DEFAULT_PROCESS_SELECTOR_SETTINGS = Object.freeze({
   processWheelEnabled: false,
   processWheelVisibleCount: 6,
   processWheelLoopAlbumIds: [],
+  processLabelAutoScrollEnabled: true,
 });
 
 export const PROCESS_WHEEL_VISIBLE_COUNTS = Object.freeze([3, 4, 5, 6, 7, 8]);
@@ -32,6 +33,8 @@ export function normalizeProcessSelectorSettings(value = {}) {
     processWheelLoopAlbumIds: normalizeProcessWheelLoopAlbumIds(
       source.processWheelLoopAlbumIds,
     ),
+    processLabelAutoScrollEnabled:
+      source.processLabelAutoScrollEnabled !== false,
   };
 }
 

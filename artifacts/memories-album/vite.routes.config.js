@@ -11,6 +11,7 @@ import { guestLabelsUiTransform } from "./guest-labels-ui-transform.mjs";
 import { guestFeaturedPhotosUiTransform } from "./guest-featured-photos-ui-transform.mjs";
 import { uploadSettingsUiTransform } from "./upload-settings-ui-transform.mjs";
 import { stableIdentityRoutesUiTransform } from "./stable-identity-routes-ui-transform.mjs";
+import { nativeLabelLayoutUiTransform } from "./native-label-layout-ui-transform.mjs";
 
 export default defineConfig({
   ...baseConfig,
@@ -26,6 +27,7 @@ export default defineConfig({
     guestLabelsUiTransform(),
     guestFeaturedPhotosUiTransform(),
     uploadSettingsUiTransform(),
+    nativeLabelLayoutUiTransform(),
     stableIdentityRoutesUiTransform(),
   ],
 });

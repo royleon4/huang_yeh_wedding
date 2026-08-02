@@ -1,6 +1,14 @@
+import {
+  PROCESS_WHEEL_VISIBLE_COUNTS,
+  isValidProcessWheelLoopAlbumIds,
+  normalizeProcessSelectorSettings,
+} from "../../process-selector-settings.mjs";
+import { PostgresSettingsRepository } from "./repository.mjs";
+
 const ENABLED_STORAGE_KEY = "guest_random_featured_photos_enabled";
 const MIN_STORAGE_KEY = "guest_random_featured_photos_min";
 const MAX_STORAGE_KEY = "guest_random_featured_photos_max";
+const LABEL_AUTO_SCROLL_STORAGE_KEY = "process_label_auto_scroll_enabled";
 const DEFAULT_MINIMUM = 1;
 const DEFAULT_MAXIMUM = 3;
 
@@ -96,14 +104,59 @@ async function writeSettings(pool, settings) {
   return settings;
 }
 
+async function readLabelAutoScrollEnabled(pool) {
+  const result = await pool.query(
+    `SELECT value
+     FROM memories_app_settings
+     WHERE key = $1
+     LIMIT 1`,
+    [LABEL_AUTO_SCROLL_STORAGE_KEY],
+  );
+  return result.rows[0]?.value !== false;
+}
+
+async function writeLabelAutoScrollEnabled(pool, enabled) {
+  const value = enabled === true;
+  await pool.query(
+    `INSERT INTO memories_app_settings (key, value, updated_at)
+     VALUES ($1, $2::jsonb, now())
+     ON CONFLICT (key) DO UPDATE SET
+       value = EXCLUDED.value,
+       updated_at = now()`,
+    [LABEL_AUTO_SCROLL_STORAGE_KEY, JSON.stringify(value)],
+  );
+  return { processLabelAutoScrollEnabled: value };
+}
+
+async function readCompletePublicSettings(pool, settingsRepository) {
+  const [settings, processLabelAutoScrollEnabled] = await Promise.all([
+    settingsRepository.getPublicSettings(),
+    readLabelAutoScrollEnabled(pool),
+  ]);
+  return { ...settings, processLabelAutoScrollEnabled };
+}
+
 export function createGuestFeaturedSettingsApis({ pool }) {
   if (!pool?.query) throw new Error("A PostgreSQL pool is required");
+  const settingsRepository = new PostgresSettingsRepository(pool);
 
   const publicApi = async (
     request,
     response,
     url = new URL(request.url ?? "/", "http://localhost"),
   ) => {
+    if (
+      url.pathname === "/Memories/api/settings" &&
+      request.method === "GET"
+    ) {
+      json(
+        response,
+        200,
+        await readCompletePublicSettings(pool, settingsRepository),
+      );
+      return true;
+    }
+
     if (url.pathname !== "/Memories/api/settings/guest-featured") return false;
     if (request.method !== "GET") return false;
     json(response, 200, await readSettings(pool));
@@ -115,6 +168,93 @@ export function createGuestFeaturedSettingsApis({ pool }) {
     response,
     url = new URL(request.url ?? "/", "http://localhost"),
   ) => {
+    if (url.pathname === "/admin/api/settings" && request.method === "GET") {
+      json(
+        response,
+        200,
+        await readCompletePublicSettings(pool, settingsRepository),
+      );
+      return true;
+    }
+
+    if (url.pathname === "/admin/api/settings/process-selector") {
+      if (request.method === "GET") {
+        json(
+          response,
+          200,
+          normalizeProcessSelectorSettings(
+            await readCompletePublicSettings(pool, settingsRepository),
+          ),
+        );
+        return true;
+      }
+
+      if (request.method !== "PATCH") return false;
+
+      try {
+        const body = await readJson(request);
+        if (
+          typeof body.processWheelEnabled !== "boolean" ||
+          typeof body.processLabelAutoScrollEnabled !== "boolean"
+        ) {
+          json(response, 422, {
+            error: "Process selector boolean settings must be boolean values",
+            code: "INVALID_SETTING",
+          });
+          return true;
+        }
+        const visibleCount = Number(body.processWheelVisibleCount);
+        if (!PROCESS_WHEEL_VISIBLE_COUNTS.includes(visibleCount)) {
+          json(response, 422, {
+            error: "processWheelVisibleCount must be an integer from 3 to 8",
+            code: "INVALID_SETTING",
+          });
+          return true;
+        }
+        if (
+          !isValidProcessWheelLoopAlbumIds(body.processWheelLoopAlbumIds)
+        ) {
+          json(response, 422, {
+            error: "processWheelLoopAlbumIds contains an unsupported or duplicate album ID",
+            code: "INVALID_SETTING",
+          });
+          return true;
+        }
+
+        const updates = {};
+        Object.assign(
+          updates,
+          await settingsRepository.setProcessWheelEnabled(
+            body.processWheelEnabled,
+          ),
+        );
+        Object.assign(
+          updates,
+          await settingsRepository.setProcessWheelVisibleCount(visibleCount),
+        );
+        Object.assign(
+          updates,
+          await settingsRepository.setProcessWheelLoopAlbumIds(
+            body.processWheelLoopAlbumIds,
+          ),
+        );
+        Object.assign(
+          updates,
+          await writeLabelAutoScrollEnabled(
+            pool,
+            body.processLabelAutoScrollEnabled,
+          ),
+        );
+        json(response, 200, normalizeProcessSelectorSettings(updates));
+      } catch (error) {
+        json(response, error.status ?? 400, {
+          error: error.message || "Invalid process selector setting",
+          code: error.code || "INVALID_SETTINGS_REQUEST",
+        });
+      }
+      return true;
+    }
+
     if (url.pathname !== "/admin/api/settings/guest-featured") return false;
 
     if (request.method === "GET") {

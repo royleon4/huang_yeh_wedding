@@ -27,26 +27,20 @@
 }
 
 .process-section {
-  position: sticky;
-  top: 0;
-  z-index: 35;
+  position: relative;
   width: 100vw;
   margin-left: calc(50% - 50vw);
   margin-right: calc(50% - 50vw);
-  max-height: min(48vh, 24rem);
-  overflow-y: auto;
-  overscroll-behavior: contain;
+  overflow: visible;
   border-left: 0;
   border-right: 0;
   border-radius: 0;
-  backdrop-filter: blur(18px);
-  box-shadow: 0 16px 45px rgba(42, 61, 51, 0.14);
+  box-shadow: none;
 }
 
 .process-section .section-heading,
 .process-section .collection-tabs,
-.process-section .collection-summary,
-.process-section .process-strip {
+.process-section .collection-summary {
   width: min(1280px, calc(100% - 1.5rem));
   margin-left: auto;
   margin-right: auto;
@@ -69,8 +63,31 @@
   margin-bottom: 0.45rem;
 }
 
-.process-section .process-strip {
-  padding-bottom: 0.55rem;
+.process-selector-sticky {
+  position: sticky;
+  top: 0;
+  z-index: 35;
+  width: 100vw;
+  margin-left: calc(50% - 50vw);
+  margin-right: calc(50% - 50vw);
+  padding: 0.15rem 0 0.45rem;
+  overflow: hidden;
+  border-top: 1px solid rgba(45, 67, 56, 0.08);
+  border-bottom: 1px solid rgba(45, 67, 56, 0.14);
+  background: rgba(248, 244, 236, 0.94);
+  backdrop-filter: blur(18px);
+  box-shadow: 0 14px 34px rgba(42, 61, 51, 0.12);
+}
+
+.process-selector-sticky .process-strip,
+.process-selector-sticky .process-wheel-shell {
+  width: min(1280px, calc(100% - 1.5rem));
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.process-selector-sticky .process-strip {
+  padding-bottom: 0.1rem;
 }
 
 .floating-upload-button {
@@ -117,14 +134,14 @@
 
 @media (max-width: 620px) {
   .process-section {
-    max-height: 52vh;
     border-radius: 0;
   }
 
   .process-section .section-heading,
   .process-section .collection-tabs,
   .process-section .collection-summary,
-  .process-section .process-strip {
+  .process-selector-sticky .process-strip,
+  .process-selector-sticky .process-wheel-shell {
     width: calc(100% - 1rem);
     margin-left: auto !important;
     margin-right: auto !important;
@@ -165,8 +182,13 @@
     line-height: 1.45 !important;
   }
 
+  .process-selector-sticky {
+    padding-top: max(0.12rem, env(safe-area-inset-top));
+    padding-bottom: 0.3rem;
+  }
+
   .process-strip {
-    padding: 0.2rem 0.25rem 0.45rem !important;
+    padding: 0.2rem 0.25rem 0.2rem !important;
   }
 
   .process-chip {

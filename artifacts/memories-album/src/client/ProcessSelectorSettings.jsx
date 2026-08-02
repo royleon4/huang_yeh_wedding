@@ -17,7 +17,7 @@ const MODES = [
   {
     id: "wheel",
     title: "輪盤滑動選擇",
-    description: "滑動停止後，中央分類會立即切換，並自動定位到第一個影片或照片。",
+    description: "滑動停止後，中央分類會立即切換。",
   },
 ];
 
@@ -86,19 +86,25 @@ export default function ProcessSelectorSettings() {
     setMessage("");
     setError("");
     try {
-      const result = await adminRequest("/admin/api/settings", {
-        method: "PATCH",
-        body: draft,
-      });
+      const result = await adminRequest(
+        "/admin/api/settings/process-selector",
+        {
+          method: "PATCH",
+          body: draft,
+        },
+      );
       const next = normalizeProcessSelectorSettings(result);
       setSaved(next);
       setDraft(next);
+      const autoScrollMessage = next.processLabelAutoScrollEnabled
+        ? "選中標籤後會自動回到內容開頭。"
+        : "選中標籤後會保留目前垂直位置。";
       setMessage(
         next.processWheelEnabled
           ? `前台已切換為輪盤模式；手機目標顯示約 ${next.processWheelVisibleCount} 個選項。已啟用無限循環的相簿：${
               next.processWheelLoopAlbumIds.length || "無"
-            }。`
-          : `前台已切換回傳統按鈕；輪盤設定會保留到下次啟用。`,
+            }。${autoScrollMessage}`
+          : `前台已切換回傳統按鈕；輪盤設定會保留到下次啟用。${autoScrollMessage}`,
       );
       return { succeeded: 1 };
     } catch (saveError) {
@@ -135,6 +141,25 @@ export default function ProcessSelectorSettings() {
         <p className="selector-settings-status">正在讀取設定…</p>
       ) : (
         <>
+          <label className="selector-auto-scroll-card">
+            <input
+              type="checkbox"
+              checked={draft.processLabelAutoScrollEnabled}
+              onChange={(event) =>
+                updateDraft({
+                  processLabelAutoScrollEnabled: event.target.checked,
+                })
+              }
+              disabled={saving}
+            />
+            <span>
+              <strong>選中標籤後自動捲動至內容開頭</strong>
+              <small>
+                開啟後，點擊、滑動或鍵盤選中新的子分類時，標籤列會貼齊畫面頂部，內容從標籤列正下方開始顯示。
+              </small>
+            </span>
+          </label>
+
           <div
             className="selector-mode-grid"
             role="radiogroup"

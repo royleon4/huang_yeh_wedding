@@ -18,16 +18,29 @@ test("mobile browser chrome height changes do not trigger a full relayout", () =
   assert.equal(viewportWidthChanged(390, 844), true);
 });
 
-test("gallery relayout stays incremental and preserves the visible anchor", async () => {
-  const source = await readFile(
-    new URL("../src/client/GalleryEnhancements.jsx", import.meta.url),
-    "utf8",
-  );
+test("each photo group owns masonry layout without changing the page scroll", async () => {
+  const [hook, grid, enhancements] = await Promise.all([
+    readFile(
+      new URL("../src/client/use-masonry-grid.mjs", import.meta.url),
+      "utf8",
+    ),
+    readFile(
+      new URL("../src/client/PhotoGroupGrid.jsx", import.meta.url),
+      "utf8",
+    ),
+    readFile(
+      new URL("../src/client/GalleryEnhancements.jsx", import.meta.url),
+      "utf8",
+    ),
+  ]);
 
-  assert.doesNotMatch(source, /gridRowEnd\s*=\s*["']auto["']/);
-  assert.match(source, /card\.scrollHeight/);
-  assert.match(source, /window\.scrollBy\(0, delta\)/);
-  assert.match(source, /viewportWidthChanged\(lastViewportWidth, nextWidth\)/);
-  assert.match(source, /mutationObserver\?\.observe\(archiveGallery/);
-  assert.doesNotMatch(source, /observe\(document\.documentElement/);
+  assert.doesNotMatch(hook, /gridRowEnd\s*=\s*["']auto["']/);
+  assert.match(hook, /card\.scrollHeight/);
+  assert.match(hook, /mutationObserver\?\.observe\(grid/);
+  assert.match(hook, /card\.parentElement === grid/);
+  assert.match(hook, /viewportWidthChanged\(lastViewportWidth, nextWidth\)/);
+  assert.doesNotMatch(hook, /document\.querySelector|window\.scrollBy|window\.scrollTo/);
+  assert.match(grid, /const gridRef = useMasonryGrid\(photos\)/);
+  assert.match(grid, /<div ref=\{gridRef\} className="masonry-grid">/);
+  assert.doesNotMatch(enhancements, /masonry|ResizeObserver|MutationObserver/);
 });

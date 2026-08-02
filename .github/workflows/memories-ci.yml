@@ -21,7 +21,7 @@ permissions:
 jobs:
   test-and-build:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 25
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -38,7 +38,7 @@ jobs:
           cache: pnpm
 
       - name: Install workspace dependencies
-        run: pnpm install --no-frozen-lockfile
+        run: pnpm install --frozen-lockfile
 
       - name: Test standalone Memories
         shell: bash
@@ -72,3 +72,23 @@ jobs:
           done
           echo "Memories production server did not become healthy" >&2
           exit 1
+
+      - name: Install Playwright test runner
+        run: pnpm --filter @workspace/memories-album add --save-dev @playwright/test@1.55.0 --lockfile=false
+
+      - name: Install Chromium for Playwright
+        run: pnpm --filter @workspace/memories-album exec playwright install --with-deps chromium
+
+      - name: Run production browser gate
+        run: pnpm --filter @workspace/memories-album exec playwright test --config playwright.config.mjs
+
+      - name: Preserve Playwright failure evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: memories-playwright-evidence
+          path: |
+            artifacts/memories-album/playwright-report
+            artifacts/memories-album/test-results/playwright
+          if-no-files-found: ignore
+          retention-days: 14
