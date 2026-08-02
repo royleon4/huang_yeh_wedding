@@ -2,7 +2,7 @@
   --memories-bottom-nav-height: clamp(4.35rem, 11.5vw, 4.75rem);
   --memories-bottom-nav-inline-padding: clamp(0.28rem, 1.25vw, 0.62rem);
   --memories-bottom-nav-block-padding: clamp(0.16rem, 0.65vw, 0.28rem);
-  --memories-sidebar-share: 20%;
+  --memories-sidebar-share: calc(20% / 3);
 }
 
 body {
@@ -185,12 +185,13 @@ body {
 }
 
 /*
- * The existing gallery first supports three cards at 40rem. With a 20% / 80%
- * split, the page must be 50rem wide before the right pane retains that same
- * 40rem capacity: 40rem / 0.8 = 50rem. Querying the page container means the
- * decision follows the real available width after scrollbars, zoom and embeds.
+ * The sidebar is one third of its former 20% share: 1/15 of the page. The
+ * right pane therefore receives 14/15. The existing gallery first supports
+ * three cards at 40rem, so the page must be at least 40rem / (14/15) =
+ * 42.857rem. The threshold is rounded up to 42.875rem so the right pane never
+ * falls below the existing three-card capacity.
  */
-@container memories-page (min-width: 50rem) {
+@container memories-page (min-width: 42.875rem) {
   .archive-shell {
     display: grid;
     grid-template-columns: var(--memories-sidebar-share) minmax(0, 1fr);
@@ -271,6 +272,9 @@ body {
     flex: 0 0 auto;
     align-self: center;
     justify-self: auto;
+    width: min(100%, 4.45rem);
+    height: auto;
+    aspect-ratio: 1;
     margin-top: 0;
   }
 }
