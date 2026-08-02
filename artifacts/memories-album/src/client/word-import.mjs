@@ -1,3 +1,5 @@
+import { fidelityReasonText, inspectWordFidelity } from "./word-fidelity.mjs";
+
 export const WORD_IMPORT_ACCEPT = [
   ".docx",
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
@@ -172,8 +174,7 @@ function mammothWarnings(messages) {
   ).length;
 }
 
-export async function convertWordFileToHtml(file, { uploadImage } = {}) {
-  const metadata = validateWordImportFile(file);
+async function semanticWordConversion(file, uploadImage) {
   const loaded = await import("mammoth");
   const mammoth = loaded.default || loaded;
   let imageIndex = 0;
@@ -231,9 +232,7 @@ export async function convertWordFileToHtml(file, { uploadImage } = {}) {
   if (Array.from(html).length > WORD_IMPORT_MAX_HTML_CHARACTERS) {
     throw new Error("轉換後的內容過長，請拆分 Word 文件後再匯入。");
   }
-
   return {
-    fileName: metadata.name,
     html,
     importedImages,
     skippedImages,
@@ -241,11 +240,54 @@ export async function convertWordFileToHtml(file, { uploadImage } = {}) {
   };
 }
 
+export async function convertWordFileToHtml(
+  file,
+  { uploadImage, uploadDocument } = {},
+) {
+  const metadata = validateWordImportFile(file);
+  const [semantic, fidelity] = await Promise.all([
+    semanticWordConversion(file, uploadImage),
+    inspectWordFidelity(file).catch(() => ({
+      requiresFidelity: false,
+      reasons: [],
+      pages: 1,
+      inspectionFailed: true,
+    })),
+  ]);
+
+  let documentAttachment = null;
+  let mode = "editable";
+  if (fidelity.requiresFidelity && uploadDocument) {
+    documentAttachment = await uploadDocument(file);
+    const sourceUrl = documentAttachment?.url || documentAttachment?.downloadUrl || "";
+    if (!sourceUrl) {
+      throw new Error("Word 原始文件已上傳，但沒有取得可顯示的網址。");
+    }
+    mode = "fidelity";
+  }
+
+  return {
+    fileName: metadata.name,
+    mode,
+    html: semantic.html,
+    documentAttachment,
+    fidelity,
+    importedImages: semantic.importedImages,
+    skippedImages: semantic.skippedImages,
+    warningCount: semantic.warningCount,
+  };
+}
+
 export function describeWordImport(result) {
   const details = [];
+  if (result.mode === "fidelity") {
+    details.push(`保真還原：${fidelityReasonText(result.fidelity)}`);
+  }
   if (result.importedImages > 0) details.push(`${result.importedImages} 張圖片已上傳`);
   if (result.skippedImages > 0) details.push(`${result.skippedImages} 張圖片未匯入`);
   if (result.warningCount > 0) details.push(`${result.warningCount} 項格式提示`);
   const suffix = details.length > 0 ? `（${details.join("、")}）` : "";
-  return `已從「${result.fileName}」匯入游標位置${suffix}。`;
+  return result.mode === "fidelity"
+    ? `已將「${result.fileName}」以條件式保真文件區塊插入游標位置${suffix}。`
+    : `已從「${result.fileName}」匯入可編輯內容至游標位置${suffix}。`;
 }
