@@ -253,6 +253,9 @@ importers:
       busboy:
         specifier: 1.6.0
         version: 1.6.0
+      docx-preview:
+        specifier: 0.4.0
+        version: 0.4.0
       mammoth:
         specifier: 1.12.0
         version: 1.12.0
@@ -2395,6 +2398,9 @@ packages:
 
   dingbat-to-unicode@1.0.1:
     resolution: {integrity: sha512-98l0sW87ZT58pU4i61wa2OHwxbiYSbuxsCBozaVnYX2iCnr3bLM3fIes1/ej7h1YdOKuKt/MLs706TVnALA65w==}
+
+  docx-preview@0.4.0:
+    resolution: {integrity: sha512-OdKtE/uj3M4RfGarLkGjahUzRg8/kBp0Sraj1r1NAY1tp/sTpHOBqDrzVf9onMBt9vxP6SdQ6bpLCUCsFwjgcA==}
 
   dom-helpers@5.2.1:
     resolution: {integrity: sha512-nRCa7CK3VTrM2NmGkIy4cbK7IZlgBE/PYMn55rrXefr5xXDP0LdtfPnblFDoVdcAfslJ7or6iqAUnx0CCGIWQA==}
@@ -5781,6 +5787,10 @@ snapshots:
   detect-node-es@1.1.0: {}
 
   dingbat-to-unicode@1.0.1: {}
+
+  docx-preview@0.4.0:
+    dependencies:
+      jszip: 3.10.1
 
   dom-helpers@5.2.1:
     dependencies:
