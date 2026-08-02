@@ -2,13 +2,23 @@ import { useEffect } from "react";
 
 let lastObservedSelectionKey = null;
 
+export function preferredLabelScrollBehavior(
+  windowNode = globalThis.window,
+) {
+  const reduceMotion = windowNode
+    ?.matchMedia?.("(prefers-reduced-motion: reduce)")
+    ?.matches;
+  return reduceMotion ? "auto" : "smooth";
+}
+
 export function scrollSelectedLabelToContentStart(
   documentNode = globalThis.document,
+  windowNode = globalThis.window,
 ) {
   const selector = documentNode?.querySelector?.(".process-selector-sticky");
   if (!selector || typeof selector.scrollIntoView !== "function") return false;
   selector.scrollIntoView({
-    behavior: "auto",
+    behavior: preferredLabelScrollBehavior(windowNode),
     block: "start",
     inline: "nearest",
   });
