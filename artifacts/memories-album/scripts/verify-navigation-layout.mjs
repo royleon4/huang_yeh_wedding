@@ -11,14 +11,12 @@ const root = path.resolve(directory, "..");
 const host = "127.0.0.1";
 
 const cases = [
-  { width: 1440, height: 900, side: false },
-  { width: 1536, height: 900, side: false },
-  { width: 1599, height: 900, side: false },
-  { width: 1600, height: 900, side: true },
-  { width: 1648, height: 927, side: true },
-  { width: 1920, height: 1080, side: true },
-  { width: 1920, height: 600, side: true, scrollable: true },
-  { width: 1920, height: 575, side: false },
+  { width: 640, height: 900, side: false },
+  { width: 800, height: 900, side: false },
+  { width: 820, height: 900, side: true, threeColumns: true },
+  { width: 1024, height: 900, side: true, sticky: true },
+  { width: 1440, height: 900, side: true },
+  { width: 820, height: 500, side: true, scrollable: true },
 ];
 
 const fixture = `<!doctype html>
@@ -31,61 +29,43 @@ const fixture = `<!doctype html>
     <link rel="stylesheet" href="/bottom-collection-nav.css" />
     <style>
       body { min-height: 200vh; }
-      #fixture-main { min-height: 1800px; }
-      .fixture-panel {
-        min-height: 50rem;
-        border: 1px solid rgba(45, 67, 56, 0.2);
-      }
+      .archive-header { min-height: 12rem; }
+      .primary-nav { min-height: 5rem; }
+      #fixture-main { min-height: 1200px; }
+      .archive-footer { min-height: 8rem; }
+      .photo-card { min-height: 12rem; }
     </style>
   </head>
   <body>
     <div class="archive-shell">
+      <div class="paper-grain" aria-hidden="true"></div>
+      <header class="archive-header"></header>
+      <nav class="primary-nav" aria-label="archive navigation"></nav>
       <main id="fixture-main">
-        <section class="fixture-panel" aria-label="visitor content"></section>
+        <section class="gallery-section">
+          <div class="masonry-grid">
+            <article class="photo-card"></article>
+            <article class="photo-card"></article>
+            <article class="photo-card"></article>
+            <article class="photo-card"></article>
+          </div>
+        </section>
       </main>
+      <footer class="archive-footer"></footer>
 
       <nav class="bottom-collection-nav" aria-label="照片分類">
         <div class="bottom-nav-side bottom-nav-left">
-          <button type="button" class="active">
-            <span class="bottom-nav-icon" aria-hidden="true">♥</span>
-            <small>婚禮流程</small>
-          </button>
-          <button type="button">
-            <span class="bottom-nav-icon" aria-hidden="true">☻</span>
-            <small>訪客上傳</small>
-          </button>
-          <button type="button">
-            <span class="bottom-nav-icon" aria-hidden="true">◆</span>
-            <small>Wedding moments</small>
-          </button>
-          <button type="button">
-            <span class="bottom-nav-icon" aria-hidden="true">◆</span>
-            <small>Family and friends</small>
-          </button>
+          <button type="button" class="active"><span class="bottom-nav-icon">♥</span><small>婚禮流程</small></button>
+          <button type="button"><span class="bottom-nav-icon">☻</span><small>訪客上傳</small></button>
+          <button type="button"><span class="bottom-nav-icon">◆</span><small>Wedding moments</small></button>
+          <button type="button"><span class="bottom-nav-icon">◆</span><small>Family and friends</small></button>
         </div>
-
-        <button type="button" class="bottom-upload-action" aria-label="上傳照片">
-          <span aria-hidden="true">＋</span>
-          <strong>上傳</strong>
-        </button>
-
+        <button type="button" class="bottom-upload-action"><span>＋</span><strong>上傳</strong></button>
         <div class="bottom-nav-side bottom-nav-right">
-          <button type="button">
-            <span class="bottom-nav-icon" aria-hidden="true">⌂</span>
-            <small>生活照</small>
-          </button>
-          <button type="button">
-            <span class="bottom-nav-icon" aria-hidden="true">◆</span>
-            <small>Guest uploads</small>
-          </button>
-          <button type="button">
-            <span class="bottom-nav-icon" aria-hidden="true">◆</span>
-            <small>Everyday memories</small>
-          </button>
-          <button type="button">
-            <span class="bottom-nav-icon" aria-hidden="true">◆</span>
-            <small>More collections</small>
-          </button>
+          <button type="button"><span class="bottom-nav-icon">⌂</span><small>生活照</small></button>
+          <button type="button"><span class="bottom-nav-icon">◆</span><small>Guest uploads</small></button>
+          <button type="button"><span class="bottom-nav-icon">◆</span><small>Everyday memories</small></button>
+          <button type="button"><span class="bottom-nav-icon">◆</span><small>More collections</small></button>
         </div>
       </nav>
     </div>
@@ -111,9 +91,7 @@ function findChrome() {
     if (result.status === 0 && result.stdout.trim()) return result.stdout.trim();
   }
 
-  throw new Error(
-    "Chrome or Chromium is required for the real-browser navigation layout test",
-  );
+  throw new Error("Chrome or Chromium is required for the browser layout test");
 }
 
 async function listen(server) {
@@ -138,7 +116,6 @@ async function freePort() {
 async function waitForDebugger(port, chromeLog) {
   const endpoint = `http://${host}:${port}/json/version`;
   let lastError;
-
   for (let attempt = 0; attempt < 80; attempt += 1) {
     try {
       const response = await fetch(endpoint);
@@ -149,7 +126,6 @@ async function waitForDebugger(port, chromeLog) {
     }
     await sleep(125);
   }
-
   throw new Error(
     `Chrome debugger did not start: ${lastError?.message ?? "unknown error"}\n${chromeLog()}`,
   );
@@ -168,9 +144,7 @@ class CdpClient {
       if (!request) return;
       this.pending.delete(message.id);
       if (message.error) {
-        request.reject(
-          new Error(`${request.method}: ${message.error.message ?? "CDP error"}`),
-        );
+        request.reject(new Error(`${request.method}: ${message.error.message}`));
       } else {
         request.resolve(message.result ?? {});
       }
@@ -224,52 +198,51 @@ async function waitForDocument(client, marker) {
   throw new Error(`Browser fixture did not finish loading ${marker}`);
 }
 
-async function geometry(client) {
+async function evaluate(client, expression) {
   const result = await client.send("Runtime.evaluate", {
-    expression: `(() => {
+    expression,
+    returnByValue: true,
+  });
+  return result.result?.value;
+}
+
+async function geometry(client) {
+  return evaluate(
+    client,
+    `(() => {
+      const rect = (selector) => {
+        const value = document.querySelector(selector).getBoundingClientRect();
+        return { left: value.left, right: value.right, top: value.top, bottom: value.bottom, width: value.width, height: value.height };
+      };
       const nav = document.querySelector('.bottom-collection-nav');
-      const main = document.querySelector('#fixture-main');
-      const navRect = nav.getBoundingClientRect();
-      const mainRect = main.getBoundingClientRect();
-      const style = getComputedStyle(nav);
-      const probe = document.createElement('div');
-      probe.style.position = 'fixed';
-      probe.style.visibility = 'hidden';
-      probe.style.width = 'var(--memories-side-nav-gap)';
-      document.body.append(probe);
-      const requiredGap = probe.getBoundingClientRect().width;
-      probe.remove();
-      const rect = (value) => ({
-        left: value.left,
-        right: value.right,
-        top: value.top,
-        bottom: value.bottom,
-        width: value.width,
-        height: value.height,
-      });
+      const shell = document.querySelector('.archive-shell');
+      const gallery = document.querySelector('.masonry-grid');
+      const navStyle = getComputedStyle(nav);
+      const shellStyle = getComputedStyle(shell);
+      const galleryStyle = getComputedStyle(gallery);
       return {
-        nav: rect(navRect),
-        main: rect(mainRect),
+        nav: rect('.bottom-collection-nav'),
+        shell: rect('.archive-shell'),
+        header: rect('.archive-header'),
+        main: rect('#fixture-main'),
         viewport: {
           innerWidth,
           innerHeight,
           clientWidth: document.documentElement.clientWidth,
           clientHeight: document.documentElement.clientHeight,
         },
-        requiredGap,
-        actualGap: mainRect.left - navRect.right,
-        columns: style.gridTemplateColumns,
-        shadow: style.boxShadow,
-        scrollHeight: nav.scrollHeight,
+        navPosition: navStyle.position,
+        navOverflowY: navStyle.overflowY,
+        navShadow: navStyle.boxShadow,
+        navRadius: navStyle.borderRadius,
+        shellDisplay: shellStyle.display,
+        shellColumns: shellStyle.gridTemplateColumns,
+        galleryColumns: galleryStyle.gridTemplateColumns.split(/\\s+/).filter(Boolean).length,
+        navScrollHeight: nav.scrollHeight,
         navClientHeight: nav.clientHeight,
       };
     })()`,
-    returnByValue: true,
-  });
-
-  const value = result.result?.value;
-  assert(value, "Chrome did not return layout geometry");
-  return value;
+  );
 }
 
 function closeEnough(left, right, tolerance = 1) {
@@ -279,71 +252,39 @@ function closeEnough(left, right, tolerance = 1) {
 function checkCase(testCase, value) {
   const label = `${testCase.width}x${testCase.height}`;
   const details = JSON.stringify(value);
-  const columnCount = value.columns.split(/\s+/).filter(Boolean).length;
-  const isSide = columnCount === 1 && closeEnough(value.nav.width, 100, 1);
 
-  assert.equal(
-    value.viewport.innerWidth,
-    testCase.width,
-    `${label}: unexpected CSS viewport width; ${details}`,
-  );
-  assert.equal(
-    value.viewport.innerHeight,
-    testCase.height,
-    `${label}: unexpected CSS viewport height; ${details}`,
-  );
-  assert.equal(
-    isSide,
-    testCase.side,
-    `${label}: wrong navigation mode; ${details}`,
-  );
-
-  assert(
-    value.nav.left >= -0.5 &&
-      value.nav.right <= value.viewport.clientWidth + 0.5,
-    `${label}: navigation leaves the horizontal layout viewport; ${details}`,
-  );
-  assert(
-    value.nav.top >= -0.5 &&
-      value.nav.bottom <= value.viewport.clientHeight + 0.5,
-    `${label}: navigation leaves the vertical layout viewport; ${details}`,
-  );
+  assert.equal(value.viewport.innerWidth, testCase.width, `${label}: wrong viewport width`);
+  assert.equal(value.viewport.innerHeight, testCase.height, `${label}: wrong viewport height`);
 
   if (testCase.side) {
-    assert(
-      value.actualGap >= value.requiredGap - 0.75,
-      `${label}: navigation/content gap is ${value.actualGap}px, expected at least ${value.requiredGap}px; ${details}`,
-    );
-    assert(
-      value.nav.right <= value.main.left + 0.5,
-      `${label}: navigation overlaps visitor content; ${details}`,
-    );
-    assert(
-      closeEnough(value.main.width, 1320, 0.75),
-      `${label}: side mode changed the existing 1320px desktop content width; ${details}`,
-    );
-    assert.match(
-      value.shadow,
-      /rgba\(31, 58, 47, 0\.12\)/,
-      `${label}: side-specific outward shadow is missing; ${details}`,
-    );
+    assert(value.viewport.clientWidth >= 800, `${label}: page container is below 50rem; ${details}`);
+    assert.equal(value.shellDisplay, "grid", `${label}: shell is not a two-column grid; ${details}`);
+    assert.equal(value.navPosition, "sticky", `${label}: sidebar is not sticky; ${details}`);
+    assert.notEqual(value.navPosition, "fixed", `${label}: sidebar still floats; ${details}`);
+    assert(closeEnough(value.nav.left, value.shell.left, 0.75), `${label}: sidebar is not in the left grid column; ${details}`);
+    assert(closeEnough(value.nav.right, value.header.left, 0.75), `${label}: right content does not start after the sidebar; ${details}`);
+    assert(closeEnough(value.nav.width, value.shell.width * 0.2, 0.9), `${label}: sidebar is not 20% wide; ${details}`);
+    assert(closeEnough(value.header.width, value.shell.width * 0.8, 0.9), `${label}: right content is not the remaining 80%; ${details}`);
+    assert(value.main.left >= value.nav.right - 0.5, `${label}: sidebar overlaps main content; ${details}`);
+    assert(value.nav.right <= value.header.left + 0.5, `${label}: sidebar overlaps header content; ${details}`);
+    assert.equal(value.navShadow, "none", `${label}: sidebar still has a floating shadow; ${details}`);
+    assert.equal(value.navRadius, "0px", `${label}: sidebar still looks like a floating card; ${details}`);
+    assert(value.nav.bottom <= value.viewport.clientHeight + 0.75, `${label}: sidebar leaves the viewport; ${details}`);
   } else {
-    const navCenter = value.nav.left + value.nav.width / 2;
-    assert(
-      closeEnough(navCenter, value.viewport.clientWidth / 2, 0.75),
-      `${label}: bottom navigation is not centered in the layout viewport; ${details}`,
-    );
-    assert(
-      value.nav.width <= 720.75,
-      `${label}: bottom navigation exceeded its existing width; ${details}`,
-    );
+    assert(value.viewport.clientWidth < 800, `${label}: page container unexpectedly meets 50rem; ${details}`);
+    assert.equal(value.navPosition, "fixed", `${label}: bottom navigation no longer stays fixed; ${details}`);
+    const center = value.nav.left + value.nav.width / 2;
+    assert(closeEnough(center, value.viewport.clientWidth / 2, 0.75), `${label}: bottom navigation is not centered; ${details}`);
+    assert.equal(value.shellDisplay, "block", `${label}: narrow layout unexpectedly became a grid; ${details}`);
+  }
+
+  if (testCase.threeColumns) {
+    assert.equal(value.galleryColumns, 3, `${label}: right pane cannot retain a three-photo row; ${details}`);
   }
 
   if (testCase.scrollable) {
-    assert(
-      value.scrollHeight > value.navClientHeight + 1,
-      `${label}: tall side navigation did not keep its own scroll area; ${details}`,
-    );
+    assert.equal(value.navOverflowY, "auto", `${label}: sidebar cannot scroll; ${details}`);
+    assert(value.navScrollHeight > value.navClientHeight + 1, `${label}: tall sidebar has no internal scroll range; ${details}`);
   }
 }
 
@@ -380,13 +321,10 @@ async function main() {
 
   const fixturePort = await listen(server);
   const debuggerPort = await freePort();
-  const userDataDirectory = await mkdtemp(
-    path.join(os.tmpdir(), "memories-navigation-chrome-"),
-  );
-  const chromePath = findChrome();
+  const userDataDirectory = await mkdtemp(path.join(os.tmpdir(), "memories-navigation-chrome-"));
   const chromeOutput = [];
   const chrome = spawn(
-    chromePath,
+    findChrome(),
     [
       "--headless=new",
       "--no-sandbox",
@@ -433,15 +371,19 @@ async function main() {
         screenHeight: testCase.height,
       });
       const marker = `?viewport=${testCase.width}x${testCase.height}`;
-      await client.send("Page.navigate", {
-        url: `http://${host}:${fixturePort}/${marker}`,
-      });
+      await client.send("Page.navigate", { url: `http://${host}:${fixturePort}/${marker}` });
       await waitForDocument(client, marker);
       const value = await geometry(client);
       checkCase(testCase, value);
-      console.log(
-        `navigation layout ${testCase.width}x${testCase.height}: ${testCase.side ? "side" : "bottom"} ✓`,
-      );
+
+      if (testCase.sticky) {
+        await evaluate(client, "scrollTo(0, 360)");
+        await sleep(50);
+        const afterScroll = await geometry(client);
+        assert(closeEnough(afterScroll.nav.top, 0, 0.75), `${testCase.width}x${testCase.height}: sticky sidebar moved while scrolling`);
+      }
+
+      console.log(`navigation layout ${testCase.width}x${testCase.height}: ${testCase.side ? "sidebar" : "bottom"} ✓`);
     }
   } finally {
     client?.close();
