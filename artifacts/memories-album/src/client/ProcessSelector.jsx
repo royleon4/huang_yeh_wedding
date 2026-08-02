@@ -1,6 +1,7 @@
+import { useEffect, useRef } from "react";
 import { processWheelLoopsForAlbum } from "../process-selector-settings.mjs";
 import { getPublicBootstrap } from "./public-bootstrap.mjs";
-import { requestGalleryStartScroll } from "./gallery-navigation.mjs";
+import { requestActiveContentScroll } from "./gallery-navigation.mjs";
 import ProcessWheel from "./ProcessWheel.jsx";
 import { suspendMasonryAnchorRestoration } from "./useMasonryLayout.mjs";
 
@@ -30,13 +31,32 @@ function TraditionalSelector({ items, activeId, onSelect, ariaLabel, variant }) 
 
 export default function ProcessSelector(props) {
   const settings = getPublicBootstrap().settings;
+  const pendingSelectionRef = useRef(null);
   const albumId =
     props.albumId ?? (props.variant === "guest" ? "guest" : "wedding");
 
+  const positionCommittedContent = () => {
+    suspendMasonryAnchorRestoration();
+    requestActiveContentScroll();
+  };
+
+  useEffect(() => {
+    const pending = pendingSelectionRef.current;
+    if (!pending || pending.id !== String(props.activeId)) return;
+    pendingSelectionRef.current = null;
+    positionCommittedContent();
+  }, [props.activeId]);
+
   const selectWithPositioning = (id, context) => {
+    const selectionId = String(id);
+    pendingSelectionRef.current = { id: selectionId };
     suspendMasonryAnchorRestoration();
     props.onSelect(id, context);
-    requestGalleryStartScroll();
+
+    if (selectionId === String(props.activeId)) {
+      pendingSelectionRef.current = null;
+      positionCommittedContent();
+    }
   };
 
   if (settings.processWheelEnabled) {
