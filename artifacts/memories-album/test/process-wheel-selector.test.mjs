@@ -99,13 +99,19 @@ test("process wheel selects directly, fills both directions, and keeps every vis
   assert.match(selector, /getPublicBootstrap\(\)\.settings/);
   assert.match(selector, /processWheelLoopsForAlbum/);
   assert.match(selector, /albumId/);
-  assert.match(selector, /requestGalleryStartScroll/);
+  assert.match(selector, /pendingSelectionRef/);
+  assert.match(selector, /requestActiveContentScroll/);
   assert.match(selector, /suspendMasonryAnchorRestoration/);
   assert.match(selector, /onSelect=\{selectWithPositioning\}/);
   assert.doesNotMatch(selector, /function scrollToGalleryStart/);
-  assert.match(navigation, /galleryStartTop/);
-  assert.match(navigation, /gallery\.getBoundingClientRect\(\)\.top/);
+  assert.match(navigation, /activeContentStartTop/);
+  assert.match(navigation, /target\.getBoundingClientRect\(\)\.top/);
+  assert.match(
+    navigation,
+    /\.process-media-sequence > \.process-media-item\[data-media-block\]/,
+  );
   assert.match(navigation, /windowRef\.scrollTo\(\{ top, behavior \}\)/);
+  assert.match(navigation, /latestScrollRequest/);
   assert.match(navigation, /windowRef\.requestAnimationFrame/);
 
   assert.match(component, /DEFAULT_VISIBLE_COUNT = 6/);
