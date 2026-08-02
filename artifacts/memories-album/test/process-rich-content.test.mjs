@@ -168,7 +168,7 @@ test("selector preserves traditional buttons and reads wheel settings from the p
   assert.doesNotMatch(selector, /DEFAULT_SETTINGS/);
 });
 
-test("process wheel reuses shared gallery navigation and supports configurable mobile density", async () => {
+test("process wheel reuses shared content navigation and supports configurable mobile density", async () => {
   const [component, selector, navigation, styles, settings] = await Promise.all([
     readFile(new URL("../src/client/ProcessWheel.jsx", import.meta.url), "utf8"),
     readFile(new URL("../src/client/ProcessSelector.jsx", import.meta.url), "utf8"),
@@ -187,12 +187,17 @@ test("process wheel reuses shared gallery navigation and supports configurable m
   assert.doesNotMatch(component, /firstSelectedContent/);
   assert.doesNotMatch(component, /\.process-video-block/);
   assert.doesNotMatch(component, /\.masonry-grid \.photo-card/);
-  assert.match(selector, /requestGalleryStartScroll/);
+  assert.match(selector, /requestActiveContentScroll/);
+  assert.match(selector, /pendingSelectionRef/);
   assert.match(selector, /suspendMasonryAnchorRestoration/);
   assert.match(selector, /onSelect=\{selectWithPositioning\}/);
   assert.doesNotMatch(selector, /function scrollToGalleryStart/);
   assert.match(navigation, /documentRef\.querySelector\("\.process-section"\)/);
-  assert.match(navigation, /gallery\.getBoundingClientRect\(\)\.top/);
+  assert.match(navigation, /target\.getBoundingClientRect\(\)\.top/);
+  assert.match(
+    navigation,
+    /\.process-media-sequence > \.process-media-item\[data-media-block\]/,
+  );
   assert.match(component, /visibleCount/);
   assert.match(component, /selectionContext/);
   assert.match(styles, /--wheel-mobile-item-width/);
