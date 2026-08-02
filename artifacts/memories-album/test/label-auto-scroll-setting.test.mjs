@@ -19,7 +19,7 @@ function jsonResponse() {
 }
 
 function jsonRequest(path, body) {
-  const request = Readable.from([JSON.stringify(body)]);
+  const request = Readable.from([Buffer.from(JSON.stringify(body))]);
   request.method = "PATCH";
   request.url = path;
   return request;
@@ -76,9 +76,13 @@ test("process selector settings persist the auto-scroll switch with wheel settin
 });
 
 test("label selection uses one immediate sticky-selector scroll path", async () => {
-  const [selector, settingsUi] = await Promise.all([
+  const [selector, autoScroll, settingsUi] = await Promise.all([
     readFile(
       new URL("../src/client/ProcessSelector.jsx", import.meta.url),
+      "utf8",
+    ),
+    readFile(
+      new URL("../src/client/LabelAutoScroll.jsx", import.meta.url),
       "utf8",
     ),
     readFile(
@@ -87,12 +91,14 @@ test("label selection uses one immediate sticky-selector scroll path", async () 
     ),
   ]);
 
-  assert.match(selector, /\.process-selector-sticky/);
-  assert.match(selector, /scrollIntoView\(\{/);
-  assert.match(selector, /behavior: "auto"/);
-  assert.match(selector, /block: "start"/);
+  assert.match(selector, /<LabelAutoScroll/);
+  assert.doesNotMatch(selector, /useEffect|scrollIntoView/);
+  assert.match(autoScroll, /\.process-selector-sticky/);
+  assert.match(autoScroll, /scrollIntoView\(\{/);
+  assert.match(autoScroll, /behavior: "auto"/);
+  assert.match(autoScroll, /block: "start"/);
   assert.match(selector, /processLabelAutoScrollEnabled !== false/);
-  assert.doesNotMatch(selector, /window\.scrollTo|window\.scrollBy/);
+  assert.doesNotMatch(autoScroll, /window\.scrollTo|window\.scrollBy/);
   assert.match(settingsUi, /選中標籤後自動捲動至內容開頭/);
   assert.match(settingsUi, /\/admin\/api\/settings\/process-selector/);
 });
