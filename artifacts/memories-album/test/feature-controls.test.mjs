@@ -60,14 +60,28 @@ test("dynamic albums and upload use explicit React callbacks in bottom navigatio
   assert.match(appSource, /<BottomCollectionNav/);
 });
 
-test("changing a collection or process scrolls to the first gallery item", async () => {
-  const source = await readClient("GalleryEnhancements.jsx");
-  assert.match(source, /closest\("\.process-chip, \.collection-tab"\)/);
-  assert.match(source, /document\.getElementById\("archive-gallery"\)/);
+test("collection and process navigation share one gallery positioning module", async () => {
+  const [navigation, selector, collectionNavigation, enhancements] =
+    await Promise.all([
+      readClient("gallery-navigation.mjs"),
+      readClient("ProcessSelector.jsx"),
+      readClient("CollectionTabNavigation.jsx"),
+      readClient("GalleryEnhancements.jsx"),
+    ]);
+
+  assert.match(navigation, /documentRef\?\.getElementById\("archive-gallery"\)/);
+  assert.match(navigation, /documentRef\.querySelector\("\.process-section"\)/);
   assert.match(
-    source,
-    /window\.scrollTo\(\{ top: Math\.max\(0, top\), behavior: "smooth" \}\)/,
+    navigation,
+    /windowRef\.scrollTo\(\{ top, behavior \}\)/,
   );
+  assert.match(selector, /requestGalleryStartScroll\(\)/);
+  assert.match(selector, /suspendMasonryAnchorRestoration\(\)/);
+  assert.match(collectionNavigation, /closest\("\.collection-tab"\)/);
+  assert.match(collectionNavigation, /requestGalleryStartScroll\(\)/);
+  assert.doesNotMatch(collectionNavigation, /\.process-chip/);
+  assert.match(enhancements, /<CollectionTabNavigation \/>/);
+  assert.match(enhancements, /<GalleryAdminEntry \/>/);
 });
 
 test("React renders before the process API finishes", async () => {
