@@ -82,8 +82,11 @@ test("selector reads bootstrap directly and upload modal is transformed to reuse
   assert.equal(selector, selectorSource, "selector no longer needs a source transform");
   assert.match(selector, /getPublicBootstrap\(\)\.settings/);
   assert.match(selector, /processWheelLoopsForAlbum/);
+  assert.match(selector, /pendingSelectionRef/);
+  assert.match(selector, /requestActiveContentScroll/);
+  assert.match(selector, /useEffect/);
+  assert.doesNotMatch(selector, /useState/);
   assert.doesNotMatch(selector, /settingsPromise|processSelectorSettings|api\/settings/);
-  assert.doesNotMatch(selector, /useEffect|useState/);
 
   assert.match(upload, /const publicBootstrap = getPublicBootstrap\(\)/);
   assert.match(
