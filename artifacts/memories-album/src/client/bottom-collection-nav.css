@@ -2,9 +2,12 @@
   --memories-bottom-nav-height: clamp(4.35rem, 11.5vw, 4.75rem);
   --memories-bottom-nav-inline-padding: clamp(0.28rem, 1.25vw, 0.62rem);
   --memories-bottom-nav-block-padding: clamp(0.16rem, 0.65vw, 0.28rem);
-  --memories-side-nav-width: 6.25rem;
-  --memories-side-nav-gap: 1rem;
-  --memories-content-half-max-width: 660px;
+  --memories-sidebar-share: 20%;
+}
+
+body {
+  container-name: memories-page;
+  container-type: inline-size;
 }
 
 .collection-tabs,
@@ -182,38 +185,79 @@
 }
 
 /*
- * Only use the side rail when the viewport can hold the rendered 1320px
- * desktop content area, the complete navigation width, and a full safety gap.
- * rem-based thresholds also grow with a visitor's browser default font size.
+ * The existing gallery first supports three cards at 40rem. With a 20% / 80%
+ * split, the page must be 50rem wide before the right pane retains that same
+ * 40rem capacity: 40rem / 0.8 = 50rem. Querying the page container means the
+ * decision follows the real available width after scrollbars, zoom and embeds.
  */
-@media (min-width: 100rem) and (min-height: 36rem) {
+@container memories-page (min-width: 50rem) {
+  .archive-shell {
+    display: grid;
+    grid-template-columns: var(--memories-sidebar-share) minmax(0, 1fr);
+    grid-template-rows: auto auto auto auto;
+    grid-template-areas:
+      "sidebar header"
+      "sidebar primary"
+      "sidebar main"
+      "sidebar footer";
+    align-items: start;
+    padding-bottom: 0;
+    overflow: clip;
+  }
+
+  .archive-header {
+    grid-area: header;
+    min-width: 0;
+  }
+
+  .primary-nav {
+    grid-area: primary;
+    min-width: 0;
+  }
+
+  .archive-shell > main {
+    grid-area: main;
+    min-width: 0;
+  }
+
+  .archive-footer {
+    grid-area: footer;
+    min-width: 0;
+  }
+
   .bottom-collection-nav {
-    top: 50%;
-    left: calc(
-      50% - var(--memories-content-half-max-width) -
-        var(--memories-side-nav-width) - var(--memories-side-nav-gap)
-    );
+    grid-area: sidebar;
+    position: sticky;
+    top: 0;
+    left: auto;
     bottom: auto;
-    width: var(--memories-side-nav-width);
-    max-height: calc(100vh - 2rem);
-    max-height: calc(100dvh - 2rem);
+    align-self: start;
+    width: 100%;
+    height: 100vh;
+    height: 100dvh;
     min-height: 0;
-    grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: auto auto auto;
-    transform: translateY(-50%);
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    transform: none;
     overflow-y: auto;
     overscroll-behavior: contain;
-    box-shadow: -10px 0 28px rgba(31, 58, 47, 0.12);
+    border: 0;
+    border-right: 1px solid rgba(53, 95, 77, 0.18);
+    border-radius: 0;
+    padding:
+      max(1rem, env(safe-area-inset-top))
+      var(--memories-bottom-nav-inline-padding)
+      max(1rem, env(safe-area-inset-bottom));
+    box-shadow: none;
   }
 
   .bottom-nav-side {
+    width: 100%;
+    flex: 0 0 auto;
     flex-direction: column;
-    overflow: visible;
-  }
-
-  .bottom-nav-left,
-  .bottom-nav-right {
     justify-content: flex-start;
+    overflow: visible;
   }
 
   .bottom-nav-side button {
@@ -224,8 +268,9 @@
   }
 
   .bottom-upload-action {
+    flex: 0 0 auto;
     align-self: center;
-    justify-self: center;
+    justify-self: auto;
     margin-top: 0;
   }
 }
