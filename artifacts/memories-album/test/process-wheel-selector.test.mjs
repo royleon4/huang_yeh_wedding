@@ -91,7 +91,8 @@ test("process wheel selects directly, fills both directions, and keeps every vis
   assert.match(selector, /<TraditionalSelector \{\.\.\.props\} \/>/);
   assert.match(selector, /<LabelAutoScroll/);
   assert.match(autoScroll, /scrollIntoView\(\{/);
-  assert.match(autoScroll, /behavior: "auto"/);
+  assert.match(autoScroll, /return reduceMotion \? "auto" : "smooth"/);
+  assert.match(autoScroll, /prefers-reduced-motion: reduce/);
   assert.doesNotMatch(autoScroll, /window\.scrollTo|window\.scrollBy/);
 
   assert.match(component, /DEFAULT_VISIBLE_COUNT = 6/);
