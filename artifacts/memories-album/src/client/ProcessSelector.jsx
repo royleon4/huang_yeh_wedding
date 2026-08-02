@@ -1,22 +1,7 @@
 import { processWheelLoopsForAlbum } from "../process-selector-settings.mjs";
 import { getPublicBootstrap } from "./public-bootstrap.mjs";
+import { requestGalleryStartScroll } from "./gallery-navigation.mjs";
 import ProcessWheel from "./ProcessWheel.jsx";
-
-function scrollToGalleryStart() {
-  const gallery = document.getElementById("archive-gallery");
-  if (!gallery) return;
-  const stickyControls = document.querySelector(".process-section");
-  const stickyHeight = stickyControls?.getBoundingClientRect().height ?? 0;
-  const top =
-    window.scrollY + gallery.getBoundingClientRect().top - stickyHeight - 10;
-  window.scrollTo({ top: Math.max(0, top), behavior: "smooth" });
-}
-
-export function requestGalleryStartScroll() {
-  window.requestAnimationFrame(() =>
-    window.requestAnimationFrame(scrollToGalleryStart),
-  );
-}
 
 function TraditionalSelector({ items, activeId, onSelect, ariaLabel, variant }) {
   return (
@@ -28,7 +13,9 @@ function TraditionalSelector({ items, activeId, onSelect, ariaLabel, variant }) 
           className={`process-chip ${variant === "guest" ? "guest" : ""} ${
             activeId === item.id ? "active" : ""
           }`}
-          onClick={() => onSelect(item.id)}
+          onClick={() =>
+            onSelect(item.id, { source: "click", userInitiated: true })
+          }
         >
           {item.number && <span>{item.number}</span>}
           {item.label}
@@ -40,10 +27,11 @@ function TraditionalSelector({ items, activeId, onSelect, ariaLabel, variant }) 
 
 export default function ProcessSelector(props) {
   const settings = getPublicBootstrap().settings;
-  const albumId = props.albumId ?? (props.variant === "guest" ? "guest" : "wedding");
+  const albumId =
+    props.albumId ?? (props.variant === "guest" ? "guest" : "wedding");
 
-  const selectWithTraditionalPositioning = (id) => {
-    props.onSelect(id);
+  const selectWithPositioning = (id, context) => {
+    props.onSelect(id, context);
     requestGalleryStartScroll();
   };
 
@@ -51,17 +39,12 @@ export default function ProcessSelector(props) {
     return (
       <ProcessWheel
         {...props}
-        onSelect={selectWithTraditionalPositioning}
+        onSelect={selectWithPositioning}
         visibleCount={settings.processWheelVisibleCount}
         loop={processWheelLoopsForAlbum(settings, albumId)}
       />
     );
   }
 
-  return (
-    <TraditionalSelector
-      {...props}
-      onSelect={selectWithTraditionalPositioning}
-    />
-  );
+  return <TraditionalSelector {...props} onSelect={selectWithPositioning} />;
 }
