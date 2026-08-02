@@ -259,7 +259,6 @@ async function geometry(client) {
         requiredGap,
         actualGap: mainRect.left - navRect.right,
         columns: style.gridTemplateColumns,
-        bottom: style.bottom,
         shadow: style.boxShadow,
         scrollHeight: nav.scrollHeight,
         navClientHeight: nav.clientHeight,
@@ -281,7 +280,7 @@ function checkCase(testCase, value) {
   const label = `${testCase.width}x${testCase.height}`;
   const details = JSON.stringify(value);
   const columnCount = value.columns.split(/\s+/).filter(Boolean).length;
-  const isSide = value.bottom === "auto" && columnCount === 1;
+  const isSide = columnCount === 1 && closeEnough(value.nav.width, 100, 1);
 
   assert.equal(
     value.viewport.innerWidth,
@@ -320,8 +319,8 @@ function checkCase(testCase, value) {
       `${label}: navigation overlaps visitor content; ${details}`,
     );
     assert(
-      closeEnough(value.main.width, 1280, 0.75),
-      `${label}: side mode changed the 1280px content width; ${details}`,
+      closeEnough(value.main.width, 1320, 0.75),
+      `${label}: side mode changed the existing 1320px desktop content width; ${details}`,
     );
     assert.match(
       value.shadow,
