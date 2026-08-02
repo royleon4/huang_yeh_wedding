@@ -401,7 +401,6 @@ export default function App() {
 
   const chooseFilter = (filterId) => {
     setActiveFilter(filterId);
-    setPageSize(12);
     setSelectedPhotoId(null);
   };
 
