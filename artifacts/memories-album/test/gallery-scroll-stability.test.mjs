@@ -6,6 +6,10 @@ import {
   masonryRowSpan,
   viewportWidthChanged,
 } from "../src/client/gallery-enhancement-model.mjs";
+import {
+  masonryAnchorRestorationSuppressed,
+  suspendMasonryAnchorRestoration,
+} from "../src/client/useMasonryLayout.mjs";
 
 test("masonry measures natural card content without clearing existing spans", () => {
   assert.equal(masonryMeasuredHeight(240, 1, 1), 242);
@@ -18,16 +22,32 @@ test("mobile browser chrome height changes do not trigger a full relayout", () =
   assert.equal(viewportWidthChanged(390, 844), true);
 });
 
-test("gallery relayout stays incremental and preserves the visible anchor", async () => {
-  const source = await readFile(
-    new URL("../src/client/GalleryEnhancements.jsx", import.meta.url),
-    "utf8",
-  );
+test("masonry anchor restoration can be suspended around navigation", () => {
+  suspendMasonryAnchorRestoration(700, 1_000);
+  assert.equal(masonryAnchorRestorationSuppressed(1_699), true);
+  assert.equal(masonryAnchorRestorationSuppressed(1_700), false);
+});
 
-  assert.doesNotMatch(source, /gridRowEnd\s*=\s*["']auto["']/);
-  assert.match(source, /card\.scrollHeight/);
-  assert.match(source, /window\.scrollBy\(0, delta\)/);
-  assert.match(source, /viewportWidthChanged\(lastViewportWidth, nextWidth\)/);
-  assert.match(source, /mutationObserver\?\.observe\(archiveGallery/);
-  assert.doesNotMatch(source, /observe\(document\.documentElement/);
+test("each photo grid owns incremental layout and visible-anchor preservation", async () => {
+  const [layout, grid] = await Promise.all([
+    readFile(
+      new URL("../src/client/useMasonryLayout.mjs", import.meta.url),
+      "utf8",
+    ),
+    readFile(
+      new URL("../src/client/PhotoGroupGrid.jsx", import.meta.url),
+      "utf8",
+    ),
+  ]);
+
+  assert.doesNotMatch(layout, /gridRowEnd\s*=\s*["']auto["']/);
+  assert.match(layout, /card\.scrollHeight/);
+  assert.match(layout, /windowRef\.scrollBy\(0, delta\)/);
+  assert.match(layout, /viewportWidthChanged\(lastViewportWidth, nextWidth\)/);
+  assert.match(layout, /mutationObserver\?\.observe\(grid/);
+  assert.match(layout, /const grid = gridRef\.current/);
+  assert.doesNotMatch(layout, /document\.querySelector\("\.masonry-grid"\)/);
+  assert.doesNotMatch(layout, /observe\(document\.documentElement/);
+  assert.match(grid, /const gridRef = useMasonryLayout\(\)/);
+  assert.match(grid, /<div ref=\{gridRef\} className="masonry-grid">/);
 });

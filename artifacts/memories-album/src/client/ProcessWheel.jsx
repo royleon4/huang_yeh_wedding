@@ -47,6 +47,10 @@ function realWheelKey(id) {
   return `real-${String(id)}`;
 }
 
+function selectionContext(source) {
+  return { source, userInitiated: true };
+}
+
 export default function ProcessWheel({
   items,
   activeId,
@@ -110,7 +114,9 @@ export default function ProcessWheel({
     const id = item?.dataset.wheelId;
     const visualKey = item?.dataset.wheelKey;
     if (visualKey) setActiveVisualKey(String(visualKey));
-    if (id && id !== activeId) onSelect(id);
+    if (id && id !== activeId) {
+      onSelect(id, selectionContext("wheel"));
+    }
   };
 
   const scheduleSelection = () => {
@@ -186,9 +192,9 @@ export default function ProcessWheel({
     [],
   );
 
-  const choose = (id, element) => {
+  const choose = (id, element, source = "click") => {
     startProgrammaticScroll(element);
-    onSelect(id);
+    onSelect(id, selectionContext(source));
   };
 
   const handleWheel = (event) => {
@@ -229,7 +235,7 @@ export default function ProcessWheel({
     const element = wheelRef.current?.querySelector(
       `[data-wheel-real-id="${CSS.escape(String(next.id))}"]`,
     );
-    choose(next.id, element);
+    choose(next.id, element, "keyboard");
     element?.focus({ preventScroll: true });
   };
 
@@ -271,7 +277,9 @@ export default function ProcessWheel({
               data-wheel-key={key}
               data-wheel-clone={clone || undefined}
               data-wheel-real-id={clone ? undefined : item.id}
-              onClick={(event) => choose(item.id, event.currentTarget)}
+              onClick={(event) =>
+                choose(item.id, event.currentTarget, "click")
+              }
             >
               {item.number && <span>{item.number}</span>}
               <strong>{item.label}</strong>

@@ -1,22 +1,11 @@
+import { useEffect, useRef } from "react";
 import { processWheelLoopsForAlbum } from "../process-selector-settings.mjs";
 import { getPublicBootstrap } from "./public-bootstrap.mjs";
+import { requestActiveContentScroll } from "./gallery-navigation.mjs";
 import ProcessWheel from "./ProcessWheel.jsx";
+import { suspendMasonryAnchorRestoration } from "./useMasonryLayout.mjs";
 
-function scrollToGalleryStart() {
-  const gallery = document.getElementById("archive-gallery");
-  if (!gallery) return;
-  const stickyControls = document.querySelector(".process-section");
-  const stickyHeight = stickyControls?.getBoundingClientRect().height ?? 0;
-  const top =
-    window.scrollY + gallery.getBoundingClientRect().top - stickyHeight - 10;
-  window.scrollTo({ top: Math.max(0, top), behavior: "smooth" });
-}
-
-export function requestGalleryStartScroll() {
-  window.requestAnimationFrame(() =>
-    window.requestAnimationFrame(scrollToGalleryStart),
-  );
-}
+export { requestGalleryStartScroll } from "./gallery-navigation.mjs";
 
 function TraditionalSelector({ items, activeId, onSelect, ariaLabel, variant }) {
   return (
@@ -28,7 +17,9 @@ function TraditionalSelector({ items, activeId, onSelect, ariaLabel, variant }) 
           className={`process-chip ${variant === "guest" ? "guest" : ""} ${
             activeId === item.id ? "active" : ""
           }`}
-          onClick={() => onSelect(item.id)}
+          onClick={() =>
+            onSelect(item.id, { source: "click", userInitiated: true })
+          }
         >
           {item.number && <span>{item.number}</span>}
           {item.label}
@@ -40,28 +31,44 @@ function TraditionalSelector({ items, activeId, onSelect, ariaLabel, variant }) 
 
 export default function ProcessSelector(props) {
   const settings = getPublicBootstrap().settings;
-  const albumId = props.albumId ?? (props.variant === "guest" ? "guest" : "wedding");
+  const pendingSelectionRef = useRef(null);
+  const albumId =
+    props.albumId ?? (props.variant === "guest" ? "guest" : "wedding");
 
-  const selectWithTraditionalPositioning = (id) => {
-    props.onSelect(id);
-    requestGalleryStartScroll();
+  const positionCommittedContent = () => {
+    suspendMasonryAnchorRestoration();
+    requestActiveContentScroll();
+  };
+
+  useEffect(() => {
+    const pending = pendingSelectionRef.current;
+    if (!pending || pending.id !== String(props.activeId)) return;
+    pendingSelectionRef.current = null;
+    positionCommittedContent();
+  }, [props.activeId]);
+
+  const selectWithPositioning = (id, context) => {
+    const selectionId = String(id);
+    pendingSelectionRef.current = { id: selectionId };
+    suspendMasonryAnchorRestoration();
+    props.onSelect(id, context);
+
+    if (selectionId === String(props.activeId)) {
+      pendingSelectionRef.current = null;
+      positionCommittedContent();
+    }
   };
 
   if (settings.processWheelEnabled) {
     return (
       <ProcessWheel
         {...props}
-        onSelect={selectWithTraditionalPositioning}
+        onSelect={selectWithPositioning}
         visibleCount={settings.processWheelVisibleCount}
         loop={processWheelLoopsForAlbum(settings, albumId)}
       />
     );
   }
 
-  return (
-    <TraditionalSelector
-      {...props}
-      onSelect={selectWithTraditionalPositioning}
-    />
-  );
+  return <TraditionalSelector {...props} onSelect={selectWithPositioning} />;
 }
