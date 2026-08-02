@@ -4,7 +4,7 @@
   --memories-bottom-nav-block-padding: clamp(0.16rem, 0.65vw, 0.28rem);
   --memories-side-nav-width: 6.25rem;
   --memories-side-nav-gap: 1rem;
-  --memories-content-half-max-width: 640px;
+  --memories-content-half-max-width: 660px;
 }
 
 .collection-tabs,
@@ -182,9 +182,9 @@
 }
 
 /*
- * Only use the side rail when the viewport can hold the 1280px content area,
- * the complete navigation width, and a full safety gap. rem-based thresholds
- * also grow with a visitor's browser default font size.
+ * Only use the side rail when the viewport can hold the rendered 1320px
+ * desktop content area, the complete navigation width, and a full safety gap.
+ * rem-based thresholds also grow with a visitor's browser default font size.
  */
 @media (min-width: 100rem) and (min-height: 36rem) {
   .bottom-collection-nav {
