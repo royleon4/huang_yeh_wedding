@@ -95,27 +95,39 @@ test("bottom navigation stays compact while icons and labels grow responsively",
   assert.doesNotMatch(navigation, /bottom-nav-chip/);
 });
 
-test("wide-screen navigation moves into the unused left gutter without resizing content", async () => {
+test("wide-screen navigation uses a font-aware safety threshold and stays outside content", async () => {
   const navigation = await readFile(
     path.join(root, "src/client/bottom-collection-nav.css"),
     "utf8",
   );
 
+  assert.match(navigation, /--memories-side-nav-width: 6\.25rem/);
+  assert.match(navigation, /--memories-side-nav-gap: 1rem/);
+  assert.match(navigation, /--memories-content-half-max-width: 640px/);
   assert.match(
     navigation,
-    /@media \(min-width: 1536px\) and \(min-height: 680px\)/,
+    /@media \(min-width: 100rem\) and \(min-height: 36rem\)/,
   );
   assert.match(
     navigation,
-    /left: calc\(\(100vw - 1280px\) \/ 4\)/,
+    /left: calc\([\s\S]*50% - var\(--memories-content-half-max-width\)[\s\S]*var\(--memories-side-nav-width\) - var\(--memories-side-nav-gap\)[\s\S]*\);/,
   );
   assert.match(navigation, /top: 50%/);
   assert.match(navigation, /bottom: auto/);
-  assert.match(navigation, /width: 6\.25rem/);
-  assert.match(navigation, /max-height: calc\(100vh - 2rem\)/);
+  assert.match(navigation, /width: var\(--memories-side-nav-width\)/);
+  assert.match(navigation, /max-height: calc\(100dvh - 2rem\)/);
   assert.match(navigation, /grid-template-columns: minmax\(0, 1fr\)/);
-  assert.match(navigation, /transform: translate\(-50%, -50%\)/);
+  assert.match(navigation, /transform: translateY\(-50%\)/);
   assert.match(navigation, /overflow-y: auto/);
+  assert.match(
+    navigation,
+    /box-shadow: -10px 0 28px rgba\(31, 58, 47, 0\.12\)/,
+  );
+  assert.doesNotMatch(
+    navigation,
+    /@media \(min-width: 1536px\) and \(min-height: 680px\)/,
+  );
+  assert.doesNotMatch(navigation, /100vw - 1280px/);
   assert.match(
     navigation,
     /\.bottom-nav-side\s*\{[\s\S]*flex-direction: column;[\s\S]*overflow: visible;/,
