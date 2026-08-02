@@ -103,7 +103,7 @@ test("wide-screen navigation uses a font-aware safety threshold and stays outsid
 
   assert.match(navigation, /--memories-side-nav-width: 6\.25rem/);
   assert.match(navigation, /--memories-side-nav-gap: 1rem/);
-  assert.match(navigation, /--memories-content-half-max-width: 640px/);
+  assert.match(navigation, /--memories-content-half-max-width: 660px/);
   assert.match(
     navigation,
     /@media \(min-width: 100rem\) and \(min-height: 36rem\)/,
