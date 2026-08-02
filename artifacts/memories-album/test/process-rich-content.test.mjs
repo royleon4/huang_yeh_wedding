@@ -164,26 +164,37 @@ test("selector preserves traditional buttons and reads wheel settings from the p
   assert.match(selector, /processWheelLoopsForAlbum/);
   assert.match(selector, /className="process-strip"/);
   assert.match(selector, /className=\{`process-chip/);
+  assert.match(selector, /source: "click"/);
   assert.doesNotMatch(selector, /DEFAULT_SETTINGS/);
 });
 
-test("process wheel reuses traditional gallery offset and supports configurable mobile density", async () => {
-  const [component, selector, styles, settings] = await Promise.all([
+test("process wheel reuses shared gallery navigation and supports configurable mobile density", async () => {
+  const [component, selector, navigation, styles, settings] = await Promise.all([
     readFile(new URL("../src/client/ProcessWheel.jsx", import.meta.url), "utf8"),
     readFile(new URL("../src/client/ProcessSelector.jsx", import.meta.url), "utf8"),
+    readFile(
+      new URL("../src/client/gallery-navigation.mjs", import.meta.url),
+      "utf8",
+    ),
     readFile(new URL("../src/client/process-wheel.css", import.meta.url), "utf8"),
-    readFile(new URL("../src/client/ProcessSelectorSettings.jsx", import.meta.url), "utf8"),
+    readFile(
+      new URL("../src/client/ProcessSelectorSettings.jsx", import.meta.url),
+      "utf8",
+    ),
   ]);
   assert.match(component, /closestItem/);
   assert.match(component, /setTimeout\(selectCenteredItem, 90\)/);
   assert.doesNotMatch(component, /firstSelectedContent/);
   assert.doesNotMatch(component, /\.process-video-block/);
   assert.doesNotMatch(component, /\.masonry-grid \.photo-card/);
-  assert.match(selector, /function scrollToGalleryStart/);
-  assert.match(selector, /document\.querySelector\("\.process-section"\)/);
-  assert.match(selector, /gallery\.getBoundingClientRect\(\)\.top - stickyHeight - 10/);
-  assert.match(selector, /onSelect=\{selectWithTraditionalPositioning\}/);
+  assert.match(selector, /requestGalleryStartScroll/);
+  assert.match(selector, /suspendMasonryAnchorRestoration/);
+  assert.match(selector, /onSelect=\{selectWithPositioning\}/);
+  assert.doesNotMatch(selector, /function scrollToGalleryStart/);
+  assert.match(navigation, /documentRef\.querySelector\("\.process-section"\)/);
+  assert.match(navigation, /gallery\.getBoundingClientRect\(\)\.top/);
   assert.match(component, /visibleCount/);
+  assert.match(component, /selectionContext/);
   assert.match(styles, /--wheel-mobile-item-width/);
   assert.match(styles, /scroll-snap-align: center/);
   assert.match(styles, /scroll-snap-type: x mandatory/);
