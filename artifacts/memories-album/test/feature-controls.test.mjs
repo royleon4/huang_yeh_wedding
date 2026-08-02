@@ -60,7 +60,7 @@ test("dynamic albums and upload use explicit React callbacks in bottom navigatio
   assert.match(appSource, /<BottomCollectionNav/);
 });
 
-test("collection and process navigation share one gallery positioning module", async () => {
+test("collection and process navigation share one content positioning module", async () => {
   const [navigation, selector, collectionNavigation, enhancements] =
     await Promise.all([
       readClient("gallery-navigation.mjs"),
@@ -70,12 +70,15 @@ test("collection and process navigation share one gallery positioning module", a
     ]);
 
   assert.match(navigation, /documentRef\?\.getElementById\("archive-gallery"\)/);
-  assert.match(navigation, /documentRef\.querySelector\("\.process-section"\)/);
   assert.match(
     navigation,
-    /windowRef\.scrollTo\(\{ top, behavior \}\)/,
+    /\.process-media-sequence > \.process-media-item\[data-media-block\]/,
   );
-  assert.match(selector, /requestGalleryStartScroll\(\)/);
+  assert.match(navigation, /documentRef\.querySelector\("\.process-section"\)/);
+  assert.match(navigation, /windowRef\.scrollTo\(\{ top, behavior \}\)/);
+  assert.match(selector, /pendingSelectionRef/);
+  assert.match(selector, /useEffect\(\(\) =>/);
+  assert.match(selector, /requestActiveContentScroll\(\)/);
   assert.match(selector, /suspendMasonryAnchorRestoration\(\)/);
   assert.match(collectionNavigation, /closest\("\.collection-tab"\)/);
   assert.match(collectionNavigation, /requestGalleryStartScroll\(\)/);
