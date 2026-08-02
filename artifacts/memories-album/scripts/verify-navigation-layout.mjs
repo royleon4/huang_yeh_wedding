@@ -9,14 +9,17 @@ import { fileURLToPath } from "node:url";
 const directory = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(directory, "..");
 const host = "127.0.0.1";
+const sidebarShare = 1 / 15;
+const contentShare = 14 / 15;
+const sidebarThreshold = 42.875 * 16;
 
 const cases = [
   { width: 640, height: 900, side: false },
-  { width: 800, height: 900, side: false },
-  { width: 820, height: 900, side: true, threeColumns: true },
+  { width: 700, height: 900, side: false },
+  { width: 720, height: 900, side: true, threeColumns: true },
   { width: 1024, height: 900, side: true, sticky: true },
   { width: 1440, height: 900, side: true },
-  { width: 820, height: 500, side: true, scrollable: true },
+  { width: 720, height: 500, side: true, scrollable: true },
 ];
 
 const fixture = `<!doctype html>
@@ -215,6 +218,7 @@ async function geometry(client) {
         return { left: value.left, right: value.right, top: value.top, bottom: value.bottom, width: value.width, height: value.height };
       };
       const nav = document.querySelector('.bottom-collection-nav');
+      const upload = document.querySelector('.bottom-upload-action');
       const shell = document.querySelector('.archive-shell');
       const gallery = document.querySelector('.masonry-grid');
       const navStyle = getComputedStyle(nav);
@@ -222,6 +226,7 @@ async function geometry(client) {
       const galleryStyle = getComputedStyle(gallery);
       return {
         nav: rect('.bottom-collection-nav'),
+        upload: rect('.bottom-upload-action'),
         shell: rect('.archive-shell'),
         header: rect('.archive-header'),
         main: rect('#fixture-main'),
@@ -257,21 +262,29 @@ function checkCase(testCase, value) {
   assert.equal(value.viewport.innerHeight, testCase.height, `${label}: wrong viewport height`);
 
   if (testCase.side) {
-    assert(value.viewport.clientWidth >= 800, `${label}: page container is below 50rem; ${details}`);
+    assert(
+      value.viewport.clientWidth >= sidebarThreshold,
+      `${label}: page container is below the sidebar threshold; ${details}`,
+    );
     assert.equal(value.shellDisplay, "grid", `${label}: shell is not a two-column grid; ${details}`);
     assert.equal(value.navPosition, "sticky", `${label}: sidebar is not sticky; ${details}`);
     assert.notEqual(value.navPosition, "fixed", `${label}: sidebar still floats; ${details}`);
     assert(closeEnough(value.nav.left, value.shell.left, 0.75), `${label}: sidebar is not in the left grid column; ${details}`);
     assert(closeEnough(value.nav.right, value.header.left, 0.75), `${label}: right content does not start after the sidebar; ${details}`);
-    assert(closeEnough(value.nav.width, value.shell.width * 0.2, 0.9), `${label}: sidebar is not 20% wide; ${details}`);
-    assert(closeEnough(value.header.width, value.shell.width * 0.8, 0.9), `${label}: right content is not the remaining 80%; ${details}`);
+    assert(closeEnough(value.nav.width, value.shell.width * sidebarShare, 0.9), `${label}: sidebar is not one third of its former 20% width; ${details}`);
+    assert(closeEnough(value.header.width, value.shell.width * contentShare, 0.9), `${label}: right content is not the remaining 14/15; ${details}`);
     assert(value.main.left >= value.nav.right - 0.5, `${label}: sidebar overlaps main content; ${details}`);
     assert(value.nav.right <= value.header.left + 0.5, `${label}: sidebar overlaps header content; ${details}`);
+    assert(value.upload.right <= value.nav.right + 0.5, `${label}: upload button overflows the narrower sidebar; ${details}`);
+    assert(value.upload.left >= value.nav.left - 0.5, `${label}: upload button leaves the narrower sidebar; ${details}`);
     assert.equal(value.navShadow, "none", `${label}: sidebar still has a floating shadow; ${details}`);
     assert.equal(value.navRadius, "0px", `${label}: sidebar still looks like a floating card; ${details}`);
     assert(value.nav.bottom <= value.viewport.clientHeight + 0.75, `${label}: sidebar leaves the viewport; ${details}`);
   } else {
-    assert(value.viewport.clientWidth < 800, `${label}: page container unexpectedly meets 50rem; ${details}`);
+    assert(
+      value.viewport.clientWidth < sidebarThreshold,
+      `${label}: page container unexpectedly meets the sidebar threshold; ${details}`,
+    );
     assert.equal(value.navPosition, "fixed", `${label}: bottom navigation no longer stays fixed; ${details}`);
     const center = value.nav.left + value.nav.width / 2;
     assert(closeEnough(center, value.viewport.clientWidth / 2, 0.75), `${label}: bottom navigation is not centered; ${details}`);
