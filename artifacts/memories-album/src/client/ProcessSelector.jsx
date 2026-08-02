@@ -4,6 +4,8 @@ import { requestGalleryStartScroll } from "./gallery-navigation.mjs";
 import ProcessWheel from "./ProcessWheel.jsx";
 import { suspendMasonryAnchorRestoration } from "./useMasonryLayout.mjs";
 
+export { requestGalleryStartScroll } from "./gallery-navigation.mjs";
+
 function TraditionalSelector({ items, activeId, onSelect, ariaLabel, variant }) {
   return (
     <div className="process-strip" role="list" aria-label={ariaLabel}>
