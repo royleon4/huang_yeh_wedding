@@ -107,6 +107,7 @@
 | --- | --- | --- |
 | [`MAINTAINER_GUIDE.md`](MAINTAINER_GUIDE.md) | 開發流程、change impact、測試、migration、release 與事故處理 | Current |
 | [`docs/phase-1-closeout-2026-08-01.md`](docs/phase-1-closeout-2026-08-01.md) | Product Phase 1 交接、限制與後續工作 | Current dated handoff |
+| [`docs/memories/content-navigation-achievement-2026-08-02.md`](docs/memories/content-navigation-achievement-2026-08-02.md) | 子分類內容定位重構、驗證與實際驗收紀錄 | Current dated achievement |
 | [`docs/documentation-audit-2026-08-01.md`](docs/documentation-audit-2026-08-01.md) | 本次文件盤點與修正紀錄 | Current dated audit |
 | [`replit.md`](replit.md) | Replit workspace 與 artifact context | Current |
 | [`artifacts/memories-album/README.md`](artifacts/memories-album/README.md) | Memories 完整技術概覽 | Current |
