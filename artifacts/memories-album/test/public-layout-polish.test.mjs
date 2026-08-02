@@ -95,45 +95,51 @@ test("bottom navigation stays compact while icons and labels grow responsively",
   assert.doesNotMatch(navigation, /bottom-nav-chip/);
 });
 
-test("wide-screen navigation uses a font-aware safety threshold and stays outside content", async () => {
+test("three-photo capacity switches the page to a non-overlapping 20/80 sidebar layout", async () => {
   const navigation = await readFile(
     path.join(root, "src/client/bottom-collection-nav.css"),
     "utf8",
   );
 
-  assert.match(navigation, /--memories-side-nav-width: 6\.25rem/);
-  assert.match(navigation, /--memories-side-nav-gap: 1rem/);
-  assert.match(navigation, /--memories-content-half-max-width: 660px/);
+  assert.match(navigation, /--memories-sidebar-share: 20%/);
   assert.match(
     navigation,
-    /@media \(min-width: 100rem\) and \(min-height: 36rem\)/,
+    /body\s*\{[\s\S]*container-name: memories-page;[\s\S]*container-type: inline-size;/,
   );
   assert.match(
     navigation,
-    /left: calc\([\s\S]*50% - var\(--memories-content-half-max-width\)[\s\S]*var\(--memories-side-nav-width\) - var\(--memories-side-nav-gap\)[\s\S]*\);/,
+    /@container memories-page \(min-width: 50rem\)/,
   );
-  assert.match(navigation, /top: 50%/);
-  assert.match(navigation, /bottom: auto/);
-  assert.match(navigation, /width: var\(--memories-side-nav-width\)/);
-  assert.match(navigation, /max-height: calc\(100dvh - 2rem\)/);
-  assert.match(navigation, /grid-template-columns: minmax\(0, 1fr\)/);
-  assert.match(navigation, /transform: translateY\(-50%\)/);
-  assert.match(navigation, /overflow-y: auto/);
   assert.match(
     navigation,
-    /box-shadow: -10px 0 28px rgba\(31, 58, 47, 0\.12\)/,
+    /40rem \/ 0\.8 = 50rem/,
+  );
+  assert.match(
+    navigation,
+    /\.archive-shell\s*\{[\s\S]*display: grid;[\s\S]*grid-template-columns: var\(--memories-sidebar-share\) minmax\(0, 1fr\);/,
+  );
+  assert.match(
+    navigation,
+    /grid-template-areas:[\s\S]*"sidebar header"[\s\S]*"sidebar primary"[\s\S]*"sidebar main"[\s\S]*"sidebar footer"/,
+  );
+  assert.match(
+    navigation,
+    /\.bottom-collection-nav\s*\{[\s\S]*grid-area: sidebar;[\s\S]*position: sticky;[\s\S]*top: 0;/,
+  );
+  assert.match(
+    navigation,
+    /\.bottom-collection-nav\s*\{[\s\S]*width: 100%;[\s\S]*height: 100dvh;/,
+  );
+  assert.match(
+    navigation,
+    /\.bottom-collection-nav\s*\{[\s\S]*transform: none;[\s\S]*overflow-y: auto;/,
+  );
+  assert.match(
+    navigation,
+    /\.bottom-collection-nav\s*\{[\s\S]*border-radius: 0;[\s\S]*box-shadow: none;/,
   );
   assert.doesNotMatch(
     navigation,
-    /@media \(min-width: 1536px\) and \(min-height: 680px\)/,
-  );
-  assert.doesNotMatch(navigation, /100vw - 1280px/);
-  assert.match(
-    navigation,
-    /\.bottom-nav-side\s*\{[\s\S]*flex-direction: column;[\s\S]*overflow: visible;/,
-  );
-  assert.match(
-    navigation,
-    /\.bottom-upload-action\s*\{[\s\S]*margin-top: 0;/,
+    /@container memories-page \(min-width: 50rem\)[\s\S]*\.bottom-collection-nav\s*\{[\s\S]*position: fixed;/,
   );
 });
