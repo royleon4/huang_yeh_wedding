@@ -49,12 +49,14 @@ jobs:
       - name: Validate responsive navigation in Chrome
         run: pnpm --filter @workspace/memories-album run test:layout-browser
 
-      - name: Preserve test output
+      - name: Preserve test output and generated lockfile
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: memories-test-output
-          path: memories-test-output.txt
+          name: memories-test-output-and-lock
+          path: |
+            memories-test-output.txt
+            pnpm-lock.yaml
           if-no-files-found: ignore
           retention-days: 7
 
