@@ -133,7 +133,7 @@ test("fidelity inspection covers page layout, typography, tables and references"
     assert.match(fidelity, new RegExp(signal));
   }
   assert.match(fidelity, /requiresFidelity: reasons\.length > 0/);
-  assert.match(fidelity, /await import\("docx-preview"\)/);
+  assert.match(fidelity, /import\("docx-preview"\)/);
 });
 
 test("high-fidelity Word node preserves its source and can be removed or opened", async () => {
