@@ -2,6 +2,7 @@ import { processWheelLoopsForAlbum } from "../process-selector-settings.mjs";
 import { getPublicBootstrap } from "./public-bootstrap.mjs";
 import { requestGalleryStartScroll } from "./gallery-navigation.mjs";
 import ProcessWheel from "./ProcessWheel.jsx";
+import { suspendMasonryAnchorRestoration } from "./useMasonryLayout.mjs";
 
 function TraditionalSelector({ items, activeId, onSelect, ariaLabel, variant }) {
   return (
@@ -31,6 +32,7 @@ export default function ProcessSelector(props) {
     props.albumId ?? (props.variant === "guest" ? "guest" : "wedding");
 
   const selectWithPositioning = (id, context) => {
+    suspendMasonryAnchorRestoration();
     props.onSelect(id, context);
     requestGalleryStartScroll();
   };
