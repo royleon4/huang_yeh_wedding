@@ -1,9 +1,11 @@
 import { processWheelLoopsForAlbum } from "../process-selector-settings.mjs";
 import { getPublicBootstrap } from "./public-bootstrap.mjs";
+import LabelAutoScroll from "./LabelAutoScroll.jsx";
 import ProcessWheel from "./ProcessWheel.jsx";
 
 // Kept as a compatibility export while the transformed route module still
-// imports it. Label and route changes intentionally no longer move the page.
+// imports it. Label and route changes intentionally no longer position the page
+// from the route layer.
 export function requestGalleryStartScroll() {}
 
 function TraditionalSelector({ items, activeId, onSelect, ariaLabel, variant }) {
@@ -30,16 +32,24 @@ export default function ProcessSelector(props) {
   const settings = getPublicBootstrap().settings;
   const albumId =
     props.albumId ?? (props.variant === "guest" ? "guest" : "wedding");
+  const selector = settings.processWheelEnabled ? (
+    <ProcessWheel
+      {...props}
+      visibleCount={settings.processWheelVisibleCount}
+      loop={processWheelLoopsForAlbum(settings, albumId)}
+    />
+  ) : (
+    <TraditionalSelector {...props} />
+  );
 
-  if (settings.processWheelEnabled) {
-    return (
-      <ProcessWheel
-        {...props}
-        visibleCount={settings.processWheelVisibleCount}
-        loop={processWheelLoopsForAlbum(settings, albumId)}
+  return (
+    <>
+      <LabelAutoScroll
+        albumId={albumId}
+        activeId={props.activeId}
+        enabled={settings.processLabelAutoScrollEnabled !== false}
       />
-    );
-  }
-
-  return <TraditionalSelector {...props} />;
+      {selector}
+    </>
+  );
 }
