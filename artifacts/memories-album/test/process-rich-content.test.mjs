@@ -186,7 +186,8 @@ test("process wheel stays horizontal while label auto-scroll remains isolated", 
   assert.match(selector, /<LabelAutoScroll/);
   assert.match(selector, /<TraditionalSelector \{\.\.\.props\} \/>/);
   assert.match(autoScroll, /scrollIntoView\(\{/);
-  assert.match(autoScroll, /behavior: "auto"/);
+  assert.match(autoScroll, /return reduceMotion \? "auto" : "smooth"/);
+  assert.match(autoScroll, /prefers-reduced-motion: reduce/);
   assert.match(component, /visibleCount/);
   assert.match(styles, /--wheel-mobile-item-width/);
   assert.match(styles, /scroll-snap-align: center/);
