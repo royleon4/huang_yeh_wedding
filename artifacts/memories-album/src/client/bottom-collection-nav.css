@@ -2,6 +2,9 @@
   --memories-bottom-nav-height: clamp(4.35rem, 11.5vw, 4.75rem);
   --memories-bottom-nav-inline-padding: clamp(0.28rem, 1.25vw, 0.62rem);
   --memories-bottom-nav-block-padding: clamp(0.16rem, 0.65vw, 0.28rem);
+  --memories-side-nav-width: 6.25rem;
+  --memories-side-nav-gap: 1rem;
+  --memories-content-half-max-width: 640px;
 }
 
 .collection-tabs,
@@ -178,19 +181,29 @@
   }
 }
 
-@media (min-width: 1536px) and (min-height: 680px) {
+/*
+ * Only use the side rail when the viewport can hold the 1280px content area,
+ * the complete navigation width, and a full safety gap. rem-based thresholds
+ * also grow with a visitor's browser default font size.
+ */
+@media (min-width: 100rem) and (min-height: 36rem) {
   .bottom-collection-nav {
     top: 50%;
-    left: calc((100vw - 1280px) / 4);
+    left: calc(
+      50% - var(--memories-content-half-max-width) -
+        var(--memories-side-nav-width) - var(--memories-side-nav-gap)
+    );
     bottom: auto;
-    width: 6.25rem;
+    width: var(--memories-side-nav-width);
     max-height: calc(100vh - 2rem);
+    max-height: calc(100dvh - 2rem);
     min-height: 0;
     grid-template-columns: minmax(0, 1fr);
     grid-template-rows: auto auto auto;
-    transform: translate(-50%, -50%);
+    transform: translateY(-50%);
     overflow-y: auto;
     overscroll-behavior: contain;
+    box-shadow: -10px 0 28px rgba(31, 58, 47, 0.12);
   }
 
   .bottom-nav-side {
