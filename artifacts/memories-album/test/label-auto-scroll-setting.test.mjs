@@ -75,7 +75,7 @@ test("process selector settings persist the auto-scroll switch with wheel settin
   );
 });
 
-test("label selection uses one immediate sticky-selector scroll path", async () => {
+test("label selection uses one smooth sticky-selector scroll path", async () => {
   const [selector, autoScroll, settingsUi] = await Promise.all([
     readFile(
       new URL("../src/client/ProcessSelector.jsx", import.meta.url),
@@ -95,7 +95,9 @@ test("label selection uses one immediate sticky-selector scroll path", async () 
   assert.doesNotMatch(selector, /useEffect|scrollIntoView/);
   assert.match(autoScroll, /\.process-selector-sticky/);
   assert.match(autoScroll, /scrollIntoView\(\{/);
-  assert.match(autoScroll, /behavior: "auto"/);
+  assert.match(autoScroll, /preferredLabelScrollBehavior/);
+  assert.match(autoScroll, /prefers-reduced-motion: reduce/);
+  assert.match(autoScroll, /return reduceMotion \? "auto" : "smooth"/);
   assert.match(autoScroll, /block: "start"/);
   assert.match(selector, /processLabelAutoScrollEnabled !== false/);
   assert.doesNotMatch(autoScroll, /window\.scrollTo|window\.scrollBy/);
