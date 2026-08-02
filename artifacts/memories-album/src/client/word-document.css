@@ -1,0 +1,130 @@
+.process-word-document {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 100%;
+  margin: 1.15rem 0;
+  overflow: hidden;
+  border: 1px solid #d9e1dc;
+  border-radius: 16px;
+  background: #f7f9f7;
+  contain: layout paint;
+}
+
+.tiptap-word-document-node.is-selected {
+  outline: 3px solid rgba(47, 111, 85, 0.28);
+  outline-offset: 4px;
+}
+
+.process-word-document-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.75rem 0.9rem;
+  border-bottom: 1px solid #d9e1dc;
+  background: #f0f5f2;
+}
+
+.process-word-document-toolbar > div:first-child {
+  display: grid;
+  min-width: 0;
+  gap: 0.1rem;
+}
+
+.process-word-document-toolbar strong,
+.process-word-document-toolbar small {
+  overflow-wrap: anywhere;
+}
+
+.process-word-document-toolbar small {
+  color: #6c776f;
+  font-size: 0.74rem;
+}
+
+.process-word-document-toolbar > div:last-child {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.process-word-document-toolbar a,
+.process-word-document-toolbar button {
+  border: 0;
+  border-radius: 999px;
+  padding: 0.45rem 0.7rem;
+  background: #e1eee7;
+  color: #315f4c;
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 750;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.process-word-document-toolbar button.danger {
+  background: #f7e8e8;
+  color: #934343;
+}
+
+.process-word-document-status,
+.process-word-document-fallback {
+  margin: 0;
+  padding: 0.65rem 0.9rem;
+  color: #657168;
+  font-size: 0.78rem;
+  line-height: 1.5;
+}
+
+.process-word-document-fallback a {
+  color: #315f4c;
+  overflow-wrap: anywhere;
+}
+
+.process-word-document-preview {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 100%;
+  overflow-x: auto;
+  overflow-y: visible;
+  overscroll-behavior-inline: contain;
+  -webkit-overflow-scrolling: touch;
+  background: #e9ecea;
+}
+
+.process-word-document-preview[data-word-render-state="ready"] + .process-word-document-fallback {
+  display: none;
+}
+
+.process-word-document-preview .docx-wrapper {
+  box-sizing: border-box;
+  min-width: max-content;
+  padding: 1rem;
+  background: #e9ecea;
+}
+
+.process-word-document-preview section.docx {
+  box-sizing: border-box;
+  margin: 0 auto 1rem;
+  max-width: none;
+  box-shadow: 0 8px 26px rgba(31, 48, 39, 0.16);
+}
+
+.process-word-document-preview section.docx:last-child {
+  margin-bottom: 0;
+}
+
+@media (max-width: 720px) {
+  .process-word-document-toolbar {
+    align-items: flex-start;
+  }
+
+  .process-word-document-toolbar > div:last-child {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .process-word-document-preview .docx-wrapper {
+    padding: 0.65rem;
+  }
+}
