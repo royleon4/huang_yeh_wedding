@@ -94,3 +94,34 @@ test("bottom navigation stays compact while icons and labels grow responsively",
   );
   assert.doesNotMatch(navigation, /bottom-nav-chip/);
 });
+
+test("wide-screen navigation moves into the unused left gutter without resizing content", async () => {
+  const navigation = await readFile(
+    path.join(root, "src/client/bottom-collection-nav.css"),
+    "utf8",
+  );
+
+  assert.match(
+    navigation,
+    /@media \(min-width: 1536px\) and \(min-height: 680px\)/,
+  );
+  assert.match(
+    navigation,
+    /left: calc\(\(100vw - 1280px\) \/ 4\)/,
+  );
+  assert.match(navigation, /top: 50%/);
+  assert.match(navigation, /bottom: auto/);
+  assert.match(navigation, /width: 6\.25rem/);
+  assert.match(navigation, /max-height: calc\(100vh - 2rem\)/);
+  assert.match(navigation, /grid-template-columns: minmax\(0, 1fr\)/);
+  assert.match(navigation, /transform: translate\(-50%, -50%\)/);
+  assert.match(navigation, /overflow-y: auto/);
+  assert.match(
+    navigation,
+    /\.bottom-nav-side\s*\{[\s\S]*flex-direction: column;[\s\S]*overflow: visible;/,
+  );
+  assert.match(
+    navigation,
+    /\.bottom-upload-action\s*\{[\s\S]*margin-top: 0;/,
+  );
+});
