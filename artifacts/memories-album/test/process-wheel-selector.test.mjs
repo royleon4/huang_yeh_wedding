@@ -48,9 +48,10 @@ test("per-album loop settings normalize independently", () => {
 });
 
 test("process wheel selects directly, fills both directions, and keeps every visible option clickable", async () => {
-  const [component, selector, styles, settings] = await Promise.all([
+  const [component, selector, autoScroll, styles, settings] = await Promise.all([
     readFile(new URL("../src/client/ProcessWheel.jsx", import.meta.url), "utf8"),
     readFile(new URL("../src/client/ProcessSelector.jsx", import.meta.url), "utf8"),
+    readFile(new URL("../src/client/LabelAutoScroll.jsx", import.meta.url), "utf8"),
     readFile(new URL("../src/client/process-wheel.css", import.meta.url), "utf8"),
     readFile(
       new URL("../src/client/ProcessSelectorSettings.jsx", import.meta.url),
@@ -87,7 +88,11 @@ test("process wheel selects directly, fills both directions, and keeps every vis
   assert.doesNotMatch(selector, /getBoundingClientRect/);
   assert.doesNotMatch(selector, /selectWithTraditionalPositioning/);
   assert.match(selector, /<ProcessWheel[\s\S]*\{\.\.\.props\}/);
-  assert.match(selector, /return <TraditionalSelector \{\.\.\.props\} \/>/);
+  assert.match(selector, /<TraditionalSelector \{\.\.\.props\} \/>/);
+  assert.match(selector, /<LabelAutoScroll/);
+  assert.match(autoScroll, /scrollIntoView\(\{/);
+  assert.match(autoScroll, /behavior: "auto"/);
+  assert.doesNotMatch(autoScroll, /window\.scrollTo|window\.scrollBy/);
 
   assert.match(component, /DEFAULT_VISIBLE_COUNT = 6/);
   assert.match(component, /--wheel-mobile-item-width/);
@@ -104,4 +109,5 @@ test("process wheel selects directly, fills both directions, and keeps every vis
   assert.match(settings, /各相簿的無限左右滾動/);
   assert.match(settings, /PROCESS_WHEEL_LOOP_SUPPORTED_ALBUMS/);
   assert.match(settings, /小螢幕會優先保留較寬、可讀且容易點選的尺寸/);
+  assert.match(settings, /選中標籤後自動捲動至內容開頭/);
 });
