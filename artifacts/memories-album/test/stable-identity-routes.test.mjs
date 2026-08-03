@@ -8,6 +8,7 @@ import { adminPreviewPaginationUiTransform } from "../admin-preview-pagination-u
 import { adminSettingsConsolidationUiTransform } from "../admin-settings-consolidation-ui-transform.mjs";
 import { guestLabelsUiTransform } from "../guest-labels-ui-transform.mjs";
 import { logicalRouteUiTransform } from "../logical-route-ui-transform.mjs";
+import { messageAlbumUiTransform } from "../message-album-ui-transform.mjs";
 import { processContentUiTransform } from "../process-content-ui-transform.mjs";
 import { publicAlbumLabelRouteFixUiTransform } from "../public-album-label-route-fix-ui-transform.mjs";
 import { publicAlbumLabelsUiTransform } from "../public-album-labels-ui-transform.mjs";
@@ -44,6 +45,7 @@ function productionTransforms() {
     publicBootstrapUiTransform(),
     guestLabelsUiTransform(),
     uploadSettingsUiTransform(),
+    messageAlbumUiTransform(),
     stableIdentityRoutesUiTransform(),
     publicAlbumLabelRouteFixUiTransform(),
   ];
@@ -127,7 +129,7 @@ test("completed production transform keeps custom album labels routable without 
   );
   assert.match(
     source,
-    /<ProcessSelector\s+albumId=\{activeCollection\}\s+ariaLabel=\{activeCollectionDefinition\?\.\[lang\] \?\? t\.categories\}/,
+    /<ProcessSelector\s+language=\{lang\}\s+albumId=\{activeCollection\}\s+ariaLabel=\{activeCollectionDefinition\?\.\[lang\] \?\? t\.categories\}/,
   );
   assert.doesNotMatch(source, /if \(collectionId !== "guest"\) return \[\];/);
   assert.doesNotMatch(source, /const groupNumberFor/);
