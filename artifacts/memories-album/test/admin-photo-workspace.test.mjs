@@ -16,7 +16,7 @@ test("admin photo workspace reuses the guest batch uploader without timestamp me
   assert.match(source, /type="file"[\s\S]*multiple/);
   assert.match(source, /上傳者／作者/);
   assert.match(source, /所屬相簿/);
-  assert.match(source, /流程分類/);
+  assert.match(source, /子分類（標籤）/);
   assert.match(source, /albumId/);
   assert.match(source, /categoryId/);
   assert.match(source, /uploaderNameFilter/);
@@ -36,7 +36,11 @@ test("admin transforms replace only the old add-photo tab and preserve photo edi
 
   assert.match(code, /import AdminPhotoWorkspace/);
   assert.match(code, /<AdminPhotoWorkspace/);
-  assert.match(code, /renderPhoto=\{\(photo, photoBusy = false\) =>/);
+  assert.match(
+    code,
+    /renderPhoto=\{\(\s*photo,\s*photoBusy = false,\s*photoLabels = orderedCategories,\s*\) =>/,
+  );
+  assert.match(code, /categories=\{photoLabels\}/);
   assert.match(code, /setPhotoDrafts=\{setPhotoDrafts\}/);
   assert.match(code, /<PhotoEditor/);
   assert.match(code, /mergeAdminPhotos\(current, photoData\.photos\)/);
