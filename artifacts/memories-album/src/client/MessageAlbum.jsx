@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import MessageModal from "./MessageModal.jsx";
+import useMasonryLayout from "./useMasonryLayout.mjs";
 import "./message-album.css";
 
 const COPY = {
@@ -45,10 +46,14 @@ export default function MessageAlbum({ lang, albumId }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [showComposer, setShowComposer] = useState(false);
+  const gridRef = useMasonryLayout();
 
-  const loadMessages = async () => {
-    setLoading(true);
-    setError("");
+  const loadMessages = async ({
+    showLoading = true,
+    preserveOnError = false,
+  } = {}) => {
+    if (showLoading) setLoading(true);
+    if (!preserveOnError) setError("");
     try {
       const query = new URLSearchParams({ limit: "500" });
       const response = await fetch(`/Memories/api/settings/messages?${query}`, {
@@ -63,10 +68,13 @@ export default function MessageAlbum({ lang, albumId }) {
           (message) => !message.albumId || message.albumId === albumId,
         ),
       );
+      setError("");
     } catch (loadError) {
-      setError(loadError instanceof Error ? loadError.message : t.failed);
+      if (!preserveOnError) {
+        setError(loadError instanceof Error ? loadError.message : t.failed);
+      }
     } finally {
-      setLoading(false);
+      if (showLoading) setLoading(false);
     }
   };
 
@@ -95,7 +103,7 @@ export default function MessageAlbum({ lang, albumId }) {
           </button>
         </div>
       ) : (
-        <div className="masonry-grid message-grid">
+        <div ref={gridRef} className="masonry-grid message-grid">
           <article className="photo-card message-action-card">
             <button type="button" onClick={() => setShowComposer(true)}>
               <strong>{t.add}</strong>
@@ -128,12 +136,13 @@ export default function MessageAlbum({ lang, albumId }) {
         <MessageModal
           lang={lang}
           onClose={() => setShowComposer(false)}
-          onCreated={(message) =>
+          onCreated={(message) => {
             setMessages((current) => [
               message,
               ...current.filter((item) => item.id !== message.id),
-            ])
-          }
+            ]);
+            void loadMessages({ showLoading: false, preserveOnError: true });
+          }}
         />
       )}
     </section>
