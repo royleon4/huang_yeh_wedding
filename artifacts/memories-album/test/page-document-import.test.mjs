@@ -87,7 +87,7 @@ test("editor inserts page documents automatically without adding another toolbar
   assert.match(editor, /PageDocument/);
   assert.match(editor, /isPageDocumentAttachment/);
   assert.match(editor, /type: "pageDocument"/);
-  assert.match(editor, /PDF 與 PowerPoint 上傳後/);
+  assert.match(editor, /PDF 與 PowerPoint 會在游標位置/);
   assert.match(editor, /label=\{uploading \? "上傳中" : "加入圖片或附件"\}/);
   assert.doesNotMatch(editor, /匯入 PDF/);
   assert.doesNotMatch(editor, /匯入 PPT/);

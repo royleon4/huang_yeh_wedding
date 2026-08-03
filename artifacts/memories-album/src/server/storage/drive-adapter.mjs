@@ -178,6 +178,28 @@ export class GoogleDriveStorage {
     });
   }
 
+  async uploadAttachment({
+    bytes,
+    filename,
+    contentType,
+    parentId = null,
+    appProperties = {},
+  }) {
+    const body = Buffer.isBuffer(bytes) ? bytes : Buffer.from(bytes ?? []);
+    if (body.length === 0) {
+      throw new DriveConnectorError(400, "DRIVE_REQUEST_FAILED");
+    }
+    return this.#uploadMultipart({
+      bytes: body,
+      filename,
+      contentType,
+      folderId: parentId ?? this.originalFolderId,
+      description: "Memories process content attachment",
+      appProperties,
+      diagnosticKind: "attachment",
+    });
+  }
+
   async uploadThumbnail({
     bytes,
     filename,
@@ -502,6 +524,7 @@ export class GoogleDriveStorage {
     folderId,
     description,
     appProperties = {},
+    diagnosticKind = "thumbnail",
   }) {
     const existing = await this.findChildByName(folderId, filename);
     if (existing?.id) {
@@ -530,6 +553,7 @@ export class GoogleDriveStorage {
         method: "POST",
         headers: {
           "Content-Type": `multipart/related; boundary=${boundary}`,
+          "X-Memories-Upload-Kind": diagnosticKind,
         },
         body,
       });

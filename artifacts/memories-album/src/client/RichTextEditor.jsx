@@ -24,18 +24,24 @@ import "./rich-text-media-editor.css";
 import "./page-document.css";
 import "./word-document.css";
 
+const DOCUMENT_IMPORT_ACCEPT = [
+  WORD_IMPORT_ACCEPT,
+  "application/pdf",
+  "application/vnd.ms-powerpoint",
+  "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+  ".pdf",
+  ".ppt",
+  ".pptx",
+].join(",");
+
 const ATTACHMENT_ACCEPT = [
   "image/jpeg",
   "image/png",
   "image/webp",
   "image/gif",
-  "application/pdf",
   ".doc",
-  ".docx",
   ".xls",
   ".xlsx",
-  ".ppt",
-  ".pptx",
   "text/plain",
   ".zip",
 ].join(",");
@@ -328,6 +334,17 @@ export default function RichTextEditor({
     }
   };
 
+  const importDocument = async (file) => {
+    if (!file) return;
+    const kind = pageDocumentKind({ name: file.name, mimeType: file.type });
+    if (kind) {
+      await upload(file);
+      if (wordInputRef.current) wordInputRef.current.value = "";
+      return;
+    }
+    await importWord(file);
+  };
+
   const setBlock = (value) => {
     if (!editor) return;
     const chain = editor.chain().focus();
@@ -403,8 +420,8 @@ export default function RichTextEditor({
 
           <span className="tiptap-toolbar-spacer" />
           <ToolbarButton
-            label={importingWord ? "匯入中" : "匯入 Word"}
-            icon={importingWord ? "…" : "W"}
+            label={importingWord || uploading ? "匯入中" : "匯入文件"}
+            icon={importingWord || uploading ? "…" : "檔"}
             wide
             disabled={disabled || importingWord || uploading || !editor}
             onClick={() => wordInputRef.current?.click()}
@@ -413,9 +430,9 @@ export default function RichTextEditor({
             ref={wordInputRef}
             className="process-rich-file-input"
             type="file"
-            accept={WORD_IMPORT_ACCEPT}
+            accept={DOCUMENT_IMPORT_ACCEPT}
             disabled={disabled || importingWord || uploading}
-            onChange={(event) => void importWord(event.target.files?.[0] ?? null)}
+            onChange={(event) => void importDocument(event.target.files?.[0] ?? null)}
           />
           <ToolbarButton
             label={uploading ? "上傳中" : "加入圖片或附件"}
@@ -436,7 +453,7 @@ export default function RichTextEditor({
       </div>
 
       <p className="tiptap-editor-hint">
-        反白文字可快速套用格式。手機請點選圖片或附件後使用移動與寬度控制；桌面仍可拖曳，並可拉動把手調整大小。Word 匯入會自動判斷：一般文件轉成可編輯內容；含分頁、字型、表格、頁首頁尾、註腳或定位物件時，改用不干擾網站版面的保真文件區塊。PDF 與 PowerPoint 上傳後會在游標位置插入保留原頁面或投影片配置的文件區塊。
+        反白文字可快速套用格式。手機請點選圖片或附件後使用移動與寬度控制；桌面仍可拖曳，並可拉動把手調整大小。「匯入文件」支援 .docx、.pdf、.ppt 與 .pptx。Word 會自動判斷可編輯或保真模式；PDF 與 PowerPoint 會在游標位置插入保留原頁面或投影片配置的文件區塊。
       </p>
 
       <div className="tiptap-editor-frame">
