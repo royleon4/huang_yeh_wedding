@@ -29,8 +29,8 @@ export default defineConfig({
   plugins: [
     ...nonReactBasePlugins,
     logicalRouteUiTransform(),
-    albumLabelsUiTransform(),
     websiteCopyUiTransform(),
+    albumLabelsUiTransform(),
     adminPreviewPaginationUiTransform(),
     adminSettingsConsolidationUiTransform(),
     adminAccordionUiTransform(),
