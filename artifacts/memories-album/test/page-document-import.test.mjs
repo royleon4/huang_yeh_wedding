@@ -150,6 +150,6 @@ test("page document layout always shrinks to the existing visible article width"
   for (const width of [240, 320, 375, 720, 1024]) {
     assert.ok(browserLayout.includes(`width: ${width}`));
   }
-  assert.match(browserLayout, /bodyScrollWidth <= value\.viewportWidth/);
+  assert.match(browserLayout, /bodyScrollWidth <= value\.clientWidth/);
   assert.match(browserLayout, /PPTX renderer list is not fitted/);
 });
