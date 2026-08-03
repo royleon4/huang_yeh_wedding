@@ -3,7 +3,8 @@
 - 日期：2026-08-04T01:38:00+08:00
 - 範圍：公開相簿的「隨機置頂照片」
 - 不包含：管理員在「分類與影片」中手動指定的置頂照片
-- 狀態：修正已進入 PR 驗證流程
+- PR：#193
+- 狀態：程式與回歸測試已通過 CI；合併狀態以 PR #193 為準
 
 ## 使用者觀察到的問題
 
@@ -49,6 +50,20 @@
   - 覆蓋候選不足時允許必要重複
   - 覆蓋候選集合變動後快取失效與補足
   - 覆蓋切回同一流程仍維持原抽樣
+
+## 驗證結果
+
+PR #193 的 head 已通過：
+
+- Standalone Memories Fast CI
+- 完整 Node／API 測試
+- Focused Chrome layout 驗證
+- Standalone Memories Full CI
+- Production build
+- Production server smoke test
+- Memories legacy boundary
+
+這些結果證明程式、production build、既有前台版面契約與新增回歸測試相容；不代表正式站已部署，也不代表已在使用者手機上重現驗證。
 
 ## 未修改項目
 
