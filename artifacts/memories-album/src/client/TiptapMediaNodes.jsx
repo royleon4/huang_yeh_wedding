@@ -12,6 +12,28 @@ export function clampMediaWidth(value) {
   return Math.max(MIN_MEDIA_WIDTH, Math.min(MAX_MEDIA_WIDTH, Math.round(parsed)));
 }
 
+function readImageAttributes(element) {
+  const image =
+    String(element?.tagName ?? "").toUpperCase() === "IMG"
+      ? element
+      : element?.querySelector?.("img");
+  const caption =
+    element?.querySelector?.("figcaption")?.textContent?.trim() ?? "";
+  const width =
+    element?.getAttribute?.("data-width") ||
+    element?.style?.width ||
+    image?.getAttribute?.("data-width") ||
+    image?.style?.width ||
+    100;
+
+  return {
+    src: image?.getAttribute?.("src") ?? "",
+    alt: image?.getAttribute?.("alt") ?? "",
+    caption,
+    width: clampMediaWidth(width),
+  };
+}
+
 function moveNode(editor, getPos, destination) {
   const position = typeof getPos === "function" ? getPos() : undefined;
   if (!Number.isInteger(position)) return false;
@@ -46,7 +68,6 @@ function moveNode(editor, getPos, destination) {
   editor.view.dispatch(transaction.scrollIntoView());
   return true;
 }
-
 
 function controlAction(event, action) {
   event.preventDefault();
@@ -254,4 +275,3 @@ export const WeddingImage = Node.create({
     return ReactNodeViewRenderer(WeddingImageView);
   },
 });
-

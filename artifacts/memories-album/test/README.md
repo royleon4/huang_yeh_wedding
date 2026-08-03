@@ -30,6 +30,17 @@ Every case must have a behaviour-focused name. Keep normalization, accepted-doma
 - Split broad tests when a failure would not identify the broken behaviour.
 - Remove obsolete tests when stronger coverage exists; do not preserve tests only to maintain a test count.
 
+## Tiptap and retained-feature cleanup rules
+
+A cleanup that removes one editor node or attachment type must prove both sides of the change:
+
+- negative coverage confirms that the removed feature and its exclusive helpers are gone;
+- positive coverage confirms that every retained Tiptap node still has its parser callbacks, node view, serialization path, and editor initialization dependencies.
+
+For `parseHTML()` configuration, every `getAttrs: callbackName` reference must have a declaration or import before schema creation. A successful production bundle and server health check do not execute these browser callbacks, so they cannot replace this regression coverage or a real administrator-editor browser check.
+
+See [`../../../docs/memories/tiptap-image-parser-incident-2026-08-04.md`](../../../docs/memories/tiptap-image-parser-incident-2026-08-04.md) for the `readImageAttributes` incident, root cause, and required prevention steps.
+
 ## Naming
 
 Describe the behaviour and result, not the function being called. A useful name explains what failed without opening the test file.
