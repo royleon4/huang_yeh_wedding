@@ -63,6 +63,12 @@ class MemoryMessageRepository {
     return deleted.id;
   }
 
+  async deleteAllMessages({ albumId }) {
+    const previousLength = this.messages.length;
+    this.messages = this.messages.filter((message) => message.albumId !== albumId);
+    return previousLength - this.messages.length;
+  }
+
   async importMessages(messages) {
     this.messages.unshift(...messages.map((message) => ({
       ...message,
@@ -308,5 +314,64 @@ test("administrators can hide, restore, and permanently delete a message", async
       { headers: { Cookie: adminCookie() } },
     );
     assert.equal((await adminAfterDelete.json()).messages.length, 0);
+  });
+});
+
+test("administrators can permanently delete every message in the guestbook", async () => {
+  const repository = new MemoryMessageRepository();
+  repository.messages = [
+    {
+      id: "message-1",
+      albumId: "messages",
+      visitorName: "Leon",
+      body: "One",
+      messageAt: "2026-06-20T03:00:00.000Z",
+      visibility: "public",
+      source: "guest",
+    },
+    {
+      id: "message-2",
+      albumId: "messages",
+      visitorName: "An",
+      body: "Two",
+      messageAt: "2026-06-20T04:00:00.000Z",
+      visibility: "hidden",
+      source: "admin_import",
+    },
+    {
+      id: "unrelated",
+      albumId: "other-album",
+      visitorName: "Other",
+      body: "Keep me",
+      messageAt: "2026-06-20T05:00:00.000Z",
+      visibility: "public",
+      source: "guest",
+    },
+  ];
+  const api = createAdminMessageApi({
+    repository,
+    albumRepository: albumRepository(),
+    adminToken,
+  });
+
+  await withApis([api], async (origin) => {
+    const unauthorized = await fetch(`${origin}/admin/api/settings/messages`, {
+      method: "DELETE",
+    });
+    assert.equal(unauthorized.status, 401);
+
+    const deleted = await fetch(`${origin}/admin/api/settings/messages`, {
+      method: "DELETE",
+      headers: adminHeaders(),
+    });
+    assert.equal(deleted.status, 200);
+    assert.deepEqual(await deleted.json(), { deleted: 2 });
+
+    const listed = await fetch(`${origin}/admin/api/settings/messages`, {
+      headers: { Cookie: adminCookie() },
+    });
+    assert.equal(listed.status, 200);
+    assert.equal((await listed.json()).messages.length, 0);
+    assert.deepEqual(repository.messages.map((message) => message.id), ["unrelated"]);
   });
 });
