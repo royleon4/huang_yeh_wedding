@@ -87,9 +87,9 @@ body {
 }
 
 .bottom-nav-side button {
-  flex: 1 1 clamp(4rem, 18vw, 5.3rem);
-  min-width: clamp(3.6rem, 15vw, 4.7rem);
-  max-width: clamp(4.8rem, 22vw, 5.8rem);
+  flex: 1 1 0;
+  min-width: 0;
+  max-width: none;
   min-height: calc(
     var(--memories-bottom-nav-height) -
       (var(--memories-bottom-nav-block-padding) * 2)
@@ -287,14 +287,9 @@ body {
 
   .bottom-collection-nav {
     grid-template-columns:
-      minmax(0, 1.2fr)
+      minmax(0, 1fr)
       clamp(4.25rem, 19vw, 4.65rem)
-      minmax(0, 0.8fr);
-  }
-
-  .bottom-nav-side button {
-    min-width: clamp(3.35rem, 17vw, 4.15rem);
-    max-width: clamp(4.25rem, 23vw, 5rem);
+      minmax(0, 1fr);
   }
 
   .bottom-nav-icon {

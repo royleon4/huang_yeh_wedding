@@ -74,7 +74,9 @@ test("bottom navigation stays compact while icons and labels grow responsively",
     /grid-template-columns:[\s\S]*clamp\(4\.45rem, 12vw, 5\.25rem\)/,
   );
   assert.match(navigation, /\.bottom-nav-side\s*\{[\s\S]*align-items: stretch/);
-  assert.match(navigation, /flex: 1 1 clamp\(4rem, 18vw, 5\.3rem\)/);
+  assert.match(navigation, /flex: 1 1 0/);
+  assert.match(navigation, /min-width: 0/);
+  assert.match(navigation, /max-width: none/);
   assert.match(
     navigation,
     /min-height: calc\([\s\S]*var\(--memories-bottom-nav-height\)[\s\S]*var\(--memories-bottom-nav-block-padding\) \* 2/,
@@ -92,6 +94,12 @@ test("bottom navigation stays compact while icons and labels grow responsively",
     navigation,
     /@media \(max-width: 430px\)[\s\S]*--memories-bottom-nav-height: clamp\(4\.2rem, 18vw, 4\.55rem\)/,
   );
+  assert.match(
+    navigation,
+    /@media \(max-width: 430px\)[\s\S]*grid-template-columns:\s*minmax\(0, 1fr\)\s*clamp\(4\.25rem, 19vw, 4\.65rem\)\s*minmax\(0, 1fr\)/,
+  );
+  assert.doesNotMatch(navigation, /minmax\(0, 1\.2fr\)/);
+  assert.doesNotMatch(navigation, /minmax\(0, 0\.8fr\)/);
   assert.doesNotMatch(navigation, /bottom-nav-chip/);
 });
 
