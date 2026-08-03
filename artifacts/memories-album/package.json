@@ -17,6 +17,7 @@
     "@replit/connectors-sdk": "^0.4.1",
     "@tiptap/core": "3.29.2",
     "@tiptap/extension-placeholder": "3.29.2",
+    "@tiptap/extension-text-align": "3.29.2",
     "@tiptap/react": "3.29.2",
     "@tiptap/starter-kit": "3.29.2",
     "busboy": "1.6.0",
