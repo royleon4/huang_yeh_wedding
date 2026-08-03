@@ -38,20 +38,20 @@ const photos = [
 const messages = [
   {
     id: "message-b",
-    visitorName: "葉藝慧",
-    body: "永遠幸福",
+    visitorName: "Zoe",
+    body: "Bravo",
     messageAt: "2026-06-20T10:00:00.000Z",
   },
   {
     id: "message-a",
     visitorName: "Amy",
-    body: "百年好合",
+    body: "Alpha",
     messageAt: "2026-06-20T09:00:00.000Z",
   },
   {
     id: "message-c",
     visitorName: "Leon",
-    body: "祝福你們",
+    body: "Charlie",
     messageAt: "2026-06-20T11:00:00.000Z",
   },
 ];
