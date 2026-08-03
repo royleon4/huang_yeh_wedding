@@ -19,6 +19,17 @@ function normalizedMimeType(value) {
   return String(value || "").trim().toLowerCase();
 }
 
+function visibleInlineSize(element, inset = 0) {
+  const candidates = [
+    Number(element?.clientWidth),
+    Number(element?.getBoundingClientRect?.().width),
+    Number(document.documentElement?.clientWidth),
+    Number(window.innerWidth),
+  ].filter((value) => Number.isFinite(value) && value > 0);
+  const visibleWidth = candidates.length > 0 ? Math.min(...candidates) : 1;
+  return Math.max(1, Math.floor(visibleWidth - Math.max(0, Number(inset) || 0)));
+}
+
 export function pageDocumentKind({ name = "", mimeType = "" } = {}) {
   const fileName = normalizedName(name);
   const type = normalizedMimeType(mimeType);
@@ -114,17 +125,21 @@ async function renderPdfDocument(arrayBuffer, container, signal) {
       const page = await pdf.getPage(pageNumber);
       if (signal?.aborted) return;
       const baseViewport = page.getViewport({ scale: 1 });
-      const availableWidth = Math.max(280, container.clientWidth - 32);
-      const cssScale = Math.min(1.6, availableWidth / baseViewport.width);
+      const availableWidth = visibleInlineSize(container, 32);
+      const cssScale = Math.max(
+        0.01,
+        Math.min(1.6, availableWidth / Math.max(1, baseViewport.width)),
+      );
       const pixelRatio = Math.min(2, Math.max(1, window.devicePixelRatio || 1));
       const viewport = page.getViewport({ scale: cssScale * pixelRatio });
+      const cssWidth = Math.max(1, viewport.width / pixelRatio);
       const canvas = document.createElement("canvas");
       canvas.className = "process-page-document-pdf-canvas";
       canvas.width = Math.max(1, Math.floor(viewport.width));
       canvas.height = Math.max(1, Math.floor(viewport.height));
-      canvas.style.width = `${viewport.width / pixelRatio}px`;
-      canvas.style.height = `${viewport.height / pixelRatio}px`;
       canvas.setAttribute("aria-label", `PDF 第 ${pageNumber} 頁`);
+      section.style.setProperty("--process-page-document-page-width", `${cssWidth}px`);
+      section.style.aspectRatio = `${baseViewport.width} / ${baseViewport.height}`;
       const context = canvas.getContext("2d", { alpha: false });
       if (!context) throw new Error("瀏覽器無法建立 PDF 畫布。");
       await page.render({ canvasContext: context, viewport }).promise;
@@ -185,10 +200,17 @@ async function renderPdfDocument(arrayBuffer, container, signal) {
 async function renderPptxDocument(arrayBuffer, container, signal) {
   const { PptxViewer, RECOMMENDED_ZIP_LIMITS } = await loadPptxRenderer();
   const pdfjs = await loadPptxPdfAssets();
-  const viewer = await PptxViewer.open(arrayBuffer, container, {
+  const stage = document.createElement("div");
+  stage.className = "process-page-document-pptx-stage";
+  container.append(stage);
+  const viewer = await PptxViewer.open(arrayBuffer, stage, {
     renderMode: "list",
     fitMode: "contain",
+    width: visibleInlineSize(container, 32),
+    scrollContainer: container,
     zipLimits: RECOMMENDED_ZIP_LIMITS,
+    lazySlides: true,
+    lazyMedia: true,
     listOptions: {
       windowed: true,
       batchSize: 6,
@@ -198,9 +220,28 @@ async function renderPptxDocument(arrayBuffer, container, signal) {
     pdfjs,
     signal,
   });
+
+  let destroyed = false;
+  let resizeFrame = 0;
+  let lastWidth = visibleInlineSize(stage);
+  const resizeObserver = new ResizeObserver((entries) => {
+    const nextWidth = Math.floor(entries[0]?.contentRect?.width || visibleInlineSize(stage));
+    if (destroyed || nextWidth < 1 || Math.abs(nextWidth - lastWidth) < 1) return;
+    lastWidth = nextWidth;
+    cancelAnimationFrame(resizeFrame);
+    resizeFrame = requestAnimationFrame(() => {
+      if (destroyed) return;
+      void viewer.setFitMode("contain").catch(() => {});
+    });
+  });
+  resizeObserver.observe(stage);
+
   return {
     count: viewer.slideCount,
     destroy() {
+      destroyed = true;
+      cancelAnimationFrame(resizeFrame);
+      resizeObserver.disconnect();
       viewer.destroy();
     },
   };
