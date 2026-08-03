@@ -10,8 +10,14 @@ function apiError(message, status, code) {
   return error;
 }
 
-function normalizedText(value, maximum, field) {
-  const normalized = String(value ?? "").normalize("NFKC").trim();
+function normalizedText(
+  value,
+  maximum,
+  field,
+  { compatibilityNormalize = true } = {},
+) {
+  const raw = String(value ?? "");
+  const normalized = (compatibilityNormalize ? raw.normalize("NFKC") : raw).trim();
   const length = Array.from(normalized).length;
   if (!normalized || length > maximum) {
     throw apiError(
@@ -76,7 +82,9 @@ export function createMessageApi({ repository, albumRepository, createId = rando
           id: createId(),
           albumId: album.id,
           visitorName: normalizedText(body.visitorName, 80, "visitorName"),
-          body: normalizedText(body.message, 1000, "message"),
+          body: normalizedText(body.message, 1000, "message", {
+            compatibilityNormalize: false,
+          }),
           messageAt: new Date().toISOString(),
           visibility: "public",
           source: "guest",
