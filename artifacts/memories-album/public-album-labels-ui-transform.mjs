@@ -44,7 +44,7 @@ function transformPublicApp(source) {
   code = replaceIfPresent(
     code,
     `  const activeProcess =\n    activeCollection === "wedding"\n      ? activeFilter === "all"\n        ? ALL_PROCESS_DEFINITION\n        : processes.find((process) => process.id === activeFilter)\n      : null;\n  const activeProcessHtml =`,
-    `  const activeLabels = labelsForAlbum(processes, activeCollection);\n  const activeAllLabel = allAlbumLabel(activeCollectionDefinition, lang);\n  const activeProcess =\n    activeCollection === "wedding"\n      ? activeFilter === "all"\n        ? ALL_PROCESS_DEFINITION\n        : activeLabels.find((process) => process.id === activeFilter)\n      : activeFilter === "all"\n        ? null\n        : activeLabels.find((process) => process.id === activeFilter);\n  const activeProcessHtml =`,
+    `  const activeLabels = labelsForAlbum(processes, activeCollection);\n  const activeAllLabel = allAlbumLabel(\n    activeCollectionDefinition,\n    lang,\n    activeCollection === "wedding" ? ALL_PROCESS_DEFINITION : null,\n  );\n  const activeProcess =\n    activeCollection === "wedding"\n      ? activeFilter === "all"\n        ? ALL_PROCESS_DEFINITION\n        : activeLabels.find((process) => process.id === activeFilter)\n      : activeFilter === "all"\n        ? null\n        : activeLabels.find((process) => process.id === activeFilter);\n  const activeProcessHtml =`,
   );
 
   code = replaceIfPresent(

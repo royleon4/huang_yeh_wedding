@@ -51,6 +51,23 @@ test("the first virtual label is generated from the current album name", () => {
   assert.equal(allAlbumLabel(album, "en"), "All Life photos");
 });
 
+test("configured all-process titles override the generated wedding label", () => {
+  const album = { zh: "婚禮流程", en: "Wedding moments" };
+  const allProcess = {
+    zh: "婚禮全紀錄",
+    en: "The complete wedding",
+  };
+  assert.equal(allAlbumLabel(album, "zh", allProcess), "婚禮全紀錄");
+  assert.equal(
+    allAlbumLabel(album, "en", allProcess),
+    "The complete wedding",
+  );
+  assert.equal(
+    allAlbumLabel(album, "zh", { zh: "" }),
+    "全部婚禮流程",
+  );
+});
+
 test("non-guest album labels filter photos by label membership", () => {
   const photos = [
     { id: "a", processIds: ["daily"] },
@@ -129,7 +146,10 @@ test("public transform renders grouped album labels and route subgroups", async 
   const labeledApp = labelTransform.transform(processApp, appPath.pathname).code;
 
   assert.match(labeledApp, /const activeLabels = labelsForAlbum\(processes, activeCollection\)/);
-  assert.match(labeledApp, /const activeAllLabel = allAlbumLabel\(activeCollectionDefinition, lang\)/);
+  assert.match(
+    labeledApp,
+    /const activeAllLabel = allAlbumLabel\([\s\S]*activeCollection === "wedding" \? ALL_PROCESS_DEFINITION : null,[\s\S]*\);/,
+  );
   assert.match(labeledApp, /activeCollection !== "guest" && activeLabels\.length > 0/);
   assert.match(labeledApp, /\{ id: "all", number: "00", label: activeAllLabel \}/);
   assert.match(labeledApp, /filterPhotosByAlbumLabel\(/);
