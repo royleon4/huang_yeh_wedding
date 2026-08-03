@@ -12,12 +12,27 @@ function normalizedPhotoPage(body) {
   };
 }
 
+export function preloadFirstPhotoThumbnail(
+  photos,
+  ImageConstructor = globalThis.Image,
+) {
+  const thumbnailUrl = photos?.[0]?.thumbnailUrl;
+  if (!thumbnailUrl || typeof ImageConstructor !== "function") return null;
+
+  const image = new ImageConstructor();
+  image.decoding = "async";
+  image.fetchPriority = "high";
+  image.src = thumbnailUrl;
+  return image;
+}
+
 export async function loadPublicPhotoFeed({
   fetchImpl = globalThis.fetch,
   signal,
   onInitialPage,
   pageLimit = PUBLIC_PHOTO_PAGE_LIMIT,
   pageCap = PUBLIC_PHOTO_PAGE_CAP,
+  ImageConstructor = globalThis.Image,
 } = {}) {
   if (typeof fetchImpl !== "function") {
     throw new TypeError("A fetch implementation is required");
@@ -42,8 +57,9 @@ export async function loadPublicPhotoFeed({
     cursor = page.nextCursor;
     pages += 1;
 
-    if (pages === 1 && typeof onInitialPage === "function") {
-      onInitialPage([...photos]);
+    if (pages === 1) {
+      preloadFirstPhotoThumbnail(photos, ImageConstructor);
+      if (typeof onInitialPage === "function") onInitialPage([...photos]);
     }
   } while (cursor && pages < pageCap);
 
