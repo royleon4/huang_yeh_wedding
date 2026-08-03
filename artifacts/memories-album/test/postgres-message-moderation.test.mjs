@@ -54,3 +54,24 @@ test("PostgreSQL message deletion returns null when no scoped row exists", async
   assert.match(calls[0].sql, /WHERE id = \$1 AND album_id = \$2/);
   assert.deepEqual(calls[0].values, ["missing-message", "messages"]);
 });
+
+test("PostgreSQL bulk deletion is restricted to the singleton message album", async () => {
+  const calls = [];
+  const repository = new PostgresMessageRepository({
+    async query(sql, values) {
+      calls.push({ sql, values });
+      return {
+        rows: [{ id: "message-1" }, { id: "message-2" }],
+        rowCount: 2,
+      };
+    },
+  });
+
+  const deleted = await repository.deleteAllMessages({ albumId: "messages" });
+
+  assert.equal(deleted, 2);
+  assert.match(calls[0].sql, /DELETE FROM memories_messages/);
+  assert.match(calls[0].sql, /WHERE album_id = \$1/);
+  assert.doesNotMatch(calls[0].sql, /WHERE\s+TRUE/i);
+  assert.deepEqual(calls[0].values, ["messages"]);
+});
