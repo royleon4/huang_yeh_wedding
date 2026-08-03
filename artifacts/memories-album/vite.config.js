@@ -4,6 +4,7 @@ import { adminPhotoUploaderUiTransform } from "./admin-photo-uploader-ui-transfo
 import { processContentUiTransform } from "./process-content-ui-transform.mjs";
 import { albumLabelsUiTransform } from "./album-labels-ui-transform.mjs";
 import { adminPhotoWorkspaceUiTransform } from "./admin-photo-workspace-ui-transform.mjs";
+import { publicAlbumLabelsUiTransform } from "./public-album-labels-ui-transform.mjs";
 import {
   LEGACY_ADMIN_API_PATH,
   LEGACY_ADMIN_PATH,
@@ -231,6 +232,7 @@ export default defineConfig({
     processContentUiTransform(),
     albumLabelsUiTransform(),
     adminPhotoWorkspaceUiTransform(),
+    publicAlbumLabelsUiTransform(),
     react(),
     memoriesDevelopmentRoutes(),
   ],
