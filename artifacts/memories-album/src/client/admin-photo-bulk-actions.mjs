@@ -24,6 +24,16 @@ function normalizeUploaderName(value) {
     .trim();
 }
 
+export function chunkBulkItems(items, size) {
+  const source = Array.isArray(items) ? items : [];
+  const chunkSize = Math.max(1, Number(size) || 1);
+  const chunks = [];
+  for (let index = 0; index < source.length; index += chunkSize) {
+    chunks.push(source.slice(index, index + chunkSize));
+  }
+  return chunks;
+}
+
 export function isWeddingPhotographerProtected(photo) {
   return (
     Boolean(photo?.deleteProtected) ||
@@ -66,14 +76,19 @@ export function buildBulkClassificationUpdates({
   photos,
   albumMode = "keep",
   albumIds = [],
-  categoryMode = "keep",
-  categoryId = "",
+  labelMode,
+  labelId,
+  selectedLabel = null,
+  categoryMode,
+  categoryId,
 }) {
   if (!["keep", "add", "replace"].includes(albumMode)) {
     throw new Error("Invalid album bulk action");
   }
-  if (!["keep", "replace"].includes(categoryMode)) {
-    throw new Error("Invalid category bulk action");
+
+  const effectiveLabelMode = labelMode ?? categoryMode ?? "keep";
+  if (!["keep", "replace"].includes(effectiveLabelMode)) {
+    throw new Error("Invalid label bulk action");
   }
 
   const requestedAlbums = uniqueIds(albumIds);
@@ -88,7 +103,22 @@ export function buildBulkClassificationUpdates({
     throw error;
   }
 
-  const normalizedCategoryId = String(categoryId ?? "").trim();
+  const normalizedLabelId = String(labelId ?? categoryId ?? "").trim();
+  const ownerAlbumId = normalizedLabelId
+    ? String(selectedLabel?.albumId ?? "wedding").trim()
+    : "";
+
+  if (
+    effectiveLabelMode === "replace" &&
+    normalizedLabelId &&
+    (!selectedLabel?.id || String(selectedLabel.id) !== normalizedLabelId) &&
+    labelMode !== undefined
+  ) {
+    const error = new Error("所選子分類／標籤不存在。");
+    error.code = "INVALID_LABEL";
+    throw error;
+  }
+
   return (photos ?? [])
     .filter((photo) => photo?.id)
     .map((photo) => {
@@ -100,16 +130,16 @@ export function buildBulkClassificationUpdates({
         nextAlbums = requestedAlbums;
       }
 
-      const currentCategories = uniqueIds(photo.categoryIds ?? photo.processIds);
-      const nextCategories =
-        categoryMode === "replace"
-          ? normalizedCategoryId
-            ? [normalizedCategoryId]
+      const currentLabels = uniqueIds(photo.categoryIds ?? photo.processIds);
+      const nextLabels =
+        effectiveLabelMode === "replace"
+          ? normalizedLabelId
+            ? [normalizedLabelId]
             : []
-          : currentCategories;
+          : currentLabels;
 
-      if (categoryMode === "replace" && normalizedCategoryId) {
-        nextAlbums = uniqueIds([...nextAlbums, "wedding"]);
+      if (effectiveLabelMode === "replace" && ownerAlbumId) {
+        nextAlbums = uniqueIds([...nextAlbums, ownerAlbumId]);
       }
       if (nextAlbums.length === 0) {
         const error = new Error("照片至少必須屬於一個相簿。");
@@ -119,8 +149,8 @@ export function buildBulkClassificationUpdates({
 
       const changes = {};
       if (!sameIds(currentAlbums, nextAlbums)) changes.albumIds = nextAlbums;
-      if (!sameIds(currentCategories, nextCategories)) {
-        changes.categoryIds = nextCategories;
+      if (!sameIds(currentLabels, nextLabels)) {
+        changes.categoryIds = nextLabels;
       }
       return Object.keys(changes).length > 0
         ? { id: String(photo.id), changes }
