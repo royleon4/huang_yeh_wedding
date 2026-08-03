@@ -2,9 +2,9 @@ import assert from "node:assert/strict";
 import { createServer } from "node:http";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
-import { albumLabelsUiTransform } from "../album-labels-ui-transform.mjs";
 import { logicalRouteUiTransform } from "../logical-route-ui-transform.mjs";
 import { processContentUiTransform } from "../process-content-ui-transform.mjs";
+import { publicAlbumLabelsUiTransform } from "../public-album-labels-ui-transform.mjs";
 import {
   allAlbumLabel,
   filterPhotosByAlbumLabel,
@@ -122,7 +122,7 @@ test("public transform renders grouped album labels and route subgroups", async 
   const mainSource = await readFile(mainPath, "utf8");
 
   const processTransform = processContentUiTransform();
-  const labelTransform = albumLabelsUiTransform();
+  const labelTransform = publicAlbumLabelsUiTransform();
   const routeTransform = logicalRouteUiTransform();
 
   const processApp = processTransform.transform(appSource, appPath.pathname).code;
@@ -144,4 +144,21 @@ test("public transform renders grouped album labels and route subgroups", async 
   const labeledMain = labelTransform.transform(mainSource, mainPath.pathname).code;
   assert.match(labeledMain, /albumId: process\.albumId \?\? "wedding"/);
   assert.match(labeledMain, /left\.albumId\.localeCompare\(right\.albumId\)/);
+});
+
+test("public label transforms run after photo ordering without changing copy order", async () => {
+  const baseConfig = await readFile(new URL("../vite.config.js", import.meta.url), "utf8");
+  const routeConfig = await readFile(
+    new URL("../vite.routes.config.js", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(
+    baseConfig,
+    /adminPhotoWorkspaceUiTransform\(\),\s*publicAlbumLabelsUiTransform\(\)/,
+  );
+  assert.match(
+    routeConfig,
+    /logicalRouteUiTransform\(\),\s*websiteCopyUiTransform\(\),\s*publicAlbumLabelsUiTransform\(\)/,
+  );
 });
