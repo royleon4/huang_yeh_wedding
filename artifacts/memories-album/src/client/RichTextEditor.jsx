@@ -5,7 +5,13 @@ import { BubbleMenu } from "@tiptap/react/menus";
 import StarterKit from "@tiptap/starter-kit";
 import { useEffect, useRef, useState } from "react";
 import { AttachmentCard, WeddingImage } from "./TiptapMediaNodes.jsx";
+import { PageDocument } from "./TiptapPageDocumentNode.jsx";
 import { WordDocument } from "./TiptapWordDocumentNode.jsx";
+import {
+  isPageDocumentAttachment,
+  pageDocumentKind,
+  pageDocumentLabel,
+} from "./page-document.mjs";
 import {
   convertWordFileToHtml,
   describeWordImport,
@@ -15,6 +21,7 @@ import {
 import "./rich-text-formatting.css";
 import "./rich-text-mobile.css";
 import "./rich-text-media-editor.css";
+import "./page-document.css";
 import "./word-document.css";
 
 const ATTACHMENT_ACCEPT = [
@@ -98,7 +105,8 @@ function TextBubbleMenu({ editor }) {
         from !== to &&
         !current.isActive("weddingImage") &&
         !current.isActive("attachmentCard") &&
-        !current.isActive("wordDocument")
+        !current.isActive("wordDocument") &&
+        !current.isActive("pageDocument")
       }
     >
       <ToolbarButton label="粗體" icon="B" active={editor.isActive("bold")} onClick={() => editor.chain().focus().toggleBold().run()} />
@@ -162,6 +170,7 @@ export default function RichTextEditor({
       WeddingImage,
       AttachmentCard,
       WordDocument,
+      PageDocument,
     ],
     content: prepareEditorHtml(value),
     editorProps: {
@@ -209,28 +218,44 @@ export default function RichTextEditor({
 
   const insertAttachment = (attachment) => {
     if (!editor || !attachment) return;
-    const node = attachment.isImage
-      ? {
-          type: "weddingImage",
-          attrs: {
-            src: attachment.url,
-            alt: attachment.name || "",
-            caption: attachment.name || "",
-            width: 100,
-          },
-        }
-      : {
-          type: "attachmentCard",
-          attrs: {
-            attachmentId: attachment.id || "",
-            name: attachment.name || "附件",
-            href: attachment.url || attachment.downloadUrl || "",
-            downloadUrl: attachment.downloadUrl || attachment.url || "",
-            mimeType: attachment.mimeType || "",
-            byteSize: Number(attachment.byteSize || 0),
-            width: 82,
-          },
-        };
+    const kind = pageDocumentKind(attachment);
+    let node;
+    if (attachment.isImage) {
+      node = {
+        type: "weddingImage",
+        attrs: {
+          src: attachment.url,
+          alt: attachment.name || "",
+          caption: attachment.name || "",
+          width: 100,
+        },
+      };
+    } else if (kind) {
+      node = {
+        type: "pageDocument",
+        attrs: {
+          attachmentId: attachment.id || "",
+          name: attachment.name || pageDocumentLabel(kind),
+          src: attachment.url || attachment.downloadUrl || "",
+          downloadUrl: attachment.downloadUrl || attachment.url || "",
+          mimeType: attachment.mimeType || "",
+          kind,
+        },
+      };
+    } else {
+      node = {
+        type: "attachmentCard",
+        attrs: {
+          attachmentId: attachment.id || "",
+          name: attachment.name || "附件",
+          href: attachment.url || attachment.downloadUrl || "",
+          downloadUrl: attachment.downloadUrl || attachment.url || "",
+          mimeType: attachment.mimeType || "",
+          byteSize: Number(attachment.byteSize || 0),
+          width: 82,
+        },
+      };
+    }
     editor.chain().focus().insertContent([node, { type: "paragraph" }]).run();
   };
 
@@ -242,6 +267,12 @@ export default function RichTextEditor({
     try {
       const attachment = await onUploadAttachment(file);
       insertAttachment(attachment);
+      if (isPageDocumentAttachment(attachment)) {
+        const kind = pageDocumentKind(attachment);
+        setImportMessage(
+          `已將「${attachment.name || pageDocumentLabel(kind)}」以${pageDocumentLabel(kind)}保真區塊插入游標位置。`,
+        );
+      }
     } catch (error) {
       setUploadError(error?.message || "附件上傳失敗，請再試一次。");
     } finally {
@@ -405,7 +436,7 @@ export default function RichTextEditor({
       </div>
 
       <p className="tiptap-editor-hint">
-        反白文字可快速套用格式。手機請點選圖片或附件後使用移動與寬度控制；桌面仍可拖曳，並可拉動把手調整大小。Word 匯入會自動判斷：一般文件轉成可編輯內容；含分頁、字型、表格、頁首頁尾、註腳或定位物件時，改用不干擾網站版面的保真文件區塊。
+        反白文字可快速套用格式。手機請點選圖片或附件後使用移動與寬度控制；桌面仍可拖曳，並可拉動把手調整大小。Word 匯入會自動判斷：一般文件轉成可編輯內容；含分頁、字型、表格、頁首頁尾、註腳或定位物件時，改用不干擾網站版面的保真文件區塊。PDF 與 PowerPoint 上傳後會在游標位置插入保留原頁面或投影片配置的文件區塊。
       </p>
 
       <div className="tiptap-editor-frame">
