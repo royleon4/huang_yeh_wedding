@@ -17,6 +17,15 @@ function transformRegion(source, startMarker, endMarker, transform, label) {
   return `${source.slice(0, start)}${transform(source.slice(start, end))}${source.slice(end)}`;
 }
 
+function insertBeforeContainingLabel(region, containedText, insertion, label) {
+  const containedIndex = region.indexOf(containedText);
+  const labelStart = region.lastIndexOf("<label", containedIndex);
+  if (containedIndex < 0 || labelStart < 0) {
+    throw new Error(`Message album UI transform could not find ${label}`);
+  }
+  return `${region.slice(0, labelStart)}${insertion}${region.slice(labelStart)}`;
+}
+
 function albumTypeField({ draftName, disabledExpression }) {
   return `        <label>
           類別 / Type
@@ -115,13 +124,14 @@ function transformAdmin(source) {
     "function AlbumEditor(",
     "\nfunction CategoryEditor(",
     (region) => {
-      let next = replaceOnce(
+      let next = insertBeforeContainingLabel(
         region,
-        `        <label className="admin-wide-field">\n          中文說明`,
-        `${albumTypeField({
+        "value={draft.descriptionZh}",
+        albumTypeField({
           draftName: "draft",
-          disabledExpression: "busy || (album.isSystem && album.albumType === \"message\")",
-        })}        <label className="admin-wide-field">\n          中文說明`,
+          disabledExpression:
+            'busy || (album.isSystem && album.albumType === "message")',
+        }),
         "existing album type field",
       );
       next = replaceOnce(
@@ -140,10 +150,10 @@ function transformAdmin(source) {
     `        {tab === "albums" && (`,
     `\n        {tab === "categories" && (`,
     (region) =>
-      replaceOnce(
+      insertBeforeContainingLabel(
         region,
-        `                <label className="admin-wide-field">\n                  中文說明`,
-        `${newAlbumTypeField()}                <label className="admin-wide-field">\n                  中文說明`,
+        "value={newAlbum.descriptionZh}",
+        newAlbumTypeField(),
         "new album type field",
       ),
     "album administration section",
