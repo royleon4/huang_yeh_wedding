@@ -8,6 +8,28 @@ function replaceOnce(source, search, replacement, label) {
   return source.replace(search, replacement);
 }
 
+function applyFilteredPhotoPageSize(source) {
+  const legacyQuery = `const query = new URLSearchParams({ limit: "50" });`;
+  if (source.includes(legacyQuery)) {
+    return source.replace(
+      legacyQuery,
+      `const query = new URLSearchParams({ limit: "10" });`,
+    );
+  }
+
+  const configurableDefault = `{ limit = 50, selection = false } = {},`;
+  if (source.includes(configurableDefault)) {
+    return source.replace(
+      configurableDefault,
+      `{ limit = 10, selection = false } = {},`,
+    );
+  }
+
+  throw new Error(
+    "Admin preview pagination transform could not find filtered administrator photo page size",
+  );
+}
+
 function transformAdminApp(source) {
   return replaceOnce(
     source,
@@ -25,12 +47,7 @@ function transformAdminWorkspace(source) {
     "administrator photo pagination stylesheet",
   );
 
-  code = replaceOnce(
-    code,
-    `const query = new URLSearchParams({ limit: "50" });`,
-    `const query = new URLSearchParams({ limit: "10" });`,
-    "filtered administrator photo page size",
-  );
+  code = applyFilteredPhotoPageSize(code);
 
   code = replaceOnce(
     code,
