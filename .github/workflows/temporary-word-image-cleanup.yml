@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - cleanup/word-only-import-image-only-attachments
+  pull_request:
+    branches:
+      - main
 
 permissions:
   contents: write
