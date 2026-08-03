@@ -132,6 +132,17 @@
     flex: 1 1 0.5rem;
     min-width: 0;
   }
+
+  .process-attachment-library-grid article {
+    flex-wrap: wrap;
+  }
+
+  .process-attachment-library-actions {
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    max-width: 100%;
+    margin-inline-start: auto;
+  }
 }
 
 @media (max-width: 720px) {
