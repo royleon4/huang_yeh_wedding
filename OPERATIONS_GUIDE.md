@@ -3,7 +3,8 @@
 這份說明是寫給**網站擁有者、Replit 發布者與事故排查者**。
 
 > 日常內容管理請看 [`ADMIN_GUIDE.md`](ADMIN_GUIDE.md)。  
-> 程式架構與 API 請看 [`artifacts/memories-album/README.md`](artifacts/memories-album/README.md)。
+> 程式架構與 API 請看 [`artifacts/memories-album/README.md`](artifacts/memories-album/README.md)。  
+> Production → Development database 備份、覆蓋與還原請看 [`docs/memories/production-to-development-database-runbook.md`](docs/memories/production-to-development-database-runbook.md)。
 
 ## 先記住六件事
 
@@ -158,6 +159,24 @@ drizzle-kit push
 ```
 
 也不要修改已經在 production 套用過的編號 SQL。
+
+### Production → Development database 覆蓋
+
+需要以 Production 資料重新建立 Development 測試環境時，必須使用已實際演練的專用手冊：
+
+[`docs/memories/production-to-development-database-runbook.md`](docs/memories/production-to-development-database-runbook.md)
+
+該流程要求：
+
+- 先備份 Development；
+- Production 只執行唯讀 `pg_dump`；
+- 目標只能是 Development `DATABASE_URL`；
+- 覆蓋後執行 `db:migrate`；
+- 完成 database、health、Drive 與瀏覽器驗收；
+- 支援還原原本 Development；
+- 不把 Production credential 或 dump 長期留在 workspace。
+
+不得把該流程反向用於 Development → Production。
 
 ### Publish plan 出現 DROP
 
