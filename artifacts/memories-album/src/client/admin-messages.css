@@ -22,12 +22,24 @@
   max-width: 100%;
 }
 
+.admin-message-list-accordion {
+  margin-top: 1rem;
+}
+
+.admin-message-list-summary {
+  grid-template-columns: auto minmax(0, 1fr) auto;
+}
+
+.admin-message-list-body {
+  width: 100%;
+  max-width: 100%;
+}
+
 .admin-message-list {
   display: grid;
   gap: 1rem;
   width: 100%;
   max-width: 100%;
-  margin-top: 1rem;
 }
 
 .admin-message-list article {
@@ -72,6 +84,43 @@
   flex: 0 1 auto;
 }
 
+.admin-message-danger-zone {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  width: 100%;
+  max-width: 100%;
+  margin-top: 1rem;
+  border: 1px solid var(--admin-danger);
+  border-radius: 1rem;
+  background: #f7dfda;
+  padding: 1rem;
+  color: var(--admin-danger-dark);
+}
+
+.admin-message-danger-zone .admin-kicker {
+  color: var(--admin-danger);
+}
+
+.admin-message-danger-zone h3,
+.admin-message-danger-zone p {
+  margin: 0;
+}
+
+.admin-message-danger-zone h3 {
+  color: var(--admin-danger-dark);
+}
+
+.admin-message-danger-zone h3 + p {
+  margin-top: 0.45rem;
+  line-height: 1.55;
+}
+
+.admin-message-delete-all {
+  flex: 0 0 auto;
+}
+
 @media (max-width: 520px) {
   .admin-message-meta {
     align-items: flex-start;
@@ -81,5 +130,22 @@
 
   .admin-message-actions .button {
     flex: 1 1 10rem;
+  }
+
+  .admin-message-list-summary {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .admin-message-list-summary .admin-accordion-meta {
+    grid-column: 2;
+  }
+
+  .admin-message-danger-zone {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .admin-message-delete-all {
+    width: 100%;
   }
 }
