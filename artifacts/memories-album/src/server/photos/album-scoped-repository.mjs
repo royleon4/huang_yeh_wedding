@@ -1,10 +1,26 @@
 import { randomUUID } from "node:crypto";
 import { PostgresPhotoRepository } from "./postgres-repository.mjs";
 
+function defaultAlbumId(photo) {
+  return photo.collection ?? (photo.source === "guest" ? "guest" : "wedding");
+}
+
+function visitorUploadNeedsGuestCopy(photo) {
+  return (
+    photo.source === "guest" &&
+    Boolean(photo.batchId) &&
+    defaultAlbumId(photo) !== "guest"
+  );
+}
+
 function explicitAlbumIds(photo) {
-  const defaultAlbum =
-    photo.collection ?? (photo.source === "guest" ? "guest" : "wedding");
-  return [...new Set(photo.albumIds ?? [defaultAlbum])].filter(Boolean);
+  const selected = photo.albumIds ?? [defaultAlbumId(photo)];
+  return [
+    ...new Set([
+      ...selected,
+      ...(visitorUploadNeedsGuestCopy(photo) ? ["guest"] : []),
+    ]),
+  ].filter(Boolean);
 }
 
 function safeDateIso(raw) {
@@ -16,15 +32,20 @@ function safeDateIso(raw) {
 
 /**
  * Album membership is authoritative and independent from upload provenance.
- * A guest-originated photo belongs to Guest uploads only when `guest` is an
- * explicit album membership. Drive reconciliation still owns only the
+ * A visitor upload batch also keeps one logical copy in Guest uploads when the
+ * visitor selected another album. Drive reconciliation still owns only the
  * wedding-process relationship, while deliberate administrator saves may
  * replace all labels through updatePhotoForAdmin.
  */
 export class AlbumScopedPhotoRepository extends PostgresPhotoRepository {
   async insertPhoto(photo) {
     const albumIds = explicitAlbumIds(photo);
-    const stored = await super.insertPhoto({ ...photo, albumIds });
+    const stored = await super.insertPhoto({
+      ...photo,
+      albumIds,
+      albumMembershipsOverridden:
+        photo.albumMembershipsOverridden ?? visitorUploadNeedsGuestCopy(photo),
+    });
     return { ...stored, albumIds };
   }
 
