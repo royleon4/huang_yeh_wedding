@@ -1,6 +1,6 @@
 # Standalone Memories album
 
-`@workspace/memories-album` owns the independent wedding archive under `/Memories/`: public gallery, guest uploads, private batch management, administrator application, Node HTTP APIs, immutable PostgreSQL migrations, Google Drive media storage, and public appearance settings.
+`@workspace/memories-album` owns the independent wedding archive under `/Memories/`: public gallery, guest uploads, private batch management, guestbook messages, administrator application, Node HTTP APIs, immutable PostgreSQL migrations, Google Drive media storage, and public appearance settings.
 
 It does **not** own the legacy invitation photo wall or the legacy `/api/photos*` Object Storage implementation.
 
@@ -16,6 +16,7 @@ Public routes use stable album, label, administrator-tab, and photo identities. 
 | `/Memories/albums/guest` | Guest album and all-visitors view |
 | `/Memories/albums/guest/labels/latest` | Virtual latest-guest-photos label |
 | `/Memories/albums/guest/labels/Leon` | URL-encoded normalized guest-name label |
+| `/Memories/albums/:albumKey/labels/:labelKey` | Album-scoped label for a photo album |
 | `/Memories/en/albums/guest` | English guest album |
 | `.../photos/:photoId` | Open one photo on the current gallery route |
 | `/Memories/upload` | Guest upload |
@@ -25,14 +26,17 @@ Public routes use stable album, label, administrator-tab, and photo identities. 
 | `/Memories/admin/general` | General administrator tab |
 | `/Memories/admin/albums` | Album administrator tab |
 | `/Memories/admin/photos` | Photo administrator tab |
-| `/Memories/admin/categories` | Category and video administrator tab |
+| `/Memories/admin/categories` | Category, content, video, label, and message administrator tab |
 | `/Memories/api/health` | Lightweight liveness endpoint |
 | `/Memories/api/albums` | Public album metadata |
-| `/Memories/api/processes` | Public process, video, and rich-content metadata |
+| `/Memories/api/processes` | Public process, video, label, and rich-content metadata |
+| `/Memories/api/messages*` | Public guestbook listing/submission and administrator moderation boundary |
 | `/Memories/api/photos*` | Public listing and controlled image streaming |
 | `/Memories/api/upload-batches*` | Guest batches and per-photo uploads |
-| `/Memories/admin/api/*` | Administrator session, albums, photos, categories, content, assets, and settings APIs |
+| `/Memories/admin/api/*` | Administrator session, albums, labels, messages, photos, categories, content, assets, and settings APIs |
 | `/admin*` | Compatibility redirects only |
+
+A persisted message album uses the same stable album route as a photo album and renders guestbook messages instead of a photo feed. Album type determines the renderer; canonical route identity does not change.
 
 `/Memories/` and `/Memories/en/` are compatibility roots for the first available album. Previous ordinal paths such as `/Memories/group2/subgroup3` and `/Memories/admin/group3`, plus older semantic process paths, remain migration aliases and are replaced with stable identity routes after resolution.
 
@@ -49,11 +53,12 @@ The Replit artifact router sends Memories routes to port 19316. Production healt
 - `sharp` image normalization and WebP derivatives
 - Busboy multipart parsing
 - Tiptap rich-content editor
-- Node test runner and GitHub Actions
+- Mammoth and docx-preview for Word import and browser rendering
+- Node test runner, focused Chrome layout scripts, and GitHub Actions
 
 ## Source of truth
 
-Google Drive owns original files, generated thumbnails, process attachments, and numbered process folders. PostgreSQL owns public visibility, album/process relationships, capture time, author, process videos/articles, upload batches, token hashes, content hashes, resumable-upload state, UI settings, editable site copy, appearance assets, administrator overrides, and login rate limits.
+Google Drive owns original files, generated thumbnails, image attachments, and numbered process folders. PostgreSQL owns public visibility, album/process/label relationships, capture time, author, process videos/articles, guestbook messages, upload batches, token hashes, content hashes, resumable-upload state, UI settings, editable site copy, appearance assets, administrator overrides, and login rate limits.
 
 Reserved folders:
 
@@ -74,9 +79,9 @@ Browser payloads expose Memories UUIDs and controlled media routes. Drive IDs, f
 - `/Memories/api/settings`
 - `/Memories/api/processes`
 
-The normalized snapshot is reused by the gallery, editable copy, site style, media ordering, pinned photos, traditional/wheel selector, wheel-loop settings, guest-label view model, and guest-upload classification UI. Components do not independently refetch the same settings after mount.
+The normalized snapshot is reused by the gallery, editable copy, site style, media ordering, pinned photos, traditional/wheel selector, wheel-loop settings, album-scoped label models, guest-label view models, featured-photo settings, guest-upload classification UI, and album-type routing.
 
-The resources fail independently. A failed endpoint uses a safe local fallback while successful results remain active. Fallback selection happens before React renders, avoiding a flash from bundled defaults to saved settings.
+Components do not independently refetch the same settings after mount. The resources fail independently. A failed endpoint uses a safe local fallback while successful results remain active. Fallback selection happens before React renders, avoiding a flash from bundled defaults to saved settings.
 
 The editable site icon is loaded and applied through its controlled settings asset route. Public settings expose metadata, not stored image bytes.
 
@@ -109,9 +114,11 @@ The bottom navigation is Safe-Area-aware, keeps touch targets of at least approx
 
 The language switcher remains inside the hero header rather than floating independently over the viewport.
 
+Selecting an album, including the currently active album, requests shared active-content positioning. Subcategory/label selection reuses the same navigation formula after asynchronous content is ready. Message albums suspend masonry anchor restoration before applying the shared content scroll so newly loaded messages do not pull the viewport back to an obsolete anchor.
+
 ### Per-album wheel looping
 
-Under **子分類操作方式**, infinite horizontal looping can be enabled independently for the `wedding` and `guest` albums. Disabled wheels remain finite.
+Under **子分類操作方式**, infinite horizontal looping can be enabled independently for each eligible album. Disabled wheels remain finite.
 
 Enabled wheels render a complete clickable copy of the logical items before and after the real sequence, filling both directions without empty edge space. Copy buttons select the same logical item as their real counterpart, but they are excluded from canonical tab semantics and keyboard tab order. After scrolling or choosing a copy, the component recenters on the matching real item. Arrow-key navigation follows the same wrap rule.
 
@@ -128,19 +135,37 @@ Visible minus, percentage, and plus controls are intentionally absent. The loadi
 
 Detailed contracts are documented in [`docs/site-style-wheel-and-viewer.md`](docs/site-style-wheel-and-viewer.md).
 
-## Public gallery
+## Public gallery and album types
 
 - Traditional Chinese is the default; English adds `/en` after `/Memories`.
 - Only `visibility = 'public'` rows are returned publicly.
 - Global media-group ordering remains authoritative. Album-specific random, time, photo-name, or author sorting applies only inside photo groups.
 - Random ordering remains stable for the current page load.
-- Wedding-process media can contain YouTube video, bilingual rich text, Drive attachments, divider spacing, one to three pinned photos, and the continuous photo wall.
+- Wedding-process media can contain YouTube video, bilingual rich text, imported Word content, image attachments, divider spacing, one to three pinned photos, and the continuous photo wall.
 - Traditional process buttons are the default; an optional centered wheel can be enabled and given a mobile density target.
 - Subgroup clicks and deep links use the same anchor-positioning behavior.
-- Public, pinned, and private-management thumbnails use IntersectionObserver-based lazy loading. The network `src` is withheld until an image approaches the viewport.
+- Public, featured, pinned, and private-management thumbnails use lazy loading. The network `src` is withheld until an image approaches the viewport.
 - Explicit “load more memories” pagination prevents unbounded React and DOM growth.
 - Missing thumbnails can be repaired and may temporarily fall back to the original with `no-store`.
 - Known label surfaces wrap onto multiple lines instead of truncating.
+- A photo album renders the process/label selector and photo feed.
+- A message album renders guestbook messages, sort controls, a public composer, and message modal content.
+
+## Album-scoped labels
+
+Every non-guest photo album can own administrator-managed labels.
+
+Rules:
+
+- the generated **全部{相簿名}** label is always first;
+- administrators can create, rename, reorder, show/hide, and delete eligible custom labels;
+- photo filtering, upload classification, bulk actions, pagination, public bootstrap, and public routes use the active album’s labels;
+- a photo may retain explicit album membership independently of a label;
+- changing albums resets the active label to a valid label for that album;
+- process bilingual titles can override the public label text, including the all-wedding-process label;
+- label identity is stable and is not derived from current display order.
+
+The guest album is a special case and continues to use virtual labels for all visitors, latest photos, and uploader names.
 
 ## Guest-label settings
 
@@ -157,6 +182,58 @@ Detailed contracts are documented in [`docs/site-style-wheel-and-viewer.md`](doc
 When enabled, guest-album labels are ordered as all visitors, latest photos, then administrator-ordered names. The latest label contains the newest configured 30–50 guest photos and is displayed newest first. New uploader names append after the saved names rather than being alphabetically resorted.
 
 Hidden latest/name labels are unavailable to canonical label routes. Hiding a label does not delete photos.
+
+## Per-album featured photos
+
+Each album can independently enable random featured-photo cards and configure an inclusive minimum/maximum count.
+
+The selection context includes:
+
+- active album identity;
+- active label/filter identity;
+- the current eligible photo set;
+- a page-load seed.
+
+Changing album or label creates a new context. Featured photo IDs from a previous context must not remain pinned at the front of another album or label. Paging marks only the IDs selected for the current context, and the same photo is not selected twice in one context.
+
+Featured-photo settings are public album metadata and must reach public normalization before selection and paging.
+
+## Guestbook/message albums
+
+Message albums use PostgreSQL-backed guestbook records rather than photo rows.
+
+Public capabilities include:
+
+- load visible messages;
+- choose supported sort modes;
+- open one message in a modal;
+- submit a new message through the public API;
+- reposition to the active content area after the initial asynchronous load.
+
+Administrator capabilities include:
+
+- a separate Guestbook management accordion;
+- collapsed-by-default loading so messages are not fetched until opened;
+- moderation, editing, visibility changes, import/export support, and permanent deletion;
+- a separated red danger area for deleting all messages.
+
+Message routes and photo routes remain distinct at the API layer even though both use stable album identities publicly.
+
+## Rich content, Word import, and attachments
+
+Process content is edited with Tiptap.
+
+Current import and attachment contract:
+
+- the document-import control accepts Word-related files supported by the current importer;
+- PDF and PowerPoint import are not part of the current contract;
+- general attachment upload accepts images only;
+- pasted/imported images are uploaded directly rather than retained as temporary data URLs;
+- imported Word tables, borders, widths, images, page-like blocks, and paragraphs are rendered within the browser viewport;
+- the mobile toolbar remains horizontally usable without covering the editor;
+- document/image nodes preserve filenames and safe controlled media references.
+
+See [`../../docs/memories/word-import-image-upload-2026-08-03.md`](../../docs/memories/word-import-image-upload-2026-08-03.md) and the corresponding tests.
 
 ## Guest upload
 
@@ -221,29 +298,33 @@ Current capabilities include:
 
 - edit site appearance, hero background, bilingual title, public copy, and site icon;
 - choose traditional or wheel selectors and per-album wheel looping;
-- create, edit, reorder, and show/hide albums;
-- control album summaries and photo ordering;
-- create, rename, and reorder Drive-backed processes;
-- edit process video, autoplay, bilingual Tiptap content, attachments, and divider spacing;
+- create, edit, reorder, show/hide, and select album types;
+- control album summaries, photo ordering, and per-album featured-photo ranges;
+- create, rename, reorder, and show/hide album-scoped labels;
+- create, rename, and reorder Drive-backed wedding processes;
+- edit process video, autoplay, bilingual Tiptap content, Word imports, image attachments, and divider spacing;
 - select and order up to three pinned photos per process;
 - configure independent guest/admin upload limits, Drive upload mode, and bilingual upload guidance;
 - independently show/hide latest-photo, all-visitors, and guest-name labels;
 - drag guest-name labels into a saved order and configure latest-photo count;
-- filter photos by album, process, and author;
-- batch-upload administrator photos through the reliable guest-upload core, then finalize album/process memberships;
-- edit display name, capture time, author, visibility, albums, and process;
-- select photos on the current page and bulk-add or replace albums, replace process classification, bulk-change uploader/author, or permanently delete eligible photo families;
+- manage guestbook messages from a lazy, collapsed accordion;
+- filter photos by album, label/process, and author;
+- batch-upload administrator photos through the reliable guest-upload core, then finalize album/label/process memberships;
+- edit display name, capture time, author, visibility, albums, labels, and process;
+- select photos on the current page or apply supported settings to all photos matching the current filter;
+- bulk-add or replace albums, labels and process classification, bulk-change uploader/author, or permanently delete eligible photo families;
 - refresh a selected album or process by deleting only generated thumbnails, rescanning originals, and rebuilding derivatives;
 - keep drafts and submit registered sections through the global save coordinator.
 
 Current UI behavior:
 
-- manual accordions wrap maintenance, new/existing albums, new-photo upload, and category editors;
-- Guest-label settings are nested inside the `guest` album editor;
+- manual accordions wrap maintenance, new/existing albums, new-photo upload, guestbook management, and category editors;
+- guest-label settings are nested inside the `guest` album editor;
+- album-scoped labels are managed inside their corresponding non-guest album;
 - administrator photo previews and pinned-photo candidates are paginated 10 at a time;
-- wide photo pages use five columns, reducing responsively to one;
+- wide photo pages use responsive multi-column layouts;
 - page changes abort hidden thumbnail requests and release obsolete blob URLs;
-- bulk selection applies to the currently rendered photo page;
+- bulk selection and all-filtered-photo operations are visually distinct;
 - text labels wrap instead of clipping.
 
 The author `婚禮攝影` receives front-end and server-side deletion protection and is automatically skipped by bulk permanent deletion.
@@ -260,9 +341,10 @@ The feature set reuses the existing `memories_app_settings` JSON key/value table
 - selector mode, visible count, and loop album IDs;
 - pinned photos;
 - guest-label visibility/order/latest count;
+- per-album featured-photo enablement and range;
 - upload limits, guidance, and Drive mode.
 
-Appearance and guest-label additions require no new table schema because they use the existing settings store.
+Album-scoped labels, explicit guest membership, and guestbook messages use dedicated relational tables/migrations rather than the settings store.
 
 ## Background synchronization
 
@@ -274,7 +356,13 @@ A background job may reach the end and log completion while also reporting colle
 
 ## Migrations
 
-Tracked migrations live under `db/` and currently extend through `013_drive_resumable_upload.sql`.
+Tracked migrations live under `db/` and currently extend through `016_explicit_guest_album_membership.sql`.
+
+Recent additions:
+
+- `014_guestbook_messages.sql`
+- `015_album_scoped_labels.sql`
+- `016_explicit_guest_album_membership.sql`
 
 The runner:
 
@@ -307,16 +395,20 @@ MEMORIES_TRUST_PROXY=1
 MEMORIES_SKIP_MIGRATIONS=1
 ```
 
-Secrets, Drive folder IDs, OAuth credentials, and private tokens must not be committed to GitHub, `.replit`, or a browser bundle.
+Secrets, Drive folder IDs, OAuth credentials, resumable session URIs, and private tokens must not be committed to GitHub, `.replit`, a scanner report, or a browser bundle.
 
 Operational procedures are in [`../../OPERATIONS_GUIDE.md`](../../OPERATIONS_GUIDE.md).
 
 ## Commands
 
 ```bash
-pnpm install
+pnpm install --frozen-lockfile
 pnpm --filter @workspace/memories-album dev
 pnpm --filter @workspace/memories-album test
+pnpm --filter @workspace/memories-album run test:impact
+pnpm --filter @workspace/memories-album run test:layout-navigation
+pnpm --filter @workspace/memories-album run test:layout-guestbook
+pnpm --filter @workspace/memories-album run test:layout-browser
 pnpm --filter @workspace/memories-album build
 pnpm --filter @workspace/memories-album start
 pnpm --filter @workspace/memories-album db:migrate
@@ -325,13 +417,28 @@ pnpm --filter @workspace/memories-album test:drive-live
 
 `test:drive-live` must run only in a configured Replit environment against a safe test folder.
 
-## CI and architecture debt
+## CI, SCA, and architecture debt
 
-Standalone CI runs the Node test suite, a production client/server build, final transform-chain structural checks, and a real server health smoke. The legacy-boundary workflow protects the invitation and old photo API.
+The repository uses Test Impact Analysis and Selective Test Execution for PR commits:
 
-Preservation tests cover public-bootstrap memoization/fallback, guest-label rules, stable routes, appearance validation, hero and icon assets, fully interactive wheel copies and canonical tab semantics, responsive navigation, photo-viewer behavior, unified saves, and settings persistence.
+- Draft PRs run `Standalone Memories Fast CI` with the smallest proven test/layout/build scope.
+- Ready PRs use the formal Memories check with the same impact analysis and safety fallback.
+- Documentation-only changes skip executable validation.
+- Unknown executable changes fall back to broader validation.
+- Pushes to `main` and manual dispatch run the complete Node test suite, both focused Chrome layout suites, production build, and server health smoke.
 
-CI does not yet run a real browser such as Playwright against the completed production transform chain. The largest remaining architecture risk is the collection of Vite pre-transforms that mutate `App.jsx` and `AdminApp.jsx` through exact string replacement. Any transform change should validate final generated code and a real browser render.
+The legacy-boundary workflow protects the invitation and old photo API.
+
+Preservation tests cover public-bootstrap memoization/fallback, guest and album-scoped labels, explicit guest membership, stable routes, message APIs and layout, featured-photo context, appearance validation, hero and icon assets, interactive wheel copies and canonical tab semantics, responsive navigation, Word import, photo-viewer behavior, unified saves, and settings persistence.
+
+CI does not yet run a required Playwright suite against the completed production interaction flow. Focused Chrome layout checks prove specific DOM/layout contracts but do not replace end-to-end browser coverage.
+
+A repository-wide SCA was recorded on 2026-08-02, but later package and lockfile changes mean its exact inventory and vulnerability counts are dated. Re-scan current `main` before dependency remediation. See:
+
+- [`../../docs/software-composition-analysis-2026-08-02.md`](../../docs/software-composition-analysis-2026-08-02.md)
+- [`../../docs/security-remediation-readiness-2026-08-04.md`](../../docs/security-remediation-readiness-2026-08-04.md)
+
+The largest remaining architecture risk is the collection of Vite pre-transforms that mutate `App.jsx` and `AdminApp.jsx` through exact string replacement. Any transform or Vite dependency change should validate final generated code, focused Chrome layouts, production build, and a real browser render.
 
 Additional known limitations:
 
@@ -339,6 +446,7 @@ Additional known limitations:
 - manually deleting a Drive original does not perform complete database cleanup;
 - people classification and selfie-based photo discovery remain future work;
 - broader iOS Safari, Android Chrome, LINE/Instagram webview, and slow-network validation is still needed;
-- administrator upload classification is finalized by client-side follow-up PATCH requests rather than one atomic server command.
+- administrator upload classification is finalized by client-side follow-up PATCH requests rather than one atomic server command;
+- recurring SCA/SBOM automation and current-lockfile dependency remediation are not complete.
 
 Detailed smells and the staged extraction plan are in [`../../docs/code-health-audit-2026-07.md`](../../docs/code-health-audit-2026-07.md).
