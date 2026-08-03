@@ -84,7 +84,18 @@ test("public and administrator guestbooks show date and time to the minute", asy
   );
 });
 
-test("administrator guestbook cards expose hide, restore, and permanent delete", async () => {
+test("administrator guestbook import keeps a stable form reference across awaits", async () => {
+  const panel = await source("src/client/AdminMessagesPanel.jsx");
+
+  assert.match(
+    panel,
+    /event\.preventDefault\(\);\s*const form = event\.currentTarget;/,
+  );
+  assert.match(panel, /form\.reset\(\)/);
+  assert.doesNotMatch(panel, /event\.currentTarget\.reset\(\)/);
+});
+
+test("administrator guestbook exposes item and bulk moderation", async () => {
   const panel = await source("src/client/AdminMessagesPanel.jsx");
   const api = await source("src/server/messages/api.mjs");
   const repository = await source("src/server/messages/postgres-repository.mjs");
@@ -93,12 +104,15 @@ test("administrator guestbook cards expose hide, restore, and permanent delete",
   assert.match(panel, /隱藏 \/ Hide/);
   assert.match(panel, /重新顯示 \/ Show/);
   assert.match(panel, /永久刪除 \/ Delete/);
+  assert.match(panel, /deleteAllMessages/);
+  assert.match(panel, /永久刪除全部留言 \/ Delete all messages/);
   assert.match(panel, /window\.confirm/);
   assert.match(api, /request\.method === "PATCH"/);
-  assert.match(api, /request\.method === "DELETE"/);
+  assert.match(api, /request\.method === "DELETE" && collectionPath/);
   assert.match(api, /INVALID_MESSAGE_VISIBILITY/);
   assert.match(repository, /async updateVisibility/);
   assert.match(repository, /async deleteMessage/);
+  assert.match(repository, /async deleteAllMessages/);
 });
 
 test("bottom navigation assigns odd and even album positions around upload", async () => {
