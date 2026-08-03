@@ -318,6 +318,9 @@ export function adminErrorMessage(error) {
   if (error?.status === 429 || error?.code === "RATE_LIMITED") {
     return "登入嘗試次數過多，請稍後再試。";
   }
+  if (error?.code === "DRIVE_AUTHORIZATION_REQUIRED") {
+    return "Google Drive 拒絕直接上傳（403）。這次附件上傳未使用分段上傳；請重新授權 Google Drive，並確認「00 未分類」資料夾可寫入。";
+  }
   if (error?.status === 503) return "管理服務暫時無法使用，請稍後再試。";
   if (error instanceof TypeError) return "無法連線至伺服器，請檢查網路。";
   return error?.message || "操作失敗，請稍後再試。";

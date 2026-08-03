@@ -329,7 +329,7 @@ export function createAdminProcessContentApi({
         const file = await parseAttachmentMultipart(request);
         const id = createId();
         const storedName = `process-content-${id}-${safeFilename(file.filename)}`;
-        const uploaded = await drive.uploadOriginal({
+        const uploaded = await drive.uploadAttachment({
           bytes: file.bytes,
           filename: storedName,
           contentType: file.mimeType,

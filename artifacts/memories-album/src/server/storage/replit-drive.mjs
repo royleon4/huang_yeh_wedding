@@ -26,7 +26,7 @@ function requestStage(path, options = {}) {
     return "session-init";
   }
   if (options.method === "POST" && requestPath.includes("uploadType=multipart")) {
-    return "thumbnail-upload";
+    return "multipart-upload";
   }
   if (options.method === "PUT" && /^bytes\s+\*\//i.test(String(range ?? ""))) {
     return "session-status";
