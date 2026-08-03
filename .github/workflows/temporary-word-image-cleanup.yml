@@ -1,15 +1,16 @@
 name: Temporary Word and image cleanup
 
 on:
-  push:
-    branches:
-      - cleanup/word-only-import-image-only-attachments
   pull_request:
     branches:
       - main
 
 permissions:
   contents: write
+
+concurrency:
+  group: temporary-word-image-cleanup-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
 
 jobs:
   apply:
@@ -33,7 +34,9 @@ jobs:
           node-version: 24
 
       - name: Apply cleanup
-        run: node artifacts/memories-album/scripts/apply-word-only-image-only-cleanup.mjs
+        run: |
+          node artifacts/memories-album/scripts/apply-word-only-image-only-cleanup.mjs
+          node artifacts/memories-album/scripts/finish-word-only-image-only-cleanup.mjs
 
       - name: Synchronize lockfile
         run: pnpm install --no-frozen-lockfile
@@ -47,6 +50,7 @@ jobs:
       - name: Remove temporary automation
         run: |
           rm -f artifacts/memories-album/scripts/apply-word-only-image-only-cleanup.mjs
+          rm -f artifacts/memories-album/scripts/finish-word-only-image-only-cleanup.mjs
           rm -f .github/workflows/temporary-word-image-cleanup.yml
 
       - name: Commit cleanup
