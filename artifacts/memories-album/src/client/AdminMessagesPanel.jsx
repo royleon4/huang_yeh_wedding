@@ -21,6 +21,7 @@ export default function AdminMessagesPanel() {
   const [file, setFile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
+  const [activeMessageId, setActiveMessageId] = useState("");
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
 
@@ -53,7 +54,7 @@ export default function AdminMessagesPanel() {
 
   const importMessages = async (event) => {
     event.preventDefault();
-    if (!file || busy) return;
+    if (!file || busy || activeMessageId) return;
     setBusy(true);
     setMessage("");
     setError("");
@@ -76,6 +77,70 @@ export default function AdminMessagesPanel() {
       setError(adminErrorMessage(importError));
     } finally {
       setBusy(false);
+    }
+  };
+
+  const changeVisibility = async (item, visibility) => {
+    if (busy || activeMessageId) return;
+    setActiveMessageId(item.id);
+    setMessage("");
+    setError("");
+    try {
+      const payload = await adminRequest(
+        `/admin/api/settings/messages/${encodeURIComponent(item.id)}`,
+        {
+          method: "PATCH",
+          body: { visibility },
+        },
+      );
+      setMessages((current) =>
+        current.map((candidate) =>
+          candidate.id === item.id ? payload.message : candidate,
+        ),
+      );
+      setMessage(
+        visibility === "hidden"
+          ? "留言已隱藏，前台將不再顯示。 Message hidden."
+          : "留言已重新顯示。 Message visible again.",
+      );
+    } catch (visibilityError) {
+      if (visibilityError?.status === 401) {
+        window.location.replace("/Memories/");
+        return;
+      }
+      setError(adminErrorMessage(visibilityError));
+    } finally {
+      setActiveMessageId("");
+    }
+  };
+
+  const deleteMessage = async (item) => {
+    if (busy || activeMessageId) return;
+    const confirmed = window.confirm(
+      `確定永久刪除 ${item.visitorName} 的留言？此動作無法復原。\nPermanently delete this message? This cannot be undone.`,
+    );
+    if (!confirmed) return;
+
+    setActiveMessageId(item.id);
+    setMessage("");
+    setError("");
+    try {
+      await adminRequest(
+        `/admin/api/settings/messages/${encodeURIComponent(item.id)}`,
+        { method: "DELETE" },
+      );
+      setMessages((current) =>
+        current.filter((candidate) => candidate.id !== item.id),
+      );
+      setMessage("留言已永久刪除。 Message permanently deleted.");
+    } catch (deleteError) {
+      if (deleteError?.status === 401) {
+        window.location.replace("/Memories/");
+        return;
+      }
+      setError(adminErrorMessage(deleteError));
+    } finally {
+      setActiveMessageId("");
     }
   };
 
@@ -103,11 +168,15 @@ export default function AdminMessagesPanel() {
             type="file"
             accept=".csv,.tsv,.txt,text/csv,text/tab-separated-values,text/plain"
             onChange={(event) => setFile(event.target.files?.[0] ?? null)}
-            disabled={busy}
+            disabled={busy || Boolean(activeMessageId)}
             required
           />
         </label>
-        <button className="button primary" type="submit" disabled={busy || !file}>
+        <button
+          className="button primary"
+          type="submit"
+          disabled={busy || Boolean(activeMessageId) || !file}
+        >
           {busy ? "正在匯入… / Importing…" : "匯入留言 / Import messages"}
         </button>
       </form>
@@ -122,15 +191,49 @@ export default function AdminMessagesPanel() {
         <p className="admin-section-note">正在載入留言… / Loading messages…</p>
       ) : (
         <div className="admin-message-list">
-          {messages.map((item) => (
-            <article className="admin-editor-card" key={item.id}>
-              <div className="admin-message-meta">
-                <strong>{item.visitorName}</strong>
-                <small>{formattedDate(item.messageAt)}</small>
-              </div>
-              <p>{item.body}</p>
-            </article>
-          ))}
+          {messages.map((item) => {
+            const hidden = item.visibility === "hidden";
+            const itemBusy = activeMessageId === item.id;
+            return (
+              <article
+                className={`admin-editor-card${hidden ? " admin-message-hidden" : ""}`}
+                key={item.id}
+              >
+                <div className="admin-message-meta">
+                  <strong>{item.visitorName}</strong>
+                  <small>{formattedDate(item.messageAt)}</small>
+                </div>
+                {hidden && (
+                  <p className="admin-message-status">已隱藏 / Hidden</p>
+                )}
+                <p>{item.body}</p>
+                <div className="admin-message-actions">
+                  <button
+                    className="button secondary"
+                    type="button"
+                    onClick={() =>
+                      changeVisibility(item, hidden ? "public" : "hidden")
+                    }
+                    disabled={busy || Boolean(activeMessageId)}
+                  >
+                    {itemBusy
+                      ? "處理中… / Working…"
+                      : hidden
+                        ? "重新顯示 / Show"
+                        : "隱藏 / Hide"}
+                  </button>
+                  <button
+                    className="button secondary admin-message-delete"
+                    type="button"
+                    onClick={() => deleteMessage(item)}
+                    disabled={busy || Boolean(activeMessageId)}
+                  >
+                    永久刪除 / Delete
+                  </button>
+                </div>
+              </article>
+            );
+          })}
           {messages.length === 0 && (
             <p className="admin-section-note">目前沒有留言。 / No messages yet.</p>
           )}
