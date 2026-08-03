@@ -1,3 +1,5 @@
+import { suspendMasonryAnchorRestoration } from "./useMasonryLayout.mjs";
+
 function browserDocument() {
   return typeof document === "undefined" ? null : document;
 }
@@ -5,6 +7,10 @@ function browserDocument() {
 function browserWindow() {
   return typeof window === "undefined" ? null : window;
 }
+
+const ALBUM_SELECTION_SELECTOR =
+  ".collection-tabs .collection-tab, " +
+  ".bottom-collection-nav .bottom-nav-side button";
 
 let latestScrollRequest = 0;
 
@@ -87,6 +93,39 @@ export function requestActiveContentScroll({
   return true;
 }
 
+export function isAlbumSelectionTarget(target) {
+  return Boolean(target?.closest?.(ALBUM_SELECTION_SELECTOR));
+}
+
+export function requestAlbumContentScroll({
+  documentRef = browserDocument(),
+  windowRef = browserWindow(),
+  behavior = "smooth",
+  suspendAnchor = suspendMasonryAnchorRestoration,
+} = {}) {
+  suspendAnchor();
+  return requestActiveContentScroll({ documentRef, windowRef, behavior });
+}
+
+export function installAlbumSelectionScroll({
+  documentRef = browserDocument(),
+  windowRef = browserWindow(),
+  requestScroll = requestAlbumContentScroll,
+} = {}) {
+  if (!documentRef?.addEventListener || !windowRef) return () => {};
+
+  const onClick = (event) => {
+    if (!isAlbumSelectionTarget(event.target)) return;
+    requestScroll({ documentRef, windowRef });
+  };
+
+  documentRef.addEventListener("click", onClick);
+  return () => documentRef.removeEventListener("click", onClick);
+}
+
 export const galleryStartTop = activeContentStartTop;
 export const scrollToGalleryStart = scrollToActiveContentStart;
 export const requestGalleryStartScroll = requestActiveContentScroll;
+
+const disposeAlbumSelectionScroll = installAlbumSelectionScroll();
+if (import.meta.hot) import.meta.hot.dispose(disposeAlbumSelectionScroll);
