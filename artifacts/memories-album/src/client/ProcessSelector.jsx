@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 import { processWheelLoopsForAlbum } from "../process-selector-settings.mjs";
-import "./album-content-navigation.mjs";
+import "./content-navigation-album.mjs";
 import { getPublicBootstrap } from "./public-bootstrap.mjs";
 import { requestActiveContentScroll } from "./gallery-navigation.mjs";
 import ProcessWheel from "./ProcessWheel.jsx";
