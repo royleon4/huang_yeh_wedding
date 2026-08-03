@@ -36,9 +36,17 @@ function normalizedText(value) {
     .trim();
 }
 
-function photoTime(photo) {
-  const time = new Date(photo?.createdAt ?? photo?.capturedAt ?? 0).getTime();
+function itemTime(value) {
+  const time = new Date(value ?? 0).getTime();
   return Number.isFinite(time) ? time : 0;
+}
+
+function photoTime(photo) {
+  return itemTime(photo?.createdAt ?? photo?.capturedAt);
+}
+
+function messageTime(message) {
+  return itemTime(message?.messageAt ?? message?.createdAt);
 }
 
 function compareText(left, right, direction) {
@@ -68,8 +76,12 @@ function hashText(value) {
   return hash >>> 0;
 }
 
-function stableId(photo) {
+function stablePhotoId(photo) {
   return String(photo?.id ?? photo?.driveFileId ?? photo?.originalFilename ?? "");
+}
+
+function stableMessageId(message) {
+  return String(message?.id ?? "");
 }
 
 export function sortAlbumPhotos(
@@ -79,15 +91,16 @@ export function sortAlbumPhotos(
 ) {
   const normalizedMode = normalizeAlbumPhotoSortMode(mode);
   const ordered = [...(photos ?? [])];
-  const tieBreak = (left, right) => collator.compare(stableId(left), stableId(right));
+  const tieBreak = (left, right) =>
+    collator.compare(stablePhotoId(left), stablePhotoId(right));
 
   ordered.sort((left, right) => {
     let result = 0;
     switch (normalizedMode) {
       case "random":
         result =
-          hashText(`${randomSeed}:${stableId(left)}`) -
-          hashText(`${randomSeed}:${stableId(right)}`);
+          hashText(`${randomSeed}:${stablePhotoId(left)}`) -
+          hashText(`${randomSeed}:${stablePhotoId(right)}`);
         break;
       case "time-desc":
         result = photoTime(right) - photoTime(left);
@@ -131,6 +144,50 @@ export function sortAlbumPhotos(
       case "time-asc":
       default:
         result = photoTime(left) - photoTime(right);
+        break;
+    }
+    return result || tieBreak(left, right);
+  });
+
+  return ordered;
+}
+
+export function sortAlbumMessages(
+  messages,
+  mode = DEFAULT_ALBUM_PHOTO_SORT_MODE,
+  randomSeed = "album-message-order",
+) {
+  const normalizedMode = normalizeAlbumPhotoSortMode(mode);
+  const ordered = [...(messages ?? [])];
+  const tieBreak = (left, right) =>
+    collator.compare(stableMessageId(left), stableMessageId(right));
+
+  ordered.sort((left, right) => {
+    let result = 0;
+    switch (normalizedMode) {
+      case "random":
+        result =
+          hashText(`${randomSeed}:${stableMessageId(left)}`) -
+          hashText(`${randomSeed}:${stableMessageId(right)}`);
+        break;
+      case "time-desc":
+        result = messageTime(right) - messageTime(left);
+        break;
+      case "name-asc":
+        result = compareText(left?.body, right?.body, 1);
+        break;
+      case "name-desc":
+        result = compareText(left?.body, right?.body, -1);
+        break;
+      case "author-asc":
+        result = compareText(left?.visitorName, right?.visitorName, 1);
+        break;
+      case "author-desc":
+        result = compareText(left?.visitorName, right?.visitorName, -1);
+        break;
+      case "time-asc":
+      default:
+        result = messageTime(left) - messageTime(right);
         break;
     }
     return result || tieBreak(left, right);

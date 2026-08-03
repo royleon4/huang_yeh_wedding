@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { sortAlbumMessages } from "../../album-photo-order.mjs";
 import { adminErrorMessage, adminRequest } from "./admin-client.mjs";
 import "./admin-messages.css";
 
@@ -15,7 +16,7 @@ function formattedDateTime(value) {
   return Number.isFinite(date.getTime()) ? DATE_TIME_FORMAT.format(date) : "—";
 }
 
-export default function AdminMessagesPanel() {
+export default function AdminMessagesPanel({ sortMode }) {
   const [messages, setMessages] = useState([]);
   const [format, setFormat] = useState(null);
   const [file, setFile] = useState(null);
@@ -24,6 +25,11 @@ export default function AdminMessagesPanel() {
   const [activeMessageId, setActiveMessageId] = useState("");
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const [messageRandomSeed] = useState(
+    () =>
+      globalThis.crypto?.randomUUID?.() ??
+      `${Date.now()}-${Math.random()}`,
+  );
 
   const load = async () => {
     setLoading(true);
@@ -59,6 +65,11 @@ export default function AdminMessagesPanel() {
       format?.dateTimeFormats?.join("、") ??
       "YYYY-MM-DD HH:mm、YYYY-MM-DDTHH:mm、含時區的 ISO 8601",
     [format],
+  );
+
+  const orderedMessages = useMemo(
+    () => sortAlbumMessages(messages, sortMode, messageRandomSeed),
+    [messages, sortMode, messageRandomSeed],
   );
 
   const importMessages = async (event) => {
@@ -255,7 +266,7 @@ export default function AdminMessagesPanel() {
             </button>
           </div>
 
-          {messages.map((item) => {
+          {orderedMessages.map((item) => {
             const hidden = item.visibility === "hidden";
             const itemBusy = activeMessageId === item.id;
             return (

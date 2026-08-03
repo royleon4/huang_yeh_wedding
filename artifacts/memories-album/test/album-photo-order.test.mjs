@@ -5,6 +5,7 @@ import {
   ALBUM_PHOTO_SORT_MODES,
   DEFAULT_ALBUM_PHOTO_SORT_MODE,
   normalizeAlbumPhotoSortMode,
+  sortAlbumMessages,
   sortAlbumPhotos,
   sortAlbumPhotosWithinMediaOrder,
 } from "../album-photo-order.mjs";
@@ -31,6 +32,27 @@ const photos = [
     originalFilename: "IMG_0020.jpg",
     uploaderName: "Leon",
     createdAt: "2026-06-20T11:00:00.000Z",
+  },
+];
+
+const messages = [
+  {
+    id: "message-b",
+    visitorName: "Zoe",
+    body: "Bravo",
+    messageAt: "2026-06-20T10:00:00.000Z",
+  },
+  {
+    id: "message-a",
+    visitorName: "Amy",
+    body: "Alpha",
+    messageAt: "2026-06-20T09:00:00.000Z",
+  },
+  {
+    id: "message-c",
+    visitorName: "Leon",
+    body: "Charlie",
+    messageAt: "2026-06-20T11:00:00.000Z",
   },
 ];
 
@@ -62,7 +84,7 @@ const groupedPhotos = [
 ];
 
 function ids(items) {
-  return items.map((photo) => photo.id);
+  return items.map((item) => item.id);
 }
 
 test("album photo order supports time, name, author and stable random modes", () => {
@@ -88,6 +110,46 @@ test("album photo order supports time, name, author and stable random modes", ()
   assert.deepEqual(repeated, first);
   assert.notDeepEqual(anotherLoad, first);
   assert.deepEqual(ids(photos), ["b", "a", "c"], "sorting must not mutate API data");
+});
+
+test("guestbook messages reuse every album sort mode with message semantics", () => {
+  assert.deepEqual(ids(sortAlbumMessages(messages, "time-asc")), [
+    "message-a",
+    "message-b",
+    "message-c",
+  ]);
+  assert.deepEqual(ids(sortAlbumMessages(messages, "time-desc")), [
+    "message-c",
+    "message-b",
+    "message-a",
+  ]);
+  assert.deepEqual(ids(sortAlbumMessages(messages, "name-asc")), [
+    "message-a",
+    "message-b",
+    "message-c",
+  ]);
+  assert.deepEqual(ids(sortAlbumMessages(messages, "name-desc")), [
+    "message-c",
+    "message-b",
+    "message-a",
+  ]);
+  assert.deepEqual(ids(sortAlbumMessages(messages, "author-asc")), [
+    "message-a",
+    "message-c",
+    "message-b",
+  ]);
+  assert.deepEqual(ids(sortAlbumMessages(messages, "author-desc")), [
+    "message-b",
+    "message-c",
+    "message-a",
+  ]);
+
+  const first = ids(sortAlbumMessages(messages, "random", "guestbook-load-one"));
+  const repeated = ids(sortAlbumMessages(messages, "random", "guestbook-load-one"));
+  const anotherLoad = ids(sortAlbumMessages(messages, "random", "guestbook-load-two"));
+  assert.deepEqual(repeated, first);
+  assert.notDeepEqual(anotherLoad, first);
+  assert.deepEqual(ids(messages), ["message-b", "message-a", "message-c"]);
 });
 
 test("global media order stays authoritative while album sorting applies inside each group", () => {
@@ -159,7 +221,7 @@ test("global media order stays authoritative while album sorting applies inside 
   );
 });
 
-test("album photo ordering is selectable in admin and applied after filtering", async () => {
+test("album ordering is selectable in admin and uses message-specific labels", async () => {
   const [transform, changeSet, photoApi] = await Promise.all([
     readFile(new URL("../album-photo-order-ui-transform.mjs", import.meta.url), "utf8"),
     readFile(new URL("../src/client/admin-change-set.mjs", import.meta.url), "utf8"),
@@ -175,6 +237,10 @@ test("album photo ordering is selectable in admin and applied after filtering", 
   assert.match(transform, /const \[albumRandomSeed\] = useState/);
   assert.match(transform, /albumRandomSeed,/);
   assert.doesNotMatch(transform, /albumRandomSeedRef/);
+  assert.match(transform, /留言排列順序/);
+  assert.match(transform, /留言時間：舊到新/);
+  assert.match(transform, /留言內容：正序/);
+  assert.match(transform, /留言者姓名：正序/);
   assert.match(changeSet, /"photoSortMode"/);
   assert.match(photoApi, /nameSortRank:/);
   assert.match(photoApi, /authorSortRank:/);

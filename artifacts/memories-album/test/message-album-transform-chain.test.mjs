@@ -45,16 +45,17 @@ async function transformed(relativePath) {
   return code;
 }
 
-test("public production transform renders a message album before photo state", async () => {
+test("public production transform renders a sorted message album before photo state", async () => {
   const code = await transformed("../src/client/App.jsx");
   assert.match(code, /import MessageAlbum from "\.\/MessageAlbum\.jsx"/);
   assert.match(code, /activeCollectionDefinition\?\.albumType === "message"/);
   assert.match(code, /isMessageAlbum \? \(/);
   assert.match(code, /<MessageAlbum/);
+  assert.match(code, /sortMode=\{activeCollectionDefinition\.photoSortMode\}/);
   assert.match(code, /!isMessageAlbum && \(/);
 });
 
-test("administrator production transform exposes album types and the import panel", async () => {
+test("administrator production transform exposes message sorting and import panel", async () => {
   const code = await transformed("../src/client/AdminApp.jsx");
   assert.match(code, /import AdminMessagesPanel from "\.\/AdminMessagesPanel\.jsx"/);
   assert.match(code, /albumType: "album"/);
@@ -62,5 +63,9 @@ test("administrator production transform exposes album types and the import pane
   assert.match(code, /留言 \/ Message/);
   assert.match(code, /網誌 \/ Blog/);
   assert.match(code, /album\.albumType === "message"/);
-  assert.match(code, /<AdminMessagesPanel/);
+  assert.match(code, /<AdminMessagesPanel sortMode=\{draft\.photoSortMode\} \/>/);
+  assert.match(code, /留言排列順序/);
+  assert.match(code, /留言時間：新到舊/);
+  assert.match(code, /留言內容：反序/);
+  assert.match(code, /留言者姓名：反序/);
 });

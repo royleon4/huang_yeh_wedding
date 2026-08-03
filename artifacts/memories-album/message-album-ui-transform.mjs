@@ -92,7 +92,7 @@ function transformApp(source) {
   code = replaceOnce(
     code,
     `          {stateView ??`,
-    `          {isMessageAlbum ? (\n            <MessageAlbum\n              lang={lang}\n              albumId={activeCollectionDefinition.id}\n            />\n          ) : stateView ??`,
+    `          {isMessageAlbum ? (\n            <MessageAlbum\n              lang={lang}\n              albumId={activeCollectionDefinition.id}\n              sortMode={activeCollectionDefinition.photoSortMode}\n            />\n          ) : stateView ??`,
     "message album gallery body",
   );
 
@@ -137,7 +137,7 @@ function transformAdmin(source) {
       next = replaceOnce(
         next,
         `      </form>\n    </details>`,
-        `      </form>\n      {album.albumType === "message" && (\n        <AdminMessagesPanel />\n      )}\n    </details>`,
+        `      </form>\n      {album.albumType === "message" && (\n        <AdminMessagesPanel sortMode={draft.photoSortMode} />\n      )}\n    </details>`,
         "message album administrator panel",
       );
       return next;
