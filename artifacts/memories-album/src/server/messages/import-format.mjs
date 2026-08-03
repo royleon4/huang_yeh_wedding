@@ -21,6 +21,14 @@ const HEADER_ALIASES = new Map([
 
 const SIMPLE_DATE_TIME =
   /^(\d{4})-(\d{2})-(\d{2})(?:[ T](\d{2}):(\d{2}))?$/;
+const MIN_TIME_ZONE_OFFSET_MINUTES = -14 * 60;
+const MAX_TIME_ZONE_OFFSET_MINUTES = 14 * 60;
+
+function invalidImport(message) {
+  const error = new Error(message);
+  error.code = "INVALID_MESSAGE_IMPORT";
+  return error;
+}
 
 function normalizedHeader(value) {
   return String(value ?? "")
@@ -71,9 +79,7 @@ function parseDelimited(text, delimiter) {
   }
 
   if (quoted) {
-    const error = new Error("The import file contains an unclosed quoted field");
-    error.code = "INVALID_MESSAGE_IMPORT";
-    throw error;
+    throw invalidImport("The import file contains an unclosed quoted field");
   }
   if (field.length > 0 || row.length > 0) {
     row.push(field.replace(/\r$/, ""));
@@ -93,24 +99,33 @@ function normalizedText(
   const text = (compatibilityNormalize ? raw.normalize("NFKC") : raw).trim();
   const length = Array.from(text).length;
   if (!text || length > maximum) {
-    const error = new Error(
+    throw invalidImport(
       `Row ${rowNumber}: ${field} is required and must be ${maximum} characters or fewer`,
     );
-    error.code = "INVALID_MESSAGE_IMPORT";
-    throw error;
   }
   return text;
 }
 
-function invalidDateTime(rowNumber) {
-  const error = new Error(
-    `Row ${rowNumber}: datetime is invalid; use YYYY-MM-DD HH:mm, YYYY-MM-DDTHH:mm, or ISO 8601`,
-  );
-  error.code = "INVALID_MESSAGE_IMPORT";
-  return error;
+function normalizedTimeZoneOffsetMinutes(value) {
+  if (value === undefined || value === null || value === "") return 0;
+  const parsed = Number(value);
+  if (
+    !Number.isInteger(parsed) ||
+    parsed < MIN_TIME_ZONE_OFFSET_MINUTES ||
+    parsed > MAX_TIME_ZONE_OFFSET_MINUTES
+  ) {
+    throw invalidImport("The administrator timezone offset is invalid");
+  }
+  return parsed;
 }
 
-function simpleLocalDateTime(raw, rowNumber) {
+function invalidDateTime(rowNumber) {
+  return invalidImport(
+    `Row ${rowNumber}: datetime is invalid; use YYYY-MM-DD HH:mm, YYYY-MM-DDTHH:mm, or ISO 8601`,
+  );
+}
+
+function simpleDateTime(raw, rowNumber, timeZoneOffsetMinutes) {
   const match = raw.match(SIMPLE_DATE_TIME);
   if (!match) return null;
 
@@ -133,24 +148,31 @@ function simpleLocalDateTime(raw, rowNumber) {
     throw invalidDateTime(rowNumber);
   }
 
-  const parsed = new Date(year, month - 1, day, hour, minute, 0, 0);
+  const nominalUtc = new Date(Date.UTC(year, month - 1, day, hour, minute, 0, 0));
   if (
-    parsed.getFullYear() !== year ||
-    parsed.getMonth() !== month - 1 ||
-    parsed.getDate() !== day ||
-    parsed.getHours() !== hour ||
-    parsed.getMinutes() !== minute
+    nominalUtc.getUTCFullYear() !== year ||
+    nominalUtc.getUTCMonth() !== month - 1 ||
+    nominalUtc.getUTCDate() !== day ||
+    nominalUtc.getUTCHours() !== hour ||
+    nominalUtc.getUTCMinutes() !== minute
   ) {
     throw invalidDateTime(rowNumber);
   }
-  return parsed;
+
+  return new Date(
+    nominalUtc.getTime() + timeZoneOffsetMinutes * 60 * 1000,
+  );
 }
 
-function normalizedDateTime(value, rowNumber) {
+function normalizedDateTime(
+  value,
+  rowNumber,
+  timeZoneOffsetMinutes,
+) {
   const raw = String(value ?? "").trim();
   if (!raw) return new Date().toISOString();
 
-  const simple = simpleLocalDateTime(raw, rowNumber);
+  const simple = simpleDateTime(raw, rowNumber, timeZoneOffsetMinutes);
   const isoCandidate = raw.replace(
     /^(\d{4}-\d{2}-\d{2})\s+(?=\d{2}:\d{2})/,
     "$1T",
@@ -162,12 +184,19 @@ function normalizedDateTime(value, rowNumber) {
   return parsed.toISOString();
 }
 
-export function parseMessageImport(content, { maximumRows = 500 } = {}) {
+export function parseMessageImport(
+  content,
+  {
+    maximumRows = 500,
+    timeZoneOffsetMinutes: rawTimeZoneOffsetMinutes = 0,
+  } = {},
+) {
+  const timeZoneOffsetMinutes = normalizedTimeZoneOffsetMinutes(
+    rawTimeZoneOffsetMinutes,
+  );
   const text = String(content ?? "").replace(/^\uFEFF/, "");
   if (!text.trim()) {
-    const error = new Error("The import file is empty");
-    error.code = "INVALID_MESSAGE_IMPORT";
-    throw error;
+    throw invalidImport("The import file is empty");
   }
 
   const rows = parseDelimited(text, delimiterFor(text));
@@ -177,18 +206,14 @@ export function parseMessageImport(content, { maximumRows = 500 } = {}) {
   const messageIndex = columns.indexOf("message");
   const dateTimeIndex = columns.indexOf("dateTime");
   if (nameIndex < 0 || messageIndex < 0) {
-    const error = new Error(
+    throw invalidImport(
       "The first row must contain name,message,datetime (or date) or 姓名,留言,日期時間 (or 日期) headers",
     );
-    error.code = "INVALID_MESSAGE_IMPORT";
-    throw error;
   }
   if (rows.length === 0 || rows.length > maximumRows) {
-    const error = new Error(
+    throw invalidImport(
       `The import must contain between 1 and ${maximumRows} message rows`,
     );
-    error.code = "INVALID_MESSAGE_IMPORT";
-    throw error;
   }
 
   return rows.map((row, index) => {
@@ -201,6 +226,7 @@ export function parseMessageImport(content, { maximumRows = 500 } = {}) {
       messageAt: normalizedDateTime(
         dateTimeIndex >= 0 ? row[dateTimeIndex] : "",
         rowNumber,
+        timeZoneOffsetMinutes,
       ),
     };
   });
