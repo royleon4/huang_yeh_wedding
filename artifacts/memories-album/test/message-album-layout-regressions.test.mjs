@@ -11,14 +11,25 @@ async function source(relativePath) {
   return readFile(path.join(root, relativePath), "utf8");
 }
 
-test("guestbook cards use the shared measured masonry layout", async () => {
+test("guestbook masonry initializes inside the grid that mounts after loading", async () => {
   const album = await source("src/client/MessageAlbum.jsx");
 
   assert.match(album, /import useMasonryLayout from "\.\/useMasonryLayout\.mjs"/);
-  assert.match(album, /const gridRef = useMasonryLayout\(\)/);
+  assert.match(
+    album,
+    /function MessageGrid\([^)]*\) \{\s*const gridRef = useMasonryLayout\(\)/,
+  );
   assert.match(
     album,
     /<div ref=\{gridRef\} className="masonry-grid message-grid">/,
+  );
+  assert.match(
+    album,
+    /loading \? \([\s\S]*?\) : error \? \([\s\S]*?\) : \(\s*<MessageGrid/,
+  );
+  assert.doesNotMatch(
+    album,
+    /export default function MessageAlbum[\s\S]*?const gridRef = useMasonryLayout\(\)/,
   );
   assert.match(album, /\(\) => `\$\{messages\.length\} \$\{t\.count\}`/);
 });
@@ -49,6 +60,23 @@ test("guestbook refreshes from the server after an optimistic creation", async (
     album,
     /current\.filter\(\(item\) => item\.id !== message\.id\)/,
   );
+});
+
+test("administrator guestbook cards expose hide, restore, and permanent delete", async () => {
+  const panel = await source("src/client/AdminMessagesPanel.jsx");
+  const api = await source("src/server/messages/api.mjs");
+  const repository = await source("src/server/messages/postgres-repository.mjs");
+
+  assert.match(panel, /changeVisibility/);
+  assert.match(panel, /隱藏 \/ Hide/);
+  assert.match(panel, /重新顯示 \/ Show/);
+  assert.match(panel, /永久刪除 \/ Delete/);
+  assert.match(panel, /window\.confirm/);
+  assert.match(api, /request\.method === "PATCH"/);
+  assert.match(api, /request\.method === "DELETE"/);
+  assert.match(api, /INVALID_MESSAGE_VISIBILITY/);
+  assert.match(repository, /async updateVisibility/);
+  assert.match(repository, /async deleteMessage/);
 });
 
 test("bottom navigation assigns odd and even album positions around upload", async () => {
