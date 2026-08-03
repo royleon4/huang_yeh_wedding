@@ -196,6 +196,7 @@ export class GoogleDriveStorage {
       folderId: parentId ?? this.originalFolderId,
       description: "Memories process content attachment",
       appProperties,
+      diagnosticKind: "attachment",
     });
   }
 
@@ -523,6 +524,7 @@ export class GoogleDriveStorage {
     folderId,
     description,
     appProperties = {},
+    diagnosticKind = "thumbnail",
   }) {
     const existing = await this.findChildByName(folderId, filename);
     if (existing?.id) {
@@ -551,6 +553,7 @@ export class GoogleDriveStorage {
         method: "POST",
         headers: {
           "Content-Type": `multipart/related; boundary=${boundary}`,
+          "X-Memories-Upload-Kind": diagnosticKind,
         },
         body,
       });

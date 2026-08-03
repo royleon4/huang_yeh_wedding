@@ -27,6 +27,6 @@ The existing 25 MB process-attachment limit remains unchanged.
 
 ## Diagnostics
 
-Google Drive multipart failures are logged as `multipart-upload` rather than `thumbnail-upload`.
+Process-content multipart failures are logged as `attachment-upload`; thumbnail failures remain `thumbnail-upload`.
 
 A `DRIVE_AUTHORIZATION_REQUIRED` response now explains that the failed attachment request used direct upload rather than chunking. A 403 after this change therefore points to Google Drive connector authorization or target-folder write permission, not chunk splitting.

@@ -10,7 +10,7 @@ const adminClientUrl = new URL("../src/client/admin-client.mjs", import.meta.url
 
 test("Word PDF and PowerPoint share one document import control", async () => {
   const editor = await readFile(editorUrl, "utf8");
-  assert.match(editor, /const DOCUMENT_IMPORT_ACCEPT = [/);
+  assert.match(editor, /const DOCUMENT_IMPORT_ACCEPT = \[/);
   for (const extension of [".docx", ".pdf", ".ppt", ".pptx"]) {
     assert.ok(editor.includes(extension));
   }
@@ -43,7 +43,7 @@ test("process content attachments use one direct multipart request without resum
   assert.doesNotMatch(attachmentMethod, /#uploadResumable|Content-Range|RESUMABLE_CHUNK_BYTES/);
   assert.match(api, /const uploaded = await drive.uploadAttachment({/);
   assert.doesNotMatch(api, /const uploaded = await drive.uploadOriginal({/);
-  assert.match(proxy, /return "multipart-upload"/);
+  assert.match(proxy, /return uploadKind === "attachment" ? "attachment-upload" : "thumbnail-upload"/);
 });
 
 test("Drive 403 error states that direct upload did not use chunks", async () => {

@@ -26,7 +26,10 @@ function requestStage(path, options = {}) {
     return "session-init";
   }
   if (options.method === "POST" && requestPath.includes("uploadType=multipart")) {
-    return "multipart-upload";
+    const uploadKind =
+      options.headers?.["X-Memories-Upload-Kind"] ??
+      options.headers?.["x-memories-upload-kind"];
+    return uploadKind === "attachment" ? "attachment-upload" : "thumbnail-upload";
   }
   if (options.method === "PUT" && /^bytes\s+\*\//i.test(String(range ?? ""))) {
     return "session-status";
@@ -92,8 +95,14 @@ export function createReplitDriveProxy(connectors) {
   }
 
   return async function replitDriveProxy(connector, path, options = {}) {
-    const response = await connectors.proxy(connector, path, options);
     const stage = requestStage(path, options);
+    const forwardedHeaders = { ...(options.headers ?? {}) };
+    delete forwardedHeaders["X-Memories-Upload-Kind"];
+    delete forwardedHeaders["x-memories-upload-kind"];
+    const response = await connectors.proxy(connector, path, {
+      ...options,
+      headers: forwardedHeaders,
+    });
     const rangeHeader =
       options.headers?.["Content-Range"] ?? options.headers?.["content-range"];
     const range = contentRange(rangeHeader);
