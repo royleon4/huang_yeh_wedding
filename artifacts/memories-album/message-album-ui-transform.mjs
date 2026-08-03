@@ -87,6 +87,18 @@ function transformApp(source) {
     "message album gallery body",
   );
 
+  const selectorPattern = /<ProcessSelector\n(\s*)ariaLabel=/g;
+  let selectorCount = 0;
+  code = code.replace(selectorPattern, (_match, indentation) => {
+    selectorCount += 1;
+    return `<ProcessSelector\n${indentation}language={lang}\n${indentation}ariaLabel=`;
+  });
+  if (selectorCount < 2) {
+    throw new Error(
+      "Message album UI transform could not translate every process selector hint",
+    );
+  }
+
   return code;
 }
 
