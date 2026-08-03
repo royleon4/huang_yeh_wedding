@@ -22,6 +22,8 @@ export default function PinnedPhotoStrip({ photos, copy, onOpen }) {
               alt={photo.displayName || `${copy?.photo ?? "照片"} ${index + 1}`}
               width={photo.width}
               height={photo.height}
+              eager={index === 0}
+              fetchPriority={index === 0 ? "high" : "auto"}
             />
             <span className="pinned-photo-rank" aria-hidden="true">
               {String(index + 1).padStart(2, "0")}
