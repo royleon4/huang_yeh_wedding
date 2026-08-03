@@ -62,6 +62,28 @@ test("guestbook refreshes from the server after an optimistic creation", async (
   );
 });
 
+test("public and administrator guestbooks show date and time to the minute", async () => {
+  const [album, panel] = await Promise.all([
+    source("src/client/MessageAlbum.jsx"),
+    source("src/client/AdminMessagesPanel.jsx"),
+  ]);
+
+  for (const code of [album, panel]) {
+    assert.match(code, /year: "numeric"/);
+    assert.match(code, /month: "short"/);
+    assert.match(code, /day: "numeric"/);
+    assert.match(code, /hour: "2-digit"/);
+    assert.match(code, /minute: "2-digit"/);
+    assert.doesNotMatch(code, /second: "2-digit"/);
+  }
+  assert.match(album, /localizedDateTime\(message\.messageAt, lang\)/);
+  assert.match(panel, /formattedDateTime\(item\.messageAt\)/);
+  assert.match(
+    panel,
+    /timeZoneOffsetMinutes: new Date\(\)\.getTimezoneOffset\(\)/,
+  );
+});
+
 test("administrator guestbook cards expose hide, restore, and permanent delete", async () => {
   const panel = await source("src/client/AdminMessagesPanel.jsx");
   const api = await source("src/server/messages/api.mjs");

@@ -147,7 +147,7 @@ test("guests can create and list required-name messages without a category", asy
   });
 });
 
-test("administrators can import the documented bilingual CSV format", async () => {
+test("administrators can import the documented bilingual datetime CSV format", async () => {
   const repository = new MemoryMessageRepository();
   let id = 0;
   const api = createAdminMessageApi({
@@ -161,22 +161,51 @@ test("administrators can import the documented bilingual CSV format", async () =
     const unauthorized = await fetch(`${origin}/admin/api/settings/messages`);
     assert.equal(unauthorized.status, 401);
 
+    const invalidOffset = await fetch(
+      `${origin}/admin/api/settings/messages/import`,
+      {
+        method: "POST",
+        headers: adminHeaders({ json: true }),
+        body: JSON.stringify({
+          content: "name,message,datetime\nAn,Blessings,2026-06-20 11:03\n",
+          timeZoneOffsetMinutes: 900,
+        }),
+      },
+    );
+    assert.equal(invalidOffset.status, 422);
+    assert.equal((await invalidOffset.json()).code, "INVALID_MESSAGE_IMPORT");
+
     const imported = await fetch(`${origin}/admin/api/settings/messages/import`, {
       method: "POST",
       headers: adminHeaders({ json: true }),
       body: JSON.stringify({
-        content: "姓名,留言,日期\n小安,百年好合,2026-06-20\nAn,God bless you,2026-06-21\n",
+        content:
+          "姓名,留言,日期時間\n小安,百年好合,2026-06-20 11:03\nAn,God bless you,2026-06-21T12:34:00+08:00\n",
+        timeZoneOffsetMinutes: -480,
       }),
     });
     assert.equal(imported.status, 201);
-    assert.equal((await imported.json()).imported, 2);
+    const importedPayload = await imported.json();
+    assert.equal(importedPayload.imported, 2);
+    assert.equal(importedPayload.messages[0].messageAt, "2026-06-20T03:03:00.000Z");
+    assert.equal(importedPayload.messages[1].messageAt, "2026-06-21T04:34:00.000Z");
 
     const listed = await fetch(`${origin}/admin/api/settings/messages`, {
       headers: { Cookie: adminCookie() },
     });
     assert.equal(listed.status, 200);
     const payload = await listed.json();
-    assert.deepEqual(payload.format.headers, ["name", "message", "date"]);
+    assert.deepEqual(payload.format.headers, ["name", "message", "datetime"]);
+    assert.ok(payload.format.acceptedHeaders.includes("name,message,date"));
+    assert.deepEqual(payload.format.dateTimeFormats, [
+      "YYYY-MM-DD HH:mm",
+      "YYYY-MM-DDTHH:mm",
+      "ISO 8601 with timezone",
+    ]);
+    assert.equal(
+      payload.format.timeZonePolicy,
+      "Datetime values without a timezone use the administrator browser offset",
+    );
     assert.equal(payload.format.maximumRows, 500);
     assert.equal(payload.messages.length, 2);
     assert.equal(payload.messages[0].visibility, "public");
