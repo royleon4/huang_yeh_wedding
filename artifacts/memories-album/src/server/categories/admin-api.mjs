@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { sendAdminJson } from "../admin/auth.mjs";
 import { readAdminJson, requireAdmin } from "../admin/request.mjs";
 import {
@@ -8,6 +9,7 @@ import {
 function categoryPayload(category) {
   return {
     id: category.id,
+    albumId: category.albumId ?? "wedding",
     labelZh: category.labelZh,
     labelEn: category.labelEn,
     displayOrder: category.displayOrder,
@@ -54,10 +56,20 @@ async function saveVideoSettings(repository, category, settings) {
   return { ...category, ...settings };
 }
 
+async function eligibleAlbumMap(repository) {
+  if (typeof repository.listEligibleLabelAlbums !== "function") {
+    throw new Error("Album-scoped label repository support is required");
+  }
+  return new Map(
+    (await repository.listEligibleLabelAlbums()).map((album) => [album.id, album]),
+  );
+}
+
 export function createAdminCategoryApi({
   repository,
   synchronizer,
   adminToken,
+  createId = randomUUID,
 }) {
   if (!repository || !synchronizer) {
     throw new Error("Category repository and synchronizer are required");
@@ -69,11 +81,14 @@ export function createAdminCategoryApi({
     url = new URL(request.url ?? "/", "http://localhost"),
   ) {
     const collectionPath = url.pathname === "/admin/api/categories";
+    const labelCollectionPath = url.pathname === "/admin/api/album-labels";
     const orderPath = url.pathname === "/admin/api/categories/order";
     const itemMatch = !orderPath
       ? url.pathname.match(/^\/admin\/api\/categories\/([^/]+)$/)
       : null;
-    if (!collectionPath && !orderPath && !itemMatch) return false;
+    if (!collectionPath && !labelCollectionPath && !orderPath && !itemMatch) {
+      return false;
+    }
 
     try {
       if (
@@ -88,6 +103,56 @@ export function createAdminCategoryApi({
         const categories = await repository.listProcesses();
         sendAdminJson(response, 200, {
           categories: categories.map(categoryPayload),
+        });
+        return true;
+      }
+
+      if (request.method === "GET" && labelCollectionPath) {
+        const albums = await eligibleAlbumMap(repository);
+        const requestedAlbumId = String(url.searchParams.get("albumId") ?? "").trim();
+        if (requestedAlbumId && !albums.has(requestedAlbumId)) {
+          sendAdminJson(response, 422, {
+            error: "This album cannot contain photo labels",
+            code: "INVALID_LABEL_ALBUM",
+          });
+          return true;
+        }
+        const labels = await repository.listLabels({
+          albumId: requestedAlbumId || null,
+        });
+        sendAdminJson(response, 200, {
+          labels: labels
+            .filter((label) => albums.has(label.albumId))
+            .map(categoryPayload),
+        });
+        return true;
+      }
+
+      if (request.method === "POST" && labelCollectionPath) {
+        const body = await readAdminJson(request);
+        const albumId = String(body.albumId ?? "").trim();
+        const albums = await eligibleAlbumMap(repository);
+        if (!albums.has(albumId)) {
+          sendAdminJson(response, 422, {
+            error: "This album cannot contain photo labels",
+            code: "INVALID_LABEL_ALBUM",
+          });
+          return true;
+        }
+        const values = {
+          labelZh: normalizeLabel(body.labelZh, { required: true }),
+          labelEn: normalizeLabel(body.labelEn),
+        };
+        const label =
+          albumId === "wedding"
+            ? await synchronizer.createProcess(values)
+            : await repository.createAlbumLabel({
+                id: createId(),
+                albumId,
+                ...values,
+              });
+        sendAdminJson(response, 201, {
+          label: categoryPayload(label),
         });
         return true;
       }
