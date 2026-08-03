@@ -20,7 +20,7 @@ test("guestbook positions rendered messages with the shared content navigation",
   );
   assert.match(
     album,
-    /import useMasonryLayout, \{\s*suspendMasonryAnchorRestoration,\s*\} from "\.\/useMasonryLayout\.mjs"/,
+    /import \{ suspendMasonryAnchorRestoration \} from "\.\/useMasonryLayout\.mjs"/,
   );
   assert.match(album, /const positionAfterLoadRef = useRef\(false\)/);
   assert.match(
