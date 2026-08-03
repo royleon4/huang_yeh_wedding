@@ -4,10 +4,22 @@ import {
   DEFAULT_ALBUM_PHOTO_SORT_MODE,
   normalizeAlbumPhotoSortMode,
 } from "../../../album-photo-order.mjs";
+import {
+  ALBUM_TYPES,
+  isAlbumType,
+  normalizeAlbumType,
+} from "../../../album-types.mjs";
 import { sendAdminJson } from "../admin/auth.mjs";
 import { readAdminJson, requireAdmin } from "../admin/request.mjs";
 
 const PHOTO_SORT_MODE_SET = new Set(ALBUM_PHOTO_SORT_MODES);
+
+function apiError(message, status, code) {
+  const error = new Error(message);
+  error.status = status;
+  error.code = code;
+  return error;
+}
 
 function normalizeText(value, maxCharacters, { required = false } = {}) {
   const normalized = String(value ?? "")
@@ -18,14 +30,13 @@ function normalizeText(value, maxCharacters, { required = false } = {}) {
     (required && !normalized) ||
     Array.from(normalized).length > maxCharacters
   ) {
-    const error = new Error(
+    throw apiError(
       required
         ? `A value is required and must be ${maxCharacters} characters or fewer`
         : `The value must be ${maxCharacters} characters or fewer`,
+      422,
+      "INVALID_ALBUM",
     );
-    error.status = 422;
-    error.code = "INVALID_ALBUM";
-    throw error;
   }
   return normalized;
 }
@@ -33,12 +44,23 @@ function normalizeText(value, maxCharacters, { required = false } = {}) {
 function normalizePhotoSortMode(value, fallback = DEFAULT_ALBUM_PHOTO_SORT_MODE) {
   const candidate = String(value ?? fallback).trim();
   if (!PHOTO_SORT_MODE_SET.has(candidate)) {
-    const error = new Error("Invalid album photo sort mode");
-    error.status = 422;
-    error.code = "INVALID_ALBUM_SORT";
-    throw error;
+    throw apiError("Invalid album photo sort mode", 422, "INVALID_ALBUM_SORT");
   }
   return normalizeAlbumPhotoSortMode(candidate);
+}
+
+function normalizeAlbumTypeInput(value, fallback = "album") {
+  if (value === undefined || value === null || value === "") {
+    return normalizeAlbumType(fallback);
+  }
+  if (!isAlbumType(value)) {
+    throw apiError(
+      `albumType must be one of: ${ALBUM_TYPES.join(", ")}`,
+      422,
+      "INVALID_ALBUM_TYPE",
+    );
+  }
+  return normalizeAlbumType(value);
 }
 
 function normalizeFeaturedRange(body, existing = null) {
@@ -54,12 +76,11 @@ function normalizeFeaturedRange(body, existing = null) {
     minimum < 0 ||
     maximum < minimum
   ) {
-    const error = new Error(
+    throw apiError(
       "Featured-photo range must contain non-negative integers and maximum must be greater than or equal to minimum",
+      422,
+      "INVALID_ALBUM_FEATURED_RANGE",
     );
-    error.status = 422;
-    error.code = "INVALID_ALBUM_FEATURED_RANGE";
-    throw error;
   }
   return { minimum, maximum };
 }
@@ -71,6 +92,7 @@ function albumPayload(album) {
     titleEn: album.titleEn,
     descriptionZh: album.descriptionZh,
     descriptionEn: album.descriptionEn,
+    albumType: normalizeAlbumType(album.albumType),
     displayOrder: album.displayOrder,
     isVisible: album.isVisible,
     isSystem: album.isSystem,
@@ -84,6 +106,21 @@ function albumPayload(album) {
 
 function inputFrom(body, existing = null) {
   const featuredRange = normalizeFeaturedRange(body, existing);
+  const albumType = normalizeAlbumTypeInput(
+    body.albumType,
+    existing?.albumType ?? "album",
+  );
+  if (
+    existing?.isSystem &&
+    normalizeAlbumType(existing.albumType) === "message" &&
+    albumType !== "message"
+  ) {
+    throw apiError(
+      "The system Guestbook album type cannot be changed",
+      409,
+      "MESSAGE_ALBUM_REQUIRED",
+    );
+  }
   return {
     titleZh: normalizeText(body.titleZh ?? existing?.titleZh, 80, {
       required: true,
@@ -97,6 +134,7 @@ function inputFrom(body, existing = null) {
       body.descriptionEn ?? existing?.descriptionEn,
       500,
     ),
+    albumType,
     isVisible:
       typeof body.isVisible === "boolean"
         ? body.isVisible
@@ -116,6 +154,21 @@ function inputFrom(body, existing = null) {
     featuredPhotoMin: featuredRange.minimum,
     featuredPhotoMax: featuredRange.maximum,
   };
+}
+
+function assertSingletonMessageAlbum(albums, albumType, currentId = null) {
+  if (albumType !== "message") return;
+  const existing = albums.find(
+    (album) =>
+      normalizeAlbumType(album.albumType) === "message" && album.id !== currentId,
+  );
+  if (existing) {
+    throw apiError(
+      "Only one Guestbook message album is allowed",
+      409,
+      "MESSAGE_ALBUM_EXISTS",
+    );
+  }
 }
 
 export function createAdminAlbumApi({
@@ -153,9 +206,11 @@ export function createAdminAlbumApi({
 
       if (request.method === "POST" && collectionPath) {
         const body = await readAdminJson(request);
+        const input = inputFrom(body);
+        assertSingletonMessageAlbum(await repository.listAdminAlbums(), input.albumType);
         const album = await repository.createAlbum({
           id: createId(),
-          ...inputFrom(body),
+          ...input,
           isSystem: false,
         });
         sendAdminJson(response, 201, { album: albumPayload(album) });
@@ -174,9 +229,11 @@ export function createAdminAlbumApi({
           return true;
         }
         const body = await readAdminJson(request);
+        const input = inputFrom(body, existing);
+        assertSingletonMessageAlbum(albums, input.albumType, id);
         const album = await repository.updateAlbum({
           ...existing,
-          ...inputFrom(body, existing),
+          ...input,
         });
         sendAdminJson(response, 200, { album: albumPayload(album) });
         return true;
