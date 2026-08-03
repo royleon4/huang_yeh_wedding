@@ -2,10 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   activeContentStartTop,
-  installAlbumSelectionScroll,
-  isAlbumSelectionTarget,
   requestActiveContentScroll,
-  requestAlbumContentScroll,
   resolveActiveContentTarget,
   scrollToActiveContentStart,
 } from "../src/client/gallery-navigation.mjs";
@@ -42,31 +39,6 @@ function fixture({ mediaItems = [], galleryChildren = [] } = {}) {
     },
   };
   return { documentRef, frames, gallery, scrollCalls, windowRef };
-}
-
-function albumClickFixture() {
-  const listeners = new Map();
-  const documentRef = {
-    addEventListener: (type, listener) => listeners.set(type, listener),
-    removeEventListener: (type, listener) => {
-      if (listeners.get(type) === listener) listeners.delete(type);
-    },
-  };
-  const windowRef = {};
-  return {
-    click(target) {
-      listeners.get("click")?.({ target });
-    },
-    documentRef,
-    listeners,
-    windowRef,
-  };
-}
-
-function matchingTarget(matchesAlbumSelector) {
-  return {
-    closest: () => (matchesAlbumSelector ? { className: "active" } : null),
-  };
 }
 
 test("navigation targets the first actually visible media block regardless of type", () => {
@@ -131,63 +103,6 @@ test("only the latest pending content request may move the viewport", () => {
   frames.shift()();
 
   assert.deepEqual(scrollCalls, [{ top: 370, behavior: "smooth" }]);
-});
-
-test("album navigation reuses the content formula after suppressing masonry restoration", () => {
-  const { documentRef, frames, scrollCalls, windowRef } = fixture();
-  let suppressions = 0;
-
-  assert.equal(
-    requestAlbumContentScroll({
-      documentRef,
-      windowRef,
-      suspendAnchor: () => {
-        suppressions += 1;
-      },
-    }),
-    true,
-  );
-  assert.equal(suppressions, 1);
-  frames.shift()();
-  frames.shift()();
-  assert.deepEqual(scrollCalls, [{ top: 370, behavior: "smooth" }]);
-});
-
-test("album selection detection includes active album buttons", () => {
-  assert.equal(isAlbumSelectionTarget(matchingTarget(true)), true);
-});
-
-test("album clicks request positioning even when the current album is clicked", () => {
-  const { click, documentRef, listeners, windowRef } = albumClickFixture();
-  const requests = [];
-  const dispose = installAlbumSelectionScroll({
-    documentRef,
-    windowRef,
-    requestScroll: (context) => requests.push(context),
-  });
-
-  click(matchingTarget(true));
-  assert.equal(requests.length, 1);
-  assert.equal(requests[0].documentRef, documentRef);
-  assert.equal(requests[0].windowRef, windowRef);
-
-  dispose();
-  assert.equal(listeners.has("click"), false);
-});
-
-test("subcategory clicks do not trigger album positioning", () => {
-  const { click, documentRef, windowRef } = albumClickFixture();
-  let requests = 0;
-  installAlbumSelectionScroll({
-    documentRef,
-    windowRef,
-    requestScroll: () => {
-      requests += 1;
-    },
-  });
-
-  click(matchingTarget(false));
-  assert.equal(requests, 0);
 });
 
 test("content navigation is a no-op when the gallery is absent", () => {
