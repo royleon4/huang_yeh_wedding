@@ -7,11 +7,20 @@ const HEADER_ALIASES = new Map([
   ["body", "message"],
   ["留言", "message"],
   ["內容", "message"],
-  ["date", "date"],
-  ["messageat", "date"],
-  ["日期", "date"],
-  ["留言日期", "date"],
+  ["datetime", "dateTime"],
+  ["dateandtime", "dateTime"],
+  ["timestamp", "dateTime"],
+  ["date", "dateTime"],
+  ["messageat", "dateTime"],
+  ["日期時間", "dateTime"],
+  ["留言日期時間", "dateTime"],
+  ["留言時間", "dateTime"],
+  ["日期", "dateTime"],
+  ["留言日期", "dateTime"],
 ]);
+
+const SIMPLE_DATE_TIME =
+  /^(\d{4})-(\d{2})-(\d{2})(?:[ T](\d{2}):(\d{2}))?$/;
 
 function normalizedHeader(value) {
   return String(value ?? "")
@@ -93,14 +102,62 @@ function normalizedText(
   return text;
 }
 
-function normalizedDate(value, rowNumber) {
+function invalidDateTime(rowNumber) {
+  const error = new Error(
+    `Row ${rowNumber}: datetime is invalid; use YYYY-MM-DD HH:mm, YYYY-MM-DDTHH:mm, or ISO 8601`,
+  );
+  error.code = "INVALID_MESSAGE_IMPORT";
+  return error;
+}
+
+function simpleLocalDateTime(raw, rowNumber) {
+  const match = raw.match(SIMPLE_DATE_TIME);
+  if (!match) return null;
+
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  const hour = Number(match[4] ?? 0);
+  const minute = Number(match[5] ?? 0);
+  if (
+    year < 1000 ||
+    month < 1 ||
+    month > 12 ||
+    day < 1 ||
+    day > 31 ||
+    hour < 0 ||
+    hour > 23 ||
+    minute < 0 ||
+    minute > 59
+  ) {
+    throw invalidDateTime(rowNumber);
+  }
+
+  const parsed = new Date(year, month - 1, day, hour, minute, 0, 0);
+  if (
+    parsed.getFullYear() !== year ||
+    parsed.getMonth() !== month - 1 ||
+    parsed.getDate() !== day ||
+    parsed.getHours() !== hour ||
+    parsed.getMinutes() !== minute
+  ) {
+    throw invalidDateTime(rowNumber);
+  }
+  return parsed;
+}
+
+function normalizedDateTime(value, rowNumber) {
   const raw = String(value ?? "").trim();
   if (!raw) return new Date().toISOString();
-  const parsed = new Date(raw);
+
+  const simple = simpleLocalDateTime(raw, rowNumber);
+  const isoCandidate = raw.replace(
+    /^(\d{4}-\d{2}-\d{2})\s+(?=\d{2}:\d{2})/,
+    "$1T",
+  );
+  const parsed = simple ?? new Date(isoCandidate);
   if (!Number.isFinite(parsed.getTime())) {
-    const error = new Error(`Row ${rowNumber}: date is invalid`);
-    error.code = "INVALID_MESSAGE_IMPORT";
-    throw error;
+    throw invalidDateTime(rowNumber);
   }
   return parsed.toISOString();
 }
@@ -118,10 +175,10 @@ export function parseMessageImport(content, { maximumRows = 500 } = {}) {
   const columns = header.map((value) => HEADER_ALIASES.get(normalizedHeader(value)));
   const nameIndex = columns.indexOf("name");
   const messageIndex = columns.indexOf("message");
-  const dateIndex = columns.indexOf("date");
+  const dateTimeIndex = columns.indexOf("dateTime");
   if (nameIndex < 0 || messageIndex < 0) {
     const error = new Error(
-      "The first row must contain name,message,date or 姓名,留言,日期 headers",
+      "The first row must contain name,message,datetime (or date) or 姓名,留言,日期時間 (or 日期) headers",
     );
     error.code = "INVALID_MESSAGE_IMPORT";
     throw error;
@@ -141,7 +198,10 @@ export function parseMessageImport(content, { maximumRows = 500 } = {}) {
       body: normalizedText(row[messageIndex], 1000, "message", rowNumber, {
         compatibilityNormalize: false,
       }),
-      messageAt: normalizedDate(dateIndex >= 0 ? row[dateIndex] : "", rowNumber),
+      messageAt: normalizedDateTime(
+        dateTimeIndex >= 0 ? row[dateTimeIndex] : "",
+        rowNumber,
+      ),
     };
   });
 }
