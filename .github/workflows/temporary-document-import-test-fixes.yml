@@ -1,0 +1,42 @@
+name: Temporary document import test fixes
+
+on:
+  push:
+    branches:
+      - fix/admin-attachment-upload-403-guidance
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out branch
+        uses: actions/checkout@v4
+        with:
+          ref: fix/admin-attachment-upload-403-guidance
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Apply test and diagnostic updates
+        run: node artifacts/memories-album/scripts/apply-document-import-test-fixes.mjs
+
+      - name: Commit updates
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add \
+            artifacts/memories-album/src/server/storage/drive-adapter.mjs \
+            artifacts/memories-album/src/server/storage/replit-drive.mjs \
+            artifacts/memories-album/test/document-import-direct-upload.test.mjs \
+            artifacts/memories-album/test/page-document-import.test.mjs \
+            artifacts/memories-album/test/word-import-ui.test.mjs \
+            docs/memories/document-import-direct-upload-2026-08-03.md
+          git commit -m "Fix unified document import tests and diagnostics"
+          git push origin HEAD:fix/admin-attachment-upload-403-guidance
