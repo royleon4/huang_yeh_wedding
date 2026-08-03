@@ -10,7 +10,6 @@ import { guestLabelsUiTransform } from "../guest-labels-ui-transform.mjs";
 import { logicalRouteUiTransform } from "../logical-route-ui-transform.mjs";
 import { messageAlbumUiTransform } from "../message-album-ui-transform.mjs";
 import { processContentUiTransform } from "../process-content-ui-transform.mjs";
-import { publicAlbumLabelRouteFixUiTransform } from "../public-album-label-route-fix-ui-transform.mjs";
 import { publicAlbumLabelsUiTransform } from "../public-album-labels-ui-transform.mjs";
 import { publicBootstrapUiTransform } from "../public-bootstrap-ui-transform.mjs";
 import { publicLayoutPolishUiTransform } from "../public-layout-polish-ui-transform.mjs";
@@ -47,7 +46,6 @@ function productionTransforms() {
     uploadSettingsUiTransform(),
     messageAlbumUiTransform(),
     stableIdentityRoutesUiTransform(),
-    publicAlbumLabelRouteFixUiTransform(),
   ];
 }
 
@@ -131,6 +129,9 @@ test("completed production transform keeps custom album labels routable without 
     source,
     /<ProcessSelector\s+language=\{lang\}\s+albumId=\{activeCollection\}\s+ariaLabel=\{activeCollectionDefinition\?\.\[lang\] \?\? t\.categories\}/,
   );
+  assert.match(source, /const \[photoFeedComplete, setPhotoFeedComplete\] = useState\(false\)/);
+  assert.match(source, /album\.id !== "guest" \|\| photoFeedComplete \|\| useMockFallback/);
+  assert.match(source, /route\.photoId[\s\S]*photoFeedComplete \|\| useMockFallback/);
   assert.doesNotMatch(source, /if \(collectionId !== "guest"\) return \[\];/);
   assert.doesNotMatch(source, /const groupNumberFor/);
   assert.doesNotMatch(source, /const subgroupNumberFor/);
@@ -151,10 +152,8 @@ test("completed administrator transform keeps semantic route after tab movement"
   assert.match(source, /album\.id === "guest"/);
 });
 
-test("production Vite chain repairs album-owned label routes after stable identity routing", async () => {
+test("production Vite chain ends with the consolidated stable identity transform", async () => {
   const config = await readFile(new URL("../vite.routes.config.js", import.meta.url), "utf8");
-  assert.match(
-    config,
-    /stableIdentityRoutesUiTransform\(\),\s*publicAlbumLabelRouteFixUiTransform\(\),\s*\],/,
-  );
+  assert.match(config, /stableIdentityRoutesUiTransform\(\),\s*\],/);
+  assert.doesNotMatch(config, /publicAlbumLabelRouteFixUiTransform/);
 });

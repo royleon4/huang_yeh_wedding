@@ -65,6 +65,25 @@ test("public gallery first render uses edited albums, copy, and settings", async
   );
 });
 
+test("public gallery exposes the first photo page while the remaining cursor feed loads", async () => {
+  let app = await source("src/client/App.jsx");
+  app = run(processContentUiTransform(), app, "src/client/App.jsx");
+  app = run(adminPhotoWorkspaceUiTransform(), app, "src/client/App.jsx");
+  app = run(logicalRouteUiTransform(), app, "src/client/App.jsx");
+  app = run(websiteCopyUiTransform(), app, "src/client/App.jsx");
+  app = run(publicBootstrapUiTransform(), app, "src/client/App.jsx");
+
+  assert.match(app, /import \{ loadPublicPhotoFeed \} from "\.\/public-photo-feed\.mjs"/);
+  assert.match(app, /loadPublicPhotoFeed\(\{/);
+  assert.match(app, /onInitialPage: exposeInitialPage/);
+  assert.match(app, /const \[photoFeedComplete, setPhotoFeedComplete\] = useState\(false\)/);
+  assert.match(app, /controller\.abort\(\)/);
+  assert.doesNotMatch(app, /async function fetchAllPhotos/);
+  assert.doesNotMatch(app, /async function fetchAlbums/);
+  assert.doesNotMatch(app, /function fallbackAlbums/);
+  assert.doesNotMatch(app, /COLLECTION_DEFINITIONS|normalizePublicAlbums/);
+});
+
 test("selector reads bootstrap directly and upload modal is transformed to reuse it", async () => {
   const plugin = publicBootstrapUiTransform();
   const selectorSource = await source("src/client/ProcessSelector.jsx");

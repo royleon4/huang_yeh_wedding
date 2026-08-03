@@ -4,6 +4,7 @@
 
 > **Product status:** Standalone Memories Phase 1 complete  
 > **Reviewed:** 2026-08-01T19:33:00+08:00 (Asia/Taipei)  
+> **Repository hygiene update:** 2026-08-04T02:10:00+08:00 (Asia/Taipei)  
 > **Documentation index:** [`DOCUMENTATION.md`](DOCUMENTATION.md)  
 > **Developer handoff:** [`MAINTAINER_GUIDE.md`](MAINTAINER_GUIDE.md)  
 > **Production → Development database runbook:** [`docs/memories/production-to-development-database-runbook.md`](docs/memories/production-to-development-database-runbook.md)  
@@ -161,18 +162,19 @@ For the verified Production → Development backup, overwrite, validation and ro
 Current CI includes:
 
 1. Node test suite;
-2. production client/server build;
-3. `/Memories/api/health` server smoke;
-4. Memories/legacy protected-path boundary.
+2. focused Chrome layout checks;
+3. production client/server build;
+4. `/Memories/api/health` server smoke;
+5. Memories/legacy protected-path boundary.
 
-The latest Phase 1 baseline recorded **429 passing Memories tests**.
+The exact test count is intentionally not pinned here because every regression fix changes it. The CI result for the current commit is the authoritative count.
 
 CI does not yet run a required Playwright production-browser suite. Transform-sensitive or user-visible changes still require real-browser validation.
 
 ## Known deferred work
 
 - production Playwright gate and screenshot baseline;
-- incremental removal of exact-string Vite transforms;
+- incremental removal of the remaining exact-string Vite transforms;
 - central settings and route registries;
 - atomic administrator upload-and-classify command;
 - stronger observability, backup and restore drills;
@@ -188,7 +190,6 @@ The proposed order and suggested dates are documented in [`docs/phase-1-closeout
 - [Documentation index and lifecycle](DOCUMENTATION.md)
 - [Developer and maintainer guide](MAINTAINER_GUIDE.md)
 - [Product Phase 1 closeout and next steps](docs/phase-1-closeout-2026-08-01.md)
-- [Documentation audit](docs/documentation-audit-2026-08-01.md)
 - [Guest guide](EASY_USER_GUIDE.md)
 - [Administrator guide](ADMIN_GUIDE.md)
 - [Operations guide](OPERATIONS_GUIDE.md)
