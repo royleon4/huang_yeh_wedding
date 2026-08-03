@@ -9,6 +9,8 @@ import { adminSettingsConsolidationUiTransform } from "../admin-settings-consoli
 import { guestLabelsUiTransform } from "../guest-labels-ui-transform.mjs";
 import { logicalRouteUiTransform } from "../logical-route-ui-transform.mjs";
 import { processContentUiTransform } from "../process-content-ui-transform.mjs";
+import { publicAlbumLabelRouteFixUiTransform } from "../public-album-label-route-fix-ui-transform.mjs";
+import { publicAlbumLabelsUiTransform } from "../public-album-labels-ui-transform.mjs";
 import { publicBootstrapUiTransform } from "../public-bootstrap-ui-transform.mjs";
 import { publicLayoutPolishUiTransform } from "../public-layout-polish-ui-transform.mjs";
 import { stableIdentityRoutesUiTransform } from "../stable-identity-routes-ui-transform.mjs";
@@ -34,6 +36,7 @@ function productionTransforms() {
     adminPhotoWorkspaceUiTransform(),
     logicalRouteUiTransform(),
     websiteCopyUiTransform(),
+    publicAlbumLabelsUiTransform(),
     adminPreviewPaginationUiTransform(),
     adminSettingsConsolidationUiTransform(),
     adminAccordionUiTransform(),
@@ -42,6 +45,7 @@ function productionTransforms() {
     guestLabelsUiTransform(),
     uploadSettingsUiTransform(),
     stableIdentityRoutesUiTransform(),
+    publicAlbumLabelRouteFixUiTransform(),
   ];
 }
 
@@ -105,7 +109,7 @@ test("administrator routes use stable tab identifiers", () => {
   assert.equal(readStableAdminTab("/Memories/admin/group3"), "photos");
 });
 
-test("completed production transform resolves routes by identity and records deleted-route 404 recovery", async () => {
+test("completed production transform keeps custom album labels routable without resetting to all", async () => {
   const id = "/workspace/src/client/App.jsx";
   let source = await readFile(new URL("../src/client/App.jsx", import.meta.url), "utf8");
   for (const plugin of productionTransforms()) source = run(plugin, source, id);
@@ -117,6 +121,15 @@ test("completed production transform resolves routes by identity and records del
   assert.match(source, /item\.id === filterId/);
   assert.match(source, /status: 404, missingPath/);
   assert.match(source, /memories:route-not-found/);
+  assert.match(
+    source,
+    /if \(collectionId === "guest"\)[\s\S]*guestLabelRouteItems\([\s\S]*return labelsForAlbum\(processes, collectionId\);/,
+  );
+  assert.match(
+    source,
+    /<ProcessSelector\s+albumId=\{activeCollection\}\s+ariaLabel=\{activeCollectionDefinition\?\.\[lang\] \?\? t\.categories\}/,
+  );
+  assert.doesNotMatch(source, /if \(collectionId !== "guest"\) return \[\];/);
   assert.doesNotMatch(source, /const groupNumberFor/);
   assert.doesNotMatch(source, /const subgroupNumberFor/);
 });
@@ -136,7 +149,10 @@ test("completed administrator transform keeps semantic route after tab movement"
   assert.match(source, /album\.id === "guest"/);
 });
 
-test("production Vite chain applies stable identity routing last", async () => {
+test("production Vite chain repairs album-owned label routes after stable identity routing", async () => {
   const config = await readFile(new URL("../vite.routes.config.js", import.meta.url), "utf8");
-  assert.match(config, /stableIdentityRoutesUiTransform\(\),\n\s*\],/);
+  assert.match(
+    config,
+    /stableIdentityRoutesUiTransform\(\),\s*publicAlbumLabelRouteFixUiTransform\(\),\s*\],/,
+  );
 });
