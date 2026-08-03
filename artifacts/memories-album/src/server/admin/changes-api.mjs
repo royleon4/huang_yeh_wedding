@@ -1,4 +1,9 @@
 import { randomUUID } from "node:crypto";
+import {
+  ALBUM_TYPES,
+  isAlbumType,
+  normalizeAlbumType,
+} from "../../../album-types.mjs";
 import { sendAdminJson } from "./auth.mjs";
 import { readAdminJson, requireAdmin } from "./request.mjs";
 
@@ -64,6 +69,20 @@ function operationArray(value, field) {
   return value;
 }
 
+function normalizeAlbumTypeInput(value, fallback = "album") {
+  if (value === undefined || value === null || value === "") {
+    return normalizeAlbumType(fallback);
+  }
+  if (!isAlbumType(value)) {
+    throw apiError(
+      `albumType must be one of: ${ALBUM_TYPES.join(", ")}`,
+      422,
+      "INVALID_ALBUM_TYPE",
+    );
+  }
+  return normalizeAlbumType(value);
+}
+
 function albumPayload(album) {
   return {
     id: album.id,
@@ -71,6 +90,7 @@ function albumPayload(album) {
     titleEn: album.titleEn,
     descriptionZh: album.descriptionZh,
     descriptionEn: album.descriptionEn,
+    albumType: normalizeAlbumType(album.albumType),
     displayOrder: album.displayOrder,
     isVisible: album.isVisible,
     isSystem: album.isSystem,
@@ -105,6 +125,21 @@ function photoPayload(photo) {
 }
 
 function albumInput(changes, existing = null) {
+  const albumType = normalizeAlbumTypeInput(
+    changes.albumType,
+    existing?.albumType ?? "album",
+  );
+  if (
+    existing?.isSystem &&
+    normalizeAlbumType(existing.albumType) === "message" &&
+    albumType !== "message"
+  ) {
+    throw apiError(
+      "The system Guestbook album type cannot be changed",
+      409,
+      "MESSAGE_ALBUM_REQUIRED",
+    );
+  }
   return {
     titleZh: normalizeText(changes.titleZh ?? existing?.titleZh, 80, {
       required: true,
@@ -123,11 +158,29 @@ function albumInput(changes, existing = null) {
       500,
       { code: "INVALID_ALBUM" },
     ),
+    albumType,
     isVisible:
       typeof changes.isVisible === "boolean"
         ? changes.isVisible
         : existing?.isVisible !== false,
   };
+}
+
+function assertSingletonMessageAlbum(albums, albumType, currentId = null) {
+  if (albumType !== "message") return;
+  if (
+    albums.some(
+      (album) =>
+        album.id !== currentId &&
+        normalizeAlbumType(album.albumType) === "message",
+    )
+  ) {
+    throw apiError(
+      "Only one Guestbook message album is allowed",
+      409,
+      "MESSAGE_ALBUM_EXISTS",
+    );
+  }
 }
 
 function categoryInput(changes, existing = null) {
@@ -417,6 +470,10 @@ export function createAdminChangesApi({
         const key = `album:create:${clientId}`;
         try {
           const values = albumInput(item.values ?? {});
+          assertSingletonMessageAlbum(
+            await albumRepository.listAdminAlbums(),
+            values.albumType,
+          );
           const album = await albumRepository.createAlbum({
             id: createId(),
             ...values,
@@ -437,13 +494,14 @@ export function createAdminChangesApi({
         const id = normalizeId(item.id);
         const key = `album:update:${id}`;
         try {
-          const existing = (await albumRepository.listAdminAlbums()).find(
-            (album) => album.id === id,
-          );
+          const albums = await albumRepository.listAdminAlbums();
+          const existing = albums.find((album) => album.id === id);
           if (!existing) throw apiError("Album not found", 404, "NOT_FOUND");
+          const values = albumInput(item.changes ?? {}, existing);
+          assertSingletonMessageAlbum(albums, values.albumType, id);
           const album = await albumRepository.updateAlbum({
             ...existing,
-            ...albumInput(item.changes ?? {}, existing),
+            ...values,
           });
           if (!album) throw apiError("Album not found", 404, "NOT_FOUND");
           results.push(
