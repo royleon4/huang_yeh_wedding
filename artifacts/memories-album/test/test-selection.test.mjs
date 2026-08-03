@@ -135,14 +135,14 @@ test("cross-cutting route configuration safely requests full tests and build", (
   assert.deepEqual(selection.tests, []);
 });
 
-test("unmapped client changes safely fall back to full tests and Chrome", () => {
+test("unmapped client changes fall back to full Node tests without unrelated Chrome", () => {
   const selection = selectTestsForFiles(
     ["artifacts/memories-album/src/client/NewSurface.jsx"],
     AVAILABLE_TESTS,
   );
 
   assert.equal(selection.mode, "full");
-  assert.equal(selection.browser, "all");
+  assert.equal(selection.browser, "none");
   assert.match(selection.reason, /no related test could be proven/);
 });
 
