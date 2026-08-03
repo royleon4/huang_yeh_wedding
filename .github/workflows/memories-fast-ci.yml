@@ -1,0 +1,102 @@
+name: Standalone Memories Fast CI
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    paths:
+      - "artifacts/memories-album/**"
+      - "pnpm-workspace.yaml"
+      - "pnpm-lock.yaml"
+      - ".github/workflows/memories-fast-ci.yml"
+      - ".github/workflows/memories-ci.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: memories-fast-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  impact-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - name: Check out full history
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Select impacted tests
+        id: impact
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: node artifacts/memories-album/scripts/select-tests.mjs "$BASE_SHA" "$HEAD_SHA" >> "$GITHUB_OUTPUT"
+
+      - name: Report selected scope
+        run: |
+          echo "Mode: ${{ steps.impact.outputs.mode }}"
+          echo "Browser: ${{ steps.impact.outputs.browser }}"
+          echo "Build: ${{ steps.impact.outputs.build }}"
+          echo "Changed files: ${{ steps.impact.outputs.changed_count }}"
+          echo "Reason: ${{ steps.impact.outputs.reason }}"
+          echo 'Tests: ${{ steps.impact.outputs.tests }}'
+
+      - name: Set up pnpm
+        if: steps.impact.outputs.mode != 'none'
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.15.1
+
+      - name: Set up Node.js
+        if: steps.impact.outputs.mode != 'none'
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install workspace dependencies
+        if: steps.impact.outputs.mode != 'none'
+        run: pnpm install --no-frozen-lockfile
+
+      - name: Run targeted Memories tests
+        if: steps.impact.outputs.mode == 'targeted'
+        env:
+          SELECTED_TESTS: ${{ steps.impact.outputs.tests }}
+        run: |
+          node --input-type=module -e '
+            import { spawnSync } from "node:child_process";
+            const tests = JSON.parse(process.env.SELECTED_TESTS || "[]");
+            if (tests.length === 0) {
+              throw new Error("Targeted mode selected without test files");
+            }
+            const result = spawnSync(process.execPath, ["--test", ...tests], {
+              stdio: "inherit",
+            });
+            process.exit(result.status ?? 1);
+          '
+
+      - name: Run full Memories unit and API tests
+        if: steps.impact.outputs.mode == 'full'
+        run: pnpm --filter @workspace/memories-album run test
+
+      - name: Validate guestbook layout in Chrome
+        if: steps.impact.outputs.browser == 'guestbook'
+        run: pnpm --filter @workspace/memories-album run test:layout-guestbook
+
+      - name: Validate navigation layout in Chrome
+        if: steps.impact.outputs.browser == 'navigation'
+        run: pnpm --filter @workspace/memories-album run test:layout-navigation
+
+      - name: Validate all focused browser layouts
+        if: steps.impact.outputs.browser == 'all'
+        run: pnpm --filter @workspace/memories-album run test:layout-browser
+
+      - name: Build high-risk Memories changes
+        if: steps.impact.outputs.build == 'true'
+        run: pnpm --filter @workspace/memories-album run build
+
+      - name: Skip executable checks for documentation-only changes
+        if: steps.impact.outputs.mode == 'none'
+        run: echo "No executable Memories files changed."
