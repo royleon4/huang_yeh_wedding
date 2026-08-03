@@ -71,7 +71,10 @@ export default function AdminMessagesPanel() {
       const content = await file.text();
       const payload = await adminRequest("/admin/api/settings/messages/import", {
         method: "POST",
-        body: { content },
+        body: {
+          content,
+          timeZoneOffsetMinutes: new Date().getTimezoneOffset(),
+        },
         timeoutMs: 120_000,
       });
       setMessage(`已匯入 ${payload.imported ?? 0} 則留言。 Imported ${payload.imported ?? 0} messages.`);
@@ -166,10 +169,10 @@ export default function AdminMessagesPanel() {
       <form className="admin-create-card" onSubmit={importMessages}>
         <h3>匯入留言 / Import messages</h3>
         <p className="admin-section-note">
-          使用 UTF-8 CSV、TSV 或 TXT。第一列必須是 {acceptedHeaders}；日期時間可省略，省略時使用匯入時間。支援 {acceptedDateTimeFormats}。需要精確時區時，請使用含 Z 或 +08:00 等時區的 ISO 8601。最多 {format?.maximumRows ?? 500} 則。
+          使用 UTF-8 CSV、TSV 或 TXT。第一列必須是 {acceptedHeaders}；日期時間可省略，省略時使用匯入時間。支援 {acceptedDateTimeFormats}。未附時區的值會依目前管理員瀏覽器時區解讀；需要固定時區時，請使用含 Z 或 +08:00 等時區的 ISO 8601。最多 {format?.maximumRows ?? 500} 則。
         </p>
         <p className="admin-section-note">
-          Use a UTF-8 CSV, TSV or TXT file. The first row must use {acceptedHeaders}. Datetime is optional and defaults to the import time. Supported formats: {acceptedDateTimeFormats}. Use ISO 8601 with Z or an offset such as +08:00 when exact timezone handling matters. Maximum {format?.maximumRows ?? 500} rows.
+          Use a UTF-8 CSV, TSV or TXT file. The first row must use {acceptedHeaders}. Datetime is optional and defaults to the import time. Supported formats: {acceptedDateTimeFormats}. Values without a timezone use the current administrator browser offset; use ISO 8601 with Z or an offset such as +08:00 for a fixed timezone. Maximum {format?.maximumRows ?? 500} rows.
         </p>
         <label className="admin-message-file">
           選擇檔案 / Choose file
