@@ -7,6 +7,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: memories-legacy-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
   protect-legacy-wedding-site:
     if: ${{ !contains(github.event.pull_request.labels.*.name, 'owner-approved-legacy-change') }}
