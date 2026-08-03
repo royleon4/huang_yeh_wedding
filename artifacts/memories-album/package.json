@@ -8,7 +8,7 @@
     "build": "node scripts/ensure-build-dependencies.mjs && vite build --config vite.routes.config.js && node scripts/build.mjs",
     "start": "node dist/server.mjs",
     "test": "node --test",
-    "test:layout-browser": "node scripts/verify-navigation-layout.mjs",
+    "test:layout-browser": "node scripts/verify-navigation-layout.mjs && node scripts/verify-guestbook-layout.mjs",
     "test:drive-live": "node scripts/test-drive-live.mjs",
     "db:migrate": "node scripts/migrate.mjs"
   },
@@ -17,7 +17,6 @@
     "@replit/connectors-sdk": "^0.4.1",
     "@tiptap/core": "3.29.2",
     "@tiptap/extension-placeholder": "3.29.2",
-    "@tiptap/extension-text-align": "3.29.2",
     "@tiptap/react": "3.29.2",
     "@tiptap/starter-kit": "3.29.2",
     "busboy": "1.6.0",
