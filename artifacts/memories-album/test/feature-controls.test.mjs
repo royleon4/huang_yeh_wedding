@@ -48,7 +48,8 @@ test("dynamic albums and upload use explicit React callbacks in bottom navigatio
     readClient("bottom-collection-nav.css"),
     readClient("App.jsx"),
   ]);
-  assert.match(source, /albums\.slice/);
+  assert.match(source, /albums\.filter\(\(_.*, index\) => index % 2 === 0\)/);
+  assert.match(source, /albums\.filter\(\(_.*, index\) => index % 2 === 1\)/);
   assert.match(source, /onChoose\(album\.id\)/);
   assert.match(source, /onClick=\{onUpload\}/);
   assert.doesNotMatch(source, /querySelector|MutationObserver|\.click\(\)/);
