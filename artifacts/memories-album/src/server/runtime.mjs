@@ -32,6 +32,11 @@ import { createGuestFeaturedSettingsApis } from "./settings/guest-featured-api.m
 import { createAlbumApi } from "./albums/api.mjs";
 import { createAdminAlbumApi } from "./albums/admin-api.mjs";
 import { PostgresAlbumRepository } from "./albums/postgres-repository.mjs";
+import {
+  createAdminMessageApi,
+  createMessageApi,
+} from "./messages/api.mjs";
+import { PostgresMessageRepository } from "./messages/postgres-repository.mjs";
 import { createAdminCategoryApi } from "./categories/admin-api.mjs";
 import {
   runMemoriesMigrations,
@@ -97,6 +102,7 @@ async function createRuntime(env) {
     return uploadOriginalSingleRequest({ drive, ...options });
   };
   const albumRepository = new PostgresAlbumRepository(pool);
+  const messageRepository = new PostgresMessageRepository(pool);
   const synchronizer = new DriveProcessSynchronizer({
     drive,
     processRepository,
@@ -200,6 +206,15 @@ async function createRuntime(env) {
   const baseSettingsApi = createSettingsApi({
     repository: settingsRepository,
   });
+  const messageApi = createMessageApi({
+    repository: messageRepository,
+    albumRepository,
+  });
+  const adminMessageApi = createAdminMessageApi({
+    repository: messageRepository,
+    albumRepository,
+    adminToken: env.MEMORIES_ADMIN_TOKEN,
+  });
 
   const runtime = {
     pool,
@@ -210,6 +225,7 @@ async function createRuntime(env) {
     processContentRepository,
     settingsRepository,
     albumRepository,
+    messageRepository,
     synchronizer,
     thumbnailService,
     refreshService,
@@ -249,6 +265,7 @@ async function createRuntime(env) {
       adminToken: env.MEMORIES_ADMIN_TOKEN,
     }),
     adminSettingsApi: async (request, response, url) => {
+      if (await adminMessageApi(request, response, url)) return true;
       if (await guestFeaturedSettingsApis.adminApi(request, response, url)) {
         return true;
       }
@@ -264,6 +281,7 @@ async function createRuntime(env) {
       drive,
     }),
     settingsApi: async (request, response, url) => {
+      if (await messageApi(request, response, url)) return true;
       if (await guestFeaturedSettingsApis.publicApi(request, response, url)) {
         return true;
       }

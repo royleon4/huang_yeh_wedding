@@ -1,4 +1,5 @@
 import { normalizeAlbumPhotoSortMode } from "../../../album-photo-order.mjs";
+import { normalizeAlbumType } from "../../../album-types.mjs";
 import { sendAdminJson } from "../admin/auth.mjs";
 
 function normalizedFeaturedRange(album) {
@@ -23,6 +24,7 @@ function publicAlbum(album) {
     titleEn: album.titleEn,
     descriptionZh: album.descriptionZh,
     descriptionEn: album.descriptionEn,
+    albumType: normalizeAlbumType(album.albumType),
     displayOrder: album.displayOrder,
     showSummary: album.showSummary !== false,
     photoSortMode: normalizeAlbumPhotoSortMode(album.photoSortMode),

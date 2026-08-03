@@ -109,6 +109,7 @@ const ALBUM_BATCH_FIELDS = [
   "titleEn",
   "descriptionZh",
   "descriptionEn",
+  "albumType",
   "isVisible",
 ];
 const CATEGORY_BATCH_FIELDS = ["labelZh", "labelEn"];
@@ -199,6 +200,7 @@ export function verifyMutationPersistence(path, method, body, payload) {
       "titleEn",
       "descriptionZh",
       "descriptionEn",
+      "albumType",
       "isVisible",
       "showSummary",
     ];
