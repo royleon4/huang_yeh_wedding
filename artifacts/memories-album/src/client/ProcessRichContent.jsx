@@ -1,8 +1,6 @@
 import { useEffect, useMemo, useRef } from "react";
-import { pageDocumentKind, renderPageDocumentFromUrl } from "./page-document.mjs";
 import { renderWordDocumentFromUrl } from "./word-fidelity.mjs";
 import "./rich-text-formatting.css";
-import "./page-document.css";
 import "./word-document.css";
 
 const ALLOWED_TAGS = new Set([
@@ -29,11 +27,6 @@ const ALLOWED_TAGS = new Set([
 ]);
 const SAFE_CLASSES = new Set([
   "process-inline-image",
-  "process-attachment-line",
-  "process-attachment-card",
-  "process-attachment-icon",
-  "process-attachment-name",
-  "process-attachment-meta",
   "process-align-left",
   "process-align-center",
   "process-align-right",
@@ -41,12 +34,8 @@ const SAFE_CLASSES = new Set([
   "process-word-document",
   "process-word-document-preview",
   "process-word-document-fallback",
-  "process-page-document",
-  "process-page-document-preview",
-  "process-page-document-fallback",
 ]);
 const SAFE_TEXT_ALIGNMENTS = new Set(["left", "center", "right", "justify"]);
-const SAFE_PAGE_DOCUMENT_KINDS = new Set(["pdf", "pptx", "ppt"]);
 
 function safeUrl(value, { image = false } = {}) {
   const raw = String(value ?? "").trim();
@@ -86,7 +75,7 @@ export function hasRichContent(value) {
   if (!html) return false;
   if (
     /<(img|a)\b/i.test(html) ||
-    /data-type=["'](?:word-document|page-document)["']/i.test(html)
+    /data-type=["']word-document["']/i.test(html)
   ) {
     return true;
   }
@@ -162,8 +151,7 @@ export function sanitizeRichContent(value) {
       }
 
       const isSizedMedia =
-        (child.tagName === "FIGURE" && classNames.includes("process-inline-image")) ||
-        (child.tagName === "DIV" && classNames.includes("process-attachment-card"));
+        child.tagName === "FIGURE" && classNames.includes("process-inline-image");
       if (isSizedMedia) {
         const width = safeMediaWidth(originalWidth || originalStyle.match(/width\s*:\s*([\d.]+)%/i)?.[1]);
         child.setAttribute("data-width", String(width));
@@ -190,33 +178,9 @@ export function sanitizeRichContent(value) {
         );
       }
 
-      const isPageDocument =
-        child.tagName === "DIV" && classNames.includes("process-page-document");
-      if (isPageDocument) {
-        const source = safeUrl(attributeValue("data-src"));
-        const downloadUrl = safeUrl(attributeValue("data-download-url")) || source;
-        const name = safeMetadata(attributeValue("data-name")) || "文件";
-        const mimeType = safeMetadata(attributeValue("data-mime-type"), 160);
-        const storedKind = safeMetadata(attributeValue("data-document-kind"), 16);
-        const inferredKind = pageDocumentKind({ name, mimeType });
-        const kind = SAFE_PAGE_DOCUMENT_KINDS.has(storedKind) ? storedKind : inferredKind;
-        if (!source || !kind) {
-          child.remove();
-          continue;
-        }
-        child.setAttribute("data-type", "page-document");
-        child.setAttribute("data-document-kind", kind);
-        child.setAttribute("data-src", source);
-        child.setAttribute("data-download-url", downloadUrl);
-        child.setAttribute("data-attachment-id", safeMetadata(attributeValue("data-attachment-id"), 120));
-        child.setAttribute("data-name", name);
-        child.setAttribute("data-mime-type", mimeType);
-      }
-
       if (
         child.tagName === "DIV" &&
-        (classNames.includes("process-word-document-preview") ||
-          classNames.includes("process-page-document-preview"))
+        classNames.includes("process-word-document-preview")
       ) {
         child.setAttribute("aria-label", safeMetadata(attributeValue("aria-label"), 240));
       }
@@ -256,41 +220,6 @@ function useWordDocumentPreviews(rootRef, sanitized) {
   }, [rootRef, sanitized]);
 }
 
-function usePageDocumentPreviews(rootRef, sanitized) {
-  useEffect(() => {
-    const root = rootRef.current;
-    if (!root) return undefined;
-    const cleanups = [];
-    for (const documentElement of root.querySelectorAll(
-      ".process-page-document[data-type='page-document']",
-    )) {
-      const preview = documentElement.querySelector(".process-page-document-preview");
-      const source = documentElement.getAttribute("data-src");
-      const kind = documentElement.getAttribute("data-document-kind");
-      if (!preview || !source || !kind) continue;
-      const controller = new AbortController();
-      cleanups.push(() => controller.abort());
-      documentElement.dataset.documentState = "loading";
-      void renderPageDocumentFromUrl({
-        kind,
-        url: source,
-        container: preview,
-        signal: controller.signal,
-      })
-        .then((renderer) => {
-          cleanups.push(() => renderer.destroy?.());
-          documentElement.dataset.documentState = "ready";
-        })
-        .catch(() => {
-          if (!controller.signal.aborted) {
-            documentElement.dataset.documentState = "error";
-          }
-        });
-    }
-    return () => cleanups.forEach((cleanup) => cleanup());
-  }, [rootRef, sanitized]);
-}
-
 export function ProcessDivider({ paddingTop = 12, paddingBottom = 12 }) {
   return (
     <div
@@ -310,7 +239,6 @@ export default function ProcessRichContent({ html }) {
   const rootRef = useRef(null);
   const sanitized = useMemo(() => sanitizeRichContent(html), [html]);
   useWordDocumentPreviews(rootRef, sanitized);
-  usePageDocumentPreviews(rootRef, sanitized);
   if (!hasRichContent(html) || !hasRichContent(sanitized)) return null;
   return (
     <section

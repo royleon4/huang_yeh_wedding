@@ -16,7 +16,7 @@ test("legacy article HTML remains editable after the Tiptap migration", async ()
   assert.match(editor, /process-align-center/);
   assert.match(editor, /element\.style\.textAlign = ALIGNMENT_BY_CLASS\[className\]/);
   assert.match(media, /figure\.process-inline-image/);
-  assert.match(media, /p\.process-attachment-line/);
+  assert.doesNotMatch(media, /AttachmentCard|process-attachment-line/);
   assert.match(media, /figcaption/);
   assert.match(media, /data-width/);
 });

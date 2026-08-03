@@ -4,12 +4,7 @@ import { fileURLToPath } from "node:url";
 
 const packageRequire = createRequire(new URL("../package.json", import.meta.url));
 const workspaceRoot = fileURLToPath(new URL("../../../", import.meta.url));
-const requiredPackages = [
-  "mammoth",
-  "docx-preview",
-  "pdfjs-dist",
-  "@aiden0z/pptx-renderer",
-];
+const requiredPackages = ["mammoth", "docx-preview"];
 
 function missingPackages() {
   return requiredPackages.filter((packageName) => {
@@ -54,4 +49,4 @@ if (stillMissing.length > 0) {
   process.exit(1);
 }
 
-console.log("[Memories build] Document import dependencies are available.");
+console.log("[Memories build] Word import dependencies are available.");

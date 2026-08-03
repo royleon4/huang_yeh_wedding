@@ -149,8 +149,6 @@
   .tiptap-media-node,
   .tiptap-media-content,
   .tiptap-image-node img,
-  .tiptap-attachment-node,
-  .tiptap-attachment-node a,
   .process-attachment-library-grid article {
     max-width: 100%;
     min-width: 0;
@@ -158,8 +156,6 @@
   }
 
   .tiptap-editor-frame .ProseMirror a,
-  .process-attachment-name,
-  .process-attachment-meta,
   .process-attachment-library-grid article span,
   .process-attachment-library-grid article a {
     max-width: 100%;

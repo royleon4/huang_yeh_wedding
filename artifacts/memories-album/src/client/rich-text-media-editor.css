@@ -42,27 +42,6 @@
   min-width: 8rem;
 }
 
-.tiptap-attachment-preview {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 0.7rem;
-  min-height: 4rem;
-  padding: 0.7rem 0.85rem;
-  color: #2b4f40;
-}
-
-.tiptap-attachment-preview .process-attachment-name {
-  min-width: 0;
-  font-size: 0.95rem;
-  line-height: 1.4;
-  overflow-wrap: anywhere;
-  word-break: break-word;
-}
-
-.tiptap-attachment-preview .process-attachment-meta {
-  font-size: 0.72rem;
-}
 
 @media (max-width: 720px), (pointer: coarse) {
   .tiptap-editor-frame .tiptap-media-node {
@@ -162,28 +141,6 @@
     display: none !important;
   }
 
-  .tiptap-attachment-preview {
-    grid-template-columns: 2.25rem minmax(0, 1fr);
-    gap: 0.55rem;
-    min-height: 3.6rem;
-    padding: 0.6rem 0.65rem;
-  }
-
-  .tiptap-attachment-preview .process-attachment-icon {
-    width: 2.25rem;
-    height: 2.25rem;
-    border-radius: 10px;
-  }
-
-  .tiptap-attachment-preview .process-attachment-name {
-    font-size: 0.9rem;
-  }
-
-  .tiptap-attachment-preview .process-attachment-meta {
-    grid-column: 2;
-    justify-self: start;
-    white-space: normal;
-  }
 
   .tiptap-image-node img {
     border-radius: 13px 13px 0 0;

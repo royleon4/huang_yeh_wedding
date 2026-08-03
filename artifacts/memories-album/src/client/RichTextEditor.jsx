@@ -4,14 +4,8 @@ import { EditorContent, useEditor } from "@tiptap/react";
 import { BubbleMenu } from "@tiptap/react/menus";
 import StarterKit from "@tiptap/starter-kit";
 import { useEffect, useRef, useState } from "react";
-import { AttachmentCard, WeddingImage } from "./TiptapMediaNodes.jsx";
-import { PageDocument } from "./TiptapPageDocumentNode.jsx";
+import { WeddingImage } from "./TiptapMediaNodes.jsx";
 import { WordDocument } from "./TiptapWordDocumentNode.jsx";
-import {
-  isPageDocumentAttachment,
-  pageDocumentKind,
-  pageDocumentLabel,
-} from "./page-document.mjs";
 import {
   convertWordFileToHtml,
   describeWordImport,
@@ -21,30 +15,15 @@ import {
 import "./rich-text-formatting.css";
 import "./rich-text-mobile.css";
 import "./rich-text-media-editor.css";
-import "./page-document.css";
 import "./word-document.css";
 
-const DOCUMENT_IMPORT_ACCEPT = [
-  WORD_IMPORT_ACCEPT,
-  "application/pdf",
-  "application/vnd.ms-powerpoint",
-  "application/vnd.openxmlformats-officedocument.presentationml.presentation",
-  ".pdf",
-  ".ppt",
-  ".pptx",
-].join(",");
-
-const ATTACHMENT_ACCEPT = [
+const IMAGE_UPLOAD_MIME_TYPES = new Set([
   "image/jpeg",
   "image/png",
   "image/webp",
   "image/gif",
-  ".doc",
-  ".xls",
-  ".xlsx",
-  "text/plain",
-  ".zip",
-].join(",");
+]);
+const IMAGE_UPLOAD_ACCEPT = [...IMAGE_UPLOAD_MIME_TYPES].join(",");
 
 const ALIGNMENT_BY_CLASS = {
   "process-align-left": "left",
@@ -110,9 +89,7 @@ function TextBubbleMenu({ editor }) {
       shouldShow={({ editor: current, from, to }) =>
         from !== to &&
         !current.isActive("weddingImage") &&
-        !current.isActive("attachmentCard") &&
-        !current.isActive("wordDocument") &&
-        !current.isActive("pageDocument")
+        !current.isActive("wordDocument")
       }
     >
       <ToolbarButton label="粗體" icon="B" active={editor.isActive("bold")} onClick={() => editor.chain().focus().toggleBold().run()} />
@@ -171,12 +148,10 @@ export default function RichTextEditor({
         alignments: ["left", "center", "right", "justify"],
       }),
       Placeholder.configure({
-        placeholder: "在這裡輸入文字，或加入可拖曳的圖片與附件…",
+        placeholder: "在這裡輸入文字，或加入可拖曳的圖片…",
       }),
       WeddingImage,
-      AttachmentCard,
       WordDocument,
-      PageDocument,
     ],
     content: prepareEditorHtml(value),
     editorProps: {
@@ -222,63 +197,42 @@ export default function RichTextEditor({
     });
   }, [ariaLabel, editor]);
 
-  const insertAttachment = (attachment) => {
-    if (!editor || !attachment) return;
-    const kind = pageDocumentKind(attachment);
-    let node;
-    if (attachment.isImage) {
-      node = {
-        type: "weddingImage",
-        attrs: {
-          src: attachment.url,
-          alt: attachment.name || "",
-          caption: attachment.name || "",
-          width: 100,
+  const insertImage = (attachment) => {
+    if (!editor || !attachment?.isImage || !attachment.url) return;
+    editor
+      .chain()
+      .focus()
+      .insertContent([
+        {
+          type: "weddingImage",
+          attrs: {
+            src: attachment.url,
+            alt: attachment.name || "",
+            caption: attachment.name || "",
+            width: 100,
+          },
         },
-      };
-    } else if (kind) {
-      node = {
-        type: "pageDocument",
-        attrs: {
-          attachmentId: attachment.id || "",
-          name: attachment.name || pageDocumentLabel(kind),
-          src: attachment.url || attachment.downloadUrl || "",
-          downloadUrl: attachment.downloadUrl || attachment.url || "",
-          mimeType: attachment.mimeType || "",
-          kind,
-        },
-      };
-    } else {
-      node = {
-        type: "attachmentCard",
-        attrs: {
-          attachmentId: attachment.id || "",
-          name: attachment.name || "附件",
-          href: attachment.url || attachment.downloadUrl || "",
-          downloadUrl: attachment.downloadUrl || attachment.url || "",
-          mimeType: attachment.mimeType || "",
-          byteSize: Number(attachment.byteSize || 0),
-          width: 82,
-        },
-      };
-    }
-    editor.chain().focus().insertContent([node, { type: "paragraph" }]).run();
+        { type: "paragraph" },
+      ])
+      .run();
   };
 
   const upload = async (file) => {
     if (!file || !onUploadAttachment || !editor) return;
+    if (!IMAGE_UPLOAD_MIME_TYPES.has(String(file.type || "").toLowerCase())) {
+      setUploadError("只能上傳 JPG、PNG、WebP 或 GIF 圖片。");
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      return;
+    }
     setUploading(true);
     setUploadError("");
     setImportMessage("");
     try {
       const attachment = await onUploadAttachment(file);
-      insertAttachment(attachment);
-      if (isPageDocumentAttachment(attachment)) {
-        const kind = pageDocumentKind(attachment);
-        setImportMessage(
-          `已將「${attachment.name || pageDocumentLabel(kind)}」以${pageDocumentLabel(kind)}保真區塊插入游標位置。`,
-        );
+      if (!attachment?.isImage) {
+        throw new Error("伺服器沒有將此檔案辨識為圖片。");
       }
+      insertImage(attachment);
     } catch (error) {
       setUploadError(error?.message || "附件上傳失敗，請再試一次。");
     } finally {
@@ -334,16 +288,6 @@ export default function RichTextEditor({
     }
   };
 
-  const importDocument = async (file) => {
-    if (!file) return;
-    const kind = pageDocumentKind({ name: file.name, mimeType: file.type });
-    if (kind) {
-      await upload(file);
-      if (wordInputRef.current) wordInputRef.current.value = "";
-      return;
-    }
-    await importWord(file);
-  };
 
   const setBlock = (value) => {
     if (!editor) return;
@@ -378,6 +322,7 @@ export default function RichTextEditor({
       : editor?.isActive("blockquote")
         ? "blockquote"
         : "p";
+  const imageAttachments = attachments.filter((attachment) => attachment.isImage);
 
   return (
     <div className="process-rich-editor tiptap-rich-editor">
@@ -420,8 +365,8 @@ export default function RichTextEditor({
 
           <span className="tiptap-toolbar-spacer" />
           <ToolbarButton
-            label={importingWord || uploading ? "匯入中" : "匯入文件"}
-            icon={importingWord || uploading ? "…" : "檔"}
+            label={importingWord ? "匯入中" : "匯入 Word"}
+            icon={importingWord ? "…" : "W"}
             wide
             disabled={disabled || importingWord || uploading || !editor}
             onClick={() => wordInputRef.current?.click()}
@@ -430,12 +375,12 @@ export default function RichTextEditor({
             ref={wordInputRef}
             className="process-rich-file-input"
             type="file"
-            accept={DOCUMENT_IMPORT_ACCEPT}
+            accept={WORD_IMPORT_ACCEPT}
             disabled={disabled || importingWord || uploading}
-            onChange={(event) => void importDocument(event.target.files?.[0] ?? null)}
+            onChange={(event) => void importWord(event.target.files?.[0] ?? null)}
           />
           <ToolbarButton
-            label={uploading ? "上傳中" : "加入圖片或附件"}
+            label={uploading ? "上傳中" : "加入圖片"}
             icon={uploading ? "…" : "＋"}
             wide
             disabled={disabled || uploading || importingWord || !editor}
@@ -445,7 +390,7 @@ export default function RichTextEditor({
             ref={fileInputRef}
             className="process-rich-file-input"
             type="file"
-            accept={ATTACHMENT_ACCEPT}
+            accept={IMAGE_UPLOAD_ACCEPT}
             disabled={disabled || uploading || importingWord}
             onChange={(event) => void upload(event.target.files?.[0] ?? null)}
           />
@@ -453,7 +398,7 @@ export default function RichTextEditor({
       </div>
 
       <p className="tiptap-editor-hint">
-        反白文字可快速套用格式。手機請點選圖片或附件後使用移動與寬度控制；桌面仍可拖曳，並可拉動把手調整大小。「匯入文件」支援 .docx、.pdf、.ppt 與 .pptx。Word 會自動判斷可編輯或保真模式；PDF 與 PowerPoint 會在游標位置插入保留原頁面或投影片配置的文件區塊。
+        反白文字可快速套用格式。手機請點選圖片後使用移動與寬度控制；桌面仍可拖曳，並可拉動把手調整大小。「匯入 Word」只接受 .docx，並自動判斷可編輯或保真模式；「加入圖片」只接受 JPG、PNG、WebP 或 GIF。
       </p>
 
       <div className="tiptap-editor-frame">
@@ -464,19 +409,19 @@ export default function RichTextEditor({
       {uploadError && <p className="admin-form-error">{uploadError}</p>}
       {importMessage && <p className="process-content-success" role="status">{importMessage}</p>}
 
-      {attachments.length > 0 && (
+      {imageAttachments.length > 0 && (
         <details className="process-attachment-library">
-          <summary>已上傳素材（{attachments.length}）</summary>
+          <summary>已上傳圖片（{imageAttachments.length}）</summary>
           <div className="process-attachment-library-grid">
-            {attachments.map((attachment) => (
+            {imageAttachments.map((attachment) => (
               <article key={attachment.id}>
                 <div>
-                  <strong>{attachment.isImage ? "圖片" : "附件"}</strong>
+                  <strong>圖片</strong>
                   <span>{attachment.name}</span>
                   <small>{formatBytes(attachment.byteSize)}</small>
                 </div>
                 <div className="process-attachment-library-actions">
-                  <button type="button" disabled={disabled || !editor} onClick={() => insertAttachment(attachment)}>
+                  <button type="button" disabled={disabled || !editor} onClick={() => insertImage(attachment)}>
                     插入文章
                   </button>
                   <a href={attachment.downloadUrl || attachment.url} target="_blank" rel="noreferrer">
