@@ -5,24 +5,115 @@ export class PostgresProcessRepository {
   }
 
   async listProcesses() {
-    // Old bundled process rows never had a Drive folder id. Drive is now the
-    // canonical source, so hide those legacy rows immediately even when Drive
-    // is temporarily unavailable. This prevents duplicate/ghost categories.
+    // Public wedding-process consumers remain Drive-backed. Local labels owned by
+    // other albums are deliberately excluded from this compatibility method.
     await this.deactivateLegacyProcesses();
     const result = await this.pool.query(
-      `SELECT id, label_zh, label_en, display_order, drive_folder_id,
+      `SELECT id, album_id, label_zh, label_en, display_order, drive_folder_id,
               drive_folder_name, sync_state, last_synced_at,
               youtube_video_id, youtube_autoplay
        FROM memories_processes
        WHERE is_active = true
+         AND album_id = 'wedding'
        ORDER BY display_order ASC, id ASC`,
     );
     return result.rows.map(mapRow);
   }
 
+  async listLabels({ albumId = null } = {}) {
+    await this.deactivateLegacyProcesses();
+    const values = [];
+    const conditions = ["is_active = true"];
+    if (albumId) {
+      values.push(String(albumId));
+      conditions.push(`album_id = $${values.length}`);
+    }
+    const result = await this.pool.query(
+      `SELECT id, album_id, label_zh, label_en, display_order, drive_folder_id,
+              drive_folder_name, sync_state, last_synced_at,
+              youtube_video_id, youtube_autoplay
+       FROM memories_processes
+       WHERE ${conditions.join(" AND ")}
+       ORDER BY album_id ASC, display_order ASC, id ASC`,
+      values,
+    );
+    return result.rows.map(mapRow);
+  }
+
+  async listEligibleLabelAlbums() {
+    const result = await this.pool.query(
+      `SELECT id, title_zh, title_en, album_type, display_order
+       FROM memories_albums
+       WHERE id <> 'guest'
+         AND album_type = 'album'
+       ORDER BY display_order ASC, id ASC`,
+    );
+    return result.rows.map((row) => ({
+      id: row.id,
+      titleZh: row.title_zh,
+      titleEn: row.title_en,
+      albumType: row.album_type,
+      displayOrder: row.display_order,
+    }));
+  }
+
+  async createAlbumLabel({ id, albumId, labelZh, labelEn = "" }) {
+    const result = await this.pool.query(
+      `INSERT INTO memories_processes (
+         id, album_id, label_zh, label_en, display_order, is_active,
+         drive_folder_id, drive_folder_name, sync_state, last_synced_at,
+         created_at, updated_at
+       )
+       SELECT
+         $1, album.id, $3, $4,
+         COALESCE((
+           SELECT MAX(existing.display_order) + 1
+           FROM memories_processes existing
+           WHERE existing.album_id = album.id
+             AND existing.is_active = true
+         ), 1),
+         true, NULL, NULL, 'local', now(), now(), now()
+       FROM memories_albums album
+       WHERE album.id = $2
+         AND album.id <> 'guest'
+         AND album.album_type = 'album'
+       RETURNING id, album_id, label_zh, label_en, display_order,
+                 drive_folder_id, drive_folder_name, sync_state,
+                 last_synced_at, is_active, youtube_video_id,
+                 youtube_autoplay`,
+      [id, albumId, labelZh, labelEn || labelZh],
+    );
+    if (!result.rows[0]) {
+      const error = new Error("Album cannot contain photo labels");
+      error.status = 422;
+      error.code = "INVALID_LABEL_ALBUM";
+      throw error;
+    }
+    return mapRow(result.rows[0]);
+  }
+
+  async updateAlbumLabel(id, { labelZh, labelEn = "" }) {
+    const result = await this.pool.query(
+      `UPDATE memories_processes
+       SET label_zh = $2,
+           label_en = $3,
+           updated_at = now()
+       WHERE id = $1
+         AND album_id <> 'wedding'
+         AND album_id <> 'guest'
+         AND is_active = true
+       RETURNING id, album_id, label_zh, label_en, display_order,
+                 drive_folder_id, drive_folder_name, sync_state,
+                 last_synced_at, is_active, youtube_video_id,
+                 youtube_autoplay`,
+      [id, labelZh, labelEn || labelZh],
+    );
+    return result.rows[0] ? mapRow(result.rows[0]) : null;
+  }
+
   async findProcessById(id) {
     const result = await this.pool.query(
-      `SELECT id, label_zh, label_en, display_order, drive_folder_id,
+      `SELECT id, album_id, label_zh, label_en, display_order, drive_folder_id,
               drive_folder_name, sync_state, last_synced_at, is_active,
               youtube_video_id, youtube_autoplay
        FROM memories_processes
@@ -41,11 +132,12 @@ export class PostgresProcessRepository {
     const effectiveId = existing.rows[0]?.id ?? process.id;
     const result = await this.pool.query(
       `INSERT INTO memories_processes (
-        id, label_zh, label_en, display_order, is_active,
+        id, album_id, label_zh, label_en, display_order, is_active,
         drive_folder_id, drive_folder_name, sync_state, last_synced_at,
         created_at, updated_at
-      ) VALUES ($1,$2,$3,$4,true,$5,$6,'synced',now(),now(),now())
+      ) VALUES ($1,'wedding',$2,$3,$4,true,$5,$6,'synced',now(),now(),now())
       ON CONFLICT (id) DO UPDATE SET
+        album_id = 'wedding',
         label_zh = EXCLUDED.label_zh,
         label_en = CASE
           WHEN memories_processes.label_en = memories_processes.label_zh
@@ -60,7 +152,10 @@ export class PostgresProcessRepository {
         sync_state = 'synced',
         last_synced_at = now(),
         updated_at = now()
-      RETURNING *`,
+      RETURNING id, album_id, label_zh, label_en, display_order,
+                drive_folder_id, drive_folder_name, sync_state,
+                last_synced_at, is_active, youtube_video_id,
+                youtube_autoplay`,
       [
         effectiveId,
         process.labelZh,
@@ -77,10 +172,13 @@ export class PostgresProcessRepository {
     const result = await this.pool.query(
       `UPDATE memories_processes
        SET label_en = $2, updated_at = now()
-       WHERE id = $1 AND is_active = true
-       RETURNING id, label_zh, label_en, display_order, drive_folder_id,
-                 drive_folder_name, sync_state, last_synced_at, is_active,
-                 youtube_video_id, youtube_autoplay`,
+       WHERE id = $1
+         AND album_id = 'wedding'
+         AND is_active = true
+       RETURNING id, album_id, label_zh, label_en, display_order,
+                 drive_folder_id, drive_folder_name, sync_state,
+                 last_synced_at, is_active, youtube_video_id,
+                 youtube_autoplay`,
       [id, labelEn],
     );
     return result.rows[0] ? mapRow(result.rows[0]) : null;
@@ -92,10 +190,13 @@ export class PostgresProcessRepository {
        SET youtube_video_id = $2,
            youtube_autoplay = $3,
            updated_at = now()
-       WHERE id = $1 AND is_active = true
-       RETURNING id, label_zh, label_en, display_order, drive_folder_id,
-                 drive_folder_name, sync_state, last_synced_at, is_active,
-                 youtube_video_id, youtube_autoplay`,
+       WHERE id = $1
+         AND album_id = 'wedding'
+         AND is_active = true
+       RETURNING id, album_id, label_zh, label_en, display_order,
+                 drive_folder_id, drive_folder_name, sync_state,
+                 last_synced_at, is_active, youtube_video_id,
+                 youtube_autoplay`,
       [id, youtubeVideoId, Boolean(youtubeAutoplay)],
     );
     return result.rows[0] ? mapRow(result.rows[0]) : null;
@@ -103,7 +204,9 @@ export class PostgresProcessRepository {
 
   async deactivateLegacyProcesses() {
     return this.#deactivateMatching(
-      `is_active = true AND drive_folder_id IS NULL`,
+      `is_active = true
+       AND album_id = 'wedding'
+       AND drive_folder_id IS NULL`,
       [],
       "legacy",
     );
@@ -122,6 +225,7 @@ export class PostgresProcessRepository {
     const ids = Array.from(activeFolderIds ?? []);
     return this.#deactivateMatching(
       `is_active = true
+       AND album_id = 'wedding'
        AND (drive_folder_id IS NULL OR NOT (drive_folder_id = ANY($1::text[])))`,
       [ids],
       "missing",
@@ -142,9 +246,10 @@ export class PostgresProcessRepository {
              sync_state = $${stateParameter},
              updated_at = now()
          WHERE ${condition}
-         RETURNING id, label_zh, label_en, display_order, drive_folder_id,
-                   drive_folder_name, sync_state, last_synced_at, is_active,
-                   youtube_video_id, youtube_autoplay`,
+         RETURNING id, album_id, label_zh, label_en, display_order,
+                   drive_folder_id, drive_folder_name, sync_state,
+                   last_synced_at, is_active, youtube_video_id,
+                   youtube_autoplay`,
         [...values, syncState],
       );
       const processIds = result.rows.map((row) => row.id);
@@ -169,6 +274,7 @@ export class PostgresProcessRepository {
 function mapRow(row) {
   return {
     id: row.id,
+    albumId: row.album_id ?? "wedding",
     labelZh: row.label_zh,
     labelEn: row.label_en,
     displayOrder: row.display_order,
