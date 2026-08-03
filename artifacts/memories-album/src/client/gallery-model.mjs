@@ -116,7 +116,6 @@ export function filterPhotos(
     if (Array.isArray(photo.albumIds)) {
       return photo.albumIds.includes(collectionId);
     }
-    if (collectionId === "guest") return photo.source === "guest";
     return collectionForPhoto(photo) === collectionId;
   });
   if (filterId === "all") {
