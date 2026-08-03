@@ -1,0 +1,42 @@
+name: Temporary document import upload fix
+
+on:
+  push:
+    branches:
+      - fix/admin-attachment-upload-403-guidance
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out branch
+        uses: actions/checkout@v4
+        with:
+          ref: fix/admin-attachment-upload-403-guidance
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Apply precise source changes
+        run: node artifacts/memories-album/scripts/apply-document-import-upload-fix.mjs
+
+      - name: Commit source changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add \
+            artifacts/memories-album/src/client/RichTextEditor.jsx \
+            artifacts/memories-album/src/client/admin-client.mjs \
+            artifacts/memories-album/src/server/process-content/api.mjs \
+            artifacts/memories-album/src/server/storage/drive-adapter.mjs \
+            artifacts/memories-album/src/server/storage/replit-drive.mjs \
+            artifacts/memories-album/test/document-import-direct-upload.test.mjs
+          git commit -m "Unify document import and disable chunked attachment uploads"
+          git push origin HEAD:fix/admin-attachment-upload-403-guidance
