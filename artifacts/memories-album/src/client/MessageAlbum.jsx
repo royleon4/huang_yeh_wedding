@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { sortAlbumMessages } from "../../album-photo-order.mjs";
 import MessageModal from "./MessageModal.jsx";
 import useMasonryLayout from "./useMasonryLayout.mjs";
 import "./message-album.css";
@@ -72,12 +73,17 @@ function MessageGrid({ messages, lang, copy, onCompose }) {
   );
 }
 
-export default function MessageAlbum({ lang, albumId }) {
+export default function MessageAlbum({ lang, albumId, sortMode }) {
   const t = COPY[lang] ?? COPY.zh;
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [showComposer, setShowComposer] = useState(false);
+  const [messageRandomSeed] = useState(
+    () =>
+      globalThis.crypto?.randomUUID?.() ??
+      `${Date.now()}-${Math.random()}`,
+  );
 
   const loadMessages = async ({
     showLoading = true,
@@ -113,6 +119,11 @@ export default function MessageAlbum({ lang, albumId }) {
     void loadMessages();
   }, [albumId]);
 
+  const orderedMessages = useMemo(
+    () => sortAlbumMessages(messages, sortMode, messageRandomSeed),
+    [messages, sortMode, messageRandomSeed],
+  );
+
   const countLabel = useMemo(
     () => `${messages.length} ${t.count}`,
     [messages.length, t.count],
@@ -135,7 +146,7 @@ export default function MessageAlbum({ lang, albumId }) {
         </div>
       ) : (
         <MessageGrid
-          messages={messages}
+          messages={orderedMessages}
           lang={lang}
           copy={t}
           onCompose={() => setShowComposer(true)}
