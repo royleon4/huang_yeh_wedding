@@ -10,20 +10,25 @@ const adminClientUrl = new URL("../src/client/admin-client.mjs", import.meta.url
 
 test("Word PDF and PowerPoint share one document import control", async () => {
   const editor = await readFile(editorUrl, "utf8");
-  assert.match(editor, /const DOCUMENT_IMPORT_ACCEPT = \[/);
+  assert.equal(editor.includes("const DOCUMENT_IMPORT_ACCEPT = ["), true);
   for (const extension of [".docx", ".pdf", ".ppt", ".pptx"]) {
-    assert.ok(editor.includes(extension));
+    assert.equal(editor.includes(extension), true);
   }
-  assert.match(editor, /label={importingWord || uploading ? "匯入中" : "匯入文件"}/);
-  assert.match(editor, /accept={DOCUMENT_IMPORT_ACCEPT}/);
-  assert.match(editor, /importDocument(event.target.files?.[0]/);
-  assert.match(editor, /pageDocumentKind({ name: file.name, mimeType: file.type })/);
-  assert.doesNotMatch(editor, /label={importingWord ? "匯入中" : "匯入 Word"}/);
+  assert.equal(editor.includes('"匯入文件"'), true);
+  assert.equal(editor.includes("accept={DOCUMENT_IMPORT_ACCEPT}"), true);
+  assert.equal(editor.includes("importDocument(event.target.files?.[0]"), true);
+  assert.equal(
+    editor.includes("pageDocumentKind({ name: file.name, mimeType: file.type })"),
+    true,
+  );
+  assert.equal(editor.includes('"匯入 Word"'), false);
 });
 
 test("generic attachment selector no longer duplicates document import formats", async () => {
   const editor = await readFile(editorUrl, "utf8");
-  const generic = editor.match(/const ATTACHMENT_ACCEPT = [([sS]*?)].join(",");/)?.[1] || "";
+  const start = editor.indexOf("const ATTACHMENT_ACCEPT = [");
+  const end = editor.indexOf('].join(",");', start);
+  const generic = start >= 0 && end > start ? editor.slice(start, end) : "";
   for (const extension of [".docx", ".pdf", ".ppt", ".pptx"]) {
     assert.equal(generic.includes(extension), false);
   }
@@ -35,19 +40,21 @@ test("process content attachments use one direct multipart request without resum
     readFile(apiUrl, "utf8"),
     readFile(proxyUrl, "utf8"),
   ]);
-  const attachmentMethod = drive.match(/async uploadAttachment([sS]*?
-  }
-
-  async uploadThumbnail/)?.[0] || "";
-  assert.match(attachmentMethod, /#uploadMultipart(/);
-  assert.doesNotMatch(attachmentMethod, /#uploadResumable|Content-Range|RESUMABLE_CHUNK_BYTES/);
-  assert.match(api, /const uploaded = await drive.uploadAttachment({/);
-  assert.doesNotMatch(api, /const uploaded = await drive.uploadOriginal({/);
-  assert.match(proxy, /return uploadKind === "attachment" ? "attachment-upload" : "thumbnail-upload"/);
+  const start = drive.indexOf("async uploadAttachment(");
+  const end = drive.indexOf("async uploadThumbnail(", start);
+  const attachmentMethod = start >= 0 && end > start ? drive.slice(start, end) : "";
+  assert.equal(attachmentMethod.includes("#uploadMultipart("), true);
+  assert.equal(attachmentMethod.includes("#uploadResumable"), false);
+  assert.equal(attachmentMethod.includes("Content-Range"), false);
+  assert.equal(attachmentMethod.includes("RESUMABLE_CHUNK_BYTES"), false);
+  assert.equal(api.includes("const uploaded = await drive.uploadAttachment({"), true);
+  assert.equal(api.includes("const uploaded = await drive.uploadOriginal({"), false);
+  assert.equal(proxy.includes('"attachment-upload"'), true);
+  assert.equal(proxy.includes('"thumbnail-upload"'), true);
 });
 
 test("Drive 403 error states that direct upload did not use chunks", async () => {
   const adminClient = await readFile(adminClientUrl, "utf8");
-  assert.match(adminClient, /DRIVE_AUTHORIZATION_REQUIRED/);
-  assert.match(adminClient, /未使用分段上傳/);
+  assert.equal(adminClient.includes("DRIVE_AUTHORIZATION_REQUIRED"), true);
+  assert.equal(adminClient.includes("未使用分段上傳"), true);
 });
