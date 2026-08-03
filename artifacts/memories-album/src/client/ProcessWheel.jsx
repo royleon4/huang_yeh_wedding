@@ -56,6 +56,7 @@ export default function ProcessWheel({
   activeId,
   onSelect,
   ariaLabel,
+  language = "zh",
   variant = "process",
   visibleCount = DEFAULT_VISIBLE_COUNT,
   loop = false,
@@ -288,7 +289,7 @@ export default function ProcessWheel({
         })}
       </div>
       <p className="process-wheel-hint" aria-hidden="true">
-        ‹ 滑動選擇 ›
+        {language === "en" ? "‹ Swipe to choose ›" : "‹ 滑動選擇 ›"}
       </p>
     </div>
   );
