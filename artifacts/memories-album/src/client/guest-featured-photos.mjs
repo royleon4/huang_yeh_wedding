@@ -23,6 +23,14 @@ export function isAlbumFilter(activeCollection, activeFilter) {
   return Boolean(activeCollection) && Boolean(activeFilter);
 }
 
+function normalizedExcludedIds(value) {
+  return new Set(
+    (Array.isArray(value) ? value : [])
+      .map((id) => String(id ?? "").trim())
+      .filter(Boolean),
+  );
+}
+
 export function selectFeaturedPhotoIds(
   photos,
   {
@@ -31,6 +39,7 @@ export function selectFeaturedPhotoIds(
     enabled,
     minimum = DEFAULT_FEATURED_PHOTO_MIN,
     maximum = DEFAULT_FEATURED_PHOTO_MAX,
+    excludedIds = [],
     random = Math.random,
   } = {},
 ) {
@@ -53,7 +62,15 @@ export function selectFeaturedPhotoIds(
 
   const requestedCount =
     minCount + Math.floor(random() * (maxCount - minCount + 1));
-  return shuffled
+  const excluded = normalizedExcludedIds(excludedIds);
+  const preferred = shuffled.filter(
+    (photo) => !excluded.has(String(photo?.id ?? "")),
+  );
+  const fallback = shuffled.filter((photo) =>
+    excluded.has(String(photo?.id ?? "")),
+  );
+
+  return [...preferred, ...fallback]
     .slice(0, Math.min(requestedCount, shuffled.length))
     .map((photo) => photo.id);
 }
@@ -72,10 +89,21 @@ function selectionKey({
   ]);
 }
 
+function candidateSignature(photos) {
+  return JSON.stringify(
+    (Array.isArray(photos) ? photos : [])
+      .map((photo) => String(photo?.id ?? "").trim())
+      .filter(Boolean)
+      .sort(),
+  );
+}
+
 export function createFeaturedPhotoSelectionSession({
   random = Math.random,
 } = {}) {
   const selections = new Map();
+  let activeSelectionKey = null;
+  let activeSelectionIds = [];
 
   return {
     select(photos, options = {}) {
@@ -89,18 +117,27 @@ export function createFeaturedPhotoSelectionSession({
       }
 
       const key = selectionKey(options);
-      if (!selections.has(key)) {
-        selections.set(
-          key,
-          selectFeaturedPhotoIds(items, {
+      const signature = candidateSignature(items);
+      const cached = selections.get(key);
+      if (!cached || cached.signature !== signature) {
+        selections.set(key, {
+          signature,
+          ids: selectFeaturedPhotoIds(items, {
             ...options,
+            excludedIds:
+              key === activeSelectionKey ? [] : activeSelectionIds,
             random,
           }),
-        );
+        });
       }
 
       const availableIds = new Set(items.map((photo) => photo.id));
-      return selections.get(key).filter((id) => availableIds.has(id));
+      const ids = selections
+        .get(key)
+        .ids.filter((id) => availableIds.has(id));
+      activeSelectionKey = key;
+      activeSelectionIds = [...ids];
+      return [...ids];
     },
   };
 }
