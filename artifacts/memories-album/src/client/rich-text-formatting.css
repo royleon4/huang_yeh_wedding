@@ -395,47 +395,6 @@
   opacity: 1;
 }
 
-.tiptap-attachment-node .tiptap-media-content,
-.process-rich-content .process-attachment-card {
-  border: 1px solid #d8e3dc;
-  border-radius: 14px;
-  background: linear-gradient(135deg, #f7faf8, #eef5f1);
-  box-shadow: 0 8px 20px rgba(36, 85, 65, 0.08);
-}
-
-.tiptap-attachment-node a,
-.process-rich-content .process-attachment-card > a {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 0.75rem;
-  min-height: 4.5rem;
-  padding: 0.85rem 1rem;
-  color: #2b4f40;
-  text-decoration: none;
-}
-
-.process-attachment-icon {
-  display: grid;
-  place-items: center;
-  width: 2.5rem;
-  height: 2.5rem;
-  border-radius: 12px;
-  background: #dfeee6;
-  font-size: 1.15rem;
-}
-
-.process-attachment-name {
-  min-width: 0;
-  overflow-wrap: anywhere;
-  font-weight: 800;
-}
-
-.process-attachment-meta {
-  color: #758178;
-  font-size: 0.76rem;
-  white-space: nowrap;
-}
 
 .process-attachment-library {
   margin-top: 0.25rem;
@@ -530,12 +489,6 @@
   text-justify: inter-character;
 }
 
-.process-rich-content .process-inline-image,
-.process-rich-content .process-attachment-card {
-  display: block;
-  max-width: 100%;
-  margin: 1rem auto;
-}
 
 .process-rich-content .process-inline-image img {
   display: block;
@@ -618,12 +571,5 @@
     text-align: center;
   }
 
-  .tiptap-attachment-node a,
-  .process-rich-content .process-attachment-card > a {
-    grid-template-columns: auto minmax(0, 1fr);
-  }
 
-  .process-attachment-meta {
-    grid-column: 2;
-  }
 }

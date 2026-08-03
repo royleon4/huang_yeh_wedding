@@ -91,14 +91,14 @@ test("admin toolbar conditionally inserts editable HTML or a fidelity node", asy
   assert.equal(packageJson.dependencies["docx-preview"], "0.4.0");
   assert.match(editor, /WordDocument/);
   assert.match(editor, /wordInputRef/);
-  assert.match(editor, /匯入文件/);
-  assert.match(editor, /accept=\{DOCUMENT_IMPORT_ACCEPT\}/);
+  assert.match(editor, /匯入 Word/);
+  assert.match(editor, /accept=\{WORD_IMPORT_ACCEPT\}/);
   assert.match(editor, /uploadDocument: onUploadAttachment/);
   assert.match(editor, /result\.mode === "fidelity"/);
   assert.match(editor, /type: "wordDocument"/);
   assert.match(editor, /insertContent\(`\$\{result\.html\}<p><\/p>`\)/);
-  assert.match(editor, /Word 會自動判斷可編輯或保真模式/);
-  assert.match(editor, /PDF 與 PowerPoint 會在游標位置/);
+  assert.match(editor, /只接受 \.docx/);
+  assert.doesNotMatch(editor, /PDF|PowerPoint/);
 
   assert.match(importer, /await import\("mammoth"\)/);
   assert.match(importer, /inspectWordFidelity/);

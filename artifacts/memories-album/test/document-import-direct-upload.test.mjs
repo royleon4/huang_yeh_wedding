@@ -6,35 +6,44 @@ const editorUrl = new URL("../src/client/RichTextEditor.jsx", import.meta.url);
 const driveUrl = new URL("../src/server/storage/drive-adapter.mjs", import.meta.url);
 const apiUrl = new URL("../src/server/process-content/api.mjs", import.meta.url);
 const proxyUrl = new URL("../src/server/storage/replit-drive.mjs", import.meta.url);
-const adminClientUrl = new URL("../src/client/admin-client.mjs", import.meta.url);
 
-test("Word PDF and PowerPoint share one document import control", async () => {
+test("editor exposes Word-only import and image-only upload controls", async () => {
   const editor = await readFile(editorUrl, "utf8");
-  assert.equal(editor.includes("const DOCUMENT_IMPORT_ACCEPT = ["), true);
-  for (const extension of [".docx", ".pdf", ".ppt", ".pptx"]) {
-    assert.equal(editor.includes(extension), true);
+  assert.match(editor, /label=\{importingWord \? "匯入中" : "匯入 Word"\}/);
+  assert.match(editor, /accept=\{WORD_IMPORT_ACCEPT\}/);
+  assert.match(editor, /label=\{uploading \? "上傳中" : "加入圖片"\}/);
+  assert.match(editor, /accept=\{IMAGE_UPLOAD_ACCEPT\}/);
+  assert.match(editor, /IMAGE_UPLOAD_MIME_TYPES/);
+  for (const forbidden of ["application/pdf", ".ppt", ".pptx", ".xlsx", ".zip"]) {
+    assert.equal(editor.includes(forbidden), false);
   }
-  assert.equal(editor.includes('"匯入文件"'), true);
-  assert.equal(editor.includes("accept={DOCUMENT_IMPORT_ACCEPT}"), true);
-  assert.equal(editor.includes("importDocument(event.target.files?.[0]"), true);
-  assert.equal(
-    editor.includes("pageDocumentKind({ name: file.name, mimeType: file.type })"),
-    true,
-  );
-  assert.equal(editor.includes('"匯入 Word"'), false);
+  assert.equal(editor.includes("PageDocument"), false);
+  assert.equal(editor.includes("AttachmentCard"), false);
 });
 
-test("generic attachment selector no longer duplicates document import formats", async () => {
-  const editor = await readFile(editorUrl, "utf8");
-  const start = editor.indexOf("const ATTACHMENT_ACCEPT = [");
-  const end = editor.indexOf('].join(",");', start);
-  const generic = start >= 0 && end > start ? editor.slice(start, end) : "";
-  for (const extension of [".docx", ".pdf", ".ppt", ".pptx"]) {
-    assert.equal(generic.includes(extension), false);
+test("server accepts only supported images and DOCX for Word fidelity storage", async () => {
+  const api = await readFile(apiUrl, "utf8");
+  for (const allowed of [
+    "image/jpeg",
+    "image/png",
+    "image/webp",
+    "image/gif",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  ]) {
+    assert.equal(api.includes(allowed), true);
+  }
+  for (const forbidden of [
+    "application/pdf",
+    "application/vnd.ms-powerpoint",
+    "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+    "application/zip",
+    "text/plain",
+  ]) {
+    assert.equal(api.includes(forbidden), false);
   }
 });
 
-test("process content attachments use one direct multipart request without resumable chunks", async () => {
+test("image and Word source files use one direct multipart request without chunks", async () => {
   const [drive, api, proxy] = await Promise.all([
     readFile(driveUrl, "utf8"),
     readFile(apiUrl, "utf8"),
@@ -42,19 +51,9 @@ test("process content attachments use one direct multipart request without resum
   ]);
   const start = drive.indexOf("async uploadAttachment(");
   const end = drive.indexOf("async uploadThumbnail(", start);
-  const attachmentMethod = start >= 0 && end > start ? drive.slice(start, end) : "";
-  assert.equal(attachmentMethod.includes("#uploadMultipart("), true);
-  assert.equal(attachmentMethod.includes("#uploadResumable"), false);
-  assert.equal(attachmentMethod.includes("Content-Range"), false);
-  assert.equal(attachmentMethod.includes("RESUMABLE_CHUNK_BYTES"), false);
-  assert.equal(api.includes("const uploaded = await drive.uploadAttachment({"), true);
-  assert.equal(api.includes("const uploaded = await drive.uploadOriginal({"), false);
-  assert.equal(proxy.includes('"attachment-upload"'), true);
-  assert.equal(proxy.includes('"thumbnail-upload"'), true);
-});
-
-test("Drive 403 error states that direct upload did not use chunks", async () => {
-  const adminClient = await readFile(adminClientUrl, "utf8");
-  assert.equal(adminClient.includes("DRIVE_AUTHORIZATION_REQUIRED"), true);
-  assert.equal(adminClient.includes("未使用分段上傳"), true);
+  const method = start >= 0 && end > start ? drive.slice(start, end) : "";
+  assert.match(method, /#uploadMultipart\(/);
+  assert.doesNotMatch(method, /#uploadResumable|Content-Range|RESUMABLE_CHUNK_BYTES/);
+  assert.match(api, /const uploaded = await drive\.uploadAttachment\(\{/);
+  assert.match(proxy, /"attachment-upload"/);
 });

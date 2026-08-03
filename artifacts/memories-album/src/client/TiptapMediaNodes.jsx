@@ -1,7 +1,6 @@
-import { Node, mergeAttributes } from "@tiptap/core";
+import { Node } from "@tiptap/core";
 import { NodeViewWrapper, ReactNodeViewRenderer } from "@tiptap/react";
 import { useEffect, useRef, useState } from "react";
-import { recoverUtf8Filename } from "../filename-encoding.mjs";
 
 export const MIN_MEDIA_WIDTH = 24;
 export const MAX_MEDIA_WIDTH = 100;
@@ -11,48 +10,6 @@ export function clampMediaWidth(value) {
   const parsed = Number.parseFloat(String(value ?? "").replace("%", ""));
   if (!Number.isFinite(parsed)) return MAX_MEDIA_WIDTH;
   return Math.max(MIN_MEDIA_WIDTH, Math.min(MAX_MEDIA_WIDTH, Math.round(parsed)));
-}
-
-function formatBytes(value) {
-  const bytes = Number(value ?? 0);
-  if (!Number.isFinite(bytes) || bytes <= 0) return "";
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
-}
-
-function attachmentName(value) {
-  return recoverUtf8Filename(String(value || "附件")) || "附件";
-}
-
-function readImageAttributes(element) {
-  const image = element.tagName === "IMG" ? element : element.querySelector("img");
-  const caption = element.querySelector?.("figcaption")?.textContent?.trim() ?? "";
-  return {
-    src: image?.getAttribute("src") ?? "",
-    alt: image?.getAttribute("alt") ?? "",
-    caption,
-    width: clampMediaWidth(element.getAttribute?.("data-width") || element.style?.width || 100),
-  };
-}
-
-function readAttachmentAttributes(element) {
-  const anchor = element.querySelector("a");
-  const namedElement = element.querySelector(".process-attachment-name");
-  const rawName =
-    element.getAttribute("data-name") ||
-    namedElement?.textContent?.trim() ||
-    anchor?.textContent?.trim().replace(/^📎\s*/, "") ||
-    "附件";
-  return {
-    attachmentId: element.getAttribute("data-attachment-id") ?? "",
-    name: attachmentName(rawName),
-    href: anchor?.getAttribute("href") ?? "",
-    downloadUrl: anchor?.getAttribute("href") ?? "",
-    mimeType: element.getAttribute("data-mime-type") ?? "",
-    byteSize: Number(element.getAttribute("data-byte-size") ?? 0),
-    width: clampMediaWidth(element.getAttribute("data-width") || element.style?.width || 100),
-  };
 }
 
 function moveNode(editor, getPos, destination) {
@@ -90,10 +47,6 @@ function moveNode(editor, getPos, destination) {
   return true;
 }
 
-function openInNewTab(url) {
-  if (!url || typeof window === "undefined") return;
-  window.open(url, "_blank", "noopener,noreferrer");
-}
 
 function controlAction(event, action) {
   event.preventDefault();
@@ -111,7 +64,6 @@ function MediaNodeShell({
   deleteNode,
   className,
   as = "div",
-  openUrl = "",
 }) {
   const rootRef = useRef(null);
   const [draftWidth, setDraftWidth] = useState(() => clampMediaWidth(node.attrs.width));
@@ -206,11 +158,6 @@ function MediaNodeShell({
           <button type="button" aria-label="移到最後" title="移到文章最後方" onClick={(event) => controlAction(event, () => moveNode(editor, getPos, "last"))}>
             ⇥
           </button>
-          {openUrl && (
-            <button type="button" aria-label="開啟附件" title="在新分頁開啟附件" onClick={(event) => controlAction(event, () => openInNewTab(openUrl))}>
-              ↗
-            </button>
-          )}
           <button type="button" className="danger" aria-label="從文章移除" title="只從文章移除，不會刪除已上傳檔案" onClick={(event) => controlAction(event, deleteNode)}>
             ×
           </button>
@@ -270,27 +217,6 @@ function WeddingImageView(props) {
   );
 }
 
-function AttachmentCardView(props) {
-  const { node } = props;
-  const name = attachmentName(node.attrs.name);
-  const size = formatBytes(node.attrs.byteSize);
-  const extension = String(name).split(".").pop()?.toUpperCase();
-
-  return (
-    <MediaNodeShell
-      {...props}
-      className="process-attachment-line process-attachment-card tiptap-attachment-node"
-      openUrl={node.attrs.downloadUrl || node.attrs.href}
-    >
-      <div className="tiptap-attachment-preview">
-        <span className="process-attachment-icon" aria-hidden="true">📎</span>
-        <span className="process-attachment-name">{name}</span>
-        <span className="process-attachment-meta">{[extension, size].filter(Boolean).join(" · ")}</span>
-      </div>
-    </MediaNodeShell>
-  );
-}
-
 export const WeddingImage = Node.create({
   name: "weddingImage",
   group: "block",
@@ -329,59 +255,3 @@ export const WeddingImage = Node.create({
   },
 });
 
-export const AttachmentCard = Node.create({
-  name: "attachmentCard",
-  group: "block",
-  atom: true,
-  selectable: true,
-  draggable: true,
-
-  addAttributes() {
-    return {
-      attachmentId: { default: "" },
-      name: { default: "附件" },
-      href: { default: "" },
-      downloadUrl: { default: "" },
-      mimeType: { default: "" },
-      byteSize: { default: 0 },
-      width: { default: 82 },
-    };
-  },
-
-  parseHTML() {
-    return [
-      { tag: "div[data-type='attachment-card']", getAttrs: readAttachmentAttributes },
-      { tag: "div.process-attachment-card", getAttrs: readAttachmentAttributes },
-      { tag: "p.process-attachment-line", getAttrs: readAttachmentAttributes },
-    ];
-  },
-
-  renderHTML({ node }) {
-    const width = clampMediaWidth(node.attrs.width);
-    const size = formatBytes(node.attrs.byteSize);
-    const name = attachmentName(node.attrs.name);
-    return [
-      "div",
-      mergeAttributes({
-        class: "process-attachment-line process-attachment-card",
-        "data-type": "attachment-card",
-        "data-width": String(width),
-        "data-attachment-id": node.attrs.attachmentId || "",
-        "data-name": name,
-        "data-mime-type": node.attrs.mimeType || "",
-        "data-byte-size": String(node.attrs.byteSize || 0),
-      }),
-      [
-        "a",
-        { href: node.attrs.downloadUrl || node.attrs.href, target: "_blank", rel: "noopener noreferrer", download: "" },
-        ["span", { class: "process-attachment-icon" }, "📎"],
-        ["span", { class: "process-attachment-name" }, name],
-        ["span", { class: "process-attachment-meta" }, size],
-      ],
-    ];
-  },
-
-  addNodeView() {
-    return ReactNodeViewRenderer(AttachmentCardView);
-  },
-});

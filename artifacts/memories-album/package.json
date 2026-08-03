@@ -8,12 +8,11 @@
     "build": "node scripts/ensure-build-dependencies.mjs && vite build --config vite.routes.config.js && node scripts/build.mjs",
     "start": "node dist/server.mjs",
     "test": "node --test",
-    "test:layout-browser": "node scripts/verify-navigation-layout.mjs && node scripts/verify-page-document-layout.mjs",
+    "test:layout-browser": "node scripts/verify-navigation-layout.mjs",
     "test:drive-live": "node scripts/test-drive-live.mjs",
     "db:migrate": "node scripts/migrate.mjs"
   },
   "dependencies": {
-    "@aiden0z/pptx-renderer": "1.2.4",
     "@floating-ui/dom": "^1.6.13",
     "@replit/connectors-sdk": "^0.4.1",
     "@tiptap/core": "3.29.2",
@@ -24,7 +23,6 @@
     "busboy": "1.6.0",
     "docx-preview": "0.4.0",
     "mammoth": "1.12.0",
-    "pdfjs-dist": "6.1.200",
     "pg": "^8.20.0",
     "react": "catalog:",
     "react-dom": "catalog:",

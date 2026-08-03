@@ -14,16 +14,7 @@ const ALLOWED_MIME_TYPES = new Set([
   "image/png",
   "image/webp",
   "image/gif",
-  "application/pdf",
-  "application/msword",
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-  "application/vnd.ms-excel",
-  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-  "application/vnd.ms-powerpoint",
-  "application/vnd.openxmlformats-officedocument.presentationml.presentation",
-  "text/plain",
-  "application/zip",
-  "application/x-zip-compressed",
 ]);
 const ALLOWED_EXTENSIONS = new Set([
   "jpg",
@@ -31,15 +22,7 @@ const ALLOWED_EXTENSIONS = new Set([
   "png",
   "webp",
   "gif",
-  "pdf",
-  "doc",
   "docx",
-  "xls",
-  "xlsx",
-  "ppt",
-  "pptx",
-  "txt",
-  "zip",
 ]);
 
 function publicJson(response, status, body) {
