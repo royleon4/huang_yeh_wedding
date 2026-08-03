@@ -10,6 +10,7 @@ function json(response, status, body) {
 function publicProcess(process, content = null) {
   return {
     id: process.id,
+    albumId: process.albumId ?? "wedding",
     labelZh: process.labelZh,
     labelEn: process.labelEn,
     displayOrder: process.displayOrder,
@@ -54,8 +55,12 @@ export function createProcessApi({ repository, contentRepository = null }) {
     ) {
       return false;
     }
+    const labelsPromise =
+      typeof repository.listLabels === "function"
+        ? repository.listLabels()
+        : repository.listProcesses();
     const [processes, contentRows] = await Promise.all([
-      repository.listProcesses(),
+      labelsPromise,
       contentRepository?.listContent?.() ?? [],
     ]);
     const contentByKey = new Map(
