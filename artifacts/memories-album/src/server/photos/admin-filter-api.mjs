@@ -17,7 +17,11 @@ function boundedLimit(value) {
 function adminPhotoPayload(photo) {
   return {
     id: photo.id,
-    displayName: photo.displayName ?? photo.display_name ?? photo.originalFilename ?? photo.original_filename,
+    displayName:
+      photo.displayName ??
+      photo.display_name ??
+      photo.originalFilename ??
+      photo.original_filename,
     originalFilename: photo.originalFilename ?? photo.original_filename,
     source: photo.source ?? photo.uploaderType ?? photo.uploader_type,
     uploaderName: photo.uploaderName ?? photo.uploader_name ?? "",
@@ -31,18 +35,10 @@ function adminPhotoPayload(photo) {
   };
 }
 
-async function listPostgresPhotos(repository, filters) {
-  const cursor = decodePhotoCursor(filters.cursor);
-  const limit = boundedLimit(filters.limit);
+function postgresFilter(repository, filters) {
   const conditions = ["p.visibility <> 'trashed'"];
   const values = [];
 
-  if (cursor) {
-    values.push(cursor.createdAt, cursor.id);
-    conditions.push(
-      `(p.created_at, p.id) > ($${values.length - 1}::timestamptz, $${values.length}::uuid)`,
-    );
-  }
   if (filters.albumId) {
     values.push(filters.albumId);
     conditions.push(`EXISTS (
@@ -51,8 +47,8 @@ async function listPostgresPhotos(repository, filters) {
         AND mpa_filter.album_id = $${values.length}
     )`);
   }
-  if (filters.categoryId) {
-    values.push(filters.categoryId);
+  if (filters.labelId) {
+    values.push(filters.labelId);
     conditions.push(`EXISTS (
       SELECT 1 FROM memories_photo_processes mpp_filter
       WHERE mpp_filter.photo_id = p.id
@@ -63,31 +59,57 @@ async function listPostgresPhotos(repository, filters) {
     values.push(filters.uploaderName);
     conditions.push(`p.uploader_name = $${values.length}`);
   }
-  values.push(limit + 1);
 
-  const result = await repository.pool.query(
-    `SELECT p.*,
-       COALESCE((
-         SELECT array_agg(mpp.process_id ORDER BY mpp.process_id)
-         FROM memories_photo_processes mpp
-         WHERE mpp.photo_id = p.id
-       ), '{}') AS process_ids,
-       COALESCE((
-         SELECT array_agg(mpa.album_id ORDER BY mpa.album_id)
-         FROM memories_photo_albums mpa
-         WHERE mpa.photo_id = p.id
-       ), '{}') AS album_ids
-     FROM memories_photos p
-     WHERE ${conditions.join(" AND ")}
-     ORDER BY p.created_at ASC, p.id ASC
-     LIMIT $${values.length}`,
-    values,
-  );
+  return { conditions, values };
+}
+
+async function listPostgresPhotos(repository, filters) {
+  const cursor = decodePhotoCursor(filters.cursor);
+  const limit = boundedLimit(filters.limit);
+  const filtered = postgresFilter(repository, filters);
+  const pageConditions = [...filtered.conditions];
+  const pageValues = [...filtered.values];
+
+  if (cursor) {
+    pageValues.push(cursor.createdAt, cursor.id);
+    pageConditions.push(
+      `(p.created_at, p.id) > ($${pageValues.length - 1}::timestamptz, $${pageValues.length}::uuid)`,
+    );
+  }
+  pageValues.push(limit + 1);
+
+  const [result, countResult] = await Promise.all([
+    repository.pool.query(
+      `SELECT p.*,
+         COALESCE((
+           SELECT array_agg(mpp.process_id ORDER BY mpp.process_id)
+           FROM memories_photo_processes mpp
+           WHERE mpp.photo_id = p.id
+         ), '{}') AS process_ids,
+         COALESCE((
+           SELECT array_agg(mpa.album_id ORDER BY mpa.album_id)
+           FROM memories_photo_albums mpa
+           WHERE mpa.photo_id = p.id
+         ), '{}') AS album_ids
+       FROM memories_photos p
+       WHERE ${pageConditions.join(" AND ")}
+       ORDER BY p.created_at ASC, p.id ASC
+       LIMIT $${pageValues.length}`,
+      pageValues,
+    ),
+    repository.pool.query(
+      `SELECT COUNT(*)::integer AS total
+       FROM memories_photos p
+       WHERE ${filtered.conditions.join(" AND ")}`,
+      filtered.values,
+    ),
+  ]);
 
   const hasMore = result.rows.length > limit;
   const rows = result.rows.slice(0, limit);
   return {
     photos: rows.map(adminPhotoPayload),
+    total: Number(countResult.rows[0]?.total ?? 0),
     nextCursor: hasMore
       ? encodePhotoCursor({
           id: rows.at(-1).id,
@@ -98,21 +120,24 @@ async function listPostgresPhotos(repository, filters) {
 }
 
 async function listMemoryPhotos(repository, filters) {
-  const page = await repository.listAdminPhotos({ limit: 100 });
+  const page = await repository.listAdminPhotos({ limit: 10_000 });
   const filtered = page.items
     .filter((photo) => !filters.albumId || photo.albumIds?.includes(filters.albumId))
-    .filter(
-      (photo) =>
-        !filters.categoryId || photo.processIds?.includes(filters.categoryId),
-    )
+    .filter((photo) => !filters.labelId || photo.processIds?.includes(filters.labelId))
     .filter(
       (photo) =>
         !filters.uploaderName || photo.uploaderName === filters.uploaderName,
     );
   const limit = boundedLimit(filters.limit);
+  const cursorIndex = filters.cursor
+    ? Math.max(0, filtered.findIndex((photo) => photo.id === filters.cursor) + 1)
+    : 0;
+  const rows = filtered.slice(cursorIndex, cursorIndex + limit);
   return {
-    photos: filtered.slice(0, limit).map(adminPhotoPayload),
-    nextCursor: null,
+    photos: rows.map(adminPhotoPayload),
+    total: filtered.length,
+    nextCursor:
+      cursorIndex + rows.length < filtered.length ? rows.at(-1)?.id ?? null : null,
   };
 }
 
@@ -127,7 +152,7 @@ async function listAuthors(repository) {
     );
     return result.rows.map((row) => row.uploader_name);
   }
-  const page = await repository.listAdminPhotos({ limit: 100 });
+  const page = await repository.listAdminPhotos({ limit: 10_000 });
   return [
     ...new Set(
       page.items
@@ -151,18 +176,21 @@ export function createAdminPhotoFilterApi({ repository, adminToken }) {
     const photosPath = url.pathname === "/admin/api/photos";
     const filters = {
       albumId: normalized(url.searchParams.get("albumId")),
-      categoryId: normalized(url.searchParams.get("categoryId")),
+      labelId: normalized(
+        url.searchParams.get("labelId") ?? url.searchParams.get("categoryId"),
+      ),
       uploaderName: normalized(url.searchParams.get("uploaderName"), 80),
       cursor: url.searchParams.get("cursor"),
       limit: url.searchParams.get("limit"),
     };
     const filteredRequest = Boolean(
-      filters.albumId || filters.categoryId || filters.uploaderName,
+      filters.albumId || filters.labelId || filters.uploaderName,
     );
+    const selectionRequest = url.searchParams.get("selection") === "all";
 
     if (
       request.method !== "GET" ||
-      (!authorsPath && !(photosPath && filteredRequest))
+      (!authorsPath && !(photosPath && (filteredRequest || selectionRequest)))
     ) {
       return false;
     }

@@ -1,8 +1,10 @@
 import { useMemo, useState } from "react";
 import { adminErrorMessage, adminRequest } from "./admin-client.mjs";
+import { buildAlbumLabelGroups, findAlbumLabel } from "./album-labels.mjs";
 import {
   buildBulkClassificationUpdates,
   buildBulkUploaderRequest,
+  chunkBulkItems,
   isWeddingPhotographerProtected,
   successfulBulkPhotoResults,
   successfulBulkUploaderResults,
@@ -68,7 +70,8 @@ function clearDrafts(setPhotoDrafts, ids) {
 
 export default function AdminPhotoBulkActions({
   albums,
-  categories,
+  albumLabels,
+  photos,
   visiblePhotos,
   selectedIds,
   setSelectedIds,
@@ -77,19 +80,31 @@ export default function AdminPhotoBulkActions({
   disabled,
   onBusyChange,
   onReload,
+  onSelectAllFiltered,
+  selectingAllFiltered = false,
+  allFilteredSelected = false,
+  filteredCount = 0,
 }) {
   const [albumMode, setAlbumMode] = useState("keep");
   const [albumIds, setAlbumIds] = useState([]);
-  const [categoryMode, setCategoryMode] = useState("keep");
-  const [categoryId, setCategoryId] = useState("");
+  const [labelMode, setLabelMode] = useState("keep");
+  const [labelId, setLabelId] = useState("");
   const [bulkUploaderName, setBulkUploaderName] = useState("");
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
 
   const selectedSet = useMemo(() => new Set(selectedIds), [selectedIds]);
   const selectedPhotos = useMemo(
-    () => visiblePhotos.filter((photo) => selectedSet.has(photo.id)),
-    [selectedSet, visiblePhotos],
+    () => photos.filter((photo) => selectedSet.has(photo.id)),
+    [photos, selectedSet],
+  );
+  const labelGroups = useMemo(
+    () => buildAlbumLabelGroups(albums, albumLabels),
+    [albums, albumLabels],
+  );
+  const selectedLabel = useMemo(
+    () => findAlbumLabel(albumLabels, labelId),
+    [albumLabels, labelId],
   );
   const protectedCount = selectedPhotos.filter(isWeddingPhotographerProtected).length;
   const deletableCount = selectedPhotos.length - protectedCount;
@@ -121,21 +136,32 @@ export default function AdminPhotoBulkActions({
 
   const applyUploaderName = () =>
     runBusy(async () => {
-      const request = buildBulkUploaderRequest({
-        photos: selectedPhotos,
-        uploaderName: bulkUploaderName,
-      });
-      const payload = await adminRequest("/admin/api/photo-uploaders", {
-        method: "PATCH",
-        body: request,
-        timeoutMs: 120_000,
-      });
-      const saved = successfulBulkUploaderResults(payload);
-      const savedIds = new Set(saved.map((entry) => entry.id));
-      const missingIds = Array.isArray(payload.missingIds)
-        ? payload.missingIds.map(String)
-        : [];
+      if (selectedPhotos.length === 0) {
+        setError("請先選取至少一張照片。");
+        return;
+      }
 
+      const saved = [];
+      const missingIds = [];
+      let normalizedUploaderName = "";
+      for (const photoChunk of chunkBulkItems(selectedPhotos, 100)) {
+        const request = buildBulkUploaderRequest({
+          photos: photoChunk,
+          uploaderName: bulkUploaderName,
+        });
+        normalizedUploaderName = request.uploaderName;
+        const payload = await adminRequest("/admin/api/photo-uploaders", {
+          method: "PATCH",
+          body: request,
+          timeoutMs: 120_000,
+        });
+        saved.push(...successfulBulkUploaderResults(payload));
+        if (Array.isArray(payload.missingIds)) {
+          missingIds.push(...payload.missingIds.map(String));
+        }
+      }
+
+      const savedIds = new Set(saved.map((entry) => entry.id));
       if (saved.length > 0) {
         setPhotos((current) => mergeUpdatedUploaders(current, saved));
         mergeUploaderDrafts(setPhotoDrafts, saved);
@@ -149,7 +175,9 @@ export default function AdminPhotoBulkActions({
           `${saved.length} 張已更新，${missingIds.length} 張已不存在或無法修改。`,
         );
       } else {
-        setMessage(`已將 ${saved.length} 張照片的上傳者改為「${request.uploaderName}」。`);
+        setMessage(
+          `已將 ${saved.length} 張照片的上傳者改為「${normalizedUploaderName}」。`,
+        );
       }
     });
 
@@ -163,27 +191,34 @@ export default function AdminPhotoBulkActions({
         photos: selectedPhotos,
         albumMode,
         albumIds,
-        categoryMode,
-        categoryId,
+        labelMode,
+        labelId,
+        selectedLabel,
       });
       if (updates.length === 0) {
-        setMessage("所選照片已經符合這些分類設定。");
+        setMessage("所選照片已經符合這些相簿與子分類／標籤設定。");
         return;
       }
 
-      const payload = await adminRequest("/admin/api/changes", {
-        method: "PATCH",
-        body: {
-          albums: { create: [], update: [] },
-          categories: { create: [], update: [] },
-          photos: { update: updates },
-        },
-        timeoutMs: 120_000,
-      });
-      const saved = successfulBulkPhotoResults(payload);
-      const savedIds = new Set(saved.map((entry) => entry.id));
-      const failed = (payload.results ?? []).filter((result) => result.status === "error");
+      const saved = [];
+      const failed = [];
+      for (const updateChunk of chunkBulkItems(updates, 500)) {
+        const payload = await adminRequest("/admin/api/changes", {
+          method: "PATCH",
+          body: {
+            albums: { create: [], update: [] },
+            categories: { create: [], update: [] },
+            photos: { update: updateChunk },
+          },
+          timeoutMs: 120_000,
+        });
+        saved.push(...successfulBulkPhotoResults(payload));
+        failed.push(
+          ...(payload.results ?? []).filter((result) => result.status === "error"),
+        );
+      }
 
+      const savedIds = new Set(saved.map((entry) => entry.id));
       if (saved.length > 0) {
         setPhotos((current) => mergeUpdatedPhotos(current, saved));
         clearDrafts(setPhotoDrafts, savedIds);
@@ -198,7 +233,7 @@ export default function AdminPhotoBulkActions({
           ].join("；")}`,
         );
       } else {
-        setMessage(`已更新 ${saved.length} 張照片的分類。`);
+        setMessage(`已更新 ${saved.length} 張照片的相簿與子分類／標籤。`);
       }
     });
 
@@ -220,7 +255,7 @@ export default function AdminPhotoBulkActions({
         ? `\n\n另有 ${protectedCount} 張婚禮攝影照片受保護，將自動略過。`
         : "";
       const confirmed = window.confirm(
-        `確定永久刪除 ${targets.length} 張照片嗎？\n\n原圖、縮圖、所有相簿／流程關聯與資料庫紀錄都會立即刪除，無法復原。${protectedNote}`,
+        `確定永久刪除 ${targets.length} 張照片嗎？\n\n原圖、縮圖、所有相簿／子分類標籤關聯與資料庫紀錄都會立即刪除，無法復原。${protectedNote}`,
       );
       if (!confirmed) return;
 
@@ -282,6 +317,7 @@ export default function AdminPhotoBulkActions({
           <strong>批次處理</strong>
           <p>
             已選取 {selectedPhotos.length} 張
+            {allFilteredSelected ? "（包含尚未顯示的所有篩選結果）" : ""}
             {protectedCount ? `，其中 ${protectedCount} 張婚禮攝影照片不可刪除` : ""}。
           </p>
         </div>
@@ -293,7 +329,18 @@ export default function AdminPhotoBulkActions({
             }
             disabled={disabled || visiblePhotos.length === 0}
           >
-            {allVisibleSelected ? "取消全選" : "全選目前結果"}
+            {allVisibleSelected ? "取消全選目前結果" : "全選目前已顯示結果"}
+          </button>
+          <button
+            type="button"
+            onClick={() => void onSelectAllFiltered?.()}
+            disabled={disabled || selectingAllFiltered || filteredCount === 0}
+          >
+            {selectingAllFiltered
+              ? "正在選取所有篩選照片…"
+              : allFilteredSelected
+                ? `已選取所有 ${filteredCount} 張篩選照片`
+                : "套用設定到所有篩選照片"}
           </button>
           <button
             type="button"
@@ -345,32 +392,45 @@ export default function AdminPhotoBulkActions({
           </select>
         </label>
         <label>
-          流程分類動作
+          子分類／標籤動作
           <select
-            value={categoryMode}
-            onChange={(event) => setCategoryMode(event.target.value)}
+            value={labelMode}
+            onChange={(event) => setLabelMode(event.target.value)}
             disabled={disabled}
           >
-            <option value="keep">保留目前流程分類</option>
-            <option value="replace">更改流程分類</option>
+            <option value="keep">保留目前子分類／標籤</option>
+            <option value="replace">更改子分類／標籤</option>
           </select>
         </label>
         <label>
-          新的流程分類
+          新的子分類／標籤
           <select
-            value={categoryId}
-            onChange={(event) => setCategoryId(event.target.value)}
-            disabled={disabled || categoryMode !== "replace"}
+            value={labelId}
+            onChange={(event) => setLabelId(event.target.value)}
+            disabled={disabled || labelMode !== "replace"}
           >
-            <option value="">清除流程分類</option>
-            {categories.map((category) => (
-              <option key={category.id} value={category.id}>
-                {String(category.displayOrder).padStart(2, "0")} {category.labelZh}
-              </option>
+            <option value="">清除子分類／標籤</option>
+            {labelGroups.map((group) => (
+              <optgroup key={group.album.id} label={group.album.titleZh}>
+                {group.labels.map((label) => (
+                  <option key={label.id} value={label.id}>
+                    {String(label.displayOrder).padStart(2, "0")} {label.labelZh}
+                  </option>
+                ))}
+              </optgroup>
             ))}
           </select>
         </label>
       </div>
+
+      {labelMode === "replace" && selectedLabel && (
+        <p className="admin-photo-inline-status">
+          選取此標籤時，系統會確保照片同時屬於「
+          {albums.find((album) => album.id === selectedLabel.albumId)?.titleZh ||
+            selectedLabel.albumId}
+          」相簿。
+        </p>
+      )}
 
       {albumMode !== "keep" && (
         <fieldset className="admin-photo-bulk-albums" disabled={disabled}>
@@ -395,10 +455,10 @@ export default function AdminPhotoBulkActions({
           disabled={
             disabled ||
             selectedPhotos.length === 0 ||
-            (albumMode === "keep" && categoryMode === "keep")
+            (albumMode === "keep" && labelMode === "keep")
           }
         >
-          套用分類到 {selectedPhotos.length || ""} 張
+          套用設定到 {selectedPhotos.length || ""} 張
         </button>
         <button
           className="danger"

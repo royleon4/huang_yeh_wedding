@@ -53,13 +53,13 @@ function photo({ id, uploaderName, albumIds, processIds = [] }) {
   };
 }
 
-test("administrators can combine album, process, and author filters", async () => {
+test("administrators can combine album, label, and author filters", async () => {
   const repository = new MemoryPhotoRepository([
     photo({
       id: "photo-1",
       uploaderName: "小安",
-      albumIds: ["wedding"],
-      processIds: ["ceremony"],
+      albumIds: ["life"],
+      processIds: ["daily"],
     }),
     photo({
       id: "photo-2",
@@ -77,15 +77,47 @@ test("administrators can combine album, process, and author filters", async () =
 
   await withApi(api, async (origin) => {
     const response = await fetch(
-      `${origin}/admin/api/photos?albumId=wedding&categoryId=ceremony&uploaderName=${encodeURIComponent("小安")}`,
+      `${origin}/admin/api/photos?albumId=life&labelId=daily&uploaderName=${encodeURIComponent("小安")}`,
       { headers: { Cookie: adminCookie() } },
     );
     assert.equal(response.status, 200);
     const payload = await response.json();
     assert.deepEqual(payload.photos.map((item) => item.id), ["photo-1"]);
+    assert.equal(payload.total, 1);
     assert.equal(payload.photos[0].uploaderName, "小安");
-    assert.deepEqual(payload.photos[0].albumIds, ["wedding"]);
-    assert.deepEqual(payload.photos[0].categoryIds, ["ceremony"]);
+    assert.deepEqual(payload.photos[0].albumIds, ["life"]);
+    assert.deepEqual(payload.photos[0].categoryIds, ["daily"]);
+  });
+});
+
+test("selection mode pages through every filtered photo even without visible filters", async () => {
+  const repository = new MemoryPhotoRepository([
+    photo({ id: "photo-1", uploaderName: "小安", albumIds: ["guest"] }),
+    photo({ id: "photo-2", uploaderName: "小安", albumIds: ["life"] }),
+    photo({ id: "photo-3", uploaderName: "婚禮攝影", albumIds: ["wedding"] }),
+  ]);
+  const api = createAdminPhotoFilterApi({ repository, adminToken });
+
+  await withApi(api, async (origin) => {
+    const first = await fetch(
+      `${origin}/admin/api/photos?selection=all&limit=2`,
+      { headers: { Cookie: adminCookie() } },
+    );
+    assert.equal(first.status, 200);
+    const firstPayload = await first.json();
+    assert.equal(firstPayload.total, 3);
+    assert.equal(firstPayload.photos.length, 2);
+    assert.ok(firstPayload.nextCursor);
+
+    const second = await fetch(
+      `${origin}/admin/api/photos?selection=all&limit=2&cursor=${encodeURIComponent(firstPayload.nextCursor)}`,
+      { headers: { Cookie: adminCookie() } },
+    );
+    assert.equal(second.status, 200);
+    const secondPayload = await second.json();
+    assert.equal(secondPayload.total, 3);
+    assert.equal(secondPayload.photos.length, 1);
+    assert.equal(secondPayload.nextCursor, null);
   });
 });
 
