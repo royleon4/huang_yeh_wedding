@@ -6,6 +6,7 @@
 > **Reviewed:** 2026-08-01T19:33:00+08:00 (Asia/Taipei)  
 > **Documentation index:** [`DOCUMENTATION.md`](DOCUMENTATION.md)  
 > **Developer handoff:** [`MAINTAINER_GUIDE.md`](MAINTAINER_GUIDE.md)  
+> **Production → Development database runbook:** [`docs/memories/production-to-development-database-runbook.md`](docs/memories/production-to-development-database-runbook.md)  
 > **Phase 1 closeout and next steps:** [`docs/phase-1-closeout-2026-08-01.md`](docs/phase-1-closeout-2026-08-01.md)
 
 ## Choose your role
@@ -17,6 +18,7 @@
 | Previous uploader | [`EASY_USER_GUIDE.md`](EASY_USER_GUIDE.md#我想管理自己上傳的照片) | Manage or permanently delete one uploaded batch |
 | Content administrator | [`ADMIN_GUIDE.md`](ADMIN_GUIDE.md) | Manage appearance, copy, albums, processes, photos and upload settings |
 | Deployment/operator | [`OPERATIONS_GUIDE.md`](OPERATIONS_GUIDE.md) | Replit, Drive, Secrets, migrations, releases and incidents |
+| Database copy/rollback operator | [`docs/memories/production-to-development-database-runbook.md`](docs/memories/production-to-development-database-runbook.md) | Back up Development, copy Production into Development, validate and roll back safely |
 | Developer/maintainer | [`MAINTAINER_GUIDE.md`](MAINTAINER_GUIDE.md) | Safe changes, tests, architecture risks and release discipline |
 | Detailed Memories developer | [`artifacts/memories-album/README.md`](artifacts/memories-album/README.md) | Current product, API, storage and implementation contracts |
 
@@ -152,6 +154,8 @@ artifacts/memories-album/db
 - Production listening starts only after the migration runner succeeds.
 - Rollback is normally a compatible code rollback or forward fix, not deletion of migration history.
 
+For the verified Production → Development backup, overwrite, validation and rollback process, use [`docs/memories/production-to-development-database-runbook.md`](docs/memories/production-to-development-database-runbook.md).
+
 ## Testing and current gaps
 
 Current CI includes:
@@ -188,6 +192,7 @@ The proposed order and suggested dates are documented in [`docs/phase-1-closeout
 - [Guest guide](EASY_USER_GUIDE.md)
 - [Administrator guide](ADMIN_GUIDE.md)
 - [Operations guide](OPERATIONS_GUIDE.md)
+- [Production → Development database backup, overwrite and rollback runbook](docs/memories/production-to-development-database-runbook.md)
 - [Standalone Memories technical contract](artifacts/memories-album/README.md)
 - [Test-suite conventions](artifacts/memories-album/test/README.md)
 - [Architecture debt audit](docs/code-health-audit-2026-07.md)
