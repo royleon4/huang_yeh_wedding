@@ -114,6 +114,26 @@
   margin-bottom: 0;
 }
 
+/*
+ * The Word import control adds another wide item to the existing toolbar.
+ * On desktop-sized editor columns, wrapping is the only layout change needed
+ * to keep every existing control inside the right edge without shrinking,
+ * reordering or recoloring any control. Mobile retains its established
+ * horizontal scrolling rules from rich-text-mobile.css.
+ */
+@media (min-width: 721px) {
+  .tiptap-toolbar {
+    flex-wrap: wrap;
+    align-content: flex-start;
+    overflow-x: visible;
+  }
+
+  .tiptap-toolbar-spacer {
+    flex: 1 1 0.5rem;
+    min-width: 0;
+  }
+}
+
 @media (max-width: 720px) {
   .process-word-document-toolbar {
     align-items: flex-start;
