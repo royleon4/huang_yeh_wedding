@@ -164,6 +164,8 @@ export function createAdminMessageApi({
               "YYYY-MM-DDTHH:mm",
               "ISO 8601 with timezone",
             ],
+            timeZonePolicy:
+              "Datetime values without a timezone use the administrator browser offset",
             maximumRows: 500,
           },
           messages: messages.map(adminMessagePayload),
@@ -173,7 +175,10 @@ export function createAdminMessageApi({
 
       if (request.method === "POST" && importPath) {
         const body = await readAdminJson(request, 1024 * 1024);
-        const parsed = parseMessageImport(body.content, { maximumRows: 500 });
+        const parsed = parseMessageImport(body.content, {
+          maximumRows: 500,
+          timeZoneOffsetMinutes: body.timeZoneOffsetMinutes,
+        });
         const messages = await repository.importMessages(
           parsed.map((entry) => ({
             id: createId(),
