@@ -14,8 +14,8 @@ import { publicBootstrapUiTransform } from "../public-bootstrap-ui-transform.mjs
 import { guestLabelsUiTransform } from "../guest-labels-ui-transform.mjs";
 import { guestFeaturedPhotosUiTransform } from "../guest-featured-photos-ui-transform.mjs";
 import { uploadSettingsUiTransform } from "../upload-settings-ui-transform.mjs";
-import { stableIdentityRoutesUiTransform } from "../stable-identity-routes-ui-transform.mjs";
 import { messageAlbumUiTransform } from "../message-album-ui-transform.mjs";
+import { stableIdentityRoutesUiTransform } from "../stable-identity-routes-ui-transform.mjs";
 
 const plugins = [
   adminPhotoUploaderUiTransform(),
@@ -31,8 +31,8 @@ const plugins = [
   guestLabelsUiTransform(),
   guestFeaturedPhotosUiTransform(),
   uploadSettingsUiTransform(),
-  stableIdentityRoutesUiTransform(),
   messageAlbumUiTransform(),
+  stableIdentityRoutesUiTransform(),
 ];
 
 async function transformed(relativePath) {
