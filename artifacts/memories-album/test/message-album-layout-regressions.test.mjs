@@ -117,7 +117,7 @@ test("public guestbook keeps the count and message sorting on one compact raised
   assert.match(album, /setSelectedSortMode\(normalizeAlbumPhotoSortMode\(sortMode\)\)/);
   assert.match(
     album,
-    /className="message-album-heading">\s*<span>\{countLabel\}<\/span>\s*<label className="message-sort-control">[\s\S]*?<\/label>\s*<\/div>/,
+    /className="message-album-toolbar">\s*<div className="message-album-heading">\s*<span>\{countLabel\}<\/span>\s*<\/div>\s*<label className="message-sort-control">[\s\S]*?<\/label>\s*<\/div>/,
   );
   assert.doesNotMatch(album, /className="message-sort-row"/);
   assert.match(album, /aria-label=\{t\.sortLabel\}/);
@@ -135,7 +135,7 @@ test("public guestbook keeps the count and message sorting on one compact raised
   assert.match(album, /Guest name: A–Z/);
   assert.match(
     styles,
-    /\.message-album-heading[\s\S]*?justify-content: space-between[\s\S]*?margin: -1\.25rem 0 1rem/,
+    /\.message-album-toolbar[\s\S]*?justify-content: space-between[\s\S]*?margin: -1\.25rem 0 1rem/,
   );
   assert.match(
     styles,
