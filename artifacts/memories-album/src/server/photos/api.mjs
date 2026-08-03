@@ -1,4 +1,5 @@
 import { Readable } from "node:stream";
+import { createPublicImageCache } from "./public-image-cache.mjs";
 
 const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -108,7 +109,17 @@ function shouldRepairThumbnail(error) {
   );
 }
 
-async function serveThumbnail({ response, photo, drive, thumbnailService }) {
+async function cachedThumbnail(thumbnailCache, drive, fileId) {
+  return thumbnailCache.load(fileId, () => drive.download(fileId));
+}
+
+async function serveThumbnail({
+  response,
+  photo,
+  drive,
+  thumbnailService,
+  thumbnailCache,
+}) {
   let current = photo;
   let lastError = null;
 
@@ -121,10 +132,16 @@ async function serveThumbnail({ response, photo, drive, thumbnailService }) {
       }
       current = await thumbnailService.ensurePhotoThumbnail(current);
     }
+    const cached = await cachedThumbnail(
+      thumbnailCache,
+      drive,
+      current.thumbnailDriveFileId,
+    );
     await pipeBody(
       response,
-      await drive.download(current.thumbnailDriveFileId),
+      cached.file,
       "public, max-age=31536000, immutable",
+      { "X-Memories-Thumbnail-Cache": cached.status },
     );
     return true;
   } catch (error) {
@@ -134,11 +151,19 @@ async function serveThumbnail({ response, photo, drive, thumbnailService }) {
   if (thumbnailService && shouldRepairThumbnail(lastError)) {
     try {
       current = await thumbnailService.repairPhotoThumbnail(current);
+      const cached = await cachedThumbnail(
+        thumbnailCache,
+        drive,
+        current.thumbnailDriveFileId,
+      );
       await pipeBody(
         response,
-        await drive.download(current.thumbnailDriveFileId),
+        cached.file,
         "public, max-age=31536000, immutable",
-        { "X-Memories-Thumbnail-Repaired": "1" },
+        {
+          "X-Memories-Thumbnail-Repaired": "1",
+          "X-Memories-Thumbnail-Cache": cached.status,
+        },
       );
       return true;
     } catch (error) {
@@ -167,9 +192,13 @@ export function createMemoriesPhotoApi({
   repository,
   drive,
   thumbnailService = null,
+  thumbnailCache = createPublicImageCache(),
 }) {
   if (!repository || !drive) {
     throw new Error("Photo repository and Drive storage are required");
+  }
+  if (!thumbnailCache || typeof thumbnailCache.load !== "function") {
+    throw new Error("A public thumbnail cache is required");
   }
 
   let sortRankCache = null;
@@ -268,7 +297,13 @@ export function createMemoriesPhotoApi({
       }
 
       if (variant === "thumbnail") {
-        return serveThumbnail({ response, photo, drive, thumbnailService });
+        return serveThumbnail({
+          response,
+          photo,
+          drive,
+          thumbnailService,
+          thumbnailCache,
+        });
       }
 
       if (!photo.driveFileId) {
