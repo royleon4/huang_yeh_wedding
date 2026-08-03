@@ -107,7 +107,7 @@ test("public and administrator guestbooks apply the album sort mode", async () =
   assert.doesNotMatch(panel, /\{messages\.map\(\(item\) =>/);
 });
 
-test("public guestbook exposes message-specific bilingual sorting without moving the count", async () => {
+test("public guestbook keeps the count and message sorting on one compact raised row", async () => {
   const [album, styles] = await Promise.all([
     source("src/client/MessageAlbum.jsx"),
     source("src/client/message-album.css"),
@@ -115,7 +115,11 @@ test("public guestbook exposes message-specific bilingual sorting without moving
 
   assert.match(album, /const \[selectedSortMode, setSelectedSortMode\] = useState/);
   assert.match(album, /setSelectedSortMode\(normalizeAlbumPhotoSortMode\(sortMode\)\)/);
-  assert.match(album, /className="message-album-heading">\s*<span>\{countLabel\}<\/span>\s*<\/div>\s*<div className="message-sort-row">/);
+  assert.match(
+    album,
+    /className="message-album-heading">\s*<span>\{countLabel\}<\/span>\s*<label className="message-sort-control">[\s\S]*?<\/label>\s*<\/div>/,
+  );
+  assert.doesNotMatch(album, /className="message-sort-row"/);
   assert.match(album, /aria-label=\{t\.sortLabel\}/);
   assert.match(album, /value=\{selectedSortMode\}/);
   assert.match(album, /隨機排列/);
@@ -129,7 +133,18 @@ test("public guestbook exposes message-specific bilingual sorting without moving
   assert.match(album, /Oldest messages first/);
   assert.match(album, /Message text: A–Z/);
   assert.match(album, /Guest name: A–Z/);
-  assert.match(styles, /\.message-sort-control select[\s\S]*?max-width: min\(16rem, 64vw\)/);
+  assert.match(
+    styles,
+    /\.message-album-heading[\s\S]*?justify-content: space-between[\s\S]*?margin: -1\.25rem 0 1rem/,
+  );
+  assert.match(
+    styles,
+    /\.message-sort-control select[\s\S]*?max-width: min\(16rem, 46vw\)/,
+  );
+  assert.match(
+    styles,
+    /@media \(max-width: 480px\)[\s\S]*?\.message-sort-control select[\s\S]*?max-width: 44vw/,
+  );
 });
 
 test("administrator guestbook import keeps a stable form reference across awaits", async () => {
