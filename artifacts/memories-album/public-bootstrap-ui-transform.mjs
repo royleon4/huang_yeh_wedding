@@ -50,8 +50,20 @@ function transformApp(source) {
   let code = replaceOnce(
     source,
     `import { DEFAULT_SITE_COPY, normalizeSiteCopy } from "../site-copy.mjs";`,
-    `import { normalizeSiteCopy } from "../site-copy.mjs";\nimport { getPublicBootstrap } from "./public-bootstrap.mjs";`,
+    `import { normalizeSiteCopy } from "../site-copy.mjs";\nimport { getPublicBootstrap } from "./public-bootstrap.mjs";\nimport { loadPublicPhotoFeed } from "./public-photo-feed.mjs";`,
     "public bootstrap app import",
+  );
+  code = replaceOnce(
+    code,
+    `  COLLECTION_DEFINITIONS,\n`,
+    ``,
+    "obsolete fallback album import",
+  );
+  code = replaceOnce(
+    code,
+    `  normalizePublicAlbums,\n`,
+    ``,
+    "obsolete album normalization import",
   );
   code = replaceOnce(
     code,
@@ -62,9 +74,9 @@ function transformApp(source) {
   code = replaceRange(
     code,
     `function fallbackAlbums() {`,
-    `async function fetchAllPhotos() {`,
+    `function Icon({ name }) {`,
     ``,
-    "duplicate album bootstrap helpers",
+    "duplicate public data helpers",
   );
   code = replaceOnce(
     code,
@@ -80,6 +92,12 @@ function transformApp(source) {
   );
   code = replaceOnce(
     code,
+    `  const [galleryError, setGalleryError] = useState(false);`,
+    `  const [galleryError, setGalleryError] = useState(false);\n  const [photoFeedComplete, setPhotoFeedComplete] = useState(false);`,
+    "progressive photo feed completion state",
+  );
+  code = replaceOnce(
+    code,
     `  const [galleryMediaOrder, setGalleryMediaOrder] = useState(() => [\n    ...DEFAULT_GALLERY_MEDIA_ORDER,\n  ]);\n  const [pinnedPhotoIdsByProcess, setPinnedPhotoIdsByProcess] = useState({});`,
     `  const galleryMediaOrder =\n    initialPublicBootstrap.settings.galleryMediaOrder;\n  const pinnedPhotoIdsByProcess =\n    initialPublicBootstrap.settings.pinnedPhotoIdsByProcess;`,
     "preloaded gallery settings",
@@ -92,17 +110,10 @@ function transformApp(source) {
   );
   code = replaceRange(
     code,
-    `    void fetchAlbums()`,
-    `    void fetchAllPhotos()`,
-    ``,
-    "duplicate album request",
-  );
-  code = replaceRange(
-    code,
-    `  useEffect(() => {\n    let cancelled = false;\n    void fetch("/Memories/api/settings"`,
+    `  useEffect(() => {\n    if (runtimeState !== "ready") return undefined;`,
     `  const sourcePhotos =`,
-    ``,
-    "duplicate settings request",
+    `  useEffect(() => {\n    if (runtimeState !== "ready") return undefined;\n    let cancelled = false;\n    const controller = new AbortController();\n    setPhotoFeedComplete(false);\n\n    const exposeInitialPage = (photos) => {\n      if (cancelled) return;\n      if (photos.length > 0 || !useMockFallback) setRemotePhotos(photos);\n      setGalleryError(false);\n    };\n\n    void loadPublicPhotoFeed({\n      signal: controller.signal,\n      onInitialPage: exposeInitialPage,\n    })\n      .then((photos) => {\n        if (cancelled) return;\n        if (photos.length > 0 || !useMockFallback) setRemotePhotos(photos);\n        setPhotoFeedComplete(true);\n        setGalleryError(false);\n      })\n      .catch((error) => {\n        if (cancelled || error?.name === "AbortError") return;\n        setPhotoFeedComplete(true);\n        if (!useMockFallback) setGalleryError(true);\n      });\n\n    return () => {\n      cancelled = true;\n      controller.abort();\n    };\n  }, [runtimeState, useMockFallback]);\n\n`,
+    "progressive public photo loading",
   );
   return code;
 }
