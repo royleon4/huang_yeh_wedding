@@ -40,13 +40,42 @@ function localizedDate(value, lang) {
   }).format(date);
 }
 
+function MessageGrid({ messages, lang, copy, onCompose }) {
+  const gridRef = useMasonryLayout();
+
+  return (
+    <div ref={gridRef} className="masonry-grid message-grid">
+      <article className="photo-card message-action-card">
+        <button type="button" onClick={onCompose}>
+          <strong>{copy.add}</strong>
+          <span>{copy.addHint}</span>
+          <b aria-hidden="true">＋</b>
+        </button>
+      </article>
+
+      {messages.map((message) => (
+        <article className="photo-card message-card" key={message.id}>
+          <div className="message-card-body">
+            <p style={{ fontSize: readableFontSize(message.body) }}>
+              {message.body}
+            </p>
+          </div>
+          <footer>
+            <strong>{message.visitorName}</strong>
+            <small>{localizedDate(message.messageAt, lang)}</small>
+          </footer>
+        </article>
+      ))}
+    </div>
+  );
+}
+
 export default function MessageAlbum({ lang, albumId }) {
   const t = COPY[lang] ?? COPY.zh;
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [showComposer, setShowComposer] = useState(false);
-  const gridRef = useMasonryLayout();
 
   const loadMessages = async ({
     showLoading = true,
@@ -103,29 +132,12 @@ export default function MessageAlbum({ lang, albumId }) {
           </button>
         </div>
       ) : (
-        <div ref={gridRef} className="masonry-grid message-grid">
-          <article className="photo-card message-action-card">
-            <button type="button" onClick={() => setShowComposer(true)}>
-              <strong>{t.add}</strong>
-              <span>{t.addHint}</span>
-              <b aria-hidden="true">＋</b>
-            </button>
-          </article>
-
-          {messages.map((message) => (
-            <article className="photo-card message-card" key={message.id}>
-              <div className="message-card-body">
-                <p style={{ fontSize: readableFontSize(message.body) }}>
-                  {message.body}
-                </p>
-              </div>
-              <footer>
-                <strong>{message.visitorName}</strong>
-                <small>{localizedDate(message.messageAt, lang)}</small>
-              </footer>
-            </article>
-          ))}
-        </div>
+        <MessageGrid
+          messages={messages}
+          lang={lang}
+          copy={t}
+          onCompose={() => setShowComposer(true)}
+        />
       )}
 
       {!loading && !error && messages.length === 0 && (

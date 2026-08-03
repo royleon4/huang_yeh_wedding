@@ -66,6 +66,27 @@ export class PostgresMessageRepository {
     return mapRow(result.rows[0]);
   }
 
+  async updateVisibility({ id, albumId = "messages", visibility }) {
+    const result = await this.pool.query(
+      `UPDATE memories_messages
+       SET visibility = $3, updated_at = now()
+       WHERE id = $1 AND album_id = $2
+       RETURNING id, album_id, visitor_name, body, message_at, visibility, source`,
+      [id, albumId, visibility],
+    );
+    return result.rows[0] ? mapRow(result.rows[0]) : null;
+  }
+
+  async deleteMessage({ id, albumId = "messages" }) {
+    const result = await this.pool.query(
+      `DELETE FROM memories_messages
+       WHERE id = $1 AND album_id = $2
+       RETURNING id`,
+      [id, albumId],
+    );
+    return result.rows[0]?.id ?? null;
+  }
+
   async importMessages(messages) {
     const client =
       typeof this.pool.connect === "function" ? await this.pool.connect() : this.pool;

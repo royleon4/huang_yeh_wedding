@@ -39,6 +39,14 @@ function messagePayload(message) {
   };
 }
 
+function adminMessagePayload(message) {
+  return {
+    ...messagePayload(message),
+    visibility: message.visibility,
+    source: message.source,
+  };
+}
+
 async function singletonMessageAlbum(albumRepository, { publicOnly = false } = {}) {
   const albums = publicOnly
     ? await albumRepository.listPublicAlbums()
@@ -128,7 +136,10 @@ export function createAdminMessageApi({
   ) {
     const collectionPath = url.pathname === "/admin/api/settings/messages";
     const importPath = url.pathname === "/admin/api/settings/messages/import";
-    if (!collectionPath && !importPath) return false;
+    const itemMatch = url.pathname.match(
+      /^\/admin\/api\/settings\/messages\/([^/]+)$/,
+    );
+    if (!collectionPath && !importPath && !itemMatch) return false;
     if (!requireAdmin(request, response, adminToken, { mutate: request.method !== "GET" })) {
       return true;
     }
@@ -145,7 +156,7 @@ export function createAdminMessageApi({
             acceptedHeaders: ["name,message,date", "姓名,留言,日期"],
             maximumRows: 500,
           },
-          messages: messages.map(messagePayload),
+          messages: messages.map(adminMessagePayload),
         });
         return true;
       }
@@ -162,8 +173,39 @@ export function createAdminMessageApi({
         );
         sendAdminJson(response, 201, {
           imported: messages.length,
-          messages: messages.map(messagePayload),
+          messages: messages.map(adminMessagePayload),
         });
+        return true;
+      }
+
+      if (itemMatch && request.method === "PATCH") {
+        const body = await readAdminJson(request, 4 * 1024);
+        if (!['public', 'hidden'].includes(body.visibility)) {
+          throw apiError(
+            "visibility must be public or hidden",
+            422,
+            "INVALID_MESSAGE_VISIBILITY",
+          );
+        }
+        const message = await repository.updateVisibility({
+          id: decodeURIComponent(itemMatch[1]),
+          albumId: album.id,
+          visibility: body.visibility,
+        });
+        if (!message) {
+          throw apiError("Message not found", 404, "MESSAGE_NOT_FOUND");
+        }
+        sendAdminJson(response, 200, { message: adminMessagePayload(message) });
+        return true;
+      }
+
+      if (itemMatch && request.method === "DELETE") {
+        const id = decodeURIComponent(itemMatch[1]);
+        const deletedId = await repository.deleteMessage({ id, albumId: album.id });
+        if (!deletedId) {
+          throw apiError("Message not found", 404, "MESSAGE_NOT_FOUND");
+        }
+        sendAdminJson(response, 200, { deleted: true, id: deletedId });
         return true;
       }
 
