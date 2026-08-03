@@ -30,13 +30,15 @@ function readableFontSize(body) {
   return `${Math.max(18, Math.min(34, pixels)).toFixed(1)}px`;
 }
 
-function localizedDate(value, lang) {
+function localizedDateTime(value, lang) {
   const date = new Date(value);
   if (!Number.isFinite(date.getTime())) return "";
   return new Intl.DateTimeFormat(lang === "en" ? "en-NZ" : "zh-TW", {
     year: "numeric",
     month: "short",
     day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
   }).format(date);
 }
 
@@ -62,7 +64,7 @@ function MessageGrid({ messages, lang, copy, onCompose }) {
           </div>
           <footer>
             <strong>{message.visitorName}</strong>
-            <small>{localizedDate(message.messageAt, lang)}</small>
+            <small>{localizedDateTime(message.messageAt, lang)}</small>
           </footer>
         </article>
       ))}
