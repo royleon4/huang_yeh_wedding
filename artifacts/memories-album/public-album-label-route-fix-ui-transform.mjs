@@ -17,8 +17,8 @@ function transformApp(source) {
 
   code = replaceOnce(
     code,
-    `            <ProcessSelector\n              ariaLabel={activeCollectionDefinition?.[lang] ?? t.categories}`,
-    `            <ProcessSelector\n              albumId={activeCollection}\n              ariaLabel={activeCollectionDefinition?.[lang] ?? t.categories}`,
+    `            <ProcessSelector\n              language={lang}\n              ariaLabel={activeCollectionDefinition?.[lang] ?? t.categories}`,
+    `            <ProcessSelector\n              language={lang}\n              albumId={activeCollection}\n              ariaLabel={activeCollectionDefinition?.[lang] ?? t.categories}`,
     "album-owned label selector",
   );
 
