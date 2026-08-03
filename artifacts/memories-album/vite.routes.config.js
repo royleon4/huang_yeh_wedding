@@ -13,10 +13,20 @@ import { uploadSettingsUiTransform } from "./upload-settings-ui-transform.mjs";
 import { messageAlbumUiTransform } from "./message-album-ui-transform.mjs";
 import { stableIdentityRoutesUiTransform } from "./stable-identity-routes-ui-transform.mjs";
 
+const basePlugins = (baseConfig.plugins ?? []).flat(Infinity);
+
+const reactPlugins = basePlugins.filter((plugin) =>
+  String(plugin?.name ?? "").startsWith("vite:react"),
+);
+
+const nonReactBasePlugins = basePlugins.filter(
+  (plugin) => !String(plugin?.name ?? "").startsWith("vite:react"),
+);
+
 export default defineConfig({
   ...baseConfig,
   plugins: [
-    ...(baseConfig.plugins ?? []),
+    ...nonReactBasePlugins,
     logicalRouteUiTransform(),
     websiteCopyUiTransform(),
     adminPreviewPaginationUiTransform(),
@@ -29,5 +39,6 @@ export default defineConfig({
     uploadSettingsUiTransform(),
     messageAlbumUiTransform(),
     stableIdentityRoutesUiTransform(),
+    ...reactPlugins,
   ],
 });
