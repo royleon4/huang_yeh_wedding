@@ -2,12 +2,14 @@ import {
   DEFAULT_ALBUM_PHOTO_SORT_MODE,
   normalizeAlbumPhotoSortMode,
 } from "../../album-photo-order.mjs";
+import { normalizeAlbumType } from "../../album-types.mjs";
 
 const ALBUM_FIELDS = [
   "titleZh",
   "titleEn",
   "descriptionZh",
   "descriptionEn",
+  "albumType",
   "isVisible",
   "showSummary",
   "photoSortMode",
@@ -54,6 +56,7 @@ export function albumDraft(album) {
     titleEn: album.titleEn,
     descriptionZh: album.descriptionZh,
     descriptionEn: album.descriptionEn,
+    albumType: normalizeAlbumType(album.albumType),
     isVisible: album.isVisible,
     showSummary: album.showSummary !== false,
     photoSortMode: normalizeAlbumPhotoSortMode(
@@ -110,6 +113,7 @@ export function buildAdminChangeSet({
       changes: changedFields(
         {
           ...album,
+          albumType: normalizeAlbumType(album.albumType),
           showSummary: album.showSummary !== false,
           photoSortMode: normalizeAlbumPhotoSortMode(album.photoSortMode),
           featuredPhotosEnabled: album.featuredPhotosEnabled === true,
@@ -156,6 +160,7 @@ export function buildAdminChangeSet({
           clientId: "new-album",
           values: {
             ...newAlbum,
+            albumType: normalizeAlbumType(newAlbum.albumType),
             photoSortMode: normalizeAlbumPhotoSortMode(newAlbum.photoSortMode),
             featuredPhotosEnabled: newAlbum.featuredPhotosEnabled === true,
             featuredPhotoMin: Number(newAlbum.featuredPhotoMin ?? 1),
