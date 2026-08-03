@@ -2,15 +2,31 @@ import {
   DEFAULT_ALBUM_PHOTO_SORT_MODE,
   normalizeAlbumPhotoSortMode,
 } from "../../../album-photo-order.mjs";
+import { normalizeAlbumType } from "../../../album-types.mjs";
 
 function clone(album) {
   return {
     ...album,
+    albumType: normalizeAlbumType(album.albumType),
     showSummary: album.showSummary !== false,
     photoSortMode: normalizeAlbumPhotoSortMode(
       album.photoSortMode ?? DEFAULT_ALBUM_PHOTO_SORT_MODE,
     ),
   };
+}
+
+function assertMessageSingleton(albums, album, currentId = null) {
+  if (normalizeAlbumType(album.albumType) !== "message") return;
+  if (
+    albums.some(
+      (item) =>
+        item.id !== currentId && normalizeAlbumType(item.albumType) === "message",
+    )
+  ) {
+    const error = new Error("Only one Guestbook message album is allowed");
+    error.code = "MESSAGE_ALBUM_EXISTS";
+    throw error;
+  }
 }
 
 export class MemoryAlbumRepository {
@@ -40,6 +56,7 @@ export class MemoryAlbumRepository {
       error.code = "ALBUM_EXISTS";
       throw error;
     }
+    assertMessageSingleton(this.#albums, album);
     const nextOrder =
       this.#albums.reduce(
         (highest, item) => Math.max(highest, item.displayOrder),
@@ -47,6 +64,7 @@ export class MemoryAlbumRepository {
       ) + 1;
     const stored = {
       ...album,
+      albumType: normalizeAlbumType(album.albumType),
       displayOrder: nextOrder,
       isVisible: album.isVisible !== false,
       isSystem: album.isSystem === true,
@@ -60,9 +78,21 @@ export class MemoryAlbumRepository {
   async updateAlbum(album) {
     const index = this.#albums.findIndex((item) => item.id === album.id);
     if (index < 0) return null;
+    const existing = this.#albums[index];
+    if (
+      existing.isSystem &&
+      normalizeAlbumType(existing.albumType) === "message" &&
+      normalizeAlbumType(album.albumType) !== "message"
+    ) {
+      const error = new Error("The system Guestbook album type cannot be changed");
+      error.code = "MESSAGE_ALBUM_REQUIRED";
+      throw error;
+    }
+    assertMessageSingleton(this.#albums, album, album.id);
     this.#albums[index] = {
-      ...this.#albums[index],
+      ...existing,
       ...album,
+      albumType: normalizeAlbumType(album.albumType),
       showSummary: album.showSummary !== false,
       photoSortMode: normalizeAlbumPhotoSortMode(album.photoSortMode),
     };
