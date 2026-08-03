@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { spawn, spawnSync } from "node:child_process";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, readFile, rm } from "node:fs/promises";
 import http from "node:http";
 import os from "node:os";
 import path from "node:path";
@@ -62,6 +62,37 @@ async function waitForUrl(url, label) {
     await sleep(100);
   }
   throw new Error(`${label} did not start: ${lastError?.message ?? "unknown error"}`);
+}
+
+async function buildProductionBundle(outputDirectory) {
+  const output = [];
+  const build = spawn(
+    process.execPath,
+    [
+      path.join(root, "node_modules/vite/bin/vite.js"),
+      "build",
+      "--config",
+      "vite.routes.config.js",
+      "--outDir",
+      outputDirectory,
+      "--emptyOutDir",
+    ],
+    { cwd: root, stdio: ["ignore", "pipe", "pipe"] },
+  );
+  for (const stream of [build.stdout, build.stderr]) {
+    stream.setEncoding("utf8");
+    stream.on("data", (chunk) => {
+      output.push(chunk);
+      if (output.length > 100) output.shift();
+    });
+  }
+  const exitCode = await new Promise((resolve, reject) => {
+    build.once("error", reject);
+    build.once("close", resolve);
+  });
+  if (exitCode !== 0) {
+    throw new Error(`Guestbook production build failed (${exitCode})\n${output.join("")}`);
+  }
 }
 
 class CdpClient {
@@ -139,7 +170,18 @@ async function waitForGuestbook(client) {
     if (ready) return;
     await sleep(100);
   }
-  throw new Error("Guestbook cards never received measured masonry spans");
+  const state = await evaluate(
+    client,
+    `({
+      title: document.title,
+      body: document.body?.innerText?.slice(0, 1000),
+      cards: document.querySelectorAll('.message-card').length,
+      error: document.querySelector('[role="alert"]')?.textContent,
+    })`,
+  );
+  throw new Error(
+    `Guestbook cards never received measured masonry spans: ${JSON.stringify(state)}`,
+  );
 }
 
 function sendJson(response, value, delay = 0) {
@@ -232,6 +274,43 @@ function publicApiResponse(url, response) {
   return false;
 }
 
+const CONTENT_TYPES = new Map([
+  [".html", "text/html; charset=utf-8"],
+  [".js", "text/javascript; charset=utf-8"],
+  [".css", "text/css; charset=utf-8"],
+  [".json", "application/json; charset=utf-8"],
+  [".svg", "image/svg+xml"],
+  [".png", "image/png"],
+  [".webp", "image/webp"],
+  [".ico", "image/x-icon"],
+  [".woff2", "font/woff2"],
+]);
+
+async function serveProductionFile(outputDirectory, url, response) {
+  const relativePath = decodeURIComponent(url.pathname.slice("/Memories/".length));
+  const requestedPath = relativePath && path.extname(relativePath)
+    ? relativePath
+    : "index.html";
+  const absolutePath = path.resolve(outputDirectory, requestedPath);
+  const safeRoot = `${path.resolve(outputDirectory)}${path.sep}`;
+  if (!absolutePath.startsWith(safeRoot)) {
+    response.writeHead(403);
+    response.end();
+    return;
+  }
+  try {
+    const content = await readFile(absolutePath);
+    response.writeHead(200, {
+      "content-type": CONTENT_TYPES.get(path.extname(absolutePath)) ?? "application/octet-stream",
+      "cache-control": "no-store",
+    });
+    response.end(content);
+  } catch {
+    response.writeHead(404, { "content-type": "text/plain; charset=utf-8" });
+    response.end("Not found");
+  }
+}
+
 async function stopProcess(process) {
   if (!process || process.exitCode !== null) return;
   process.kill("SIGTERM");
@@ -240,68 +319,35 @@ async function stopProcess(process) {
 }
 
 async function main() {
-  const vitePort = await freePort();
-  const viteOutput = [];
-  const vite = spawn(
-    process.execPath,
-    [
-      path.join(root, "node_modules/vite/bin/vite.js"),
-      "--config",
-      "vite.routes.config.js",
-      "--host",
-      host,
-      "--port",
-      String(vitePort),
-      "--strictPort",
-    ],
-    { cwd: root, stdio: ["ignore", "ignore", "pipe"] },
-  );
-  vite.stderr.setEncoding("utf8");
-  vite.stderr.on("data", (chunk) => {
-    viteOutput.push(chunk);
-    if (viteOutput.length > 30) viteOutput.shift();
-  });
-
-  let proxy;
+  const buildRoot = await mkdtemp(path.join(os.tmpdir(), "memories-guestbook-build-"));
+  const outputDirectory = path.join(buildRoot, "public");
+  let server;
   let chrome;
   let client;
   let userDataDirectory;
   try {
-    await waitForUrl(`http://${host}:${vitePort}/Memories/`, "Vite server");
+    await buildProductionBundle(outputDirectory);
 
-    proxy = http.createServer((request, response) => {
+    server = http.createServer(async (request, response) => {
       const url = new URL(request.url ?? "/", `http://${host}`);
       if (publicApiResponse(url, response)) return;
-
-      const upstream = http.request(
-        {
-          hostname: host,
-          port: vitePort,
-          method: request.method,
-          path: request.url,
-          headers: { ...request.headers, host: `${host}:${vitePort}` },
-        },
-        (upstreamResponse) => {
-          response.writeHead(
-            upstreamResponse.statusCode ?? 502,
-            upstreamResponse.headers,
-          );
-          upstreamResponse.pipe(response);
-        },
-      );
-      upstream.on("error", (error) => {
-        response.writeHead(502, { "content-type": "text/plain" });
-        response.end(error.message);
-      });
-      request.pipe(upstream);
+      if (url.pathname === "/Memories" || url.pathname === "/Memories/") {
+        await serveProductionFile(outputDirectory, new URL("/Memories/index.html", url), response);
+        return;
+      }
+      if (url.pathname.startsWith("/Memories/")) {
+        await serveProductionFile(outputDirectory, url, response);
+        return;
+      }
+      response.writeHead(404);
+      response.end();
     });
-    const proxyPort = await listen(proxy);
+    const serverPort = await listen(server);
 
     const debuggerPort = await freePort();
     userDataDirectory = await mkdtemp(
       path.join(os.tmpdir(), "memories-guestbook-chrome-"),
     );
-    const chromeOutput = [];
     chrome = spawn(
       findChrome(),
       [
@@ -320,19 +366,13 @@ async function main() {
       ],
       { stdio: ["ignore", "ignore", "pipe"] },
     );
-    chrome.stderr.setEncoding("utf8");
-    chrome.stderr.on("data", (chunk) => {
-      chromeOutput.push(chunk);
-      if (chromeOutput.length > 30) chromeOutput.shift();
-    });
 
     await waitForUrl(
       `http://${host}:${debuggerPort}/json/version`,
       "Chrome debugger",
     );
-    const pageUrl = `http://${host}:${proxyPort}/Memories/?guestbook-browser-test=1`;
     const targetResponse = await fetch(
-      `http://${host}:${debuggerPort}/json/new?${encodeURIComponent(pageUrl)}`,
+      `http://${host}:${debuggerPort}/json/new?${encodeURIComponent("about:blank")}`,
       { method: "PUT" },
     );
     assert.equal(targetResponse.ok, true, "Chrome could not create a guestbook page");
@@ -346,7 +386,9 @@ async function main() {
       deviceScaleFactor: 1,
       mobile: true,
     });
-    await client.send("Page.reload", { ignoreCache: true });
+    await client.send("Page.navigate", {
+      url: `http://${host}:${serverPort}/Memories/?guestbook-browser-test=1`,
+    });
     await waitForGuestbook(client);
 
     const result = await evaluate(
@@ -393,22 +435,17 @@ async function main() {
       result.grid.height >= Math.max(...result.cards.map((card) => card.card.bottom)) - result.grid.top,
       "Guestbook grid does not contain its cards",
     );
-    console.log("Guestbook delayed-render Chrome layout check passed.");
-  } catch (error) {
-    if (viteOutput.length) {
-      console.error(viteOutput.join(""));
-    }
-    throw error;
+    console.log("Guestbook production delayed-render Chrome layout check passed.");
   } finally {
     client?.close();
     await stopProcess(chrome);
-    await stopProcess(vite);
-    if (proxy) {
-      await new Promise((resolve) => proxy.close(() => resolve()));
+    if (server) {
+      await new Promise((resolve) => server.close(() => resolve()));
     }
     if (userDataDirectory) {
       await rm(userDataDirectory, { recursive: true, force: true });
     }
+    await rm(buildRoot, { recursive: true, force: true });
   }
 }
 
