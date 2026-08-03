@@ -38,7 +38,7 @@ export default defineConfig({
     guestFeaturedPhotosUiTransform(),
     uploadSettingsUiTransform(),
     messageAlbumUiTransform(),
-    stableIdentityRoutesUiTransform(),
     ...reactPlugins,
+    stableIdentityRoutesUiTransform(),
   ],
 });
