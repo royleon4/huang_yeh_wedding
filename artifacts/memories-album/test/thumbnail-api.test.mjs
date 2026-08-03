@@ -38,7 +38,10 @@ async function withApi(
       downloads.push(fileId);
       if (download) return download(fileId);
       const body = Buffer.from(
-        fileId === "generated-thumbnail-id" ? "thumbnail" : "original",
+        fileId === "generated-thumbnail-id" ||
+          fileId === "existing-thumbnail-id"
+          ? "thumbnail"
+          : "original",
       );
       return {
         body,
@@ -84,11 +87,33 @@ test("thumbnail requests generate or attach a thumbnail before streaming", async
     assert.equal(response.status, 200);
     assert.equal(await response.text(), "thumbnail");
     assert.deepEqual(context.downloads, ["generated-thumbnail-id"]);
+    assert.equal(response.headers.get("x-memories-thumbnail-cache"), "miss");
     assert.equal(
       response.headers.get("cache-control"),
       "public, max-age=31536000, immutable",
     );
   });
+});
+
+test("repeated thumbnail requests reuse the bounded server hot cache", async () => {
+  await withApi(
+    {
+      photo: sourcePhoto({ thumbnailDriveFileId: "existing-thumbnail-id" }),
+    },
+    async (origin, context) => {
+      const url = `${origin}/Memories/api/photos/${photoId}/thumbnail`;
+      const first = await fetch(url);
+      assert.equal(first.status, 200);
+      assert.equal(await first.text(), "thumbnail");
+      assert.equal(first.headers.get("x-memories-thumbnail-cache"), "miss");
+
+      const second = await fetch(url);
+      assert.equal(second.status, 200);
+      assert.equal(await second.text(), "thumbnail");
+      assert.equal(second.headers.get("x-memories-thumbnail-cache"), "hit");
+      assert.deepEqual(context.downloads, ["existing-thumbnail-id"]);
+    },
+  );
 });
 
 test("a stale Drive thumbnail id is cleared, rebuilt, and persisted", async () => {
@@ -123,6 +148,7 @@ test("a stale Drive thumbnail id is cleared, rebuilt, and persisted", async () =
       assert.equal(response.status, 200);
       assert.equal(await response.text(), "repaired-thumbnail");
       assert.equal(response.headers.get("x-memories-thumbnail-repaired"), "1");
+      assert.equal(response.headers.get("x-memories-thumbnail-cache"), "miss");
       assert.equal(repaired, 1);
       assert.deepEqual(context.downloads, [
         "missing-thumbnail-id",
@@ -152,13 +178,18 @@ test("a broken thumbnail temporarily serves the original instead of a blank card
   });
 });
 
-test("media requests stream the original only after the photo is opened", async () => {
+test("media requests remain streamed and are never stored in the thumbnail cache", async () => {
   await withApi({}, async (origin, context) => {
-    const response = await fetch(
-      `${origin}/Memories/api/photos/${photoId}/media`,
-    );
-    assert.equal(response.status, 200);
-    assert.equal(await response.text(), "original");
-    assert.deepEqual(context.downloads, ["private-original-id"]);
+    const url = `${origin}/Memories/api/photos/${photoId}/media`;
+    for (let index = 0; index < 2; index += 1) {
+      const response = await fetch(url);
+      assert.equal(response.status, 200);
+      assert.equal(await response.text(), "original");
+      assert.equal(response.headers.get("x-memories-thumbnail-cache"), null);
+    }
+    assert.deepEqual(context.downloads, [
+      "private-original-id",
+      "private-original-id",
+    ]);
   });
 });
