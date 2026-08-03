@@ -114,7 +114,10 @@ test("public guestbook keeps the count and message sorting on one compact raised
   ]);
 
   assert.match(album, /const \[selectedSortMode, setSelectedSortMode\] = useState/);
-  assert.match(album, /setSelectedSortMode\(normalizeAlbumPhotoSortMode\(sortMode\)\)/);
+  assert.match(
+    album,
+    /messageSortModeFromSearch\(window\.location\.search, sortMode\)/,
+  );
   assert.match(
     album,
     /className="message-album-toolbar">\s*<div className="message-album-heading">\s*<span>\{countLabel\}<\/span>\s*<\/div>\s*<label className="message-sort-control">[\s\S]*?<\/label>\s*<\/div>/,
