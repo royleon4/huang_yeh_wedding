@@ -52,10 +52,34 @@
   max-width: 100%;
 }
 
+.admin-message-hidden {
+  opacity: 0.72;
+}
+
+.admin-message-status {
+  margin: 0.5rem 0 0;
+  font-weight: 700;
+}
+
+.admin-message-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+
+.admin-message-actions .button {
+  flex: 0 1 auto;
+}
+
 @media (max-width: 520px) {
   .admin-message-meta {
     align-items: flex-start;
     flex-direction: column;
     gap: 0.25rem;
+  }
+
+  .admin-message-actions .button {
+    flex: 1 1 10rem;
   }
 }
