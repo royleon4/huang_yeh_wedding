@@ -14,6 +14,27 @@ test("desktop editor toolbar wraps all controls inside the editor column", async
   assert.match(styles, /\.tiptap-toolbar-spacer\s*\{[\s\S]*flex: 1 1 0\.5rem/);
 });
 
+test("desktop attachment actions wrap instead of crossing the editor right edge", async () => {
+  const styles = await readFile(wordStylesUrl, "utf8");
+
+  assert.match(
+    styles,
+    /\.process-attachment-library-grid article\s*\{[\s\S]*flex-wrap: wrap/,
+  );
+  assert.match(
+    styles,
+    /\.process-attachment-library-actions\s*\{[\s\S]*flex-wrap: wrap/,
+  );
+  assert.match(
+    styles,
+    /\.process-attachment-library-actions\s*\{[\s\S]*max-width: 100%/,
+  );
+  assert.match(
+    styles,
+    /\.process-attachment-library-actions\s*\{[\s\S]*margin-inline-start: auto/,
+  );
+});
+
 test("mobile editor toolbar keeps its existing horizontal scrolling behavior", async () => {
   const styles = await readFile(mobileStylesUrl, "utf8");
 
