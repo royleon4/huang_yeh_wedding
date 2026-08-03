@@ -59,9 +59,26 @@ test("keeps People and Find me visible but disabled in Phase 1", () => {
 });
 
 test("photos explicitly assigned to Guest uploads are visible there", () => {
-  const guestPhotos = filterPhotos(MOCK_PHOTOS, "all", "guest");
-  assert.ok(guestPhotos.length > 0);
-  assert.ok(guestPhotos.every((photo) => photo.albumIds?.includes("guest")));
+  const photos = [
+    {
+      id: "explicit-guest",
+      source: "official",
+      collection: "wedding",
+      albumIds: ["wedding", "guest"],
+      processIds: [],
+    },
+    {
+      id: "not-guest",
+      source: "guest",
+      collection: "wedding",
+      albumIds: ["wedding"],
+      processIds: [],
+    },
+  ];
+  assert.deepEqual(
+    filterPhotos(photos, "all", "guest").map((photo) => photo.id),
+    ["explicit-guest"],
+  );
 });
 
 test("guest upload provenance does not imply Guest uploads membership", () => {
