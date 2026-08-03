@@ -171,11 +171,10 @@ export default function MessageAlbum({ lang, albumId, sortMode }) {
 
   return (
     <section className="message-album" aria-live="polite">
-      <div className="message-album-heading">
-        <span>{countLabel}</span>
-      </div>
-
-      <div className="message-sort-row">
+      <div className="message-album-toolbar">
+        <div className="message-album-heading">
+          <span>{countLabel}</span>
+        </div>
         <label className="message-sort-control">
           <span>{t.sortLabel}</span>
           <select
