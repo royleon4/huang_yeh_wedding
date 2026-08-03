@@ -73,8 +73,15 @@ function parseDelimited(text, delimiter) {
   return rows.filter((candidate) => candidate.some((value) => value.trim()));
 }
 
-function normalizedText(value, maximum, field, rowNumber) {
-  const text = String(value ?? "").normalize("NFKC").trim();
+function normalizedText(
+  value,
+  maximum,
+  field,
+  rowNumber,
+  { compatibilityNormalize = true } = {},
+) {
+  const raw = String(value ?? "");
+  const text = (compatibilityNormalize ? raw.normalize("NFKC") : raw).trim();
   const length = Array.from(text).length;
   if (!text || length > maximum) {
     const error = new Error(
@@ -131,7 +138,9 @@ export function parseMessageImport(content, { maximumRows = 500 } = {}) {
     const rowNumber = index + 2;
     return {
       visitorName: normalizedText(row[nameIndex], 80, "name", rowNumber),
-      body: normalizedText(row[messageIndex], 1000, "message", rowNumber),
+      body: normalizedText(row[messageIndex], 1000, "message", rowNumber, {
+        compatibilityNormalize: false,
+      }),
       messageAt: normalizedDate(dateIndex >= 0 ? row[dateIndex] : "", rowNumber),
     };
   });
