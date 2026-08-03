@@ -97,14 +97,19 @@ test("page document node is atomic, draggable and keeps source metadata", async 
 
 test("public content sanitizes and hydrates page document blocks", async () => {
   const publicContent = await readFile(publicContentUrl, "utf8");
+  const allowedTags = publicContent.match(
+    /const ALLOWED_TAGS = new Set\(\[([\s\S]*?)\]\);/,
+  )?.[1];
 
+  assert.ok(allowedTags);
   assert.match(publicContent, /process-page-document/);
   assert.match(publicContent, /SAFE_PAGE_DOCUMENT_KINDS/);
   assert.match(publicContent, /data-type", "page-document"/);
   assert.match(publicContent, /renderPageDocumentFromUrl/);
   assert.match(publicContent, /usePageDocumentPreviews/);
   assert.match(publicContent, /AbortController/);
-  assert.doesNotMatch(publicContent, /ALLOWED_TAGS[\s\S]*"IFRAME"/);
+  assert.doesNotMatch(allowedTags, /"IFRAME"/);
+  assert.match(publicContent, /\["SCRIPT", "STYLE", "IFRAME", "OBJECT", "EMBED", "FORM"\]/);
 });
 
 test("page document layout remains contained inside the existing article column", async () => {
