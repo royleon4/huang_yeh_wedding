@@ -5,6 +5,7 @@ import test from "node:test";
 import { fileURLToPath } from "node:url";
 import { adminPhotoUploaderUiTransform } from "../admin-photo-uploader-ui-transform.mjs";
 import { processContentUiTransform } from "../process-content-ui-transform.mjs";
+import { albumLabelsUiTransform } from "../album-labels-ui-transform.mjs";
 import { adminPhotoWorkspaceUiTransform } from "../admin-photo-workspace-ui-transform.mjs";
 import { logicalRouteUiTransform } from "../logical-route-ui-transform.mjs";
 import { websiteCopyUiTransform } from "../website-copy-ui-transform.mjs";
@@ -24,6 +25,7 @@ async function transformed(relativePath) {
   for (const plugin of [
     adminPhotoUploaderUiTransform(),
     processContentUiTransform(),
+    albumLabelsUiTransform(),
     adminPhotoWorkspaceUiTransform(),
     logicalRouteUiTransform(),
     websiteCopyUiTransform(),
@@ -36,7 +38,8 @@ async function transformed(relativePath) {
 
 test("administrator photo tab paginates previews ten at a time", async () => {
   const source = await transformed("src/client/AdminPhotoWorkspace.jsx");
-  assert.match(source, /URLSearchParams\(\{ limit: "10" \}\)/);
+  assert.match(source, /\{ limit = 10, selection = false \} = \{\}/);
+  assert.match(source, /limit: String\(limit\)/);
   assert.match(source, /const \[previewPage, setPreviewPage\] = useState\(0\)/);
   assert.match(source, /const start = previewPage \* 10/);
   assert.match(source, /visiblePhotos\.slice\(start, start \+ 10\)/);
@@ -49,6 +52,16 @@ test("administrator photo tab paginates previews ten at a time", async () => {
   assert.match(source, /loadPhotos\(\{ append: true, cursor \}\)/);
   assert.doesNotMatch(source, /ProgressivePreviewMoreButton/);
   assert.doesNotMatch(source, /useProgressivePreview/);
+});
+
+test("all-filtered selection keeps its explicit one-hundred-photo metadata pages", async () => {
+  const source = await transformed("src/client/AdminPhotoWorkspace.jsx");
+  assert.match(
+    source,
+    /buildPhotoQuery\(filters, cursor, \{ limit: 100, selection: true \}\)/,
+  );
+  assert.match(source, /query\.set\("selection", "all"\)/);
+  assert.match(source, /setSelectedIds\(uniquePhotos\.map\(\(photo\) => photo\.id\)\)/);
 });
 
 test("administrator photo preview grid uses five columns and ten cards per page", async () => {
