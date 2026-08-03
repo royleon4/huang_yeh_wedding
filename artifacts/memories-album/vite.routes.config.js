@@ -12,7 +12,7 @@ import { guestLabelsUiTransform } from "./guest-labels-ui-transform.mjs";
 import { guestFeaturedPhotosUiTransform } from "./guest-featured-photos-ui-transform.mjs";
 import { uploadSettingsUiTransform } from "./upload-settings-ui-transform.mjs";
 import { messageAlbumUiTransform } from "./message-album-ui-transform.mjs";
-import { stableIdentityRoutesUiTransform } from "./stable-identity-routes-ui-transform.mjs";
+import { stableIdentityRoutesSafeUiTransform } from "./stable-identity-routes-safe-ui-transform.mjs";
 
 const basePlugins = (baseConfig.plugins ?? []).flat(Infinity);
 
@@ -41,6 +41,6 @@ export default defineConfig({
     uploadSettingsUiTransform(),
     messageAlbumUiTransform(),
     ...reactPlugins,
-    stableIdentityRoutesUiTransform(),
+    stableIdentityRoutesSafeUiTransform(),
   ],
 });
