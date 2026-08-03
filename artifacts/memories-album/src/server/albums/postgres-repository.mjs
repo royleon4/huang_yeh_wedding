@@ -2,6 +2,7 @@ import {
   DEFAULT_ALBUM_PHOTO_SORT_MODE,
   normalizeAlbumPhotoSortMode,
 } from "../../../album-photo-order.mjs";
+import { normalizeAlbumType } from "../../../album-types.mjs";
 
 const SUMMARY_KEY_PREFIX = "album_summary_visible:";
 const PHOTO_SORT_KEY_PREFIX = "album_photo_sort:";
@@ -36,6 +37,7 @@ function mapRow(row) {
     titleEn: row.title_en,
     descriptionZh: row.description_zh,
     descriptionEn: row.description_en,
+    albumType: normalizeAlbumType(row.album_type),
     displayOrder: row.display_order,
     isVisible: row.is_visible,
     isSystem: row.is_system,
@@ -51,7 +53,7 @@ function mapRow(row) {
 
 function albumSelect(where = "") {
   return `SELECT a.id, a.title_zh, a.title_en, a.description_zh, a.description_en,
-                 a.display_order, a.is_visible, a.is_system,
+                 a.album_type, a.display_order, a.is_visible, a.is_system,
                  COALESCE((
                    SELECT setting.value = 'true'::jsonb
                    FROM memories_app_settings setting
@@ -149,22 +151,23 @@ export class PostgresAlbumRepository {
       await client.query("BEGIN");
       const result = await client.query(
         `INSERT INTO memories_albums (
-           id, title_zh, title_en, description_zh, description_en,
+           id, title_zh, title_en, description_zh, description_en, album_type,
            display_order, is_visible, is_system, created_at, updated_at
          )
          VALUES (
-           $1, $2, $3, $4, $5,
+           $1, $2, $3, $4, $5, $6,
            COALESCE((SELECT MAX(display_order) + 1 FROM memories_albums), 1),
-           $6, false, now(), now()
+           $7, false, now(), now()
          )
          RETURNING id, title_zh, title_en, description_zh, description_en,
-                   display_order, is_visible, is_system`,
+                   album_type, display_order, is_visible, is_system`,
         [
           album.id,
           album.titleZh,
           album.titleEn,
           album.descriptionZh,
           album.descriptionEn,
+          normalizeAlbumType(album.albumType),
           album.isVisible !== false,
         ],
       );
@@ -197,17 +200,19 @@ export class PostgresAlbumRepository {
              title_en = $3,
              description_zh = $4,
              description_en = $5,
-             is_visible = $6,
+             album_type = $6,
+             is_visible = $7,
              updated_at = now()
          WHERE id = $1
          RETURNING id, title_zh, title_en, description_zh, description_en,
-                   display_order, is_visible, is_system`,
+                   album_type, display_order, is_visible, is_system`,
         [
           album.id,
           album.titleZh,
           album.titleEn,
           album.descriptionZh,
           album.descriptionEn,
+          normalizeAlbumType(album.albumType),
           album.isVisible,
         ],
       );
