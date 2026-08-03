@@ -174,7 +174,13 @@
   overflow: hidden;
 }
 
-.process-page-document-pptx-stage > *,
+.process-page-document-pptx-stage > * {
+  box-sizing: border-box;
+  width: 100% !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+}
+
 .process-page-document-preview[data-document-kind="pptx"] > * {
   box-sizing: border-box;
   width: 100%;
