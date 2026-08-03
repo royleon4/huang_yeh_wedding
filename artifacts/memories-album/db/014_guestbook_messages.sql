@@ -1,3 +1,5 @@
+BEGIN;
+
 ALTER TABLE memories_albums
   ADD COLUMN IF NOT EXISTS album_type text;
 
@@ -84,3 +86,5 @@ CREATE INDEX IF NOT EXISTS memories_messages_public_order
 
 CREATE INDEX IF NOT EXISTS memories_messages_admin_order
   ON memories_messages (album_id, message_at DESC, id DESC);
+
+COMMIT;
