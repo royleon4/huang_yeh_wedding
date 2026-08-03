@@ -1,11 +1,13 @@
-name: Standalone Memories CI
+name: Standalone Memories Full CI
 
 on:
   pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
     paths:
       - "artifacts/memories-album/**"
       - "pnpm-workspace.yaml"
       - "pnpm-lock.yaml"
+      - ".github/workflows/memories-fast-ci.yml"
       - ".github/workflows/memories-ci.yml"
   push:
     branches: [main]
@@ -13,13 +15,20 @@ on:
       - "artifacts/memories-album/**"
       - "pnpm-workspace.yaml"
       - "pnpm-lock.yaml"
+      - ".github/workflows/memories-fast-ci.yml"
       - ".github/workflows/memories-ci.yml"
+  workflow_dispatch:
 
 permissions:
   contents: read
 
+concurrency:
+  group: memories-full-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
   test-and-build:
+    if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -46,7 +55,7 @@ jobs:
           set -o pipefail
           pnpm --filter @workspace/memories-album run test 2>&1 | tee memories-test-output.txt
 
-      - name: Validate responsive navigation in Chrome
+      - name: Validate focused browser layouts in Chrome
         run: pnpm --filter @workspace/memories-album run test:layout-browser
 
       - name: Preserve test output
