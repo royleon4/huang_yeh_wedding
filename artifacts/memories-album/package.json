@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite --config vite.routes.config.js --host 0.0.0.0",
-    "build": "vite build --config vite.routes.config.js && node scripts/build.mjs",
+    "build": "node scripts/ensure-build-dependencies.mjs && vite build --config vite.routes.config.js && node scripts/build.mjs",
     "start": "node dist/server.mjs",
     "test": "node --test",
     "test:layout-browser": "node scripts/verify-navigation-layout.mjs",
@@ -21,6 +21,8 @@
     "@tiptap/react": "3.29.2",
     "@tiptap/starter-kit": "3.29.2",
     "busboy": "1.6.0",
+    "docx-preview": "0.4.0",
+    "mammoth": "1.12.0",
     "pg": "^8.20.0",
     "react": "catalog:",
     "react-dom": "catalog:",

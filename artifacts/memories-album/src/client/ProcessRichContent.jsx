@@ -1,4 +1,7 @@
+import { useEffect, useMemo, useRef } from "react";
+import { renderWordDocumentFromUrl } from "./word-fidelity.mjs";
 import "./rich-text-formatting.css";
+import "./word-document.css";
 
 const ALLOWED_TAGS = new Set([
   "P",
@@ -33,6 +36,9 @@ const SAFE_CLASSES = new Set([
   "process-align-center",
   "process-align-right",
   "process-align-justify",
+  "process-word-document",
+  "process-word-document-preview",
+  "process-word-document-fallback",
 ]);
 const SAFE_TEXT_ALIGNMENTS = new Set(["left", "center", "right", "justify"]);
 
@@ -65,10 +71,16 @@ function safeTextAlignment(styleValue) {
   return SAFE_TEXT_ALIGNMENTS.has(alignment) ? alignment : "";
 }
 
+function safeMetadata(value, maxLength = 180) {
+  return String(value || "").normalize("NFKC").trim().slice(0, maxLength);
+}
+
 export function hasRichContent(value) {
   const html = String(value ?? "").trim();
   if (!html) return false;
-  if (/<(img|a)\b/i.test(html)) return true;
+  if (/<(img|a)\b/i.test(html) || /data-type=["']word-document["']/i.test(html)) {
+    return true;
+  }
   return html
     .replace(/<br\s*\/?\s*>/gi, "")
     .replace(/<[^>]+>/g, "")
@@ -100,15 +112,15 @@ export function sanitizeRichContent(value) {
       }
 
       const attributes = [...child.attributes];
-      const originalClassName = String(
-        attributes.find((item) => item.name === "class")?.value ?? "",
-      );
-      const originalStyle = attributes.find((item) => item.name === "style")?.value ?? "";
-      const originalWidth = attributes.find((item) => item.name === "data-width")?.value;
+      const attributeValue = (name) =>
+        attributes.find((item) => item.name === name)?.value ?? "";
+      const originalClassName = String(attributeValue("class"));
+      const originalStyle = attributeValue("style");
+      const originalWidth = attributeValue("data-width");
       for (const attribute of attributes) child.removeAttribute(attribute.name);
 
       if (child.tagName === "A") {
-        const href = safeUrl(attributes.find((item) => item.name === "href")?.value);
+        const href = safeUrl(attributeValue("href"));
         if (href) {
           child.setAttribute("href", href);
           child.setAttribute("target", "_blank");
@@ -119,18 +131,13 @@ export function sanitizeRichContent(value) {
         }
       }
       if (child.tagName === "IMG") {
-        const src = safeUrl(attributes.find((item) => item.name === "src")?.value, {
-          image: true,
-        });
+        const src = safeUrl(attributeValue("src"), { image: true });
         if (!src) {
           child.remove();
           continue;
         }
         child.setAttribute("src", src);
-        child.setAttribute(
-          "alt",
-          String(attributes.find((item) => item.name === "alt")?.value ?? ""),
-        );
+        child.setAttribute("alt", safeMetadata(attributeValue("alt"), 240));
         child.setAttribute("loading", "lazy");
         child.setAttribute("decoding", "async");
       }
@@ -154,11 +161,71 @@ export function sanitizeRichContent(value) {
         child.style.width = `${width}%`;
       }
 
+      const isWordDocument =
+        child.tagName === "DIV" && classNames.includes("process-word-document");
+      if (isWordDocument) {
+        const source = safeUrl(attributeValue("data-src"));
+        const downloadUrl = safeUrl(attributeValue("data-download-url")) || source;
+        if (!source) {
+          child.remove();
+          continue;
+        }
+        child.setAttribute("data-type", "word-document");
+        child.setAttribute("data-src", source);
+        child.setAttribute("data-download-url", downloadUrl);
+        child.setAttribute("data-attachment-id", safeMetadata(attributeValue("data-attachment-id"), 120));
+        child.setAttribute("data-name", safeMetadata(attributeValue("data-name")) || "Word 文件");
+        child.setAttribute(
+          "data-fidelity-reasons",
+          safeMetadata(attributeValue("data-fidelity-reasons"), 360),
+        );
+      }
+
+      if (
+        child.tagName === "DIV" &&
+        classNames.includes("process-word-document-preview")
+      ) {
+        child.setAttribute("aria-label", safeMetadata(attributeValue("aria-label"), 240));
+      }
+
       clean(child);
     }
   };
   clean(root);
   return root.innerHTML;
+}
+
+function useWordDocumentPreviews(rootRef, sanitized) {
+  useEffect(() => {
+    const root = rootRef.current;
+    if (!root) return undefined;
+    const controllers = [];
+    for (const documentElement of root.querySelectorAll(
+      ".process-word-document[data-type='word-document']",
+    )) {
+      const preview = documentElement.querySelector(".process-word-document-preview");
+      const source = documentElement.getAttribute("data-src");
+      if (!preview || !source) continue;
+      const controller = new AbortController();
+      controllers.push(controller);
+      documentElement.dataset.wordRenderState = "loading";
+      void renderWordDocumentFromUrl(
+        source,
+        preview,
+        preview,
+        controller.signal,
+      )
+        .then(() => {
+          documentElement.dataset.wordRenderState = "ready";
+        })
+        .catch(() => {
+          if (!controller.signal.aborted) {
+            documentElement.dataset.wordRenderState = "error";
+          }
+        });
+    }
+    return () => controllers.forEach((controller) => controller.abort());
+  }, [rootRef, sanitized]);
 }
 
 export function ProcessDivider({ paddingTop = 12, paddingBottom = 12 }) {
@@ -177,11 +244,13 @@ export function ProcessDivider({ paddingTop = 12, paddingBottom = 12 }) {
 }
 
 export default function ProcessRichContent({ html }) {
-  if (!hasRichContent(html)) return null;
-  const sanitized = sanitizeRichContent(html);
-  if (!hasRichContent(sanitized)) return null;
+  const rootRef = useRef(null);
+  const sanitized = useMemo(() => sanitizeRichContent(html), [html]);
+  useWordDocumentPreviews(rootRef, sanitized);
+  if (!hasRichContent(html) || !hasRichContent(sanitized)) return null;
   return (
     <section
+      ref={rootRef}
       className="process-rich-content"
       dangerouslySetInnerHTML={{ __html: sanitized }}
     />

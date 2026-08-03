@@ -5,9 +5,17 @@ import { BubbleMenu } from "@tiptap/react/menus";
 import StarterKit from "@tiptap/starter-kit";
 import { useEffect, useRef, useState } from "react";
 import { AttachmentCard, WeddingImage } from "./TiptapMediaNodes.jsx";
+import { WordDocument } from "./TiptapWordDocumentNode.jsx";
+import {
+  convertWordFileToHtml,
+  describeWordImport,
+  WORD_IMPORT_ACCEPT,
+  WORD_IMPORT_MAX_HTML_CHARACTERS,
+} from "./word-import.mjs";
 import "./rich-text-formatting.css";
 import "./rich-text-mobile.css";
 import "./rich-text-media-editor.css";
+import "./word-document.css";
 
 const ATTACHMENT_ACCEPT = [
   "image/jpeg",
@@ -87,7 +95,10 @@ function TextBubbleMenu({ editor }) {
       className="tiptap-bubble-menu"
       options={{ placement: "top", offset: 8 }}
       shouldShow={({ editor: current, from, to }) =>
-        from !== to && !current.isActive("weddingImage") && !current.isActive("attachmentCard")
+        from !== to &&
+        !current.isActive("weddingImage") &&
+        !current.isActive("attachmentCard") &&
+        !current.isActive("wordDocument")
       }
     >
       <ToolbarButton label="粗體" icon="B" active={editor.isActive("bold")} onClick={() => editor.chain().focus().toggleBold().run()} />
@@ -115,10 +126,13 @@ export default function RichTextEditor({
   ariaLabel,
 }) {
   const fileInputRef = useRef(null);
+  const wordInputRef = useRef(null);
   const onChangeRef = useRef(onChange);
   const lastEmittedRef = useRef("");
   const [uploading, setUploading] = useState(false);
+  const [importingWord, setImportingWord] = useState(false);
   const [uploadError, setUploadError] = useState("");
+  const [importMessage, setImportMessage] = useState("");
   const [, setRevision] = useState(0);
 
   useEffect(() => {
@@ -147,6 +161,7 @@ export default function RichTextEditor({
       }),
       WeddingImage,
       AttachmentCard,
+      WordDocument,
     ],
     content: prepareEditorHtml(value),
     editorProps: {
@@ -223,6 +238,7 @@ export default function RichTextEditor({
     if (!file || !onUploadAttachment || !editor) return;
     setUploading(true);
     setUploadError("");
+    setImportMessage("");
     try {
       const attachment = await onUploadAttachment(file);
       insertAttachment(attachment);
@@ -231,6 +247,53 @@ export default function RichTextEditor({
     } finally {
       setUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
+
+  const importWord = async (file) => {
+    if (!file || !editor) return;
+    setImportingWord(true);
+    setUploadError("");
+    setImportMessage("");
+    try {
+      const result = await convertWordFileToHtml(file, {
+        uploadImage: onUploadAttachment,
+        uploadDocument: onUploadAttachment,
+      });
+      const combinedLength =
+        Array.from(editor.getHTML()).length + Array.from(result.html).length;
+      if (combinedLength > WORD_IMPORT_MAX_HTML_CHARACTERS) {
+        throw new Error("匯入後的文章內容過長，請拆分 Word 文件後再匯入。");
+      }
+
+      if (result.mode === "fidelity") {
+        const attachment = result.documentAttachment;
+        editor
+          .chain()
+          .focus()
+          .insertContent([
+            {
+              type: "wordDocument",
+              attrs: {
+                attachmentId: attachment?.id || "",
+                name: attachment?.name || result.fileName,
+                src: attachment?.url || attachment?.downloadUrl || "",
+                downloadUrl: attachment?.downloadUrl || attachment?.url || "",
+                reasons: result.fidelity?.reasons?.join("、") || "條件式保真模式",
+              },
+            },
+            { type: "paragraph" },
+          ])
+          .run();
+      } else {
+        editor.chain().focus().insertContent(`${result.html}<p></p>`).run();
+      }
+      setImportMessage(describeWordImport(result));
+    } catch (error) {
+      setUploadError(error?.message || "Word 文件匯入失敗，請確認檔案後再試一次。");
+    } finally {
+      setImportingWord(false);
+      if (wordInputRef.current) wordInputRef.current.value = "";
     }
   };
 
@@ -309,10 +372,25 @@ export default function RichTextEditor({
 
           <span className="tiptap-toolbar-spacer" />
           <ToolbarButton
+            label={importingWord ? "匯入中" : "匯入 Word"}
+            icon={importingWord ? "…" : "W"}
+            wide
+            disabled={disabled || importingWord || uploading || !editor}
+            onClick={() => wordInputRef.current?.click()}
+          />
+          <input
+            ref={wordInputRef}
+            className="process-rich-file-input"
+            type="file"
+            accept={WORD_IMPORT_ACCEPT}
+            disabled={disabled || importingWord || uploading}
+            onChange={(event) => void importWord(event.target.files?.[0] ?? null)}
+          />
+          <ToolbarButton
             label={uploading ? "上傳中" : "加入圖片或附件"}
             icon={uploading ? "…" : "＋"}
             wide
-            disabled={disabled || uploading || !editor}
+            disabled={disabled || uploading || importingWord || !editor}
             onClick={() => fileInputRef.current?.click()}
           />
           <input
@@ -320,14 +398,14 @@ export default function RichTextEditor({
             className="process-rich-file-input"
             type="file"
             accept={ATTACHMENT_ACCEPT}
-            disabled={disabled || uploading}
+            disabled={disabled || uploading || importingWord}
             onChange={(event) => void upload(event.target.files?.[0] ?? null)}
           />
         </div>
       </div>
 
       <p className="tiptap-editor-hint">
-        反白文字可快速套用格式。手機請點選圖片或附件後使用移動與寬度控制；桌面仍可拖曳，並可拉動把手調整大小。
+        反白文字可快速套用格式。手機請點選圖片或附件後使用移動與寬度控制；桌面仍可拖曳，並可拉動把手調整大小。Word 匯入會自動判斷：一般文件轉成可編輯內容；含分頁、字型、表格、頁首頁尾、註腳或定位物件時，改用不干擾網站版面的保真文件區塊。
       </p>
 
       <div className="tiptap-editor-frame">
@@ -336,6 +414,7 @@ export default function RichTextEditor({
       </div>
 
       {uploadError && <p className="admin-form-error">{uploadError}</p>}
+      {importMessage && <p className="process-content-success" role="status">{importMessage}</p>}
 
       {attachments.length > 0 && (
         <details className="process-attachment-library">
