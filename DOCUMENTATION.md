@@ -59,6 +59,7 @@
 - 檢查 migration 與 health endpoint
 - 處理 Drive 權限、縮圖、啟動或部署問題
 - 判斷哪些資料可以從後台刪除、哪些不能直接在 Drive 操作
+- 依 [`docs/memories/production-to-development-database-runbook.md`](docs/memories/production-to-development-database-runbook.md) 備份 Development、以 Production 覆蓋 Development，或還原原本 Development
 
 ### 開發者／維護者
 
@@ -99,6 +100,7 @@
 | [`EASY_USER_GUIDE.md`](EASY_USER_GUIDE.md) | 親友、賓客、上傳者 | Current |
 | [`ADMIN_GUIDE.md`](ADMIN_GUIDE.md) | 管理員、內容編輯者 | Current |
 | [`OPERATIONS_GUIDE.md`](OPERATIONS_GUIDE.md) | 擁有者、部署與維運者 | Current |
+| [`docs/memories/production-to-development-database-runbook.md`](docs/memories/production-to-development-database-runbook.md) | Database copy／rollback operator | Current verified runbook |
 | [`README.md`](README.md) | 所有人 | Current repository entry |
 
 ### 開發、維護與交接
@@ -199,6 +201,7 @@ Repository、GitHub Issues、舊對話匯出與設計草稿中，可能仍看得
 
 - **我要操作網站**：讀角色指南。
 - **我要部署或救網站**：讀維運指南。
+- **我要把 Production database 覆蓋到 Development，或還原原本 Development**：讀 [`docs/memories/production-to-development-database-runbook.md`](docs/memories/production-to-development-database-runbook.md)。
 - **我要改程式**：讀 Maintainer Guide、技術 README 與對應專題文件。
 - **我要知道 Phase 1 留下什麼與下一步**：讀 Phase 1 closeout。
 - **我要知道以前為什麼這樣設計**：再看 Historical、Research、Issues 與日期型 audit。
