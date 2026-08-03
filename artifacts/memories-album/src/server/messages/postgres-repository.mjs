@@ -87,6 +87,16 @@ export class PostgresMessageRepository {
     return result.rows[0]?.id ?? null;
   }
 
+  async deleteAllMessages({ albumId = "messages" } = {}) {
+    const result = await this.pool.query(
+      `DELETE FROM memories_messages
+       WHERE album_id = $1
+       RETURNING id`,
+      [albumId],
+    );
+    return Number.isInteger(result.rowCount) ? result.rowCount : result.rows.length;
+  }
+
   async importMessages(messages) {
     const client =
       typeof this.pool.connect === "function" ? await this.pool.connect() : this.pool;
