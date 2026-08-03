@@ -78,6 +78,10 @@ test("public and administrator guestbooks show date and time to the minute", asy
   }
   assert.match(album, /localizedDateTime\(message\.messageAt, lang\)/);
   assert.match(panel, /formattedDateTime\(item\.messageAt\)/);
+  assert.match(
+    panel,
+    /timeZoneOffsetMinutes: new Date\(\)\.getTimezoneOffset\(\)/,
+  );
 });
 
 test("administrator guestbook cards expose hide, restore, and permanent delete", async () => {
