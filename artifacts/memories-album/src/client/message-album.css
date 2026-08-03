@@ -12,23 +12,26 @@
 
 .message-album-heading {
   display: flex;
-  justify-content: flex-end;
-  margin: 0 0 1rem;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  width: 100%;
+  max-width: 100%;
+  margin: -1.25rem 0 1rem;
   font-size: 0.9rem;
   opacity: 0.72;
 }
 
-.message-sort-row {
-  display: flex;
-  justify-content: flex-end;
-  width: 100%;
-  max-width: 100%;
-  margin: 0 0 1rem;
+.message-album-heading > span {
+  flex: 0 0 auto;
+  white-space: nowrap;
 }
 
 .message-sort-control {
   display: inline-flex;
+  flex: 1 1 auto;
   align-items: center;
+  justify-content: flex-end;
   gap: 0.4rem;
   max-width: 100%;
   font-size: 0.9rem;
@@ -41,7 +44,7 @@
 
 .message-sort-control select {
   width: auto;
-  max-width: min(16rem, 64vw);
+  max-width: min(16rem, 46vw);
   min-width: 0;
   font: inherit;
 }
@@ -175,6 +178,18 @@
 }
 
 @media (max-width: 480px) {
+  .message-album-heading {
+    gap: 0.5rem;
+  }
+
+  .message-sort-control {
+    gap: 0.25rem;
+  }
+
+  .message-sort-control select {
+    max-width: 44vw;
+  }
+
   .message-action-card,
   .message-action-card > button {
     min-height: 8rem;
