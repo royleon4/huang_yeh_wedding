@@ -17,6 +17,14 @@ function adminCookie() {
   }).header.split(";", 1)[0];
 }
 
+function adminHeaders({ json = false } = {}) {
+  return {
+    Cookie: adminCookie(),
+    "X-Memories-Admin": "1",
+    ...(json ? { "Content-Type": "application/json" } : {}),
+  };
+}
+
 class MemoryMessageRepository {
   constructor() {
     this.messages = [];
@@ -35,6 +43,24 @@ class MemoryMessageRepository {
   async createMessage(message) {
     this.messages.unshift({ ...message });
     return { ...message };
+  }
+
+  async updateVisibility({ id, albumId, visibility }) {
+    const index = this.messages.findIndex(
+      (message) => message.id === id && message.albumId === albumId,
+    );
+    if (index < 0) return null;
+    this.messages[index] = { ...this.messages[index], visibility };
+    return { ...this.messages[index] };
+  }
+
+  async deleteMessage({ id, albumId }) {
+    const index = this.messages.findIndex(
+      (message) => message.id === id && message.albumId === albumId,
+    );
+    if (index < 0) return null;
+    const [deleted] = this.messages.splice(index, 1);
+    return deleted.id;
   }
 
   async importMessages(messages) {
@@ -110,6 +136,7 @@ test("guests can create and list required-name messages without a category", asy
     assert.equal(createdMessage.albumId, "messages");
     assert.equal(createdMessage.visitorName, "小安");
     assert.equal(createdMessage.body, "祝福你們永遠幸福");
+    assert.equal(Object.hasOwn(createdMessage, "visibility"), false);
 
     const listed = await fetch(`${origin}/Memories/api/settings/messages`);
     assert.equal(listed.status, 200);
@@ -136,11 +163,7 @@ test("administrators can import the documented bilingual CSV format", async () =
 
     const imported = await fetch(`${origin}/admin/api/settings/messages/import`, {
       method: "POST",
-      headers: {
-        Cookie: adminCookie(),
-        "Content-Type": "application/json",
-        "X-Memories-Admin": "1",
-      },
+      headers: adminHeaders({ json: true }),
       body: JSON.stringify({
         content: "姓名,留言,日期\n小安,百年好合,2026-06-20\nAn,God bless you,2026-06-21\n",
       }),
@@ -156,5 +179,105 @@ test("administrators can import the documented bilingual CSV format", async () =
     assert.deepEqual(payload.format.headers, ["name", "message", "date"]);
     assert.equal(payload.format.maximumRows, 500);
     assert.equal(payload.messages.length, 2);
+    assert.equal(payload.messages[0].visibility, "public");
+    assert.equal(payload.messages[0].source, "admin_import");
+  });
+});
+
+test("administrators can hide, restore, and permanently delete a message", async () => {
+  const repository = new MemoryMessageRepository();
+  const albums = albumRepository();
+  const publicApi = createMessageApi({
+    repository,
+    albumRepository: albums,
+    createId: () => "moderated-message",
+  });
+  const adminApi = createAdminMessageApi({
+    repository,
+    albumRepository: albums,
+    adminToken,
+  });
+
+  await withApis([publicApi, adminApi], async (origin) => {
+    const created = await fetch(`${origin}/Memories/api/settings/messages`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ visitorName: "Leon", message: "Test message" }),
+    });
+    assert.equal(created.status, 201);
+
+    const unauthorizedHide = await fetch(
+      `${origin}/admin/api/settings/messages/moderated-message`,
+      {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ visibility: "hidden" }),
+      },
+    );
+    assert.equal(unauthorizedHide.status, 401);
+
+    const hidden = await fetch(
+      `${origin}/admin/api/settings/messages/moderated-message`,
+      {
+        method: "PATCH",
+        headers: adminHeaders({ json: true }),
+        body: JSON.stringify({ visibility: "hidden" }),
+      },
+    );
+    assert.equal(hidden.status, 200);
+    assert.equal((await hidden.json()).message.visibility, "hidden");
+
+    const publicWhileHidden = await fetch(
+      `${origin}/Memories/api/settings/messages`,
+    );
+    assert.equal((await publicWhileHidden.json()).messages.length, 0);
+
+    const adminWhileHidden = await fetch(
+      `${origin}/admin/api/settings/messages`,
+      { headers: { Cookie: adminCookie() } },
+    );
+    const hiddenMessages = (await adminWhileHidden.json()).messages;
+    assert.equal(hiddenMessages.length, 1);
+    assert.equal(hiddenMessages[0].visibility, "hidden");
+
+    const restored = await fetch(
+      `${origin}/admin/api/settings/messages/moderated-message`,
+      {
+        method: "PATCH",
+        headers: adminHeaders({ json: true }),
+        body: JSON.stringify({ visibility: "public" }),
+      },
+    );
+    assert.equal(restored.status, 200);
+    assert.equal((await restored.json()).message.visibility, "public");
+
+    const publicAfterRestore = await fetch(
+      `${origin}/Memories/api/settings/messages`,
+    );
+    assert.equal((await publicAfterRestore.json()).messages.length, 1);
+
+    const deleted = await fetch(
+      `${origin}/admin/api/settings/messages/moderated-message`,
+      {
+        method: "DELETE",
+        headers: adminHeaders(),
+      },
+    );
+    assert.equal(deleted.status, 200);
+    assert.deepEqual(await deleted.json(), {
+      deleted: true,
+      id: "moderated-message",
+    });
+
+    const publicAfterDelete = await fetch(
+      `${origin}/Memories/api/settings/messages`,
+    );
+    assert.equal((await publicAfterDelete.json()).messages.length, 0);
+
+    const adminAfterDelete = await fetch(
+      `${origin}/admin/api/settings/messages`,
+      { headers: { Cookie: adminCookie() } },
+    );
+    assert.equal((await adminAfterDelete.json()).messages.length, 0);
   });
 });
