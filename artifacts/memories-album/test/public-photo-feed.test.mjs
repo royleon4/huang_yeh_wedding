@@ -4,6 +4,7 @@ import {
   PUBLIC_PHOTO_PAGE_CAP,
   PUBLIC_PHOTO_PAGE_LIMIT,
   loadPublicPhotoFeed,
+  preloadFirstPhotoThumbnail,
 } from "../src/client/public-photo-feed.mjs";
 
 function response(body, ok = true) {
@@ -14,6 +15,59 @@ function response(body, ok = true) {
     },
   };
 }
+
+test("first public thumbnail is preloaded at high priority", () => {
+  const created = [];
+  class FakeImage {
+    constructor() {
+      created.push(this);
+    }
+  }
+
+  const image = preloadFirstPhotoThumbnail(
+    [{ thumbnailUrl: "/Memories/api/photos/first/thumbnail" }],
+    FakeImage,
+  );
+
+  assert.equal(image, created[0]);
+  assert.equal(image.decoding, "async");
+  assert.equal(image.fetchPriority, "high");
+  assert.equal(image.src, "/Memories/api/photos/first/thumbnail");
+  assert.equal(preloadFirstPhotoThumbnail([], FakeImage), null);
+});
+
+test("public photo loading starts the first thumbnail before exposing the page", async () => {
+  const order = [];
+  class FakeImage {
+    set src(value) {
+      this.value = value;
+      order.push(`preload:${value}`);
+    }
+  }
+
+  await loadPublicPhotoFeed({
+    ImageConstructor: FakeImage,
+    async fetchImpl() {
+      return response({
+        photos: [
+          {
+            id: "first",
+            thumbnailUrl: "/Memories/api/photos/first/thumbnail",
+          },
+        ],
+        nextCursor: null,
+      });
+    },
+    onInitialPage() {
+      order.push("initial-page");
+    },
+  });
+
+  assert.deepEqual(order, [
+    "preload:/Memories/api/photos/first/thumbnail",
+    "initial-page",
+  ]);
+});
 
 test("public photo loading exposes the first page before the remaining feed completes", async () => {
   let releaseSecondPage;

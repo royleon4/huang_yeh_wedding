@@ -5,7 +5,8 @@ export default function LazyImage({
   src,
   alt = "",
   eager = false,
-  rootMargin = "120px 0px",
+  rootMargin = "600px 0px",
+  fetchPriority = eager ? "high" : "auto",
   className = "",
   onLoad,
   onError,
@@ -60,8 +61,9 @@ export default function LazyImage({
       src={allowedToLoad ? src : undefined}
       data-lazy-src={!allowedToLoad && src ? src : undefined}
       alt={alt}
-      loading={eager ? "eager" : "lazy"}
+      loading={allowedToLoad ? "eager" : "lazy"}
       decoding="async"
+      fetchPriority={fetchPriority}
       className={classes}
       aria-busy={Boolean(src) && allowedToLoad && !loaded && !failed}
       onLoad={(event) => {

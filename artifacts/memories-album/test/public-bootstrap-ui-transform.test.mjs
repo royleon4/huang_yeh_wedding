@@ -65,7 +65,7 @@ test("public gallery first render uses edited albums, copy, and settings", async
   );
 });
 
-test("public gallery exposes the first photo page while the remaining cursor feed loads", async () => {
+test("public gallery exposes the first photo page before route completeness resolves", async () => {
   let app = await source("src/client/App.jsx");
   app = run(processContentUiTransform(), app, "src/client/App.jsx");
   app = run(adminPhotoWorkspaceUiTransform(), app, "src/client/App.jsx");
@@ -77,6 +77,8 @@ test("public gallery exposes the first photo page while the remaining cursor fee
   assert.match(app, /loadPublicPhotoFeed\(\{/);
   assert.match(app, /onInitialPage: exposeInitialPage/);
   assert.match(app, /const \[photoFeedComplete, setPhotoFeedComplete\] = useState\(false\)/);
+  assert.match(app, /setPhotoFeedComplete\(false\)/);
+  assert.match(app, /setPhotoFeedComplete\(true\)/);
   assert.match(app, /controller\.abort\(\)/);
   assert.doesNotMatch(app, /async function fetchAllPhotos/);
   assert.doesNotMatch(app, /async function fetchAlbums/);

@@ -15,7 +15,7 @@ export default function PhotoGroupGrid({
   return (
     <section className="process-photo-group" data-media-block={mediaKey}>
       <div ref={gridRef} className="masonry-grid">
-        {photos.map((photo) => {
+        {photos.map((photo, photoIndex) => {
           const index = Math.max(
             0,
             allVisiblePhotos.findIndex((item) => item.id === photo.id),
@@ -36,6 +36,8 @@ export default function PhotoGroupGrid({
                   alt={`${copy.photo} ${index + 1}`}
                   width={photo.width}
                   height={photo.height}
+                  eager={photoIndex < 2}
+                  fetchPriority={photoIndex === 0 ? "high" : "auto"}
                 />
                 <span className="photo-index">
                   {String(index + 1).padStart(2, "0")}

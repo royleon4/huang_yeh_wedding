@@ -8,12 +8,27 @@ async function source(path) {
   return readFile(new URL(path, import.meta.url), "utf8");
 }
 
-test("shared lazy image withholds src until it nears the viewport", async () => {
+test("shared lazy image unlocks early and starts immediately once eligible", async () => {
   const lazyImage = await source("../src/client/LazyImage.jsx");
   assert.match(lazyImage, /IntersectionObserver/);
   assert.match(lazyImage, /src=\{allowedToLoad \? src : undefined\}/);
   assert.match(lazyImage, /data-lazy-src/);
-  assert.match(lazyImage, /rootMargin = "120px 0px"/);
+  assert.match(lazyImage, /rootMargin = "600px 0px"/);
+  assert.match(lazyImage, /loading=\{allowedToLoad \? "eager" : "lazy"\}/);
+  assert.match(lazyImage, /fetchPriority = eager \? "high" : "auto"/);
+});
+
+test("front gallery prioritizes only the first visible row", async () => {
+  const grid = await source("../src/client/PhotoGroupGrid.jsx");
+  assert.match(grid, /photos\.map\(\(photo, photoIndex\)/);
+  assert.match(grid, /eager=\{photoIndex < 2\}/);
+  assert.match(grid, /fetchPriority=\{photoIndex === 0 \? "high" : "auto"\}/);
+});
+
+test("featured photos prioritize only the first card", async () => {
+  const pinned = await source("../src/client/PinnedPhotoStrip.jsx");
+  assert.match(pinned, /eager=\{index === 0\}/);
+  assert.match(pinned, /fetchPriority=\{index === 0 \? "high" : "auto"\}/);
 });
 
 test("front gallery and private management use the shared lazy image", async () => {

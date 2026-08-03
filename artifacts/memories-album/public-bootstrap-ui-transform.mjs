@@ -94,7 +94,7 @@ function transformApp(source) {
     code,
     `  const [galleryError, setGalleryError] = useState(false);`,
     `  const [galleryError, setGalleryError] = useState(false);\n  const [photoFeedComplete, setPhotoFeedComplete] = useState(false);`,
-    "progressive photo feed completion state",
+    "photo feed route readiness state",
   );
   code = replaceOnce(
     code,
