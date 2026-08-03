@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { sortAlbumMessages } from "../../album-photo-order.mjs";
 import { adminErrorMessage, adminRequest } from "./admin-client.mjs";
 import "./admin-messages.css";
@@ -20,11 +20,14 @@ export default function AdminMessagesPanel({ sortMode }) {
   const [messages, setMessages] = useState([]);
   const [format, setFormat] = useState(null);
   const [file, setFile] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
+  const [messagesLoaded, setMessagesLoaded] = useState(false);
+  const [messagesOpen, setMessagesOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [activeMessageId, setActiveMessageId] = useState("");
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const loadInFlightRef = useRef(false);
   const [messageRandomSeed] = useState(
     () =>
       globalThis.crypto?.randomUUID?.() ??
@@ -32,12 +35,15 @@ export default function AdminMessagesPanel({ sortMode }) {
   );
 
   const load = async () => {
+    if (loadInFlightRef.current) return;
+    loadInFlightRef.current = true;
     setLoading(true);
     setError("");
     try {
       const payload = await adminRequest("/admin/api/settings/messages");
       setMessages(payload.messages ?? []);
       setFormat(payload.format ?? null);
+      setMessagesLoaded(true);
     } catch (loadError) {
       if (loadError?.status === 401) {
         window.location.replace("/Memories/");
@@ -45,13 +51,18 @@ export default function AdminMessagesPanel({ sortMode }) {
       }
       setError(adminErrorMessage(loadError));
     } finally {
+      loadInFlightRef.current = false;
       setLoading(false);
     }
   };
 
-  useEffect(() => {
-    void load();
-  }, []);
+  const handleMessagesToggle = (event) => {
+    const open = event.currentTarget.open;
+    setMessagesOpen(open);
+    if (open && !messagesLoaded && !loadInFlightRef.current) {
+      void load();
+    }
+  };
 
   const acceptedHeaders = useMemo(
     () =>
@@ -104,7 +115,11 @@ export default function AdminMessagesPanel({ sortMode }) {
     try {
       setFile(null);
       form.reset();
-      await load();
+      if (messagesOpen) {
+        await load();
+      } else if (messagesLoaded) {
+        setMessagesLoaded(false);
+      }
       setMessage(
         `已匯入 ${payload.imported ?? 0} 則留言。 Imported ${payload.imported ?? 0} messages.`,
       );
@@ -178,7 +193,14 @@ export default function AdminMessagesPanel({ sortMode }) {
   };
 
   const deleteAllMessages = async () => {
-    if (busy || activeMessageId || messages.length === 0) return;
+    if (
+      busy ||
+      activeMessageId ||
+      !messagesLoaded ||
+      messages.length === 0
+    ) {
+      return;
+    }
     const confirmed = window.confirm(
       `確定永久刪除全部 ${messages.length} 則留言？此動作無法復原。\nPermanently delete all ${messages.length} messages? This cannot be undone.`,
     );
@@ -213,7 +235,11 @@ export default function AdminMessagesPanel({ sortMode }) {
           <p className="admin-kicker">GUESTBOOK MESSAGES</p>
           <h2 id="messages-title">留言區管理 / Guestbook</h2>
         </div>
-        <span>{messages.length} 則 / messages</span>
+        <span>
+          {messagesLoaded
+            ? `${messages.length} 則 / messages`
+            : "留言尚未載入 / Messages not loaded"}
+        </span>
       </div>
 
       <form className="admin-create-card" onSubmit={importMessages}>
@@ -249,71 +275,113 @@ export default function AdminMessagesPanel({ sortMode }) {
         </div>
       )}
 
-      {loading ? (
-        <p className="admin-section-note">正在載入留言… / Loading messages…</p>
-      ) : (
-        <div className="admin-message-list">
-          <div className="admin-message-actions">
-            <button
-              className="button secondary admin-message-delete"
-              type="button"
-              onClick={deleteAllMessages}
-              disabled={busy || Boolean(activeMessageId) || messages.length === 0}
-            >
-              {activeMessageId === "all"
-                ? "正在刪除… / Deleting…"
-                : "永久刪除全部留言 / Delete all messages"}
-            </button>
-          </div>
-
-          {orderedMessages.map((item) => {
-            const hidden = item.visibility === "hidden";
-            const itemBusy = activeMessageId === item.id;
-            return (
-              <article
-                className={`admin-editor-card${hidden ? " admin-message-hidden" : ""}`}
-                key={item.id}
-              >
-                <div className="admin-message-meta">
-                  <strong>{item.visitorName}</strong>
-                  <small>{formattedDateTime(item.messageAt)}</small>
-                </div>
-                {hidden && (
-                  <p className="admin-message-status">已隱藏 / Hidden</p>
-                )}
-                <p>{item.body}</p>
-                <div className="admin-message-actions">
-                  <button
-                    className="button secondary"
-                    type="button"
-                    onClick={() =>
-                      changeVisibility(item, hidden ? "public" : "hidden")
-                    }
-                    disabled={busy || Boolean(activeMessageId)}
+      <details
+        className="admin-accordion admin-message-list-accordion"
+        onToggle={handleMessagesToggle}
+      >
+        <summary className="admin-accordion-summary admin-message-list-summary">
+          <span className="admin-accordion-title">
+            所有留言 / All messages
+          </span>
+          <span className="admin-accordion-meta">
+            {messagesLoaded
+              ? `${messages.length} 則 / messages`
+              : "開啟後載入 / Load on open"}
+          </span>
+        </summary>
+        <div className="admin-accordion-body admin-message-list-body">
+          {loading ? (
+            <p className="admin-section-note">
+              正在載入留言… / Loading messages…
+            </p>
+          ) : messagesLoaded ? (
+            <div className="admin-message-list">
+              {orderedMessages.map((item) => {
+                const hidden = item.visibility === "hidden";
+                const itemBusy = activeMessageId === item.id;
+                return (
+                  <article
+                    className={`admin-editor-card${hidden ? " admin-message-hidden" : ""}`}
+                    key={item.id}
                   >
-                    {itemBusy
-                      ? "處理中… / Working…"
-                      : hidden
-                        ? "重新顯示 / Show"
-                        : "隱藏 / Hide"}
-                  </button>
-                  <button
-                    className="button secondary admin-message-delete"
-                    type="button"
-                    onClick={() => deleteMessage(item)}
-                    disabled={busy || Boolean(activeMessageId)}
-                  >
-                    永久刪除 / Delete
-                  </button>
-                </div>
-              </article>
-            );
-          })}
-          {messages.length === 0 && (
-            <p className="admin-section-note">目前沒有留言。 / No messages yet.</p>
+                    <div className="admin-message-meta">
+                      <strong>{item.visitorName}</strong>
+                      <small>{formattedDateTime(item.messageAt)}</small>
+                    </div>
+                    {hidden && (
+                      <p className="admin-message-status">
+                        已隱藏 / Hidden
+                      </p>
+                    )}
+                    <p>{item.body}</p>
+                    <div className="admin-message-actions">
+                      <button
+                        className="button secondary"
+                        type="button"
+                        onClick={() =>
+                          changeVisibility(item, hidden ? "public" : "hidden")
+                        }
+                        disabled={busy || Boolean(activeMessageId)}
+                      >
+                        {itemBusy
+                          ? "處理中… / Working…"
+                          : hidden
+                            ? "重新顯示 / Show"
+                            : "隱藏 / Hide"}
+                      </button>
+                      <button
+                        className="button secondary admin-message-delete"
+                        type="button"
+                        onClick={() => deleteMessage(item)}
+                        disabled={busy || Boolean(activeMessageId)}
+                      >
+                        永久刪除 / Delete
+                      </button>
+                    </div>
+                  </article>
+                );
+              })}
+              {messages.length === 0 && (
+                <p className="admin-section-note">
+                  目前沒有留言。 / No messages yet.
+                </p>
+              )}
+            </div>
+          ) : (
+            <p className="admin-section-note">
+              開啟此區塊後才會載入留言。 / Messages load only after this section is opened.
+            </p>
           )}
         </div>
-      )}
+      </details>
+
+      <section
+        className="admin-message-danger-zone"
+        aria-labelledby="message-danger-title"
+      >
+        <div>
+          <p className="admin-kicker">DANGER ZONE</p>
+          <h3 id="message-danger-title">危險區 / Danger zone</h3>
+          <p>
+            永久刪除全部留言，且無法復原。 / Permanently delete every message. This cannot be undone.
+          </p>
+        </div>
+        <button
+          className="button admin-permanent-delete admin-message-delete-all"
+          type="button"
+          onClick={deleteAllMessages}
+          disabled={
+            busy ||
+            Boolean(activeMessageId) ||
+            !messagesLoaded ||
+            messages.length === 0
+          }
+        >
+          {activeMessageId === "all"
+            ? "正在刪除… / Deleting…"
+            : "永久刪除全部留言 / Delete all messages"}
+        </button>
+      </section>
     </section>
   );
 }
