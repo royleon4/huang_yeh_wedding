@@ -29,19 +29,9 @@ export function adminPhotoUploaderUiTransform() {
         "photo uploader field",
       );
 
-      code = replaceOnce(
-        code,
-        `            disabled={busy}\n          >\n            <option value="">不指定流程</option>`,
-        `            disabled={busy || !draft.albumIds.includes("wedding")}\n          >\n            <option value="">不指定流程</option>`,
-        "process category wedding album guard",
-      );
-
-      code = replaceOnce(
-        code,
-        `          onChange={(albumIds) => onChange({ albumIds })}`,
-        `          onChange={(albumIds) =>\n            onChange({\n              albumIds,\n              categoryIds: albumIds.includes("wedding") ? draft.categoryIds : [],\n            })\n          }`,
-        "clear process category outside wedding album",
-      );
+      // Album-owned subcategory/label validation is applied by the dedicated
+      // album-label transform. This uploader transform only owns uploader and
+      // deletion-protection behavior and must not assume labels belong to wedding.
 
       code = replaceOnce(
         code,
