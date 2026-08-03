@@ -35,7 +35,7 @@ async function withApis(apis, run) {
   }
 }
 
-test("administrators can add and edit albums while visitors only see visible albums", async () => {
+test("administrators can add and edit typed albums while visitors only see visible albums", async () => {
   const repository = new MemoryAlbumRepository([
     {
       id: "wedding",
@@ -43,6 +43,7 @@ test("administrators can add and edit albums while visitors only see visible alb
       titleEn: "Wedding moments",
       descriptionZh: "",
       descriptionEn: "",
+      albumType: "album",
       displayOrder: 1,
       isVisible: true,
       isSystem: true,
@@ -86,6 +87,7 @@ test("administrators can add and edit albums while visitors only see visible alb
         titleZh: "婚前回憶",
         titleEn: "Before the wedding",
         descriptionZh: "我們一路走來的日常",
+        albumType: "blog",
         photoSortMode: "name-asc",
       }),
     });
@@ -97,6 +99,7 @@ test("administrators can add and edit albums while visitors only see visible alb
         titleEn: "Before the wedding",
         descriptionZh: "我們一路走來的日常",
         descriptionEn: "",
+        albumType: "blog",
         displayOrder: 2,
         isVisible: true,
         isSystem: false,
@@ -161,6 +164,7 @@ test("administrators can add and edit albums while visitors only see visible alb
     assert.equal(updated.status, 200);
     const updatedAlbum = (await updated.json()).album;
     assert.equal(updatedAlbum.titleZh, "交往回憶");
+    assert.equal(updatedAlbum.albumType, "blog");
     assert.equal(updatedAlbum.showSummary, false);
     assert.equal(updatedAlbum.photoSortMode, "author-desc");
     assert.equal(updatedAlbum.featuredPhotosEnabled, true);
@@ -186,6 +190,7 @@ test("administrators can add and edit albums while visitors only see visible alb
           titleEn: "Wedding moments",
           descriptionZh: "",
           descriptionEn: "",
+          albumType: "album",
           displayOrder: 1,
           showSummary: true,
           photoSortMode: "time-asc",
