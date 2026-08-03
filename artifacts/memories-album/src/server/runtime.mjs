@@ -1,6 +1,6 @@
 import { createMemoriesPhotoApi } from "./photos/api.mjs";
 import { createAdminPhotoApi } from "./photos/admin-with-changes-api.mjs";
-import { PostgresPhotoRepository } from "./photos/postgres-repository.mjs";
+import { AlbumScopedPhotoRepository } from "./photos/album-scoped-repository.mjs";
 import { ThumbnailService } from "./photos/thumbnail-service.mjs";
 import { AdminRefreshService } from "./refresh/service.mjs";
 import { createReplitDriveStorage } from "./storage/replit-drive.mjs";
@@ -70,7 +70,7 @@ async function createRuntime(env) {
     createReplitDriveStorage(env),
   ]);
   const pool = new Pool({ connectionString: env.DATABASE_URL, max: 5 });
-  const repository = new PostgresPhotoRepository(pool);
+  const repository = new AlbumScopedPhotoRepository(pool);
   repository.clearThumbnail = async (photoId, expectedFileId = null) => {
     const result = await pool.query(
       `UPDATE memories_photos
