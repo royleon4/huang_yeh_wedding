@@ -63,13 +63,16 @@ export default function AdminMessagesPanel() {
 
   const importMessages = async (event) => {
     event.preventDefault();
+    const form = event.currentTarget;
     if (!file || busy || activeMessageId) return;
     setBusy(true);
     setMessage("");
     setError("");
+
+    let payload;
     try {
       const content = await file.text();
-      const payload = await adminRequest("/admin/api/settings/messages/import", {
+      payload = await adminRequest("/admin/api/settings/messages/import", {
         method: "POST",
         body: {
           content,
@@ -77,16 +80,23 @@ export default function AdminMessagesPanel() {
         },
         timeoutMs: 120_000,
       });
-      setMessage(`已匯入 ${payload.imported ?? 0} 則留言。 Imported ${payload.imported ?? 0} messages.`);
-      setFile(null);
-      event.currentTarget.reset();
-      await load();
     } catch (importError) {
       if (importError?.status === 401) {
         window.location.replace("/Memories/");
         return;
       }
       setError(adminErrorMessage(importError));
+      setBusy(false);
+      return;
+    }
+
+    try {
+      setFile(null);
+      form.reset();
+      await load();
+      setMessage(
+        `已匯入 ${payload.imported ?? 0} 則留言。 Imported ${payload.imported ?? 0} messages.`,
+      );
     } finally {
       setBusy(false);
     }
@@ -156,6 +166,35 @@ export default function AdminMessagesPanel() {
     }
   };
 
+  const deleteAllMessages = async () => {
+    if (busy || activeMessageId || messages.length === 0) return;
+    const confirmed = window.confirm(
+      `確定永久刪除全部 ${messages.length} 則留言？此動作無法復原。\nPermanently delete all ${messages.length} messages? This cannot be undone.`,
+    );
+    if (!confirmed) return;
+
+    setActiveMessageId("all");
+    setMessage("");
+    setError("");
+    try {
+      const payload = await adminRequest("/admin/api/settings/messages", {
+        method: "DELETE",
+      });
+      setMessages([]);
+      setMessage(
+        `已永久刪除 ${payload.deleted ?? 0} 則留言。 Permanently deleted ${payload.deleted ?? 0} messages.`,
+      );
+    } catch (deleteError) {
+      if (deleteError?.status === 401) {
+        window.location.replace("/Memories/");
+        return;
+      }
+      setError(adminErrorMessage(deleteError));
+    } finally {
+      setActiveMessageId("");
+    }
+  };
+
   return (
     <section className="admin-messages" aria-labelledby="messages-title">
       <div className="admin-section-heading">
@@ -203,6 +242,19 @@ export default function AdminMessagesPanel() {
         <p className="admin-section-note">正在載入留言… / Loading messages…</p>
       ) : (
         <div className="admin-message-list">
+          <div className="admin-message-actions">
+            <button
+              className="button secondary admin-message-delete"
+              type="button"
+              onClick={deleteAllMessages}
+              disabled={busy || Boolean(activeMessageId) || messages.length === 0}
+            >
+              {activeMessageId === "all"
+                ? "正在刪除… / Deleting…"
+                : "永久刪除全部留言 / Delete all messages"}
+            </button>
+          </div>
+
           {messages.map((item) => {
             const hidden = item.visibility === "hidden";
             const itemBusy = activeMessageId === item.id;
