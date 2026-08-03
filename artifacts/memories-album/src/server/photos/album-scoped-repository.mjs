@@ -1,12 +1,43 @@
 import { PostgresPhotoRepository } from "./postgres-repository.mjs";
 
+function explicitAlbumIds(photo) {
+  const defaultAlbum =
+    photo.collection ?? (photo.source === "guest" ? "guest" : "wedding");
+  return [...new Set(photo.albumIds ?? [defaultAlbum])].filter(Boolean);
+}
+
 /**
- * Drive reconciliation owns only the wedding-process relationship. Album-scoped
- * labels belonging to Life or custom photo albums must survive that background
- * synchronization, while deliberate administrator saves may still replace all
- * labels through updatePhotoForAdmin.
+ * Album membership is authoritative and independent from upload provenance.
+ * A guest-originated photo belongs to Guest uploads only when `guest` is an
+ * explicit album membership. Drive reconciliation still owns only the
+ * wedding-process relationship, while deliberate administrator saves may
+ * replace all labels through updatePhotoForAdmin.
  */
 export class AlbumScopedPhotoRepository extends PostgresPhotoRepository {
+  async insertPhoto(photo) {
+    const albumIds = explicitAlbumIds(photo);
+    const stored = await super.insertPhoto({ ...photo, albumIds });
+    return { ...stored, albumIds };
+  }
+
+  async listPublicPhotos(options = {}) {
+    if (options.collection === "guest" && !options.albumId) {
+      const { collection: _collection, ...rest } = options;
+      return super.listPublicPhotos({
+        ...rest,
+        collection: null,
+        albumId: "guest",
+      });
+    }
+    return super.listPublicPhotos(options);
+  }
+
+  async upsertDrivePhotoMetadata(file, options = {}) {
+    const stored = await super.upsertDrivePhotoMetadata(file, options);
+    if (!options.preserveLogicalClassification) return stored;
+    return (await this.findPhotoForAdmin(stored.id)) ?? stored;
+  }
+
   async replacePhotoProcessByDriveFile(
     driveFileId,
     processId,
