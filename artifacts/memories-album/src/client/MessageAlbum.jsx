@@ -4,6 +4,10 @@ import {
   sortAlbumMessages,
 } from "../../album-photo-order.mjs";
 import MessageModal from "./MessageModal.jsx";
+import {
+  messageSortModeFromSearch,
+  messageSortRoute,
+} from "./message-sort-route.mjs";
 import useMasonryLayout from "./useMasonryLayout.mjs";
 import "./message-album.css";
 
@@ -76,6 +80,10 @@ function localizedDateTime(value, lang) {
   }).format(date);
 }
 
+function currentRoute() {
+  return `${window.location.pathname}${window.location.search}${window.location.hash}`;
+}
+
 function MessageGrid({ messages, lang, copy, onCompose }) {
   const gridRef = useMasonryLayout();
 
@@ -113,7 +121,7 @@ export default function MessageAlbum({ lang, albumId, sortMode }) {
   const [error, setError] = useState("");
   const [showComposer, setShowComposer] = useState(false);
   const [selectedSortMode, setSelectedSortMode] = useState(() =>
-    normalizeAlbumPhotoSortMode(sortMode),
+    messageSortModeFromSearch(window.location.search, sortMode),
   );
   const [messageRandomSeed] = useState(
     () =>
@@ -156,8 +164,35 @@ export default function MessageAlbum({ lang, albumId, sortMode }) {
   }, [albumId]);
 
   useEffect(() => {
-    setSelectedSortMode(normalizeAlbumPhotoSortMode(sortMode));
-  }, [sortMode]);
+    const syncSortFromRoute = () => {
+      const nextSortMode = messageSortModeFromSearch(
+        window.location.search,
+        sortMode,
+      );
+      setSelectedSortMode(nextSortMode);
+      const canonicalRoute = messageSortRoute(window.location, nextSortMode);
+      if (canonicalRoute !== currentRoute()) {
+        window.history.replaceState(
+          window.history.state,
+          "",
+          canonicalRoute,
+        );
+      }
+    };
+
+    syncSortFromRoute();
+    window.addEventListener("popstate", syncSortFromRoute);
+    return () => window.removeEventListener("popstate", syncSortFromRoute);
+  }, [albumId, sortMode]);
+
+  const chooseSortMode = (value) => {
+    const nextSortMode = normalizeAlbumPhotoSortMode(value);
+    setSelectedSortMode(nextSortMode);
+    const destination = messageSortRoute(window.location, nextSortMode);
+    if (destination !== currentRoute()) {
+      window.history.pushState(window.history.state, "", destination);
+    }
+  };
 
   const orderedMessages = useMemo(
     () => sortAlbumMessages(messages, selectedSortMode, messageRandomSeed),
@@ -180,11 +215,7 @@ export default function MessageAlbum({ lang, albumId, sortMode }) {
           <select
             aria-label={t.sortLabel}
             value={selectedSortMode}
-            onChange={(event) =>
-              setSelectedSortMode(
-                normalizeAlbumPhotoSortMode(event.target.value),
-              )
-            }
+            onChange={(event) => chooseSortMode(event.target.value)}
           >
             {MESSAGE_SORT_MODES.map((mode) => (
               <option value={mode} key={mode}>
