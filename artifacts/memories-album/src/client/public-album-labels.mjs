@@ -14,8 +14,15 @@ export function labelsForAlbum(labels, albumId) {
     );
 }
 
-export function allAlbumLabel(album, language = "zh") {
+export function allAlbumLabel(album, language = "zh", override = null) {
   const isEnglish = language === "en";
+  const overrideTitle = String(
+    override?.[isEnglish ? "en" : "zh"] ??
+      override?.[isEnglish ? "labelEn" : "labelZh"] ??
+      "",
+  ).trim();
+  if (overrideTitle) return overrideTitle;
+
   const title = String(
     album?.[isEnglish ? "en" : "zh"] ??
       album?.[isEnglish ? "titleEn" : "titleZh"] ??
