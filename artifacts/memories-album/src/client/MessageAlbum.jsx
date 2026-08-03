@@ -9,9 +9,8 @@ import {
   messageSortModeFromSearch,
   messageSortRoute,
 } from "./message-sort-route.mjs";
-import useMasonryLayout, {
-  suspendMasonryAnchorRestoration,
-} from "./useMasonryLayout.mjs";
+import useMasonryLayout from "./useMasonryLayout.mjs";
+import { suspendMasonryAnchorRestoration } from "./useMasonryLayout.mjs";
 import "./message-album.css";
 
 const MESSAGE_SORT_MODES = Object.freeze([
