@@ -173,6 +173,12 @@ export function createAdminMessageApi({
         return true;
       }
 
+      if (request.method === "DELETE" && collectionPath) {
+        const deleted = await repository.deleteAllMessages({ albumId: album.id });
+        sendAdminJson(response, 200, { deleted });
+        return true;
+      }
+
       if (request.method === "POST" && importPath) {
         const body = await readAdminJson(request, 1024 * 1024);
         const parsed = parseMessageImport(body.content, {
