@@ -1,14 +1,17 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   normalizeAlbumPhotoSortMode,
   sortAlbumMessages,
 } from "../../album-photo-order.mjs";
 import MessageModal from "./MessageModal.jsx";
+import { requestActiveContentScroll } from "./gallery-navigation.mjs";
 import {
   messageSortModeFromSearch,
   messageSortRoute,
 } from "./message-sort-route.mjs";
-import useMasonryLayout from "./useMasonryLayout.mjs";
+import useMasonryLayout, {
+  suspendMasonryAnchorRestoration,
+} from "./useMasonryLayout.mjs";
 import "./message-album.css";
 
 const MESSAGE_SORT_MODES = Object.freeze([
@@ -120,6 +123,7 @@ export default function MessageAlbum({ lang, albumId, sortMode }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [showComposer, setShowComposer] = useState(false);
+  const positionAfterLoadRef = useRef(false);
   const [selectedSortMode, setSelectedSortMode] = useState(() =>
     messageSortModeFromSearch(window.location.search, sortMode),
   );
@@ -133,7 +137,10 @@ export default function MessageAlbum({ lang, albumId, sortMode }) {
     showLoading = true,
     preserveOnError = false,
   } = {}) => {
-    if (showLoading) setLoading(true);
+    if (showLoading) {
+      positionAfterLoadRef.current = true;
+      setLoading(true);
+    }
     if (!preserveOnError) setError("");
     try {
       const query = new URLSearchParams({ limit: "500" });
@@ -151,6 +158,7 @@ export default function MessageAlbum({ lang, albumId, sortMode }) {
       );
       setError("");
     } catch (loadError) {
+      if (showLoading) positionAfterLoadRef.current = false;
       if (!preserveOnError) {
         setError(loadError instanceof Error ? loadError.message : t.failed);
       }
@@ -162,6 +170,13 @@ export default function MessageAlbum({ lang, albumId, sortMode }) {
   useEffect(() => {
     void loadMessages();
   }, [albumId]);
+
+  useEffect(() => {
+    if (loading || error || !positionAfterLoadRef.current) return;
+    positionAfterLoadRef.current = false;
+    suspendMasonryAnchorRestoration();
+    requestActiveContentScroll();
+  }, [albumId, error, loading]);
 
   useEffect(() => {
     const syncSortFromRoute = () => {
