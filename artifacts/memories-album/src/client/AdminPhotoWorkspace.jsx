@@ -9,6 +9,8 @@ import "./admin-photo-workspace.css";
 
 const MAX_FILES = 30;
 
+// 「子分類（標籤）」由相簿擁有；production transform 會把這個相容層的
+// categoryId 欄位改成 labelId 查詢與相簿分組控制。
 export function mergeAdminPhotos(current, incoming) {
   const existing = Array.isArray(current) ? current : [];
   const additions = Array.isArray(incoming) ? incoming : [];
