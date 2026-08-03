@@ -8,6 +8,10 @@ function replaceOnce(source, search, replacement, label) {
   return source.replace(search, replacement);
 }
 
+function replaceIfPresent(source, search, replacement) {
+  return source.includes(search) ? source.replace(search, replacement) : source;
+}
+
 function replaceRange(source, startMarker, endMarker, replacement, label) {
   const start = source.indexOf(startMarker);
   const end = source.indexOf(endMarker, start + startMarker.length);
@@ -78,11 +82,10 @@ function transformApp(source) {
     "stable album navigation",
   );
 
-  code = replaceOnce(
+  code = replaceIfPresent(
     code,
     `            <ProcessSelector\n              language={lang}\n              ariaLabel={activeCollectionDefinition?.[lang] ?? t.categories}`,
     `            <ProcessSelector\n              language={lang}\n              albumId={activeCollection}\n              ariaLabel={activeCollectionDefinition?.[lang] ?? t.categories}`,
-    "album-owned label selector identity",
   );
 
   return code;
