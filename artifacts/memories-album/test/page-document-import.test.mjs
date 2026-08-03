@@ -13,6 +13,10 @@ const editorUrl = new URL("../src/client/RichTextEditor.jsx", import.meta.url);
 const publicContentUrl = new URL("../src/client/ProcessRichContent.jsx", import.meta.url);
 const stylesUrl = new URL("../src/client/page-document.css", import.meta.url);
 const packageUrl = new URL("../package.json", import.meta.url);
+const browserLayoutUrl = new URL(
+  "../scripts/verify-page-document-layout.mjs",
+  import.meta.url,
+);
 
 test("page document detection accepts PDF, PPTX and legacy PPT", () => {
   assert.equal(pageDocumentKind({ name: "程序單.pdf", mimeType: "" }), "pdf");
@@ -31,7 +35,7 @@ test("page document detection accepts PDF, PPTX and legacy PPT", () => {
   assert.equal(pageDocumentLabel("pptx"), "PowerPoint 簡報");
 });
 
-test("PDF renderer uses PDF.js workers, lazy pages and accessible extracted text", async () => {
+test("PDF renderer uses PDF.js workers, lazy pages and visible-width scaling", async () => {
   const renderer = await readFile(rendererUrl, "utf8");
 
   assert.match(renderer, /import\("pdfjs-dist\/build\/pdf\.mjs"\)/);
@@ -40,11 +44,14 @@ test("PDF renderer uses PDF.js workers, lazy pages and accessible extracted text
   assert.match(renderer, /page\.render\(\{ canvasContext: context, viewport \}\)/);
   assert.match(renderer, /page\.getTextContent\(\)/);
   assert.match(renderer, /process-page-document-text/);
+  assert.match(renderer, /visibleInlineSize\(container, 32\)/);
+  assert.doesNotMatch(renderer, /Math\.max\(280, container\.clientWidth/);
+  assert.match(renderer, /--process-page-document-page-width/);
   assert.match(renderer, /pixelRatio/);
   assert.match(renderer, /renderPage\(1\)/);
 });
 
-test("PPTX renderer uses security limits and windowed responsive slide rendering", async () => {
+test("PPTX renderer refits contained slides whenever the visible width changes", async () => {
   const [renderer, packageJson] = await Promise.all([
     readFile(rendererUrl, "utf8"),
     readFile(packageUrl, "utf8").then(JSON.parse),
@@ -57,11 +64,16 @@ test("PPTX renderer uses security limits and windowed responsive slide rendering
   assert.match(renderer, /RECOMMENDED_ZIP_LIMITS/);
   assert.match(renderer, /renderMode: "list"/);
   assert.match(renderer, /fitMode: "contain"/);
+  assert.match(renderer, /width: visibleInlineSize\(container, 32\)/);
+  assert.match(renderer, /scrollContainer: container/);
+  assert.match(renderer, /process-page-document-pptx-stage/);
+  assert.match(renderer, /new ResizeObserver/);
+  assert.match(renderer, /viewer\.setFitMode\("contain"\)/);
   assert.match(renderer, /windowed: true/);
   assert.match(renderer, /viewer\.destroy\(\)/);
 });
 
-test("legacy PPT uses an isolated Office viewer and retains the original file", async () => {
+test("legacy PPT uses an isolated browser-width Office viewer and retains the original file", async () => {
   const renderer = await readFile(rendererUrl, "utf8");
 
   assert.match(renderer, /view\.officeapps\.live\.com\/op\/embed\.aspx/);
@@ -112,14 +124,32 @@ test("public content sanitizes and hydrates page document blocks", async () => {
   assert.match(publicContent, /\["SCRIPT", "STYLE", "IFRAME", "OBJECT", "EMBED", "FORM"\]/);
 });
 
-test("page document layout remains contained inside the existing article column", async () => {
-  const styles = await readFile(stylesUrl, "utf8");
+test("page document layout always shrinks to the existing visible article width", async () => {
+  const [styles, packageJson, browserLayout] = await Promise.all([
+    readFile(stylesUrl, "utf8"),
+    readFile(packageUrl, "utf8").then(JSON.parse),
+    readFile(browserLayoutUrl, "utf8"),
+  ]);
 
-  assert.match(styles, /\.process-page-document\s*\{[\s\S]*max-width: 100%/);
+  assert.match(styles, /\.process-page-document\s*\{[\s\S]*max-width: 100%[\s\S]*min-width: 0/);
   assert.match(styles, /contain: layout paint/);
-  assert.match(styles, /\.process-page-document-preview\s*\{[\s\S]*overflow: auto/);
-  assert.match(styles, /max-height: min\(76vh, 56rem\)/);
-  assert.match(styles, /\.process-page-document-pdf-canvas\s*\{[\s\S]*max-width: 100%/);
-  assert.match(styles, /\.process-page-document-office-frame\s*\{[\s\S]*width: 100%/);
+  assert.match(styles, /\.process-page-document-preview\s*\{[\s\S]*overflow-x: hidden[\s\S]*overflow-y: auto/);
+  assert.match(styles, /\.process-page-document-page\s*\{[\s\S]*--process-page-document-page-width/);
+  assert.match(styles, /\.process-page-document-pdf-canvas\s*\{[\s\S]*width: 100%[\s\S]*max-width: 100%/);
+  assert.match(styles, /\.process-page-document-pptx-stage\s*\{[\s\S]*max-width: 100%[\s\S]*overflow: hidden/);
+  assert.match(styles, /\.process-page-document-pptx-stage > \*[\s\S]*width: 100% !important/);
+  assert.match(styles, /\.process-page-document-office-frame\s*\{[\s\S]*width: 100%[\s\S]*max-width: 100%/);
+  assert.match(styles, /\.process-page-document-toolbar\s*\{[\s\S]*flex-wrap: wrap/);
+  assert.doesNotMatch(styles, /overflow-x:\s*auto/);
   assert.doesNotMatch(styles, /position:\s*(?:fixed|absolute)/);
+
+  assert.match(
+    packageJson.scripts["test:layout-browser"],
+    /verify-page-document-layout\.mjs/,
+  );
+  for (const width of [240, 320, 375, 720, 1024]) {
+    assert.ok(browserLayout.includes(`width: ${width}`));
+  }
+  assert.match(browserLayout, /bodyScrollWidth <= value\.viewportWidth/);
+  assert.match(browserLayout, /PPTX renderer list is not fitted/);
 });
