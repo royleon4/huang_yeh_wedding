@@ -91,13 +91,45 @@ test("public and administrator guestbooks apply the album sort mode", async () =
   ]);
 
   for (const code of [album, panel]) {
-    assert.match(code, /import \{ sortAlbumMessages \} from "\.\.\/\.\.\/album-photo-order\.mjs"/);
-    assert.match(code, /sortAlbumMessages\(messages, sortMode, messageRandomSeed\)/);
+    assert.match(code, /sortAlbumMessages/);
     assert.match(code, /const \[messageRandomSeed\] = useState/);
   }
+  assert.match(
+    album,
+    /sortAlbumMessages\(messages, selectedSortMode, messageRandomSeed\)/,
+  );
   assert.match(album, /messages=\{orderedMessages\}/);
+  assert.match(
+    panel,
+    /sortAlbumMessages\(messages, sortMode, messageRandomSeed\)/,
+  );
   assert.match(panel, /orderedMessages\.map\(\(item\) =>/);
   assert.doesNotMatch(panel, /\{messages\.map\(\(item\) =>/);
+});
+
+test("public guestbook exposes message-specific bilingual sorting without moving the count", async () => {
+  const [album, styles] = await Promise.all([
+    source("src/client/MessageAlbum.jsx"),
+    source("src/client/message-album.css"),
+  ]);
+
+  assert.match(album, /const \[selectedSortMode, setSelectedSortMode\] = useState/);
+  assert.match(album, /setSelectedSortMode\(normalizeAlbumPhotoSortMode\(sortMode\)\)/);
+  assert.match(album, /className="message-album-heading">\s*<span>\{countLabel\}<\/span>\s*<\/div>\s*<div className="message-sort-row">/);
+  assert.match(album, /aria-label=\{t\.sortLabel\}/);
+  assert.match(album, /value=\{selectedSortMode\}/);
+  assert.match(album, /隨機排列/);
+  assert.match(album, /最新留言優先/);
+  assert.match(album, /最早留言優先/);
+  assert.match(album, /留言內容：正序/);
+  assert.match(album, /留言內容：反序/);
+  assert.match(album, /留言者姓名：正序/);
+  assert.match(album, /留言者姓名：反序/);
+  assert.match(album, /Newest messages first/);
+  assert.match(album, /Oldest messages first/);
+  assert.match(album, /Message text: A–Z/);
+  assert.match(album, /Guest name: A–Z/);
+  assert.match(styles, /\.message-sort-control select[\s\S]*?max-width: min\(16rem, 64vw\)/);
 });
 
 test("administrator guestbook import keeps a stable form reference across awaits", async () => {

@@ -18,6 +18,34 @@
   opacity: 0.72;
 }
 
+.message-sort-row {
+  display: flex;
+  justify-content: flex-end;
+  width: 100%;
+  max-width: 100%;
+  margin: 0 0 1rem;
+}
+
+.message-sort-control {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  max-width: 100%;
+  font-size: 0.9rem;
+}
+
+.message-sort-control > span {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
+.message-sort-control select {
+  width: auto;
+  max-width: min(16rem, 64vw);
+  min-width: 0;
+  font: inherit;
+}
+
 .message-grid {
   width: 100%;
   max-width: 100%;
