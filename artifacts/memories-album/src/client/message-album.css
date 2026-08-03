@@ -1,0 +1,173 @@
+.message-album,
+.message-album * {
+  box-sizing: border-box;
+  min-width: 0;
+}
+
+.message-album {
+  width: 100%;
+  max-width: 100%;
+  overflow: clip;
+}
+
+.message-album-heading {
+  display: flex;
+  justify-content: flex-end;
+  margin: 0 0 1rem;
+  font-size: 0.9rem;
+  opacity: 0.72;
+}
+
+.message-grid {
+  width: 100%;
+  max-width: 100%;
+}
+
+.message-action-card {
+  min-height: 9rem;
+  overflow: hidden;
+}
+
+.message-action-card > button {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  grid-template-areas:
+    "title icon"
+    "hint icon";
+  gap: 0.35rem 1rem;
+  align-items: center;
+  width: 100%;
+  min-height: 9rem;
+  max-width: 100%;
+  padding: 1.4rem;
+  text-align: left;
+  overflow: hidden;
+}
+
+.message-action-card strong {
+  grid-area: title;
+  font-size: clamp(1.35rem, 4vw, 2rem);
+  overflow-wrap: anywhere;
+}
+
+.message-action-card span {
+  grid-area: hint;
+  overflow-wrap: anywhere;
+}
+
+.message-action-card b {
+  grid-area: icon;
+  font-size: clamp(2rem, 8vw, 4rem);
+  font-weight: 300;
+  line-height: 1;
+}
+
+.message-card {
+  display: flex;
+  flex-direction: column;
+  min-height: 18rem;
+  max-width: 100%;
+  overflow: hidden;
+}
+
+.message-card-body {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  max-width: 100%;
+  min-height: 13rem;
+  padding: clamp(1.2rem, 5vw, 2.4rem);
+  overflow: hidden;
+}
+
+.message-card-body p {
+  width: 100%;
+  max-width: 100%;
+  margin: 0;
+  line-height: 1.55;
+  text-align: center;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  hyphens: auto;
+}
+
+.message-card footer {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+  width: 100%;
+  max-width: 100%;
+  padding: 0.85rem 1rem;
+  overflow: hidden;
+}
+
+.message-card footer strong {
+  flex: 1 1 auto;
+  font-size: clamp(1.05rem, 3vw, 1.35rem);
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.message-card footer small {
+  flex: 0 1 auto;
+  max-width: 48%;
+  text-align: right;
+  overflow-wrap: anywhere;
+}
+
+.message-album-state,
+.message-empty-copy {
+  max-width: 100%;
+  margin: 2rem auto;
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+
+.message-character-count {
+  display: block;
+  margin-top: 0.35rem;
+  text-align: right;
+}
+
+.message-form textarea {
+  width: 100%;
+  max-width: 100%;
+  resize: vertical;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+@media (max-width: 480px) {
+  .message-action-card,
+  .message-action-card > button {
+    min-height: 8rem;
+  }
+
+  .message-card {
+    min-height: 16rem;
+  }
+
+  .message-card-body {
+    min-height: 11rem;
+    padding: 1.25rem;
+  }
+
+  .message-card footer {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .message-card footer small {
+    max-width: 100%;
+    text-align: left;
+  }
+}
