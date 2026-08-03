@@ -43,7 +43,7 @@ test("a process may reuse a previous featured photo only when its own candidates
     maximum: 2,
   };
 
-  const first = session.select(photos(["shared", "first-only", "extra"]), {
+  const first = session.select(photos(["first-only", "shared", "extra"]), {
     ...common,
     activeFilter: "first",
   });
