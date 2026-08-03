@@ -29,7 +29,8 @@ export default function BottomCollectionNav({
   onChoose,
   onUpload,
 }) {
-  const split = Math.ceil(albums.length / 2);
+  const leftAlbums = albums.filter((_, index) => index % 2 === 0);
+  const rightAlbums = albums.filter((_, index) => index % 2 === 1);
 
   return (
     <nav
@@ -38,7 +39,7 @@ export default function BottomCollectionNav({
     >
       <div className="bottom-nav-side bottom-nav-left">
         <CollectionButtons
-          albums={albums.slice(0, split)}
+          albums={leftAlbums}
           active={active}
           isEnglish={isEnglish}
           onChoose={onChoose}
@@ -57,7 +58,7 @@ export default function BottomCollectionNav({
 
       <div className="bottom-nav-side bottom-nav-right">
         <CollectionButtons
-          albums={albums.slice(split)}
+          albums={rightAlbums}
           active={active}
           isEnglish={isEnglish}
           onChoose={onChoose}
