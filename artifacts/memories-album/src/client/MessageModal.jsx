@@ -38,6 +38,7 @@ export default function MessageModal({ lang, onClose, onCreated }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const controllerRef = useRef(null);
+  const submittingRef = useRef(false);
 
   const close = () => {
     controllerRef.current?.abort();
@@ -46,11 +47,13 @@ export default function MessageModal({ lang, onClose, onCreated }) {
 
   const submit = async (event) => {
     event.preventDefault();
+    if (submittingRef.current) return;
     if (!visitorName.trim() || !message.trim()) {
       setError(t.required);
       return;
     }
 
+    submittingRef.current = true;
     setBusy(true);
     setError("");
     const controller = new AbortController();
@@ -76,6 +79,7 @@ export default function MessageModal({ lang, onClose, onCreated }) {
         setError(submitError instanceof Error ? submitError.message : t.failed);
       }
     } finally {
+      submittingRef.current = false;
       controllerRef.current = null;
       setBusy(false);
     }
