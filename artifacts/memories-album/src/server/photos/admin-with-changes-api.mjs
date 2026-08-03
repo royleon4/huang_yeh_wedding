@@ -5,8 +5,27 @@ import { createAdminPhotoFilterApi } from "./admin-filter-api.mjs";
 import { createPermanentPhotoDeleteApi } from "./permanent-delete-api.mjs";
 import { createAdminPhotoUploaderApi } from "./uploader-admin-api.mjs";
 
+function labelAwareCategoryRepository(repository) {
+  if (typeof repository?.listLabels !== "function") return repository;
+  return new Proxy(repository, {
+    get(target, property, receiver) {
+      if (property === "listProcesses") {
+        return () => target.listLabels();
+      }
+      const value = Reflect.get(target, property, receiver);
+      return typeof value === "function" ? value.bind(target) : value;
+    },
+  });
+}
+
 export function createAdminPhotoApi(options) {
-  const photoApi = createPhotoApi(options);
+  const allLabelsRepository = labelAwareCategoryRepository(
+    options.categoryRepository,
+  );
+  const photoApi = createPhotoApi({
+    ...options,
+    categoryRepository: allLabelsRepository,
+  });
   const refreshApi = options.refreshService
     ? createAdminRefreshApi({
         service: options.refreshService,
@@ -30,7 +49,7 @@ export function createAdminPhotoApi(options) {
   });
   const changesApi = createAdminChangesApi({
     albumRepository: options.albumRepository,
-    categoryRepository: options.categoryRepository,
+    categoryRepository: allLabelsRepository,
     photoRepository: options.repository,
     synchronizer: options.synchronizer,
     drive: options.drive,
