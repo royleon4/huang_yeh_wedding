@@ -84,6 +84,22 @@ test("public and administrator guestbooks show date and time to the minute", asy
   );
 });
 
+test("public and administrator guestbooks apply the album sort mode", async () => {
+  const [album, panel] = await Promise.all([
+    source("src/client/MessageAlbum.jsx"),
+    source("src/client/AdminMessagesPanel.jsx"),
+  ]);
+
+  for (const code of [album, panel]) {
+    assert.match(code, /import \{ sortAlbumMessages \} from "\.\.\/\.\.\/album-photo-order\.mjs"/);
+    assert.match(code, /sortAlbumMessages\(messages, sortMode, messageRandomSeed\)/);
+    assert.match(code, /const \[messageRandomSeed\] = useState/);
+  }
+  assert.match(album, /messages=\{orderedMessages\}/);
+  assert.match(panel, /orderedMessages\.map\(\(item\) =>/);
+  assert.doesNotMatch(panel, /\{messages\.map\(\(item\) =>/);
+});
+
 test("administrator guestbook import keeps a stable form reference across awaits", async () => {
   const panel = await source("src/client/AdminMessagesPanel.jsx");
 
