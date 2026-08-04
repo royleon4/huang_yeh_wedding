@@ -11,4 +11,8 @@ test("desktop main content stays inside the sidebar content column", async () =>
     styles,
     /@media \(min-width: 44rem\)[\s\S]*\.archive-shell > main\s*\{[\s\S]*width: auto;[\s\S]*margin-inline: 0\.75rem;/,
   );
+  assert.match(
+    styles,
+    /@media \(min-width: 44rem\)[\s\S]*\.archive-shell > main \.process-section\s*\{[\s\S]*width: 100%;[\s\S]*margin-left: 0;[\s\S]*margin-right: 0;/,
+  );
 });
