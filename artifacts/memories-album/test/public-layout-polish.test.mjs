@@ -113,8 +113,8 @@ test("three-photo capacity uses a viewport breakpoint without trapping fixed nav
   assert.doesNotMatch(navigation, /container-name:\s*memories-page/);
   assert.doesNotMatch(navigation, /container-type:\s*inline-size/);
   assert.doesNotMatch(navigation, /@container memories-page/);
-  assert.match(navigation, /@media \(min-width: 42\.875rem\)/);
-  assert.match(navigation, /40rem \/ \(14\/15\) =/);
+  assert.match(navigation, /@media \(min-width: 44rem\)/);
+  assert.match(navigation, /classic 15–18px scrollbars/);
   assert.match(
     navigation,
     /\.archive-shell\s*\{[\s\S]*display: grid;[\s\S]*grid-template-columns: var\(--memories-sidebar-share\) minmax\(0, 1fr\);/,
@@ -145,6 +145,6 @@ test("three-photo capacity uses a viewport breakpoint without trapping fixed nav
   );
   assert.doesNotMatch(
     navigation,
-    /@media \(min-width: 42\.875rem\)[\s\S]*\.bottom-collection-nav\s*\{[\s\S]*position: fixed;/,
+    /@media \(min-width: 44rem\)[\s\S]*\.bottom-collection-nav\s*\{[\s\S]*position: fixed;/,
   );
 });
