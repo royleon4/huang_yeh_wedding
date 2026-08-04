@@ -31,6 +31,7 @@ test("cross-browser gate covers desktop mobile and WeChat engine representatives
   assert.match(config, /Pixel 7/);
   assert.match(config, /iPhone 13/);
   assert.match(config, /MicroMessenger/);
+  assert.match(config, /MEMORIES_ADMIN_TOKEN=/);
   assert.match(config, /pnpm run start/);
 });
 
@@ -46,7 +47,8 @@ test("layout specification checks visible viewport geometry and overflow", async
   assert.match(spec, /expectNoHorizontalOverflow/);
   assert.match(spec, /process-video-block iframe/);
   assert.match(spec, /message-album/);
-  assert.match(spec, /admin-tabs button/);
+  assert.match(spec, /page\.locator\("\.admin-tabs"\)/);
+  assert.match(spec, /Memories\/admin\/api\/session/);
 });
 
 test("heavy browser gate runs outside Draft commit validation", async () => {
