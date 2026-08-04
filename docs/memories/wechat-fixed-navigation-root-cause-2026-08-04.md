@@ -15,11 +15,12 @@ A VisualViewport offset cannot repair this case because the element is attached 
 ## Fix
 
 - Remove container containment from `body`.
-- Replace the single page-width container query with a viewport media query at the same `42.875rem` threshold.
+- Replace the page-width container query with a viewport media query.
+- Use a `44rem` viewport threshold: the former `42.875rem` content requirement plus `1.125rem` for classic 15–18px scrollbars.
 - Remove the obsolete WeChat-only VisualViewport offset helper.
 
-The page container occupied the viewport width, so changing from a page-width container query to the same viewport media-query threshold preserves the existing desktop breakpoint while allowing fixed positioning to remain viewport-relative.
+The added scrollbar allowance preserves the previous Chrome behavior at 700px and 720px while maintaining the original minimum right-pane width. Overlay-scrollbar browsers switch no earlier than before, so the change cannot create a sidebar overlap.
 
 ## Regression guard
 
-`public-layout-polish.test.mjs` now rejects `container-name: memories-page`, `container-type: inline-size`, and `@container memories-page` in the bottom navigation stylesheet while requiring the unchanged `@media (min-width: 42.875rem)` desktop breakpoint.
+`public-layout-polish.test.mjs` and `fixed-navigation-containing-block.test.mjs` reject `container-name: memories-page`, `container-type: inline-size`, and `@container memories-page` in the bottom navigation stylesheet while requiring the scrollbar-safe `@media (min-width: 44rem)` desktop breakpoint.
