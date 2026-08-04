@@ -46,4 +46,10 @@
     width: auto;
     margin-inline: 0.75rem;
   }
+
+  .archive-shell > main .process-section {
+    width: 100%;
+    margin-left: 0;
+    margin-right: 0;
+  }
 }
