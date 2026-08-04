@@ -174,11 +174,11 @@
 /*
  * The sidebar is one third of its former 20% share: 1/15 of the page. The
  * right pane therefore receives 14/15. The existing gallery first supports
- * three cards at 40rem, so the viewport must be at least
- * 40rem / (14/15) = 42.857rem. The threshold is rounded up to 42.875rem so
- * the right pane never falls below the existing three-card capacity.
+ * three cards at 40rem, requiring 42.875rem of content width. A 1.125rem
+ * allowance keeps that same minimum after classic 15–18px scrollbars are
+ * removed from the viewport, so the viewport breakpoint is 44rem.
  */
-@media (min-width: 42.875rem) {
+@media (min-width: 44rem) {
   .archive-shell {
     display: grid;
     grid-template-columns: var(--memories-sidebar-share) minmax(0, 1fr);
