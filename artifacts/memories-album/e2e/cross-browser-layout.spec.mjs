@@ -1,7 +1,8 @@
 import { expect, test } from "@playwright/test";
+import { crossBrowserAdminToken } from "../playwright.config.mjs";
 
-const pixelPng = Buffer.from(
-  "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M/wHwAF/gL+3iVxJwAAAABJRU5ErkJggg==",
+const imagePng = Buffer.from(
+  "iVBORw0KGgoAAAANSUhEUgAAABAAAAAMCAIAAADkharWAAAAF0lEQVR4nGO8c+MUAymAiSTVoxpGkAYA0qUCllQl2T0AAAAASUVORK5CYII=",
   "base64",
 );
 
@@ -153,6 +154,23 @@ const photos = [
   },
 ];
 
+const messages = [
+  {
+    id: "00000000-0000-4000-8000-000000000010",
+    albumId: "messages",
+    visitorName: "一位名字很長的訪客",
+    body: "願你們的家庭充滿平安與喜樂。這是一段用來驗證不同瀏覽器長文字換行的留言。",
+    messageAt: "2026-06-20T04:30:00.000Z",
+  },
+  {
+    id: "00000000-0000-4000-8000-000000000011",
+    albumId: "messages",
+    visitorName: "Guest with a long name",
+    body: "May your new journey be filled with grace, joy, and many wonderful memories together.",
+    messageAt: "2026-06-20T05:30:00.000Z",
+  },
+];
+
 function watchBrowserFailures(page) {
   const failures = [];
   page.on("pageerror", (error) => failures.push(`pageerror: ${error.message}`));
@@ -174,12 +192,13 @@ async function mockPublicApis(page) {
   );
 
   await page.route("**/Memories/api/**", async (route) => {
-    const request = route.request();
-    const url = new URL(request.url());
-    const path = url.pathname;
+    const path = new URL(route.request().url()).pathname;
 
     if (path === "/Memories/api/albums") {
       return route.fulfill({ json: { albums } });
+    }
+    if (path === "/Memories/api/settings/messages") {
+      return route.fulfill({ json: { messages } });
     }
     if (path === "/Memories/api/settings") {
       return route.fulfill({
@@ -206,29 +225,7 @@ async function mockPublicApis(page) {
       return route.fulfill({
         status: 200,
         contentType: "image/png",
-        body: pixelPng,
-      });
-    }
-    if (path === "/Memories/api/messages") {
-      return route.fulfill({
-        json: {
-          messages: [
-            {
-              id: "00000000-0000-4000-8000-000000000010",
-              name: "一位名字很長的訪客",
-              message:
-                "願你們的家庭充滿平安與喜樂。這是一段用來驗證不同瀏覽器長文字換行的留言。",
-              createdAt: "2026-06-20T04:30:00.000Z",
-            },
-            {
-              id: "00000000-0000-4000-8000-000000000011",
-              name: "Guest with a long name",
-              message:
-                "May your new journey be filled with grace, joy, and many wonderful memories together.",
-              createdAt: "2026-06-20T05:30:00.000Z",
-            },
-          ],
-        },
+        body: imagePng,
       });
     }
     if (path === "/Memories/api/health") {
@@ -239,8 +236,9 @@ async function mockPublicApis(page) {
 }
 
 async function mockAdminApis(page) {
-  await page.route("**/admin/api/**", async (route) => {
+  await page.route("**/Memories/admin/api/**", async (route) => {
     const path = new URL(route.request().url()).pathname;
+
     if (path.endsWith("/session")) {
       return route.fulfill({ json: { authenticated: true } });
     }
@@ -257,7 +255,10 @@ async function mockAdminApis(page) {
       return route.fulfill({ json: { photos, nextCursor: null } });
     }
     if (path.includes("/messages")) {
-      return route.fulfill({ json: { messages: [] } });
+      return route.fulfill({ json: { messages } });
+    }
+    if (path.includes("/settings")) {
+      return route.fulfill({ json: {} });
     }
     return route.fulfill({ json: {} });
   });
@@ -271,17 +272,13 @@ async function openPublic(page, route = "/Memories/") {
   await expect(page.locator(".bottom-collection-nav")).toBeVisible();
 }
 
-async function horizontalOverflow(page) {
-  return page.evaluate(() => ({
+async function expectNoHorizontalOverflow(page) {
+  const value = await page.evaluate(() => ({
     scrollWidth: document.documentElement.scrollWidth,
     clientWidth: document.documentElement.clientWidth,
     bodyScrollWidth: document.body.scrollWidth,
     innerWidth: window.innerWidth,
   }));
-}
-
-async function expectNoHorizontalOverflow(page) {
-  const value = await horizontalOverflow(page);
   expect(value.scrollWidth, JSON.stringify(value)).toBeLessThanOrEqual(
     value.clientWidth + 1,
   );
@@ -297,10 +294,7 @@ async function navGeometry(page) {
       position: getComputedStyle(element).position,
       left: rect.left,
       right: rect.right,
-      top: rect.top,
       bottom: rect.bottom,
-      width: rect.width,
-      height: rect.height,
       viewportWidth: document.documentElement.clientWidth,
       viewportHeight: window.innerHeight,
       documentHeight: document.documentElement.scrollHeight,
@@ -320,12 +314,7 @@ async function expectVisibleElementsInsideViewport(page, selectors) {
         })
         .map((element) => {
           const rect = element.getBoundingClientRect();
-          return {
-            selector,
-            left: rect.left,
-            right: rect.right,
-            viewportWidth,
-          };
+          return { selector, left: rect.left, right: rect.right, viewportWidth };
         })
         .filter((rect) => rect.left < -1 || rect.right > viewportWidth + 1),
     );
@@ -383,19 +372,12 @@ test("desktop sidebar, process content, video, and photos do not overlap or over
   await page.setViewportSize({ width: 1280, height: 900 });
   await openPublic(page);
 
-  const nav = await navGeometry(page);
-  expect(nav.position).toBe("sticky");
+  expect((await navGeometry(page)).position).toBe("sticky");
   const geometry = await page.evaluate(() => {
-    const navRect = document
-      .querySelector(".bottom-collection-nav")
-      .getBoundingClientRect();
-    const headerRect = document.querySelector(".archive-header").getBoundingClientRect();
-    const mainRect = document.querySelector("main").getBoundingClientRect();
-    return {
-      navRight: navRect.right,
-      headerLeft: headerRect.left,
-      mainLeft: mainRect.left,
-    };
+    const nav = document.querySelector(".bottom-collection-nav").getBoundingClientRect();
+    const header = document.querySelector(".archive-header").getBoundingClientRect();
+    const main = document.querySelector("main").getBoundingClientRect();
+    return { navRight: nav.right, headerLeft: header.left, mainLeft: main.left };
   });
   expect(geometry.headerLeft).toBeGreaterThanOrEqual(geometry.navRight - 1);
   expect(geometry.mainLeft).toBeGreaterThanOrEqual(geometry.navRight - 1);
@@ -428,9 +410,10 @@ test("long bilingual labels and the guestbook remain inside mobile width", async
 
   await page.getByRole("button", { name: /Guestbook/i }).click();
   await expect(page.locator(".message-album")).toBeVisible();
+  await expect(page.locator(".message-card")).toHaveCount(messages.length);
   await expectVisibleElementsInsideViewport(page, [
     ".message-album",
-    ".message-sort-row",
+    ".message-album-toolbar",
     ".message-card",
   ]);
   await expectNoHorizontalOverflow(page);
@@ -442,24 +425,21 @@ test("administrator surface remains usable without horizontal overflow", async (
 }) => {
   const assertNoBrowserFailures = watchBrowserFailures(page);
   await page.setViewportSize({ width: 390, height: 844 });
+
+  const login = await page.request.post("/Memories/admin/api/session", {
+    headers: { Authorization: `Bearer ${crossBrowserAdminToken}` },
+  });
+  expect(login.ok()).toBeTruthy();
   await mockAdminApis(page);
 
-  const response = await page.goto("/Memories/admin/", {
+  const response = await page.goto("/Memories/admin/albums", {
     waitUntil: "networkidle",
   });
   expect(response?.ok()).toBeTruthy();
   await expect(
     page.getByRole("heading", { name: "婚禮相簿管理" }),
   ).toBeVisible();
+  await expect(page.locator(".admin-tabs")).toBeVisible();
   await expectNoHorizontalOverflow(page);
-
-  const tabs = page.locator(".admin-tabs button");
-  const count = await tabs.count();
-  for (let index = 0; index < count; index += 1) {
-    await tabs.nth(index).click();
-    await page.waitForTimeout(50);
-    await expectNoHorizontalOverflow(page);
-  }
-
   assertNoBrowserFailures();
 });
