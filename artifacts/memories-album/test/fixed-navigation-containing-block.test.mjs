@@ -17,5 +17,5 @@ test("mobile fixed navigation is not trapped by page containment", async () => {
   assert.doesNotMatch(navigation, /container-type:\s*(inline-size|size)/);
   assert.doesNotMatch(navigation, /container-name:\s*memories-page/);
   assert.doesNotMatch(navigation, /@container\s+memories-page/);
-  assert.match(navigation, /@media \(min-width: 42\.875rem\)/);
+  assert.match(navigation, /@media \(min-width: 44rem\)/);
 });
