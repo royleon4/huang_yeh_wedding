@@ -23,7 +23,7 @@ test("cross-browser gate covers desktop mobile and WeChat engine representatives
     "webkit-mobile",
     "wechat-android",
   ]) {
-    assert.match(config, new RegExp(`name: \\\"${project}\\\"`));
+    assert.match(config, new RegExp(`name: "${project}"`));
   }
   assert.match(config, /Desktop Chrome/);
   assert.match(config, /Desktop Firefox/);
