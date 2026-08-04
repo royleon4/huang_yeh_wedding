@@ -103,22 +103,18 @@ test("bottom navigation stays compact while icons and labels grow responsively",
   assert.doesNotMatch(navigation, /bottom-nav-chip/);
 });
 
-test("three-photo capacity switches the page to a non-overlapping narrow sidebar layout", async () => {
+test("three-photo capacity uses a viewport breakpoint without trapping fixed navigation", async () => {
   const navigation = await readFile(
     path.join(root, "src/client/bottom-collection-nav.css"),
     "utf8",
   );
 
   assert.match(navigation, /--memories-sidebar-share: calc\(20% \/ 3\)/);
-  assert.match(
-    navigation,
-    /body\s*\{[\s\S]*container-name: memories-page;[\s\S]*container-type: inline-size;/,
-  );
-  assert.match(
-    navigation,
-    /@container memories-page \(min-width: 42\.875rem\)/,
-  );
-  assert.match(navigation, /40rem \/ \(14\/15\) =/);
+  assert.doesNotMatch(navigation, /container-name:\s*memories-page/);
+  assert.doesNotMatch(navigation, /container-type:\s*inline-size/);
+  assert.doesNotMatch(navigation, /@container memories-page/);
+  assert.match(navigation, /@media \(min-width: 44rem\)/);
+  assert.match(navigation, /classic 15–18px scrollbars/);
   assert.match(
     navigation,
     /\.archive-shell\s*\{[\s\S]*display: grid;[\s\S]*grid-template-columns: var\(--memories-sidebar-share\) minmax\(0, 1fr\);/,
@@ -149,6 +145,6 @@ test("three-photo capacity switches the page to a non-overlapping narrow sidebar
   );
   assert.doesNotMatch(
     navigation,
-    /@container memories-page \(min-width: 42\.875rem\)[\s\S]*\.bottom-collection-nav\s*\{[\s\S]*position: fixed;/,
+    /@media \(min-width: 44rem\)[\s\S]*\.bottom-collection-nav\s*\{[\s\S]*position: fixed;/,
   );
 });
