@@ -252,7 +252,14 @@ async function mockAdminApis(page) {
       return route.fulfill({ json: { uploaders: ["婚禮攝影", "Leon"] } });
     }
     if (path.includes("/photos")) {
-      return route.fulfill({ json: { photos, nextCursor: null } });
+      const adminPhotos = photos.map((photo) => ({
+        ...photo,
+        categoryIds: [...photo.processIds],
+        visibility: "public",
+      }));
+      return route.fulfill({
+        json: { photos: adminPhotos, nextCursor: null },
+      });
     }
     if (path.includes("/messages")) {
       return route.fulfill({ json: { messages } });
