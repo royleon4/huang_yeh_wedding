@@ -40,3 +40,10 @@
 .process-video-block + .masonry-grid {
   margin-top: 0;
 }
+
+@media (min-width: 44rem) {
+  .archive-shell > main {
+    width: auto;
+    margin-inline: 0.75rem;
+  }
+}
