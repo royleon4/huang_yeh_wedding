@@ -1,3 +1,6 @@
+import { useEffect, useRef } from "react";
+import { bindWeChatVisualViewportBottom } from "./wechat-visual-viewport.mjs";
+
 function iconFor(albumId) {
   if (albumId === "wedding") return "♥";
   if (albumId === "guest") return "☻";
@@ -29,11 +32,18 @@ export default function BottomCollectionNav({
   onChoose,
   onUpload,
 }) {
+  const navRef = useRef(null);
   const leftAlbums = albums.filter((_, index) => index % 2 === 0);
   const rightAlbums = albums.filter((_, index) => index % 2 === 1);
 
+  useEffect(
+    () => bindWeChatVisualViewportBottom(navRef.current),
+    [],
+  );
+
   return (
     <nav
+      ref={navRef}
       className="bottom-collection-nav"
       aria-label={isEnglish ? "Photo collections" : "照片分類"}
     >
