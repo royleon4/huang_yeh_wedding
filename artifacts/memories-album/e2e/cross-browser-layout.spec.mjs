@@ -437,6 +437,23 @@ test("administrator surface remains usable without horizontal overflow", async (
     headers: { Authorization: `Bearer ${crossBrowserAdminToken}` },
   });
   expect(login.ok()).toBeTruthy();
+
+  const setCookie = login.headers()["set-cookie"] ?? "";
+  const [cookiePair] = setCookie.split(";");
+  const separator = cookiePair.indexOf("=");
+  expect(separator).toBeGreaterThan(0);
+  const origin = new URL(login.url()).origin;
+  await page.context().addCookies([
+    {
+      name: cookiePair.slice(0, separator),
+      value: cookiePair.slice(separator + 1),
+      url: `${origin}/Memories/admin`,
+      httpOnly: true,
+      secure: false,
+      sameSite: "Strict",
+    },
+  ]);
+
   await mockAdminApis(page);
 
   const response = await page.goto("/Memories/admin/albums", {
