@@ -1,0 +1,89 @@
+name: Memories Cross-Browser Layout
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "23 19 * * 2"
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    paths:
+      - "artifacts/memories-album/src/client/**"
+      - "artifacts/memories-album/e2e/**"
+      - "artifacts/memories-album/playwright.config.mjs"
+      - "artifacts/memories-album/*-ui-transform.mjs"
+      - "artifacts/memories-album/vite*.config.js"
+      - "artifacts/memories-album/package.json"
+      - "pnpm-lock.yaml"
+      - ".github/workflows/memories-cross-browser.yml"
+  push:
+    branches: [main]
+    paths:
+      - "artifacts/memories-album/src/client/**"
+      - "artifacts/memories-album/e2e/**"
+      - "artifacts/memories-album/playwright.config.mjs"
+      - "artifacts/memories-album/*-ui-transform.mjs"
+      - "artifacts/memories-album/vite*.config.js"
+      - "artifacts/memories-album/package.json"
+      - "pnpm-lock.yaml"
+      - ".github/workflows/memories-cross-browser.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: memories-cross-browser-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  browser-layout:
+    if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.15.1
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install workspace dependencies
+        run: pnpm install --no-frozen-lockfile
+
+      - name: Build production Memories
+        run: pnpm --filter @workspace/memories-album run build
+
+      - name: Install exact Playwright runner
+        run: >-
+          pnpm --filter @workspace/memories-album add --save-dev
+          @playwright/test@1.60.0 --lockfile=false
+
+      - name: Install Chromium Firefox and WebKit
+        run: >-
+          pnpm --filter @workspace/memories-album exec playwright install
+          --with-deps chromium firefox webkit
+
+      - name: Run cross-browser production layout gate
+        env:
+          CI: "true"
+        run: >-
+          pnpm --filter @workspace/memories-album exec playwright test
+          --config playwright.config.mjs
+
+      - name: Preserve cross-browser evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: memories-cross-browser-evidence
+          path: |
+            artifacts/memories-album/cross-browser-report
+            artifacts/memories-album/test-results/cross-browser
+          if-no-files-found: ignore
+          retention-days: 14
