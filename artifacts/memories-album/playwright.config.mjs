@@ -3,6 +3,8 @@ import { defineConfig, devices } from "@playwright/test";
 const port = Number(process.env.MEMORIES_E2E_PORT || 19317);
 const baseURL = `http://127.0.0.1:${port}`;
 
+export const crossBrowserAdminToken = "cross-browser-layout-token";
+
 export default defineConfig({
   testDir: "./e2e",
   outputDir: "./test-results/cross-browser",
@@ -53,7 +55,7 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: `PORT=${port} pnpm run start`,
+    command: `MEMORIES_ADMIN_TOKEN=${crossBrowserAdminToken} PORT=${port} pnpm run start`,
     url: `${baseURL}/Memories/api/health`,
     reuseExistingServer: !process.env.CI,
     timeout: 60_000,
