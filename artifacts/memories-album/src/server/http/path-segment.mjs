@@ -18,7 +18,8 @@ export function decodePathSegment(value, { allowSlash = false } = {}) {
   if (
     !decoded ||
     decoded.includes("\0") ||
-    (!allowSlash && (decoded.includes("/") || decoded.includes("\\")))
+    decoded.includes("\\") ||
+    (!allowSlash && decoded.includes("/"))
   ) {
     throw invalidPathSegment();
   }
