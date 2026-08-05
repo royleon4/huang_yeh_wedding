@@ -1,112 +1,42 @@
-# Workspace
+# Replit Workspace
 
-> **Product status:** Standalone Memories Phase 1 complete  
-> **Reviewed:** 2026-08-01T19:33:00+08:00 (Asia/Taipei)  
-> **Maintainer handbook:** [`MAINTAINER_GUIDE.md`](MAINTAINER_GUIDE.md)  
-> **Next work:** [`docs/phase-1-closeout-2026-08-01.md`](docs/phase-1-closeout-2026-08-01.md)
-
-## Overview
-
-This repository is a pnpm monorepo with two user-facing wedding applications, one legacy API, a standalone Memories service, shared server libraries, and a Replit Canvas preview artifact.
-
-The production-critical photo archive is `artifacts/memories-album`. It intentionally owns its own HTTP server, PostgreSQL migrations, Google Drive integration, public gallery, guest uploads, private batch management, and administrator application.
-
-Product Phase 1 is the accepted functional baseline. Architecture hardening remains active work, especially production browser coverage and incremental removal of exact-string Vite transforms.
+> **Product:** Phase 1 complete；Phase 2.1 browser／In-App／performance gates active  
+> **Reviewed:** 2026-08-05T10:31:00+08:00 (Asia/Taipei)  
+> **Baseline:** `09293817935f5548aa4c7ef6918db9afd0a62b98`  
+> **Deployment guide:** [`docs/site-handbook/deployments/replit.md`](docs/site-handbook/deployments/replit.md)
 
 ## Runtime applications
 
-| Package | Purpose | Main route / port |
-| --- | --- | --- |
-| `@workspace/wedding-invitation` | Legacy wedding invitation and original photo wall | `/`, port `19315` |
-| `@workspace/memories-album` | Standalone wedding archive and administration | `/Memories/`, port `19316` |
-| `@workspace/api-server` | Legacy Express API and Object Storage endpoints | `/api`, port `8080` |
-| `@workspace/mockup-sandbox` | Replit Canvas component preview server | `/__mockup`, port `8081` |
+| Package | Route | Port | Replit role |
+| --- | --- | ---: | --- |
+| `@workspace/wedding-invitation` | `/` | 19315 | User-facing invitation |
+| `@workspace/memories-album` | `/Memories/*` | 19316 | Primary archive/admin service |
+| `@workspace/api-server` | `/api/*` | 8080 | Legacy API/Object Storage |
+| `@workspace/mockup-sandbox` | `/__mockup` | 8081 | Canvas preview artifact |
 
-Do not treat `mockup-sandbox` as dead application code: `.replit` registers it as a Canvas artifact and its generated module registry loads preview components dynamically.
+`mockup-sandbox` is registered by `.replit` and is not dead code。
 
-## Shared packages
+## Current deployment contract
 
-| Package | Purpose |
-| --- | --- |
-| `lib/api-spec` | OpenAPI specification and Orval configuration |
-| `lib/api-zod` | Generated Zod schemas used by the legacy API |
-| `lib/db` | Legacy Drizzle/PostgreSQL connection and schemas |
-| `scripts` | Workspace utilities and repository safety checks |
+```toml
+modules = ["nodejs-24", "python-base-3.13"]
 
-The former generated React Query client package was removed because no application imported it. Orval now generates only the Zod output that has an active consumer.
-
-## Toolchain
-
-- Node.js 24
-- pnpm 10.x
-- TypeScript 5.9
-- React 19 + Vite
-- Express 5 for the legacy API
-- PostgreSQL
-- Google Drive through Replit Connectors for Memories
-- Google Cloud Object Storage for the legacy photo wall
-- Node test runner and GitHub Actions
-
-## Commands
-
-From the repository root:
-
-```bash
-pnpm install
-pnpm run typecheck
-pnpm run build
+[deployment]
+router = "application"
+deploymentTarget = "autoscale"
 ```
 
-Run individual applications:
+Memories workflow:
 
-```bash
-pnpm --filter @workspace/wedding-invitation dev
-pnpm --filter @workspace/memories-album dev
-pnpm --filter @workspace/api-server dev
-pnpm --filter @workspace/mockup-sandbox dev
+```text
+PORT=19316
+MEMORIES_BASE_PATH=/Memories
+pnpm --filter @workspace/memories-album run dev
 ```
 
-Memories validation:
+Never place production Secrets in `.replit`。
 
-```bash
-pnpm --filter @workspace/memories-album test
-pnpm --filter @workspace/memories-album build
-pnpm --filter @workspace/memories-album start
-pnpm --filter @workspace/memories-album db:migrate
-pnpm --filter @workspace/memories-album test:drive-live
-```
-
-`test:drive-live` requires a safe test folder and connected Replit Google Drive Integration. It must not use the production wedding root for destructive diagnostics.
-
-## TypeScript project references
-
-The root `tsconfig.json` references only active shared TypeScript libraries. Application typechecks are run through their package scripts.
-
-- `lib/db`
-- `lib/api-zod`
-
-`pnpm run typecheck` first builds shared declarations, then runs package-level typechecks for artifacts and scripts.
-
-## Database ownership and safety
-
-There are two distinct database models:
-
-1. The legacy API uses `lib/db` and Drizzle.
-2. Memories uses immutable SQL migrations under `artifacts/memories-album/db`.
-
-Never use `drizzle-kit push` to manage Memories tables. Memories migrations are checksum-protected, ordered SQL files and must remain additive by default. A deployment plan proposing `DROP TABLE`, `DROP COLUMN`, or removal of an existing constraint must be cancelled and investigated.
-
-Do not edit an applied migration. Add a new numbered file and preserve compatibility with the currently deployed application when rollback may be required.
-
-## Repository boundaries
-
-Memories changes should not silently modify the legacy invitation, legacy `/api/photos*`, or Object Storage photo-wall implementation. The `Memories legacy boundary` workflow enforces this unless a repository owner explicitly labels the PR `owner-approved-legacy-change`.
-
-When a change intentionally covers the whole repository, document each legacy modification in the PR and apply that label only after reviewing the exact diff and regression evidence.
-
-## Production configuration
-
-Required Replit Secrets:
+## Required Published App configuration
 
 ```text
 DATABASE_URL
@@ -114,26 +44,107 @@ MEMORIES_DRIVE_PHOTOS_FOLDER_ID
 MEMORIES_ADMIN_TOKEN
 ```
 
-The Published App must also connect Replit Google Drive Integration.
+Published runtime also needs Replit Google Drive Integration。Workspace Secrets may not automatically become Published App Secrets；verify every deployment configuration。
 
-Never place actual values, OAuth credentials, management tokens, resumable session URIs, connector response bodies or Drive folder IDs in source, documentation, `.replit`, public logs or browser code.
+## Toolchain
+
+- Node.js 24、pnpm 10
+- React 19、Vite 7
+- PostgreSQL
+- Google Drive via `@replit/connectors-sdk`
+- Sharp、Tiptap、Mammoth、docx-preview
+- Node tests、focused Chrome and Playwright Chromium/Firefox/WebKit/In-App profiles
+- Vite manifest、Web Vitals diagnostics and bundle budgets
+
+## Commands
+
+```bash
+pnpm install --frozen-lockfile
+pnpm run typecheck
+pnpm run build
+```
+
+```bash
+pnpm --filter @workspace/memories-album dev
+pnpm --filter @workspace/memories-album test
+pnpm --filter @workspace/memories-album run test:impact
+pnpm --filter @workspace/memories-album run test:layout-browser
+pnpm --filter @workspace/memories-album build
+pnpm --filter @workspace/memories-album start
+pnpm --filter @workspace/memories-album db:migrate
+pnpm --filter @workspace/memories-album test:drive-live
+```
+
+Live Drive tests may use only a safe test folder。
+
+## Database safety
+
+Memories uses checksum-protected SQL migrations under `artifacts/memories-album/db`。Current latest:
+
+```text
+016_explicit_guest_album_membership.sql
+```
+
+- Never use `drizzle-kit push`。
+- Never modify an applied migration。
+- Stop Publish on unexpected DROP operations。
+- Rollback is compatible code rollback/forward fix, not deletion of migration history。
+
+The legacy API Drizzle schema and Memories migration model have separate ownership。
+
+## Repository boundary
+
+Ordinary Memories work must not modify:
+
+```text
+artifacts/wedding-invitation/**
+artifacts/api-server/src/routes/photos.ts
+```
+
+`Memories legacy boundary` enforces this。Intentional legacy changes require `owner-approved-legacy-change` and exact regression evidence。
+
+## Browser validation
+
+The production workflow uses a pinned Playwright runner and covers Chromium、Firefox、WebKit、desktop/mobile and representative Samsung Internet、WeChat、LINE、Facebook and Instagram profiles。Failures retain screenshots、traces、video and HTML reports。
+
+Automated profiles are not physical-device proof。See [`docs/memories/phase-2-device-validation-2026-08-05.md`](docs/memories/phase-2-device-validation-2026-08-05.md)。
+
+## Performance gate
+
+Current behavior:
+
+- Admin、login and private-management routes remain dynamic imports。
+- First public photo request is 24 records。
+- First page renders before later cursor pages continue。
+- `window.__MEMORIES_WEB_VITALS__` records LCP、CLS、interaction and navigation timing。
+- `?performance=1` prints the diagnostic snapshot only。
+- Production build writes `dist/performance/bundle-report.json` and `.md`。
+
+Budgets:
+
+```text
+Public entry: 450 KiB gzip
+Any JS chunk: 800 KiB gzip
+Total JS: 2 MiB gzip
+```
+
+See [`docs/memories/phase-2-performance-gate-2026-08-05.md`](docs/memories/phase-2-performance-gate-2026-08-05.md)。
 
 ## Architecture warning
 
-Memories currently uses several Vite pre-transforms that perform exact string replacement against `App.jsx` and `AdminApp.jsx`. This is a temporary compatibility layer, not the target architecture.
+Memories still has exact-string Vite transforms against `App.jsx` and `AdminApp.jsx`。Transform/Vite changes must validate the final chain、production build、bundle report and cross-browser runtime。Prefer direct React composition and delete replaced transforms。
 
-Changes touching transformed surfaces must:
+## Portability
 
-1. run the complete official transform chain;
-2. run the production build;
-3. open the final public and administrator surfaces in a real browser;
-4. check for blank screens, missing controls, console errors and `pageerror`;
-5. prefer deleting one transform after direct React composition instead of adding more replacement rules.
+Replit Google Drive Integration is platform-specific。Cloud Run、ECS、Azure、OCI、Kubernetes and On-premise deployments need a production container、Drive API/object-storage adapter、provider Secret Manager/runtime identity、explicit migration/background jobs and backup/observability。
 
-The current CI does not yet provide a required Playwright browser gate. Health success proves only that the server responds.
+See [`docs/site-handbook/README.md`](docs/site-handbook/README.md)。
 
-See [`docs/code-health-audit-2026-07.md`](docs/code-health-audit-2026-07.md) for the debt inventory and [`docs/phase-1-closeout-2026-08-01.md`](docs/phase-1-closeout-2026-08-01.md) for the recommended order of work.
+## Documentation
 
-## Documentation rule
-
-Use [`DOCUMENTATION.md`](DOCUMENTATION.md) to determine whether a file is Current, Historical, Research, Diagnostic or Internal. Update the role guide, technical contract and maintainer guide in the same PR whenever behavior or operating procedure changes.
+- [`README.md`](README.md)
+- [`DOCUMENTATION.md`](DOCUMENTATION.md)
+- [`MAINTAINER_GUIDE.md`](MAINTAINER_GUIDE.md)
+- [`OPERATIONS_GUIDE.md`](OPERATIONS_GUIDE.md)
+- [`artifacts/memories-album/README.md`](artifacts/memories-album/README.md)
+- [`docs/site-handbook/`](docs/site-handbook/README.md)

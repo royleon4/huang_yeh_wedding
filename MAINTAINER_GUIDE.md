@@ -1,126 +1,127 @@
 # Standalone Memories｜Developer and Maintainer Guide
 
-> **Status:** Current maintainer handbook  
-> **Product status:** Product Phase 1 complete; post-Phase-1 maintenance active  
-> **Reviewed:** 2026-08-04T03:11:00+08:00 (Asia/Taipei)  
-> **Baseline commit reviewed:** `52008c1470b5fe74764a5b7f1956a676622f52f7`
+> **Status:** Current  
+> **Product:** Phase 1 complete；Phase 2.1 browser／In-App／performance gates active  
+> **Reviewed:** 2026-08-05T10:31:00+08:00 (Asia/Taipei)  
+> **Baseline:** `09293817935f5548aa4c7ef6918db9afd0a62b98`
 
-This guide is the starting point for developers who maintain, debug, refactor, deploy, secure, or extend **Standalone Memories** in `royleon4/huang_yeh_wedding`.
+本文件是修改、除錯、重構、測試與發佈 Standalone Memories 的維護入口。
 
-It complements, rather than replaces:
+| 目的 | 文件 |
+| --- | --- |
+| Repository overview | [`README.md`](README.md) |
+| Documentation lifecycle | [`DOCUMENTATION.md`](DOCUMENTATION.md) |
+| Memories technical contract | [`artifacts/memories-album/README.md`](artifacts/memories-album/README.md) |
+| Replit operations | [`OPERATIONS_GUIDE.md`](OPERATIONS_GUIDE.md) |
+| 從零架站／多雲 | [`docs/site-handbook/`](docs/site-handbook/README.md) |
+| CI strategy | [`docs/memories/testing-strategy.md`](docs/memories/testing-strategy.md) |
+| Device evidence | [`docs/memories/phase-2-device-validation-2026-08-05.md`](docs/memories/phase-2-device-validation-2026-08-05.md) |
+| Performance gate | [`docs/memories/phase-2-performance-gate-2026-08-05.md`](docs/memories/phase-2-performance-gate-2026-08-05.md) |
+| Architecture debt | [`docs/code-health-audit-2026-07.md`](docs/code-health-audit-2026-07.md) |
 
-- [`README.md`](README.md) for the repository overview;
-- [`DOCUMENTATION.md`](DOCUMENTATION.md) for document lifecycle and source-of-truth rules;
-- [`artifacts/memories-album/README.md`](artifacts/memories-album/README.md) for the detailed product and API contract;
-- [`OPERATIONS_GUIDE.md`](OPERATIONS_GUIDE.md) for deployment and incident procedures;
-- [`docs/memories/testing-strategy.md`](docs/memories/testing-strategy.md) for Test Impact Analysis and CI selection;
-- [`docs/security-remediation-readiness-2026-08-04.md`](docs/security-remediation-readiness-2026-08-04.md) for dependency remediation;
-- [`docs/software-composition-analysis-2026-08-02.md`](docs/software-composition-analysis-2026-08-02.md) for dated SCA evidence;
-- [`docs/code-health-audit-2026-07.md`](docs/code-health-audit-2026-07.md) for architecture debt;
-- [`docs/phase-1-closeout-2026-08-01.md`](docs/phase-1-closeout-2026-08-01.md) for the Phase 1 handoff and recommended next work.
+## 1. Runtime boundary
 
-## 1. Phase terminology
-
-Two different roadmaps previously used the words “Phase 1.” Keep them separate:
-
-1. **Product Phase 1 — complete.** The public archive, guest upload, private batch management, administrator application, Google Drive storage, PostgreSQL index, stable routes, appearance controls, and production deployment path form the accepted first product baseline.
-2. **Architecture hardening stages — not complete.** Required Playwright coverage, transform removal, settings/route registries, domain services and recovery hardening remain engineering work.
-
-Post-closeout additions include album-scoped labels, message/guestbook albums, per-album featured-photo ranges, Word content import, focused Chrome checks and impact-focused PR testing. Do not rewrite the dated Phase 1 baseline to imply these existed at closeout.
-
-Do not state that required Playwright coverage, transform removal, trash/restore, people classification, or selfie search is complete merely because Product Phase 1 is complete.
-
-## 2. Source-of-truth order
-
-When documentation, issues, prototypes, scan reports, and code disagree, use this order:
-
-1. current `main` production code, immutable migrations, package manifests and lockfile;
-2. tests that exercise the final production behavior;
-3. current documents indexed by [`DOCUMENTATION.md`](DOCUMENTATION.md);
-4. the latest merged PR and its CI result;
-5. dated evidence only for the commit it records;
-6. issues, old prototypes, design baselines, research notes, and exported conversations.
-
-Historical, research, diagnostic or dated security evidence must never silently override current code.
-
-## 3. Runtime topology and ownership
-
-| Surface | Package | Route or port | Storage responsibility |
+| Surface | Package | Route／Port | Data |
 | --- | --- | --- | --- |
-| Wedding invitation | `@workspace/wedding-invitation` | `/`, port `19315` | Legacy application |
-| Standalone Memories | `@workspace/memories-album` | `/Memories/*`, port `19316` | PostgreSQL + Google Drive |
-| Legacy API | `@workspace/api-server` | `/api/*`, port `8080` | Legacy PostgreSQL/Object Storage |
-| Canvas preview | `@workspace/mockup-sandbox` | `/__mockup`, port `8081` | Development preview only |
+| Wedding Invitation | `@workspace/wedding-invitation` | `/` · `19315` | Legacy application |
+| Standalone Memories | `@workspace/memories-album` | `/Memories/*` · `19316` | PostgreSQL + Google Drive |
+| Legacy API | `@workspace/api-server` | `/api/*` · `8080` | Legacy PostgreSQL/Object Storage |
+| Mockup Sandbox | `@workspace/mockup-sandbox` | `/__mockup` · `8081` | Development preview |
 
-### Isolation rule
-
-Ordinary Memories work must not modify:
+Ordinary Memories changes must not modify:
 
 ```text
 artifacts/wedding-invitation/**
 artifacts/api-server/src/routes/photos.ts
 ```
 
-The `Memories legacy boundary` workflow enforces this. A protected-path change requires an explicit owner decision and the narrowly scoped `owner-approved-legacy-change` label.
+`Memories legacy boundary` enforces this. A required legacy change needs explicit owner approval、narrow scope 與 legacy-specific regression evidence。
 
-Security remediation can legitimately touch legacy dependency manifests, but changing protected application paths still requires owner approval and legacy-specific regression evidence.
+## 2. Source of truth
 
-### Data ownership
+1. Current `main` code、migrations、package manifests、lockfile。
+2. Final production tests、browser and performance evidence。
+3. Current documents indexed by `DOCUMENTATION.md`。
+4. Latest merged PR and CI。
+5. Dated evidence only for its exact commit/date。
+6. Historical、Research、Issues and old conversations only as background。
+
+## 3. Data ownership
 
 | Data | Canonical owner |
 | --- | --- |
-| Original photos and image attachments | Google Drive |
+| Original photos／image attachments | Google Drive |
 | Generated WebP thumbnails | Google Drive `系統縮圖` |
-| Numbered wedding-process folder labels and order | Google Drive, mirrored into PostgreSQL |
-| Public visibility, album/label/process relationships, author, capture time | PostgreSQL |
-| Guestbook messages and moderation state | PostgreSQL |
-| Upload batches, content hashes, token hashes, resumable state | PostgreSQL |
-| Videos, rich content, pinned photos, featured-photo settings and application settings | PostgreSQL |
-| Administrator password | Replit Secret `MEMORIES_ADMIN_TOKEN` |
+| Albums、labels、processes、visibility、author、capture time | PostgreSQL |
+| Guestbook messages | PostgreSQL |
+| Upload batches、token/content hashes、resumable state | PostgreSQL |
+| Video、rich content、pinned/featured settings、site settings | PostgreSQL |
+| Admin secret | Replit Secret `MEMORIES_ADMIN_TOKEN` |
 
-The browser receives opaque Memories IDs and controlled media URLs. Never expose Drive IDs, folder IDs, connector responses, credentials, raw management tokens, or database connection strings.
+Browser receives opaque Memories IDs and controlled routes only. Never expose Drive IDs、folder IDs、connector responses、credentials、token hashes or database URLs。
 
-## 4. Current product contracts that commonly affect maintenance
+## 4. Current contracts
 
-- Every non-guest album may define album-scoped labels. The first public label is the generated all-album label.
-- Wedding process titles can override label text, including the all-wedding-process label.
-- Guest albums retain all-visitors, latest-photo and uploader-name labels.
-- Per-album random featured photos are recomputed for the active album and active label; they must not leak across navigation contexts.
-- Message albums render guestbook content, support public submission/sorting and expose administrator moderation lazily when the accordion opens.
-- Rich-content import accepts Word-related documents; general attachment controls accept images only.
-- Migrations currently extend through `016_explicit_guest_album_membership.sql`.
-- Permanent deletion remains immediate and has no trash/restore lifecycle.
+- Chinese default；English under `/Memories/en/*`。
+- Public routes use stable identities, never display indexes。
+- Each non-guest album can own labels；generated all-album label remains first。
+- Wedding-process titles may override public label text。
+- Guest album keeps all-visitors、latest and uploader-name labels。
+- Featured photos must reset with active album/label context。
+- Message albums render guestbook content；admin accordion stays collapsed and lazy-loads on open。
+- Rich-content import supports Word-related files only；general attachments accept images only。
+- Upload uses durable `(batchId, clientUploadId)` identity、bounded concurrency and retry。
+- Permanent delete has no trash/restore lifecycle。
+- Migrations currently extend through `016_explicit_guest_album_membership.sql`。
 
-## 5. Local setup and commands
+## 5. Current performance contract
 
-Requirements:
+| Area | Current behavior |
+| --- | --- |
+| Route splitting | Admin、admin login and private batch-management are dynamic imports |
+| First public page | First photo request is 24 records |
+| Progressive feed | First snapshot renders immediately；later cursor pages yield to idle/timer |
+| First image | First thumbnail remains high priority |
+| Browser diagnostics | `window.__MEMORIES_WEB_VITALS__` records LCP、CLS、interaction and navigation timing |
+| Local debug | `?performance=1` prints diagnostics without third-party transmission |
+| Build evidence | Vite manifest + `dist/performance/bundle-report.json/.md` |
+| Budgets | Public entry 450 KiB gzip；single JS chunk 800 KiB；total JS 2 MiB |
 
-- Node.js 24;
-- pnpm 10.x;
-- no npm or Yarn lockfile.
+These budgets are regression ceilings, not target values. Route-splitting changes must preserve the required dynamic imports。
 
-From the repository root:
+## 6. Repository map
+
+| Path | Responsibility |
+| --- | --- |
+| `artifacts/memories-album/src/client` | Public/Admin React、route/model、performance monitor |
+| `artifacts/memories-album/src/server` | HTTP、repositories、Drive、uploads、messages、thumbnails |
+| `artifacts/memories-album/src/app.mjs` | Production route/server composition |
+| `artifacts/memories-album/vite.routes.config.js` | Transform order、manifest and build plugins |
+| `artifacts/memories-album/*-ui-transform.mjs` | High-risk exact-string transforms |
+| `artifacts/memories-album/scripts/analyze-bundle.mjs` | Bundle report and budgets |
+| `artifacts/memories-album/scripts/select-tests.mjs` | Test Impact Analysis |
+| `artifacts/memories-album/e2e` | Production Playwright specs |
+| `artifacts/memories-album/playwright.config.mjs` | Browser/In-App profiles |
+| `artifacts/memories-album/db` | Immutable migrations |
+| `.github/workflows/memories-ci.yml` | Ready PR + full `main` integration |
+| `.github/workflows/memories-cross-browser.yml` | Production cross-browser gate |
+| `.github/workflows/memories-legacy-boundary.yml` | Legacy boundary |
+
+## 7. Local commands
+
+Requirements: Node.js 24、pnpm 10.x。
 
 ```bash
-pnpm install
+corepack enable
+pnpm install --frozen-lockfile
 pnpm run typecheck
 pnpm run build
 ```
-
-For CI reproduction, security work and releases use:
-
-```bash
-pnpm install --frozen-lockfile
-```
-
-Standalone Memories:
 
 ```bash
 pnpm --filter @workspace/memories-album dev
 pnpm --filter @workspace/memories-album test
 pnpm --filter @workspace/memories-album run test:impact
-pnpm --filter @workspace/memories-album run test:layout-navigation
-pnpm --filter @workspace/memories-album run test:layout-guestbook
 pnpm --filter @workspace/memories-album run test:layout-browser
 pnpm --filter @workspace/memories-album build
 pnpm --filter @workspace/memories-album start
@@ -128,191 +129,77 @@ pnpm --filter @workspace/memories-album db:migrate
 pnpm --filter @workspace/memories-album test:drive-live
 ```
 
-`test:drive-live` requires a configured Replit Google Drive Integration and an owner-approved test folder. Never point destructive diagnostics at the production wedding root.
+Live Drive tests may use only an owner-approved test folder。
 
-## 6. Repository map for maintainers
+## 8. Safe change workflow
 
-| Path | Responsibility |
+1. Branch from latest `main`。
+2. Define the smallest behavior/security/architecture contract。
+3. Check legacy、route、settings、migration、storage、dependency、transform and performance impact。
+4. Add the lowest-layer behavior test that proves the change。
+5. Implement the smallest change。
+6. Use impact selection；run full validation for cross-cutting files。
+7. Build production output and inspect bundle report。
+8. Run Playwright for UI/route/transform/performance changes。
+9. Record physical-device evidence or accepted residual risk where required。
+10. Update the relevant documentation in the same PR。
+11. Merge only after required checks pass。
+
+## 9. Change-impact checklist
+
+### Routes／navigation
+
+Verify direct links、refresh、Back/Forward、Chinese/English、photo deep links、invalid identity fallback、async content positioning and bottom navigation visual viewport。
+
+### Albums／labels／featured photos
+
+Preserve label ownership、generated all-label first、guest virtual labels、process-title override、pagination/filter persistence and context-isolated featured photos。
+
+### Settings
+
+Settings still span defaults、normalization、repository、public/admin APIs、bootstrap、draft/save、UI and tests. Prefer a central registry instead of extending another duplicated key chain。
+
+### Upload／document import
+
+Preserve durable upload identity、content-based duplicate handling、bounded retry、resumable recovery、token privacy、original-before-thumbnail、Word-only import、image-only attachments and viewport containment。
+
+Admin classification remains a follow-up PATCH sequence and is a known temporary limitation。
+
+### Drive／portable media
+
+Guest originals remain physically under `訪客上傳` even when logical classification changes；thumbnails remain under `系統縮圖`；provider identifiers remain server-side。Other clouds require a Drive API or object-storage adapter。
+
+### Migrations
+
+Add a new numbered SQL file；never edit an applied migration；prefer additive expand/contract；preserve checksum/advisory lock；stop on unexpected DROP；never use `drizzle-kit push` for Memories production tables。
+
+### Vite／transform／performance
+
+- Verify official transform order。
+- Test the final chain, not a single transform。
+- Keep Admin/login/private-management route splitting。
+- Run production build and review bundle report。
+- Fail on budget regressions、pageerror、console error、Error Boundary、blank screen or overflow。
+- Prefer direct React composition and delete the replaced transform。
+
+### Dependency／lockfile
+
+Frozen install、fresh SCA/SBOM、small parent-package batches、full typecheck/build/Node/Playwright、post-change SCA tied to the final commit。Do not blindly run `pnpm audit fix --force`。
+
+## 10. Testing model
+
+| Stage | Validation |
 | --- | --- |
-| `artifacts/memories-album/src/client` | Public and administrator React surfaces and client models |
-| `artifacts/memories-album/src/server` | HTTP handlers, repositories, Drive adapters, uploads, refresh, thumbnails, messages and admin services |
-| `artifacts/memories-album/src/app.mjs` | Production route composition, headers and application server |
-| `artifacts/memories-album/vite.routes.config.js` | Official public/admin transform order and development routing |
-| `artifacts/memories-album/*-ui-transform.mjs` | Temporary exact-string build transforms; high-risk maintenance area |
-| `artifacts/memories-album/db` | Immutable numbered SQL migrations through `016_explicit_guest_album_membership.sql` |
-| `artifacts/memories-album/test` | Node tests and source-contract preservation tests |
-| `artifacts/memories-album/scripts/select-tests.mjs` | Test Impact Analysis and Selective Test Execution |
-| `artifacts/memories-album/scripts/verify-*-layout.mjs` | Focused real-Chrome layout checks |
-| `artifacts/memories-album/test-support` | Shared server, fixture and validation helpers |
-| `.github/workflows/memories-fast-ci.yml` | Draft PR impact-focused validation |
-| `.github/workflows/memories-ci.yml` | Ready PR impact validation and full `main` integration gate |
-| `.github/workflows/memories-legacy-boundary.yml` | Legacy application boundary protection |
-| `.replit` and `.replit-artifact` | Replit artifact routing and deployment integration |
+| Draft PR | Impact-selected Fast CI |
+| Ready PR | Formal impact-selected CI + safety fallback |
+| Documentation-only | Skip executable checks when only supported doc assets change |
+| `main` push | Full Node + focused Chrome + production build + health smoke |
+| UI/Playwright paths | Chromium、Firefox、WebKit and representative In-App profiles |
+| Performance paths | Feed tests、production build、bundle budgets、browser diagnostics |
 
-## 7. Safe change workflow
+Automated profiles are required browser-engine coverage, not physical-device proof. Use the Phase 2 device matrix for real devices。
 
-1. Start from the current `main` branch.
-2. Identify the smallest product, security or architecture contract being changed.
-3. Confirm whether the change touches the legacy boundary, dependencies, lockfile, Drive ownership, migrations, routes, settings, message albums, labels, or a Vite transform.
-4. Add or update a behavior test at the lowest layer that can prove the contract.
-5. Keep source-contract tests only when no behavior-level browser or component test can currently prove the final transformed result.
-6. Use the impact selector for local guidance, but run the complete required set for package, lockfile, runtime, Vite or CI changes.
-7. Run the package test suite and production build when the change affects executable behavior.
-8. For routing, transform, authentication, storage, dependency or startup changes, run the production server health smoke.
-9. Update the relevant current document in the same PR.
-10. Record manual browser or real-device evidence when CI cannot prove the behavior.
-11. Merge only after required CI and the legacy-boundary workflow pass.
-
-## 8. Change-impact checklist
-
-### Public route, album type or navigation change
-
-Review:
-
-- `src/client/route-model.mjs` and related route transforms;
-- album type normalization and public bootstrap;
-- [`artifacts/memories-album/docs/logical-routes.md`](artifacts/memories-album/docs/logical-routes.md);
-- direct-link, refresh, Back/Forward and missing-identity behavior;
-- Traditional Chinese and `/en` equivalents;
-- opened-photo route preservation;
-- message albums versus photo-feed albums;
-- content positioning after asynchronous load.
-
-Canonical URLs use stable identities, never current display indexes.
-
-### Album label change
-
-Preserve:
-
-- label ownership by album;
-- generated all-album label as first position;
-- guest-specific virtual labels;
-- process title overrides for wedding labels;
-- current album/label route fallback;
-- photo pagination and active-filter persistence;
-- no cross-album featured-photo leakage.
-
-### Setting change
-
-A setting may require coordinated changes to:
-
-- default and normalization module;
-- public/admin API filtering;
-- repository storage key mapping;
-- administrator draft/save registration;
-- public bootstrap normalization;
-- UI and tests;
-- documentation.
-
-This is a known Shotgun Surgery area. Prefer a central settings registry instead of adding another independent chain of string keys.
-
-### Upload or document-import change
-
-Preserve:
-
-- stable `(batchId, clientUploadId)` identity;
-- content-based duplicate behavior;
-- bounded concurrency and fair retry;
-- resumable Drive recovery;
-- token hashing and URL-fragment privacy;
-- original-before-thumbnail ordering;
-- idempotent retries;
-- Word-only document import and image-only general attachments unless a product decision explicitly changes that contract;
-- browser-width containment for imported content.
-
-Administrator upload classification currently finishes through follow-up client PATCH requests. Treat that sequence as a known temporary limitation, not a preferred design.
-
-### Google Drive or reconciliation change
-
-Preserve the physical/logical split:
-
-- official wedding photos may move between managed folders;
-- guest originals remain physically under `訪客上傳` even when logically classified elsewhere;
-- thumbnails remain in `系統縮圖`;
-- root and `00 未分類` retain compatibility behavior;
-- provider identifiers never leave the server.
-
-Directly deleting an original from Drive is not complete application deletion.
-
-### Migration change
-
-- Add a new numbered SQL file; never edit an applied migration.
-- Keep migrations additive unless the owner explicitly approves a destructive maintenance window.
-- Confirm checksum tracking and advisory locking still apply.
-- Cancel any Replit Publish plan containing unexpected `DROP TABLE`, `DROP COLUMN`, or constraint removal.
-- Never use `drizzle-kit push` for Memories tables.
-
-### Vite transform or build dependency change
-
-Exact-string transforms are the largest production-only regression risk.
-
-- Confirm the official transform order in `vite.routes.config.js`.
-- Test the completed transform chain, not one transform in isolation.
-- Build production output.
-- Run the focused Chrome checks selected by the changed surface.
-- Open the resulting public and administrator surfaces in a real browser.
-- Fail the review on console errors, `pageerror`, blank screens, missing controls, stale generated references or width overflow.
-- Prefer deleting a transform after directly composing the feature in React.
-
-### Dependency or lockfile change
-
-- Read [`docs/security-remediation-readiness-2026-08-04.md`](docs/security-remediation-readiness-2026-08-04.md).
-- Use `pnpm install --frozen-lockfile` for reproduction before editing.
-- Record the parent dependency, advisory path and intended target.
-- Avoid `pnpm audit fix --force`.
-- Run full typecheck, workspace build, Memories tests, all focused Chrome checks and production health smoke.
-- Generate a post-change SBOM and SCA tied to the final commit.
-- Do not quote the 2026-08-02 SCA counts as current after package or lockfile changes.
-
-## 9. Testing strategy
-
-Read both:
-
-- [`artifacts/memories-album/test/README.md`](artifacts/memories-album/test/README.md)
-- [`docs/memories/testing-strategy.md`](docs/memories/testing-strategy.md)
-
-Use these layers:
-
-1. pure model/validator tests;
-2. one-handler HTTP tests with shared test support;
-3. application route tests for cross-handler behavior;
-4. source-contract tests only as a temporary transform/CSS exception;
-5. focused real-Chrome layout checks;
-6. production browser tests when available.
-
-PR behavior:
-
-- Draft PRs use `Standalone Memories Fast CI` and impact-selected validation.
-- Ready PRs use the formal Memories check with the same impact analysis and safety fallback.
-- Documentation-only changes skip dependency installation and executable tests.
-- Unknown executable changes fall back to broader validation.
-- Pushes to `main` and manual dispatch run the full Node, focused Chrome, production build and health-smoke integration set.
-
-Current CI still does **not** prove a complete final production interaction flow through a required Playwright suite. Until that gap is closed, manual production-browser validation remains required for user-facing and transform changes.
-
-## 10. Software composition and dependency security
-
-The 2026-08-02 SCA recorded a CycloneDX SBOM, vulnerability results, license metadata, deprecated packages and outdated direct dependencies.
-
-It is **dated evidence**, not a permanent release gate. The Memories package manifest and pnpm lockfile changed afterwards, including Word-import dependencies. Before remediation:
-
-1. re-scan current `main`;
-2. classify production-runtime versus build/codegen/preview exposure;
-3. fix small parent-dependency batches;
-4. run repository-specific tests;
-5. re-scan the final lockfile;
-6. document remaining findings.
-
-See:
-
-- [`docs/software-composition-analysis-2026-08-02.md`](docs/software-composition-analysis-2026-08-02.md)
-- [`docs/security-remediation-readiness-2026-08-04.md`](docs/security-remediation-readiness-2026-08-04.md)
-
-SCA does not replace source review, SAST, DAST, secrets scanning, cloud configuration review or runtime monitoring.
-
-## 11. Production configuration and secrets
-
-Required:
+## 11. Production configuration
 
 ```text
 DATABASE_URL
@@ -320,87 +207,47 @@ MEMORIES_DRIVE_PHOTOS_FOLDER_ID
 MEMORIES_ADMIN_TOKEN
 ```
 
-Published App must also have Replit Google Drive Integration connected.
+Published App also requires Replit Google Drive Integration。
 
-Never commit or paste into public logs:
+Never commit or log database URLs、Secrets/OAuth、Drive IDs、resumable session URIs、raw private tokens、signed URLs、image bytes or provider raw responses。
 
-- secrets or connection strings;
-- Drive folder IDs;
-- OAuth credentials;
-- resumable session URIs;
-- raw private management tokens;
-- image bytes or connector response bodies.
+## 12. Release and rollback
 
-Use [`artifacts/memories-album/.env.example`](artifacts/memories-album/.env.example) only as a names-and-purpose template.
+Before release: required CI green、migration/backup reviewed、Secrets/Drive present、candidate and last-known-good revisions recorded、documentation current、device risks recorded。
 
-## 12. Release and rollback discipline
+After release verify health、Chinese/English、albums/labels/processes、guestbook、featured context、thumbnail/original/viewer、admin tabs、Word-content width and Web Vitals/bundle evidence。
 
-Before release:
+Rollback is a compatible code/revision rollback, not deletion of migration history. If the previous code cannot read the current schema, use a forward fix。
 
-- required CI green;
-- migration plan reviewed;
-- required Secrets and Drive Integration present;
-- no unexpected legacy changes;
-- documentation updated;
-- known manual checks assigned;
-- for dependency changes, post-change SCA/SBOM tied to the candidate commit;
-- last known-good deployment commit recorded.
+## 13. Incident first response
 
-After release:
+1. Record the first error、timestamp、environment and revision。
+2. Classify startup、migration、DB、Drive auth/transient、browser、performance/native dependency or individual data。
+3. Preserve evidence before restart。
+4. Stop repeated upload/delete while the cause is unknown。
+5. Fix only the proven root cause。
+6. Run relevant tests/build/browser/performance checks。
+7. Deploy、observe and update the runbook。
 
-1. check `/Memories/api/health`;
-2. open `/Memories/` in a real browser;
-3. switch language, albums, labels and message/photo album types;
-4. confirm guestbook load and active-content positioning;
-5. confirm featured photos belong to the active album and label;
-6. open a photo and its controlled original;
-7. authenticate and open all four admin tabs;
-8. verify Word content and image attachment width;
-9. verify one safe save or upload only when production conditions allow it.
+## 14. Documentation responsibility
 
-Rollback is a code and lockfile rollback, not a database rewind. Do not delete an applied migration or restore older application code that cannot understand the current schema. Prefer a forward fix or an explicitly designed compatible rollback.
-
-## 13. First response to incidents
-
-1. Capture the first real error and exact timestamp.
-2. Classify the failure: server startup, migration, PostgreSQL, Drive authorization, Drive transient error, browser runtime, dependency/native module, or individual data.
-3. Preserve evidence before restarting.
-4. Do not repeatedly upload or delete while the failure mode is unknown.
-5. Fix only the proven root cause.
-6. Run the relevant tests and production build.
-7. Re-verify in a browser after deployment.
-8. Add the new failure mode to the appropriate runbook or diagnostic document.
-
-Use [`OPERATIONS_GUIDE.md`](OPERATIONS_GUIDE.md) for detailed symptom routing.
-
-## 14. Documentation maintenance
-
-Every PR that changes a user-visible, operational, security, route, storage, migration, dependency or architecture contract must update documentation.
-
-- Guest behavior → `EASY_USER_GUIDE.md`
-- Administrator behavior → `ADMIN_GUIDE.md`
-- Deployment or recovery → `OPERATIONS_GUIDE.md`
-- Repository overview → `README.md`
-- Detailed Memories contract → `artifacts/memories-album/README.md`
-- Route behavior → `artifacts/memories-album/docs/logical-routes.md`
-- Test selection or CI → `docs/memories/testing-strategy.md`
-- Dependency/SCA behavior → the SCA evidence and remediation runbook
-- Developer workflow or architecture risk → this guide and code-health audit
-- New specialist document → add it to `DOCUMENTATION.md`
-
-For date-based records, use ISO 8601 with timezone and exact commit. Mark documents as **Current**, **Current dated runbook**, **Dated evidence**, **Historical**, **Superseded**, **Research**, **Diagnostic**, or **Internal**. Never leave a historical requirement or old SCA looking like an active production contract.
+| Change | Update |
+| --- | --- |
+| Guest/Admin behavior | Role guide |
+| Replit/incident | `OPERATIONS_GUIDE.md` |
+| API/storage/product | Memories technical README |
+| Browser/CI | Testing strategy/device record |
+| Performance | Performance record + handbook chapter |
+| Multi-cloud | `docs/site-handbook/` |
+| New specialist document | `DOCUMENTATION.md` |
 
 ## 15. Definition of done
 
-A maintenance, feature or security PR is complete only when:
-
-- the behavior is correct at the intended layer;
-- the public and administrator route contracts remain coherent;
-- tests prove the changed behavior without unnecessary duplication;
-- production build succeeds when executable behavior changes;
-- browser validation covers any transform-sensitive UI change;
-- dependency changes have a final frozen lockfile and matching SCA/SBOM evidence;
-- migrations and legacy boundaries remain safe;
-- secrets and provider identifiers remain server-side;
-- current documentation matches the merged implementation;
-- deferred risks are recorded rather than implied to be solved.
+- [ ] Correct behavior and stable routes/data ownership
+- [ ] Tests prove the change
+- [ ] Production build and bundle budgets pass
+- [ ] Playwright covers browser-sensitive behavior
+- [ ] Device evidence or accepted risk recorded
+- [ ] Migration/legacy boundary safe
+- [ ] Secrets/provider identifiers remain server-side
+- [ ] Current documentation updated
