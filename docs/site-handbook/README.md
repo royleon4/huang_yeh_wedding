@@ -4,7 +4,7 @@
 > **基準：** `main` commit `09293817935f5548aa4c7ef6918db9afd0a62b98`  
 > **更新：** 2026-08-05（Asia/Taipei）
 
-![系統架構](assets/system-architecture.svg)
+![系統架構](assets/system-architecture.svg?raw=1)
 
 這個資料夾提供兩條閱讀路徑：
 
@@ -52,7 +52,7 @@
 
 ### 部署環境
 
-![部署環境](assets/deployment-options.svg)
+![部署環境](assets/deployment-options.svg?raw=1)
 
 | 環境 | 文件 | 建議運算 | Database | Media |
 | --- | --- | --- | --- | --- |
@@ -74,7 +74,7 @@
 
 ## 建置路線圖
 
-![建置流程](assets/build-and-release-flow.svg)
+![建置流程](assets/build-and-release-flow.svg?raw=1)
 
 ```mermaid
 flowchart LR

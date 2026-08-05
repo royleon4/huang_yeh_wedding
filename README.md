@@ -11,7 +11,7 @@
 > **從零架站與多雲部署：** [`docs/site-handbook/`](docs/site-handbook/README.md)  
 > **文件總索引：** [`DOCUMENTATION.md`](DOCUMENTATION.md)
 
-![系統架構](docs/site-handbook/assets/system-architecture.svg)
+![系統架構](docs/site-handbook/assets/system-architecture.svg?raw=1)
 
 ## 專案內容
 
@@ -147,7 +147,7 @@ Current performance gate：
 
 ## 從零架站與多雲部署
 
-![部署環境](docs/site-handbook/assets/deployment-options.svg)
+![部署環境](docs/site-handbook/assets/deployment-options.svg?raw=1)
 
 新文件中心提供：
 
