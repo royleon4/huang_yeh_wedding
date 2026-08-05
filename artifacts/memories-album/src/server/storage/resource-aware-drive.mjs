@@ -3,7 +3,6 @@ import {
   GoogleDriveStorage,
 } from "./drive-adapter.mjs";
 
-const FOLDER_MIME = "application/vnd.google-apps.folder";
 const LIST_FIELDS = [
   "id",
   "name",
@@ -15,6 +14,13 @@ const LIST_FIELDS = [
   "resourceKey",
   "capabilities(canDownload)",
   "imageMediaMetadata(time,width,height)",
+  "shortcutDetails(targetId,targetMimeType,targetResourceKey)",
+].join(",");
+const FILE_FIELDS = [
+  "id",
+  "mimeType",
+  "resourceKey",
+  "capabilities(canDownload)",
   "shortcutDetails(targetId,targetMimeType,targetResourceKey)",
 ].join(",");
 
@@ -29,16 +35,38 @@ function responseHeaders(response) {
   );
 }
 
-function rememberResourceKeys(resourceKeys, files) {
-  for (const file of files) {
-    if (file?.id && file?.resourceKey) {
-      resourceKeys.set(file.id, file.resourceKey);
-    }
-    const shortcut = file?.shortcutDetails;
-    if (shortcut?.targetId && shortcut?.targetResourceKey) {
-      resourceKeys.set(shortcut.targetId, shortcut.targetResourceKey);
-    }
+function rememberFile(resourceKeys, downloadTargets, file) {
+  if (file?.id && file?.resourceKey) {
+    resourceKeys.set(file.id, file.resourceKey);
   }
+  const shortcut = file?.shortcutDetails;
+  if (file?.id && shortcut?.targetId) {
+    downloadTargets.set(file.id, shortcut.targetId);
+  }
+  if (shortcut?.targetId && shortcut?.targetResourceKey) {
+    resourceKeys.set(shortcut.targetId, shortcut.targetResourceKey);
+  }
+}
+
+function rememberFiles(resourceKeys, downloadTargets, files) {
+  for (const file of files) {
+    rememberFile(resourceKeys, downloadTargets, file);
+  }
+}
+
+function downloadIdentity(resourceKeys, downloadTargets, requestedFileId) {
+  const fileId = downloadTargets.get(requestedFileId) ?? requestedFileId;
+  return { fileId, resourceKey: resourceKeys.get(fileId) ?? null };
+}
+
+function resourceKeyOptions({ fileId, resourceKey }) {
+  return resourceKey
+    ? {
+        headers: {
+          "X-Goog-Drive-Resource-Keys": `${fileId}/${resourceKey}`,
+        },
+      }
+    : {};
 }
 
 export function createResourceAwareDriveStorage({
@@ -56,6 +84,7 @@ export function createResourceAwareDriveStorage({
     thumbnailFolderId,
   });
   const resourceKeys = new Map();
+  const downloadTargets = new Map();
 
   storage.listChildren = async (parentId) => {
     const q = encodeURIComponent(`'${parentId}' in parents and trashed = false`);
@@ -68,23 +97,54 @@ export function createResourceAwareDriveStorage({
     }
     const data = await response.json();
     const files = Array.isArray(data?.files) ? data.files : [];
-    rememberResourceKeys(resourceKeys, files);
+    rememberFiles(resourceKeys, downloadTargets, files);
     return files;
   };
 
-  storage.download = async (fileId) => {
-    const resourceKey = resourceKeys.get(fileId);
+  const requestMedia = (identity) =>
+    proxy(
+      "google-drive",
+      `/drive/v3/files/${encodeURIComponent(identity.fileId)}?alt=media&supportsAllDrives=true`,
+      resourceKeyOptions(identity),
+    );
+
+  const refreshFileIdentity = async (fileId) => {
     const response = await proxy(
       "google-drive",
-      `/drive/v3/files/${encodeURIComponent(fileId)}?alt=media&supportsAllDrives=true`,
-      resourceKey
-        ? {
-            headers: {
-              "X-Goog-Drive-Resource-Keys": `${fileId}/${resourceKey}`,
-            },
-          }
-        : {},
+      `/drive/v3/files/${encodeURIComponent(fileId)}?fields=${encodeURIComponent(FILE_FIELDS)}&supportsAllDrives=true`,
     );
+    if (!response?.ok) return false;
+    const file = await response.json();
+    rememberFile(resourceKeys, downloadTargets, file);
+    return true;
+  };
+
+  storage.download = async (requestedFileId) => {
+    let identity = downloadIdentity(
+      resourceKeys,
+      downloadTargets,
+      requestedFileId,
+    );
+    let response = await requestMedia(identity);
+
+    if (!response?.ok && Number(response?.status) === 404) {
+      const refreshed = await refreshFileIdentity(requestedFileId);
+      if (refreshed) {
+        const refreshedIdentity = downloadIdentity(
+          resourceKeys,
+          downloadTargets,
+          requestedFileId,
+        );
+        if (
+          refreshedIdentity.fileId !== identity.fileId ||
+          refreshedIdentity.resourceKey !== identity.resourceKey
+        ) {
+          identity = refreshedIdentity;
+          response = await requestMedia(identity);
+        }
+      }
+    }
+
     if (!response?.ok) {
       throw new DriveConnectorError(Number(response?.status ?? 500));
     }
@@ -100,16 +160,4 @@ export function createResourceAwareDriveStorage({
   };
 
   return storage;
-}
-
-export function isDriveImageOrDownloadableShortcut(file) {
-  if (file?.mimeType?.startsWith("image/")) {
-    return file.capabilities?.canDownload !== false;
-  }
-  return (
-    file?.mimeType === FOLDER_MIME
-      ? false
-      : file?.shortcutDetails?.targetMimeType?.startsWith("image/") &&
-        file.capabilities?.canDownload !== false
-  );
 }
