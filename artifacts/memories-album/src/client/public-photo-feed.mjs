@@ -178,11 +178,10 @@ export function createPublicPhotoFeedLoader({
   let querySequence = 0;
   let thumbnailSequence = 0;
   let metadataComplete = false;
+  let photoSnapshot = [];
   let lastError = null;
   let metadataPump = null;
   let activeThumbnailLoads = 0;
-
-  const sortedPhotos = () => [...photosById.values()].sort(comparePhotos);
 
   const thumbnailsComplete = () =>
     metadataComplete &&
@@ -190,7 +189,7 @@ export function createPublicPhotoFeedLoader({
     ![...thumbnailStates.values()].some((item) => item.state === "queued");
 
   const snapshot = () => ({
-    photos: sortedPhotos(),
+    photos: photoSnapshot,
     complete: metadataComplete,
     metadataComplete,
     thumbnailsComplete: thumbnailsComplete(),
@@ -281,7 +280,10 @@ export function createPublicPhotoFeedLoader({
       }
       queueThumbnail(photosById.get(photo.id));
     }
-    if (changed) emit();
+    if (changed) {
+      photoSnapshot = [...photosById.values()].sort(comparePhotos);
+      emit();
+    }
     pumpThumbnails();
   };
 
