@@ -12,6 +12,7 @@
 | Memories 技術 contract | [`../artifacts/memories-album/README.md`](../artifacts/memories-album/README.md) |
 | Test Impact／CI | [`memories/testing-strategy.md`](memories/testing-strategy.md) |
 | Phase 2 device evidence | [`memories/phase-2-device-validation-2026-08-05.md`](memories/phase-2-device-validation-2026-08-05.md) |
+| Phase 2 performance gate | [`memories/phase-2-performance-gate-2026-08-05.md`](memories/phase-2-performance-gate-2026-08-05.md) |
 | Database copy／rollback | [`memories/production-to-development-database-runbook.md`](memories/production-to-development-database-runbook.md) |
 
 ## 從零架站文件中心
@@ -19,19 +20,20 @@
 [`site-handbook/`](site-handbook/README.md) 包含：
 
 - 產品與系統架構
-- 技術棧
-- 前置工具
-- 本機啟動
-- Environment／Secrets
+- 技術棧與前置工具
+- 本機啟動與 Secrets
 - PostgreSQL／Migration
 - Google Drive／Object Storage
 - Security／Privacy
 - Node／Playwright／CI
+- LCP／CLS／INP diagnostic、bundle/image performance
 - Logs／Metrics／Alerts
 - Backup／Disaster Recovery
 - Replit portability
 - Replit、On-premise、Google Cloud、AWS、Azure、Oracle Cloud、Kubernetes 部署
 - 命令速查、Troubleshooting、Release checklist
+
+Performance chapter：[`site-handbook/12-performance.md`](site-handbook/12-performance.md)
 
 ## Security 與 dated evidence
 
