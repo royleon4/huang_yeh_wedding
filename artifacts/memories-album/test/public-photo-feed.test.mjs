@@ -61,21 +61,27 @@ test("public photo loading starts the first thumbnail before exposing the page",
     onInitialPage() {
       order.push("initial-page");
     },
+    onPage() {
+      order.push("page");
+    },
   });
 
   assert.deepEqual(order, [
     "preload:/Memories/api/photos/first/thumbnail",
     "initial-page",
+    "page",
   ]);
 });
 
-test("public photo loading exposes the first page before the remaining feed completes", async () => {
+test("public photo loading exposes smaller pages and yields between requests", async () => {
   let releaseSecondPage;
   const secondPageReady = new Promise((resolve) => {
     releaseSecondPage = resolve;
   });
   const requests = [];
-  const snapshots = [];
+  const initialSnapshots = [];
+  const pageSnapshots = [];
+  const yields = [];
   let initialPageSeen;
   const initialPagePromise = new Promise((resolve) => {
     initialPageSeen = resolve;
@@ -94,13 +100,27 @@ test("public photo loading exposes the first page before the remaining feed comp
       return response({ photos: [{ id: "second" }], nextCursor: null });
     },
     onInitialPage(photos) {
-      snapshots.push(photos.map((photo) => photo.id));
+      initialSnapshots.push(photos.map((photo) => photo.id));
       initialPageSeen();
+    },
+    onPage(photos, metadata) {
+      pageSnapshots.push({
+        ids: photos.map((photo) => photo.id),
+        ...metadata,
+      });
+    },
+    async yieldImpl({ signal }) {
+      assert.equal(signal, undefined);
+      yields.push("yield");
     },
   });
 
   await initialPagePromise;
-  assert.deepEqual(snapshots, [["first"]]);
+  assert.deepEqual(initialSnapshots, [["first"]]);
+  assert.deepEqual(pageSnapshots, [
+    { ids: ["first"], page: 1, complete: false },
+  ]);
+  assert.deepEqual(yields, ["yield"]);
 
   let settled = false;
   void loading.finally(() => {
@@ -114,6 +134,11 @@ test("public photo loading exposes the first page before the remaining feed comp
     (await loading).map((photo) => photo.id),
     ["first", "second"],
   );
+  assert.deepEqual(pageSnapshots, [
+    { ids: ["first"], page: 1, complete: false },
+    { ids: ["first", "second"], page: 2, complete: true },
+  ]);
+  assert.equal(PUBLIC_PHOTO_PAGE_LIMIT, 24);
   assert.equal(requests[0].url, `/Memories/api/photos?limit=${PUBLIC_PHOTO_PAGE_LIMIT}`);
   assert.equal(
     requests[1].url,
@@ -130,6 +155,7 @@ test("public photo loading forwards AbortSignal and respects an explicit page ca
     signal: controller.signal,
     pageCap: 2,
     pageLimit: 3,
+    yieldImpl: async () => {},
     async fetchImpl(url, options) {
       urls.push(url);
       assert.equal(options.signal, controller.signal);
