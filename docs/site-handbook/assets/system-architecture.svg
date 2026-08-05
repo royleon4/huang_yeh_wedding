@@ -44,7 +44,7 @@
   <text x="595" y="718" class="h">Media storage adapter</text><text x="595" y="748" class="t">Current: Google Drive · Portable: object store</text>
 
   <rect x="980" y="675" width="310" height="105" class="box" fill="#fff" stroke="#b292af"/>
-  <text x="1010" y="718" class="h">Secrets & observability</text><text x="1010" y="748" class="t">Secret manager · logs · metrics · alerts</text>
+  <text x="1010" y="718" class="h">Secrets &amp; observability</text><text x="1010" y="748" class="t">Secret manager · logs · metrics · alerts</text>
 
   <path d="M650 600 L380 675" class="line"/><path d="M720 600 V675" class="line"/><path d="M790 600 L1050 675" class="line"/>
 </svg>
