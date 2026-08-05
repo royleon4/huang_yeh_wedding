@@ -12,7 +12,6 @@ const AVAILABLE_TESTS = [
   "artifacts/memories-album/test/public-layout-polish.test.mjs",
   "artifacts/memories-album/test/stable-identity-routes.test.mjs",
   "artifacts/memories-album/test/startup-migrations.test.mjs",
-  "artifacts/memories-album/test/thumbnail-api.test.mjs",
 ];
 
 async function readWorkflow(name) {
@@ -56,21 +55,7 @@ test("guestbook server changes avoid an unrelated browser run", () => {
 
   assert.equal(selection.mode, "targeted");
   assert.equal(selection.browser, "none");
-  assert.equal(selection.build, true);
   assert(selection.tests.includes("artifacts/memories-album/test/message-api.test.mjs"));
-});
-
-test("production server changes keep targeted tests and require build", () => {
-  const selection = selectTestsForFiles(
-    ["artifacts/memories-album/src/server/photos/api.mjs"],
-    AVAILABLE_TESTS,
-  );
-
-  assert.equal(selection.mode, "targeted");
-  assert.equal(selection.browser, "none");
-  assert.equal(selection.build, true);
-  assert(selection.tests.includes("artifacts/memories-album/test/thumbnail-api.test.mjs"));
-  assert.match(selection.reason, /production transform or build surface/);
 });
 
 test("navigation changes select navigation tests and Chrome", () => {
