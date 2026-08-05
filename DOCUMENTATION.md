@@ -1,8 +1,8 @@
 # 文件導覽與生命週期
 
 > **Reviewed:** 2026-08-05T10:31:00+08:00（Asia/Taipei）  
-> **Baseline:** `21dc25543de6dd2bfa7e9019a2a9244c8a2ef186`  
-> **Status:** Product Phase 1 complete；Phase 2.1 browser／In-App validation active
+> **Baseline:** `09293817935f5548aa4c7ef6918db9afd0a62b98`  
+> **Status:** Product Phase 1 complete；Phase 2.1 browser／In-App／performance gates active
 
 ## 依目的選文件
 
@@ -16,6 +16,7 @@
 | 從零架站／多雲部署 | [`docs/site-handbook/README.md`](docs/site-handbook/README.md) |
 | Testing／CI | [`docs/memories/testing-strategy.md`](docs/memories/testing-strategy.md) |
 | Phase 2 真機 evidence | [`docs/memories/phase-2-device-validation-2026-08-05.md`](docs/memories/phase-2-device-validation-2026-08-05.md) |
+| Phase 2 效能 gate | [`docs/memories/phase-2-performance-gate-2026-08-05.md`](docs/memories/phase-2-performance-gate-2026-08-05.md) |
 | Database copy／rollback | [`docs/memories/production-to-development-database-runbook.md`](docs/memories/production-to-development-database-runbook.md) |
 | Dependency security | [`docs/security-remediation-readiness-2026-08-04.md`](docs/security-remediation-readiness-2026-08-04.md) |
 
@@ -64,6 +65,7 @@
 | 09 | [`09-release-observability.md`](docs/site-handbook/09-release-observability.md) | Health、logs、metrics、alerts、rollback |
 | 10 | [`10-backup-and-disaster-recovery.md`](docs/site-handbook/10-backup-and-disaster-recovery.md) | RPO/RTO、backup、restore drill |
 | 11 | [`11-portability.md`](docs/site-handbook/11-portability.md) | Replit → portable containers/adapters/jobs |
+| 12 | [`12-performance.md`](docs/site-handbook/12-performance.md) | LCP、CLS、INP、code splitting、bundle/image budgets |
 
 ### Deployment guides
 
@@ -89,6 +91,7 @@
 | --- | --- |
 | [`docs/memories/testing-strategy.md`](docs/memories/testing-strategy.md) | Test Impact Analysis、Draft／Ready／main CI |
 | [`docs/memories/phase-2-device-validation-2026-08-05.md`](docs/memories/phase-2-device-validation-2026-08-05.md) | Automated profiles vs physical-device matrix |
+| [`docs/memories/phase-2-performance-gate-2026-08-05.md`](docs/memories/phase-2-performance-gate-2026-08-05.md) | Code splitting、progressive feed、Web Vitals、bundle budgets |
 | [`docs/memories/production-to-development-database-runbook.md`](docs/memories/production-to-development-database-runbook.md) | Verified DB copy/rollback |
 | [`artifacts/memories-album/docs/logical-routes.md`](artifacts/memories-album/docs/logical-routes.md) | Stable routes |
 | [`docs/memories/admin-route.md`](docs/memories/admin-route.md) | Admin session/routes |
@@ -115,6 +118,7 @@
 
 - Production Playwright gate 已涵蓋 Chromium、Firefox、WebKit 與 representative Samsung/WeChat/LINE/Facebook/Instagram profiles。
 - Automated profile 不等於 physical-device proof；真機 matrix 仍需逐列 evidence。
+- Performance gate 已加入 route code splitting、first-page 24 photos、Web Vitals diagnostic 與 bundle budgets。
 - Migration current latest：`016_explicit_guest_album_membership.sql`。
 - Word-related import supported；PDF/PPT 不支援；general attachment 只接受圖片。
 - Permanent delete 無七天 trash/restore。
@@ -126,7 +130,7 @@
 ## Source of truth order
 
 1. Current `main` code、migration、package、lockfile。
-2. Production tests／browser evidence。
+2. Production tests／browser／performance evidence。
 3. Current documents。
 4. Latest merged PR／CI。
 5. Dated evidence 只用於其 commit/date。
@@ -136,8 +140,8 @@
 
 1. User-visible behavior → 更新 user/admin guide。
 2. Deployment/incident → 更新 Operations 與對應 deployment runbook。
-3. API/route/storage/migration/security → 更新 technical contract。
-4. Test/CI → 更新 testing strategy/device record。
+3. API/route/storage/migration/security/performance → 更新 technical contract。
+4. Test/CI → 更新 testing strategy/device/performance record。
 5. 新文件加入本索引並標示 lifecycle。
 6. Current 只描述已實作、已驗證內容。
 7. Dated record 使用 ISO 8601 timezone + exact commit。
