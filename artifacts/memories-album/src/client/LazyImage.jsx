@@ -8,20 +8,25 @@ export default function LazyImage({
   rootMargin = "600px 0px",
   fetchPriority = eager ? "high" : "auto",
   className = "",
+  width,
+  height,
   onLoad,
   onError,
   ...props
 }) {
   const imageRef = useRef(null);
-  const [allowedToLoad, setAllowedToLoad] = useState(Boolean(eager));
+  const hasIntrinsicSize = Number(width) > 0 && Number(height) > 0;
+  const [allowedToLoad, setAllowedToLoad] = useState(
+    Boolean(eager || !hasIntrinsicSize),
+  );
   const [loaded, setLoaded] = useState(false);
   const [failed, setFailed] = useState(false);
 
   useEffect(() => {
-    setAllowedToLoad(Boolean(eager));
+    setAllowedToLoad(Boolean(eager || !hasIntrinsicSize));
     setLoaded(false);
     setFailed(false);
-  }, [src, eager]);
+  }, [src, eager, hasIntrinsicSize]);
 
   useEffect(() => {
     if (allowedToLoad || !src) return undefined;
@@ -61,7 +66,11 @@ export default function LazyImage({
       src={allowedToLoad ? src : undefined}
       data-lazy-src={!allowedToLoad && src ? src : undefined}
       alt={alt}
-      loading={allowedToLoad ? "eager" : "lazy"}
+      width={width}
+      height={height}
+      loading={
+        eager || (allowedToLoad && hasIntrinsicSize) ? "eager" : "lazy"
+      }
       decoding="async"
       fetchPriority={fetchPriority}
       className={classes}

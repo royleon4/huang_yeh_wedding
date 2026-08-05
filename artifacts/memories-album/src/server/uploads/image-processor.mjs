@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { stat } from "node:fs/promises";
 import { dirname, join } from "node:path";
+import { Readable } from "node:stream";
 import sharp from "sharp";
 
 const ALLOWED_MIME_TYPES = new Set([
@@ -97,25 +98,92 @@ function normalizedPipeline(input, format) {
   };
 }
 
+function thumbnailPipeline(input) {
+  const pipeline = input
+    ? sharp(input, {
+        failOn: "error",
+        limitInputPixels: MAX_PIXELS,
+        sequentialRead: true,
+      })
+    : sharp({
+        failOn: "error",
+        limitInputPixels: MAX_PIXELS,
+        sequentialRead: true,
+      });
+  return pipeline
+    .rotate()
+    .resize({
+      width: THUMBNAIL_MAX_DIMENSION,
+      height: THUMBNAIL_MAX_DIMENSION,
+      fit: "inside",
+      withoutEnlargement: true,
+    })
+    .webp({ quality: THUMBNAIL_QUALITY, effort: 4 });
+}
+
 async function createThumbnailBuffer(input) {
   try {
-    return await sharp(input, {
-      failOn: "error",
-      limitInputPixels: MAX_PIXELS,
-      sequentialRead: true,
-    })
-      .rotate()
-      .resize({
-        width: THUMBNAIL_MAX_DIMENSION,
-        height: THUMBNAIL_MAX_DIMENSION,
-        fit: "inside",
-        withoutEnlargement: true,
-      })
-      .webp({ quality: THUMBNAIL_QUALITY, effort: 4 })
-      .toBuffer({ resolveWithObject: true });
+    return await thumbnailPipeline(input).toBuffer({ resolveWithObject: true });
   } catch {
     throw new ImageValidationError("The thumbnail could not be generated");
   }
+}
+
+function readableFromBody(body) {
+  if (Buffer.isBuffer(body) || body instanceof Uint8Array) {
+    return Readable.from([Buffer.from(body)]);
+  }
+  if (typeof body?.pipe === "function") return body;
+  if (body?.getReader && typeof Readable.fromWeb === "function") {
+    return Readable.fromWeb(body);
+  }
+  if (body?.[Symbol.asyncIterator]) return Readable.from(body);
+  throw new ImageValidationError("The thumbnail source could not be read");
+}
+
+async function createThumbnailFromStream(body) {
+  const source = readableFromBody(body);
+  const transformer = thumbnailPipeline();
+
+  return new Promise((resolve, reject) => {
+    const chunks = [];
+    let info = null;
+    let settled = false;
+
+    const fail = () => {
+      if (settled) return;
+      settled = true;
+      source.unpipe?.(transformer);
+      source.destroy?.();
+      transformer.destroy?.();
+      reject(new ImageValidationError("The thumbnail could not be generated"));
+    };
+
+    source.once("error", fail);
+    transformer.once("error", fail);
+    transformer.on("info", (value) => {
+      info = value;
+    });
+    transformer.on("data", (chunk) => {
+      chunks.push(Buffer.from(chunk));
+    });
+    transformer.once("end", () => {
+      if (settled) return;
+      settled = true;
+      const data = Buffer.concat(chunks);
+      if (!data.length || !info?.width || !info?.height) {
+        reject(new ImageValidationError("The thumbnail could not be generated"));
+        return;
+      }
+      try {
+        assertMinimumDimensions(info.width, info.height);
+        resolve({ data, info });
+      } catch (error) {
+        reject(error);
+      }
+    });
+    source.pipe(transformer);
+  });
 }
 
 export function createImageProcessor() {
@@ -126,6 +194,17 @@ export function createImageProcessor() {
       const metadata = await readMetadata(input);
       assertMinimumDimensions(metadata.width, metadata.height);
       const thumbnail = await createThumbnailBuffer(input);
+      return {
+        thumbnailBytes: thumbnail.data,
+        thumbnailContentType: "image/webp",
+        thumbnailWidth: thumbnail.info.width,
+        thumbnailHeight: thumbnail.info.height,
+      };
+    },
+
+    async createThumbnailFromStream({ body, mimeType }) {
+      assertSupportedMimeType(mimeType);
+      const thumbnail = await createThumbnailFromStream(body);
       return {
         thumbnailBytes: thumbnail.data,
         thumbnailContentType: "image/webp",

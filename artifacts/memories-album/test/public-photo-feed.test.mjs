@@ -147,6 +147,64 @@ test("public photo loading exposes smaller pages and yields between requests", a
   assert.equal(requests[0].options.headers.Accept, "application/json");
 });
 
+test("default public feed reaches official photos after the former 480-photo cutoff", async () => {
+  let requestCount = 0;
+
+  const photos = await loadPublicPhotoFeed({
+    ImageConstructor: null,
+    yieldImpl: async () => {},
+    async fetchImpl() {
+      requestCount += 1;
+      if (requestCount <= 20) {
+        return response({
+          photos: Array.from({ length: 24 }, (_, index) => ({
+            id: `guest-${requestCount}-${index}`,
+            source: "guest",
+          })),
+          nextCursor: `cursor-${requestCount}`,
+        });
+      }
+      return response({
+        photos: [
+          {
+            id: "official-after-480",
+            source: "official",
+            collection: "wedding",
+          },
+        ],
+        nextCursor: null,
+      });
+    },
+  });
+
+  assert.equal(requestCount, 21);
+  assert.equal(photos.length, 481);
+  assert.equal(photos.at(-1).id, "official-after-480");
+  assert.equal(PUBLIC_PHOTO_PAGE_CAP, 1000);
+});
+
+test("public feed stops safely when the server repeats a cursor", async () => {
+  let requestCount = 0;
+
+  const photos = await loadPublicPhotoFeed({
+    ImageConstructor: null,
+    yieldImpl: async () => {},
+    async fetchImpl() {
+      requestCount += 1;
+      return response({
+        photos: [{ id: `photo-${requestCount}` }],
+        nextCursor: "repeated-cursor",
+      });
+    },
+  });
+
+  assert.equal(requestCount, 2);
+  assert.deepEqual(
+    photos.map((photo) => photo.id),
+    ["photo-1", "photo-2"],
+  );
+});
+
 test("public photo loading forwards AbortSignal and respects an explicit page cap", async () => {
   const controller = new AbortController();
   const urls = [];
@@ -174,7 +232,7 @@ test("public photo loading forwards AbortSignal and respects an explicit page ca
     "/Memories/api/photos?limit=3",
     "/Memories/api/photos?limit=3&cursor=cursor-1",
   ]);
-  assert.equal(PUBLIC_PHOTO_PAGE_CAP, 20);
+  assert.equal(PUBLIC_PHOTO_PAGE_CAP, 1000);
 });
 
 test("public photo loading rejects failed listing responses", async () => {

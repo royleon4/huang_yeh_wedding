@@ -1,5 +1,5 @@
 export const PUBLIC_PHOTO_PAGE_LIMIT = 24;
-export const PUBLIC_PHOTO_PAGE_CAP = 20;
+export const PUBLIC_PHOTO_PAGE_CAP = 1000;
 
 function normalizedPhotoPage(body) {
   const source = body && typeof body === "object" ? body : {};
@@ -78,6 +78,7 @@ export async function loadPublicPhotoFeed({
   }
 
   const photos = [];
+  const seenCursors = new Set();
   let cursor = null;
   let pages = 0;
 
@@ -93,8 +94,15 @@ export async function loadPublicPhotoFeed({
 
     const page = normalizedPhotoPage(await response.json());
     photos.push(...page.photos);
-    cursor = page.nextCursor;
     pages += 1;
+
+    const nextCursor = page.nextCursor;
+    if (!nextCursor || seenCursors.has(nextCursor)) {
+      cursor = null;
+    } else {
+      seenCursors.add(nextCursor);
+      cursor = nextCursor;
+    }
 
     if (pages === 1) {
       preloadFirstPhotoThumbnail(photos, ImageConstructor);
