@@ -30,6 +30,11 @@ function safeDateIso(raw) {
     : new Date().toISOString();
 }
 
+function positiveInteger(value) {
+  const number = Number(value);
+  return Number.isSafeInteger(number) && number > 0 ? number : null;
+}
+
 /**
  * Album membership is authoritative and independent from upload provenance.
  * A visitor upload batch also keeps one logical copy in Guest uploads when the
@@ -61,9 +66,112 @@ export class AlbumScopedPhotoRepository extends PostgresPhotoRepository {
     return super.listPublicPhotos(options);
   }
 
+  async #relinkOfficialDrivePhoto(file, options = {}) {
+    const source = options.source ?? "official";
+    const size = positiveInteger(file?.size);
+    const filename = String(file?.name ?? "").trim();
+    if (source !== "official" || !file?.id || !filename || !size) return null;
+
+    const existing = await this.pool.query(
+      `SELECT id
+       FROM memories_photos
+       WHERE drive_file_id = $1
+       LIMIT 1`,
+      [file.id],
+    );
+    if (existing.rows[0]) return null;
+
+    const candidates = await this.pool.query(
+      `SELECT id
+       FROM memories_photos
+       WHERE uploader_type = 'official'
+         AND visibility <> 'trashed'
+         AND drive_file_id <> $1
+         AND lower(original_filename) = lower($2)
+         AND byte_size = $3
+       ORDER BY updated_at DESC, id ASC
+       LIMIT 2`,
+      [file.id, filename, size],
+    );
+    if (candidates.rows.length !== 1) return null;
+
+    const width = positiveInteger(file.imageMediaMetadata?.width);
+    const height = positiveInteger(file.imageMediaMetadata?.height);
+    const collection = options.collection ?? "wedding";
+    const parentFolderId = options.parentFolderId ?? null;
+
+    try {
+      const relinked = await this.pool.query(
+        `UPDATE memories_photos
+         SET drive_file_id = $2,
+             thumbnail_drive_file_id = NULL,
+             original_filename = $3,
+             display_name = CASE
+               WHEN display_name IS NULL OR display_name = original_filename THEN $3
+               ELSE display_name
+             END,
+             mime_type = $4,
+             byte_size = $5,
+             width = COALESCE($6, width),
+             height = COALESCE($7, height),
+             content_hash = $8,
+             content_version = content_version + 1,
+             drive_parent_folder_id = $9,
+             collection = CASE
+               WHEN album_memberships_overridden THEN collection
+               ELSE $10
+             END,
+             updated_at = now()
+         WHERE id = $1
+         RETURNING id`,
+        [
+          candidates.rows[0].id,
+          file.id,
+          filename,
+          file.mimeType || "image/jpeg",
+          size,
+          width,
+          height,
+          `drive:${file.id}`,
+          parentFolderId,
+          collection,
+        ],
+      );
+      return relinked.rows[0]?.id ?? null;
+    } catch (error) {
+      // Another runtime may have discovered the same Drive file first. The
+      // ordinary upsert below will use that already-linked row safely.
+      if (error?.code === "23505") return null;
+      throw error;
+    }
+  }
+
+  async #updateDriveImageAttributes(file) {
+    const width = positiveInteger(file?.imageMediaMetadata?.width);
+    const height = positiveInteger(file?.imageMediaMetadata?.height);
+    if (!file?.id || (!width && !height)) return;
+    await this.pool.query(
+      `UPDATE memories_photos
+       SET width = COALESCE($2, width),
+           height = COALESCE($3, height),
+           updated_at = CASE
+             WHEN width IS DISTINCT FROM COALESCE($2, width)
+               OR height IS DISTINCT FROM COALESCE($3, height)
+             THEN now()
+             ELSE updated_at
+           END
+       WHERE drive_file_id = $1`,
+      [file.id, width, height],
+    );
+  }
+
   async upsertDrivePhotoMetadata(file, options = {}) {
+    await this.#relinkOfficialDrivePhoto(file, options);
+
     if (!options.preserveLogicalClassification) {
-      return super.upsertDrivePhotoMetadata(file, options);
+      const stored = await super.upsertDrivePhotoMetadata(file, options);
+      await this.#updateDriveImageAttributes(file);
+      return (await this.findPhotoForAdmin(stored.id)) ?? stored;
     }
 
     const source = options.source ?? "guest";
@@ -123,6 +231,7 @@ export class AlbumScopedPhotoRepository extends PostgresPhotoRepository {
         [photoId, collection],
       );
     }
+    await this.#updateDriveImageAttributes(file);
     return (await this.findPhotoForAdmin(photoId)) ?? { id: photoId };
   }
 
