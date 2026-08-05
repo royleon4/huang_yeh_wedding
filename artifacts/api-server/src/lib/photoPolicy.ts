@@ -17,6 +17,8 @@ const EXTENSION_TO_CONTENT_TYPE = new Map<string, string>(
 );
 EXTENSION_TO_CONTENT_TYPE.set("jpeg", "image/jpeg");
 
+const UUID_V4_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const STORED_PHOTO_NAME =
   /^(?:[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}|[A-Za-z0-9][A-Za-z0-9._-]{0,199})\.(jpe?g|png|webp|gif|heic|heif)$/i;
 
@@ -41,8 +43,8 @@ export function createStoredPhotoName(
   const normalizedContentType = normalizedPhotoContentType(contentType);
   if (!normalizedContentType) throw new UnsupportedPhotoTypeError(contentType);
   const id = createId();
-  if (!/^[0-9a-f-]{36}$/i.test(id)) {
-    throw new Error("Photo identifier generator returned an invalid UUID");
+  if (!UUID_V4_PATTERN.test(id)) {
+    throw new Error("Photo identifier generator returned an invalid UUID v4");
   }
   return `${id}.${CONTENT_TYPE_TO_EXTENSION.get(normalizedContentType)}`;
 }
