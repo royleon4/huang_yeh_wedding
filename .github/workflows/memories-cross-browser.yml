@@ -76,9 +76,16 @@ jobs:
           pnpm --filter @workspace/memories-album exec playwright install
           --with-deps chromium firefox webkit
 
+      - name: Allocate an unused browser-test port
+        id: e2e-port
+        run: |
+          PORT=$(node -e 'const net = require("node:net"); const server = net.createServer(); server.listen(0, "127.0.0.1", () => { console.log(server.address().port); server.close(); });')
+          echo "port=$PORT" >> "$GITHUB_OUTPUT"
+
       - name: Run cross-browser production layout gate
         env:
           CI: "true"
+          MEMORIES_E2E_PORT: ${{ steps.e2e-port.outputs.port }}
         run: >-
           pnpm --filter @workspace/memories-album exec playwright test
           --config playwright.config.mjs
