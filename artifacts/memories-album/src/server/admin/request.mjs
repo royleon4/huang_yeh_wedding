@@ -1,16 +1,27 @@
 import { adminAuthorized, sendAdminJson } from "./auth.mjs";
 
-export async function readAdminJson(request, maxBytes = 32 * 1024) {
-  const limit =
-    typeof maxBytes === "object" && maxBytes !== null
-      ? Number(maxBytes.maxBytes ?? 32 * 1024)
-      : Number(maxBytes);
+const DEFAULT_MAX_JSON_BYTES = 32 * 1024;
+
+function normalizedMaxBytes(value) {
+  const candidate =
+    typeof value === "object" && value !== null
+      ? value.maxBytes ?? DEFAULT_MAX_JSON_BYTES
+      : value;
+  const limit = Number(candidate);
+  if (!Number.isSafeInteger(limit) || limit < 1) {
+    throw new TypeError("JSON request limit must be a positive integer number of bytes");
+  }
+  return limit;
+}
+
+export async function readAdminJson(request, maxBytes = DEFAULT_MAX_JSON_BYTES) {
+  const limit = normalizedMaxBytes(maxBytes);
   const chunks = [];
   let total = 0;
   for await (const chunk of request) {
     total += chunk.length;
     if (total > limit) {
-      const error = new Error("Request body too large");
+      const error = new Error("Request body exceeds the permitted size");
       error.status = 413;
       error.code = "BODY_TOO_LARGE";
       throw error;
@@ -20,7 +31,7 @@ export async function readAdminJson(request, maxBytes = 32 * 1024) {
   try {
     return JSON.parse(Buffer.concat(chunks).toString("utf8") || "{}");
   } catch {
-    const error = new Error("Invalid JSON body");
+    const error = new Error("Request body must contain valid JSON");
     error.status = 400;
     error.code = "INVALID_JSON";
     throw error;
