@@ -45,6 +45,27 @@ curl --fail http://127.0.0.1:19316/Memories/api/health
 kill "$SERVER_PID"
 ```
 
+## Performance evidence
+
+Production build writes:
+
+```text
+artifacts/memories-album/dist/performance/bundle-report.json
+artifacts/memories-album/dist/performance/bundle-report.md
+```
+
+Browser diagnostics:
+
+```text
+http://localhost:19316/Memories/?performance=1
+```
+
+DevTools console:
+
+```js
+window.__MEMORIES_WEB_VITALS__
+```
+
 ## PostgreSQL
 
 ```bash
@@ -53,14 +74,14 @@ psql "$DATABASE_URL" -c '\dt'
 psql "$DATABASE_URL" -c 'select current_database(), current_user;'
 ```
 
-Backup：
+Backup:
 
 ```bash
 pg_dump --format=custom --no-owner --no-acl "$DATABASE_URL" > memories.dump
 sha256sum memories.dump
 ```
 
-Restore：
+Restore:
 
 ```bash
 pg_restore --no-owner --no-acl --dbname="$RESTORE_DATABASE_URL" memories.dump
@@ -77,17 +98,17 @@ docker compose logs -f app
 docker compose down
 ```
 
-刪本機 volumes：
+Delete local volumes:
 
 ```bash
 docker compose down -v
 ```
 
-這會永久刪除 Compose volumes。
+This permanently deletes Compose volumes。
 
 ## Playwright
 
-Current workflow 會安裝 pinned runner。手動重現：
+The current workflow installs a pinned runner。Manual reproduction:
 
 ```bash
 pnpm --filter @workspace/memories-album add --save-dev @playwright/test@1.60.0 --lockfile=false
@@ -95,14 +116,14 @@ pnpm --filter @workspace/memories-album exec playwright install --with-deps chro
 pnpm --filter @workspace/memories-album exec playwright test --config playwright.config.mjs
 ```
 
-不要把 temporary Playwright install 寫回 production lockfile，除非正式決定把它加入 package manifest。
+Do not commit the temporary Playwright install unless the repository formally adds it to the package manifest。
 
 ## GitHub Actions
 
 ```bash
 gh pr checks
- gh run list --limit 20
- gh run view RUN_ID --log-failed
+gh run list --limit 20
+gh run view RUN_ID --log-failed
 ```
 
 ## OpenSSL
@@ -185,7 +206,7 @@ kubectl get events -n wedding-prod --sort-by=.lastTimestamp
 
 ## SCA/SBOM evidence
 
-實際 tool versions 依 security runbook 固定：
+Use reviewed and pinned tool versions:
 
 ```bash
 pnpm audit --json > pnpm-audit.json
@@ -195,4 +216,4 @@ pnpm outdated -r --format json > outdated.json
 sha256sum *.json > checksums.txt
 ```
 
-OSV-Scanner 與 CycloneDX generator 使用經審查的 pinned version；結果必須記錄 scanned commit。
+OSV-Scanner and CycloneDX evidence must record the scanned commit。
