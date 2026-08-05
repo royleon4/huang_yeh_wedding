@@ -1,26 +1,24 @@
 # 婚禮照片網站｜部署與維運說明
 
-這份說明是寫給**網站擁有者、Replit 發布者與事故排查者**。
+> **適用環境：** Current Replit production  
+> **Reviewed：** 2026-08-05T10:31:00+08:00  
+> **Baseline：** `21dc25543de6dd2bfa7e9019a2a9244c8a2ef186`
 
-> 日常內容管理請看 [`ADMIN_GUIDE.md`](ADMIN_GUIDE.md)。  
-> 程式架構與 API 請看 [`artifacts/memories-album/README.md`](artifacts/memories-album/README.md)。  
-> Dependency security 修復前請看 [`docs/security-remediation-readiness-2026-08-04.md`](docs/security-remediation-readiness-2026-08-04.md)。  
-> 2026-08-02 SCA 請看 [`docs/software-composition-analysis-2026-08-02.md`](docs/software-composition-analysis-2026-08-02.md)。  
-> Production → Development database 備份、覆蓋與還原請看 [`docs/memories/production-to-development-database-runbook.md`](docs/memories/production-to-development-database-runbook.md)。
+其他環境部署請讀 [`docs/site-handbook/deployments/`](docs/site-handbook/deployments/README.md)。
 
-## 先記住七件事
+## 先記住
 
-1. **不要把 Secret、Drive folder ID、OAuth 憑證或私人 token 寫進 GitHub。**
-2. **不要用 `drizzle-kit push` 管理 Memories tables。**
-3. **Publish plan 出現 DROP 時先取消。**
-4. **不要直接從 Google Drive 刪除網站照片。**
-5. **Production healthcheck 使用 `/Memories/api/health`。**
-6. **發布成功不等於瀏覽器畫面一定正常，仍要做實際頁面檢查。**
-7. **日期型 SCA 只代表它掃描的 commit；package 或 lockfile 改變後必須重新掃描。**
+1. Secret、Database URL、OAuth、Drive ID、private token 不進 GitHub／browser／一般 logs。
+2. Memories production schema 不使用 `drizzle-kit push`。
+3. Publish plan 出現 unexpected DROP 就停止。
+4. 不直接從 Google Drive 手動刪網站原圖。
+5. Liveness 使用 `/Memories/api/health`。
+6. Automated Playwright 已存在，但 representative In-App profile 不等於真機 evidence。
+7. Package／lockfile 改變後，舊 SCA 只能視為 dated evidence。
 
-## 1. Production 必要條件
+## 1. Replit Production 必要條件
 
-Replit Published App 必須有：
+Published App Secrets：
 
 ```text
 DATABASE_URL
@@ -28,96 +26,70 @@ MEMORIES_DRIVE_PHOTOS_FOLDER_ID
 MEMORIES_ADMIN_TOKEN
 ```
 
-並且必須連接 **Replit Google Drive Integration**。
+並連接 Replit Google Drive Integration。
 
-### Secret 的用途
+Workspace Secrets 不應被假設會自動成為 Published App Secrets；每次發佈前在 deployment settings 確認。
 
-- `DATABASE_URL`：PostgreSQL 連線
-- `MEMORIES_DRIVE_PHOTOS_FOLDER_ID`：婚禮照片根資料夾
-- `MEMORIES_ADMIN_TOKEN`：管理員登入密碼來源
+Current `.replit`：
 
-### 不可以提交的內容
+| Artifact | Port | Route |
+| --- | ---: | --- |
+| Wedding Invitation | 19315 | `/` |
+| Memories | 19316 | `/Memories/*` |
+| Legacy API | 8080 | `/api/*` |
+| Mockup Sandbox | 8081 | `/__mockup` |
 
-不要把以下內容放入 README、issue、聊天截圖、`.replit`、前端 bundle、SCA artifact 或一般 source file：
+Current deployment target：Autoscale。
 
-- 真實管理密碼
-- `DATABASE_URL`
-- Google OAuth token
-- Drive folder ID
-- 私人批次管理 token
-- resumable session URI
-- connector 原始回應
+完整 Replit 步驟：[`docs/site-handbook/deployments/replit.md`](docs/site-handbook/deployments/replit.md)
 
-## 2. Google Drive 權限
+## 2. Google Drive
 
-連接的 Google 帳號至少要能讀寫婚禮照片根資料夾。
-
-應確認它也能讀寫：
+連接 account 必須可讀寫：
 
 ```text
+婚禮 root
 00 未分類
 訪客上傳
 生活照
 系統縮圖
 ```
 
-若原圖可讀、縮圖卻一直失敗，特別檢查 `系統縮圖` 的權限。
+| Error | 代表 | 優先處理 |
+| --- | --- | --- |
+| `DRIVE_AUTHORIZATION_REQUIRED` | 401/403、account/scope/folder permission | reconnect、確認 account/editor access |
+| `DRIVE_RETRYABLE` | 429、5xx、timeout | bounded retry、quota/provider status |
 
-### 常見 Drive 錯誤
+Background summary：
 
-#### `DRIVE_AUTHORIZATION_REQUIRED`
+```text
+attempted
+createdOrAttached
+failureCount
+failureCodes
+```
 
-通常代表：
+`completed` 只代表 job 到達結尾，不代表全部成功。
 
-- Integration 已失效或需要重新授權
-- 連到錯的 Google 帳號
-- 帳號沒有資料夾編輯權限
-- 只能讀原圖，不能寫縮圖
+## 3. Health 與 Browser
 
-#### `DRIVE_RETRYABLE`
-
-通常代表：
-
-- 429 節流
-- Google Drive 或 connector 的 5xx
-- 上游逾時或暫時不可用
-
-先等待再重試；若反覆發生，再檢查 connector、配額與資料夾權限。
-
-## 3. Healthcheck 與 readiness
-
-Production healthcheck 應使用：
+Liveness：
 
 ```text
 /Memories/api/health
 ```
 
-這是輕量 liveness endpoint，不需要先完成完整 Drive 或 PostgreSQL 初始化。
+Health 200 不證明：
 
-不要把以下頁面當 healthcheck：
+- React render 成功；
+- transform 後 JS 沒有 runtime error；
+- Albums／labels／guestbook 可操作；
+- Drive media 可讀；
+- Word content 無 overflow。
 
-- `/Memories/admin`
-- `/Memories/admin/login`
-- `/memories`
-- 需要登入或可能 redirect 的頁面
+每次發佈後仍需 browser smoke。
 
-### Healthcheck 正常但畫面壞掉
-
-`/Memories/api/health` 回 200 只代表 server 能回應。
-
-它不能證明：
-
-- React 已成功執行
-- transform 後的 JavaScript 沒有 runtime error
-- 所有相簿、標籤、留言與流程都能打開
-- Drive 原圖與縮圖都能讀取
-- Word 匯入內容沒有寬度溢出
-
-因此每次發布後仍要做瀏覽器 smoke check。
-
-## 4. 發布前檢查
-
-在可執行完整 workspace 的環境中，至少確認：
+## 4. 發佈前驗證
 
 ```bash
 pnpm install --frozen-lockfile
@@ -128,258 +100,253 @@ pnpm --filter @workspace/memories-album run test:layout-browser
 pnpm --filter @workspace/memories-album build
 ```
 
-需要真實 Drive 驗證時才執行：
+UI／Playwright 路徑還會觸發 `.github/workflows/memories-cross-browser.yml`：
 
-```bash
-pnpm --filter @workspace/memories-album test:drive-live
-```
+- Chromium desktop/mobile
+- Firefox desktop
+- WebKit desktop/mobile
+- Samsung Internet representative
+- WeChat Android/iOS representative
+- LINE Android/iOS representative
+- Facebook Android/iOS representative
+- Instagram Android/iOS representative
 
-`test:drive-live` 只能對安全測試資料夾執行，不要拿 production 婚禮根資料夾做破壞性測試。
+失敗保存 screenshot、trace、video、HTML report。
 
-PR commit 會依實際 diff 執行 Test Impact Analysis。推送到 `main` 與手動 dispatch 仍會跑完整 Node、focused Chrome、production build 與 health smoke。完整規則見 [`docs/memories/testing-strategy.md`](docs/memories/testing-strategy.md)。
+真機 evidence matrix：[`docs/memories/phase-2-device-validation-2026-08-05.md`](docs/memories/phase-2-device-validation-2026-08-05.md)
 
-## 5. Migration 安全
+## 5. Migration
 
-Memories migration 位於：
+位置：
 
 ```text
 artifacts/memories-album/db
 ```
 
-目前編號延伸到：
+Current latest：
 
 ```text
 016_explicit_guest_album_membership.sql
 ```
 
-最近新增的資料模型包括：
+規則：
 
-- `014_guestbook_messages.sql`
-- `015_album_scoped_labels.sql`
-- `016_explicit_guest_album_membership.sql`
+- 新增下一個 numbered SQL。
+- 不改已套用 migration。
+- Runner 保存 filename/checksum。
+- Advisory lock 防多 instance 同時 migrate。
+- Migration 成功後才啟動 production listener。
+- Unexpected `DROP TABLE`、`DROP COLUMN`、constraint removal → 停止。
 
-Migration runner 會：
+Production → Development copy/rollback：[`docs/memories/production-to-development-database-runbook.md`](docs/memories/production-to-development-database-runbook.md)
 
-- 依序套用尚未記錄的 SQL
-- 保存檔名與 SHA-256 checksum
-- 拒絕修改已經套用的 migration
-- 使用 PostgreSQL advisory lock
-- migration 成功後才啟動 production listener
+## 6. 安全發佈流程
 
-### 絕對不要做
+1. 確認 `main` candidate commit。
+2. Required CI green。
+3. Database backup/PITR healthy。
+4. Review migration／Publish plan。
+5. Confirm Published App Secrets。
+6. Confirm Drive Integration/account/folder permissions。
+7. 記錄 last-known-good deployment revision。
+8. 發佈。
+9. Health check。
+10. Browser smoke。
+11. 觀察 logs／errors 30–60 分鐘。
+12. 完成或 rollback。
 
-```text
-drizzle-kit push
-```
+## 7. 發佈後 Smoke
 
-也不要修改已經在 production 套用過的編號 SQL。
+### Public
 
-### Production → Development database 覆蓋
+- [ ] `/Memories/`
+- [ ] `/Memories/en/`
+- [ ] Album switch／active album repeat click
+- [ ] Labels／processes
+- [ ] Guestbook load、sort、modal
+- [ ] Featured photos 不跨 context
+- [ ] Bottom navigation 貼可視範圍底部
+- [ ] Back／Forward／refresh
+- [ ] Thumbnail／original／viewer
+- [ ] Word content/table/image 不 overflow
+- [ ] Upload dialog 顯示正確限制
 
-需要以 Production 資料重新建立 Development 測試環境時，必須使用已實際演練的專用手冊：
+### Admin
 
-[`docs/memories/production-to-development-database-runbook.md`](docs/memories/production-to-development-database-runbook.md)
+- [ ] `/Memories/admin/login`
+- [ ] General
+- [ ] Albums／labels
+- [ ] Photos／filters／bulk actions
+- [ ] Categories／process content
+- [ ] Guestbook accordion 預設收合、展開後才 load
+- [ ] One safe save（條件允許時）
 
-該流程要求：
+### Runtime
 
-- 先備份 Development；
-- Production 只執行唯讀 `pg_dump`；
-- 目標只能是 Development `DATABASE_URL`；
-- 覆蓋後執行 `db:migrate`；
-- 完成 database、health、Drive 與瀏覽器驗收；
-- 支援還原原本 Development；
-- 不把 Production credential 或 dump 長期留在 workspace。
+- [ ] No unexpected 5xx
+- [ ] No browser pageerror/error boundary
+- [ ] No repeated process restart
+- [ ] DB connection healthy
+- [ ] No Drive auth batch failure
+- [ ] Thumbnail backlog stable
 
-不得把該流程反向用於 Development → Production。
+## 8. Admin Login
 
-### Publish plan 出現 DROP
-
-看到以下任一項時先取消：
-
-- `DROP TABLE`
-- `DROP COLUMN`
-- 移除既有 constraint
-- 用 development data 覆蓋 production
-
-先確認 migration 檔、production schema 與 Publish plan，再重新發布。
-
-## 6. Dependency security 與 SCA
-
-2026-08-02 曾完成一次 repository-wide SCA，包含 CycloneDX SBOM、pnpm audit、OSV、license、deprecated 與 outdated inventory。
-
-該結果是**日期型證據**，不是目前 `main` 的精確 release verdict。之後 `artifacts/memories-album/package.json` 與 `pnpm-lock.yaml` 已改變，包括 Word 匯入依賴，因此開始修復前必須重新掃描。
-
-修復前：
-
-1. 暫停其他 package／lockfile 變更。
-2. 記錄 current `main` 與 production commit。
-3. 確認 PostgreSQL 備份責任與 Drive Integration 權限。
-4. 用 frozen lockfile 產生新的 dependency tree、SBOM、pnpm audit 與 OSV evidence。
-5. 依 production runtime、build、codegen、preview exposure 分類。
-6. 小批更新 parent dependency，不要一次更新全部套件。
-7. 每批完成後重新測試、部署觀察並重掃。
-
-禁止把下列命令當成無審查修復方案：
-
-```text
-pnpm audit fix --force
-```
-
-完整流程見 [`docs/security-remediation-readiness-2026-08-04.md`](docs/security-remediation-readiness-2026-08-04.md)。
-
-## 7. 安全發布流程
-
-1. 確認 GitHub `main` 是要發布的版本。
-2. 確認 required CI 通過。
-3. 確認 Replit Secrets 與 Drive Integration 仍存在。
-4. 檢查 Publish plan，拒絕意外 DROP。
-5. Dependency 變更時，確認 post-change SBOM／SCA 與候選 commit 一致。
-6. 記錄最後一個已知正常的 deployment commit。
-7. 發布。
-8. 開啟 `/Memories/api/health`。
-9. 用真實瀏覽器開啟 `/Memories/`。
-10. 切換中文與 English。
-11. 開啟照片相簿、標籤、婚禮流程與留言簿。
-12. 開啟一張照片，測試「查看原圖」與關閉。
-13. 打開 `/Memories/admin/login`，登入後巡覽四個管理分頁。
-14. 只在安全情況下做一筆小型上傳或設定保存測試。
-
-## 8. 發布後瀏覽器檢查
-
-至少檢查：
-
-- 首頁首圖、標題與配色正確
-- 語言切換器仍在首頁標題區且可操作
-- 底部導覽在手機寬度沒有遮住內容
-- 相簿、流程、相簿標籤與訪客姓名標籤可切換
-- 「全部{相簿名}」位於非訪客相簿標籤第一順位
-- 流程中英文標題能覆蓋對應 public label
-- 每相簿精選照片不會留在其他相簿或標籤
-- 留言簿載入後定位到內容頂部，排序與開啟留言正常
-- 瀏覽器上一頁／下一頁能恢復選擇
-- 照片縮圖會載入
-- 「載入更多回憶」可用
-- 全螢幕照片可以關閉
-- 「查看原圖」在新分頁開啟
-- Word 匯入內容與圖片附件不超出可視寬度
-- 上傳入口顯示目前張數限制與說明
-- 管理後台沒有跳回前台或出現未處理錯誤
-
-CI 現在有 focused Chrome layout checks，但仍沒有 required Playwright production-browser gate，所以這一步不能省略。
-
-## 9. 管理員登入問題
-
-目前登入頁：
+Route：
 
 ```text
 /Memories/admin/login
 ```
 
-使用的 Secret：
+Secret：
 
 ```text
 MEMORIES_ADMIN_TOKEN
 ```
 
-成功登入後建立約 30 分鐘的 HMAC-signed HttpOnly cookie。
+成功登入建立約 30 分鐘 signed HttpOnly、Secure、SameSite=Strict cookie，Path `/Memories/admin`。
 
-### 登入後又回到前台
+登入後跳回 public：
 
-可能原因：
+- session expired；
+- secret changed/missing；
+- proxy 未正確標示 HTTPS；
+- cookie 未建立；
+- 使用舊 route。
 
-- session 已過期
-- cookie 沒有成功建立或送回
-- 使用了舊路徑
-- production secret 遺失或改變
+不要改成 localStorage password/session。
 
-先重新開啟登入頁；不要把密碼改成寫死在瀏覽器或 source code。
+## 9. 照片與縮圖
 
-## 10. 照片與縮圖問題
+縮圖空白依序檢查：
 
-### 某些縮圖空白
+1. Original 是否存在。
+2. Drive account 可否 read original。
+3. `系統縮圖` 可否 write。
+4. Sharp decode/output 是否成功。
+5. PostgreSQL photo/thumbnail reference。
+6. Cache 是否保留舊 404。
+7. Refresh tool 是否選對 album/process。
 
-依序檢查：
+重新整理原始照片工具會：
 
-1. 原圖是否仍在 Drive
-2. `系統縮圖` 是否可讀寫
-3. 背景同步 log 是否有 authorization 或 retryable 錯誤
-4. PostgreSQL photo row 是否仍存在
-5. 後台的重新整理工具是否選對相簿／流程
+1. 清 generated thumbnails。
+2. Rescan originals。
+3. Queue derivative rebuild。
 
-### 背景同步顯示 completed with failures
+不要連續重複按；等目前工作完成。
 
-`completed` 只代表背景工作跑到結尾，不代表每一張都成功。
+## 10. Delete
 
-應查看：
+完整 permanent delete 使用：
 
-- attempted
-- createdOrAttached
-- failureCount
-- failureCodes
+- Admin permanent delete；或
+- Uploader private management page。
 
-若整批都同一個 authorization code，優先處理帳號或資料夾權限，不要把每張照片當成獨立壞檔。
+手動刪 Drive original 不會完整清理：
 
-## 11. 不要直接從 Drive 刪原圖
+- PostgreSQL photo row；
+- Album/label/process relations；
+- Thumbnail；
+- Pinned references。
 
-手動刪除 Drive 原圖，不會自動完整清理 PostgreSQL、相簿／流程關聯、縮圖與置頂引用。
+Current delete 沒有 trash/restore。
 
-需要刪除時使用：
+## 11. Production → Development Database
 
-- 管理後台的永久刪除
-- 上傳者的私人管理頁
+只能使用專用 runbook：
 
-目前永久刪除沒有垃圾桶或復原流程。
+[`docs/memories/production-to-development-database-runbook.md`](docs/memories/production-to-development-database-runbook.md)
 
-## 12. 重新掃描與重建縮圖
+原則：
 
-後台的「重新整理原始照片」是維護工具，可以：
+- 先 backup Development；
+- Production 只作 read-only `pg_dump`；
+- Target 只能是 Development；
+- Restore 後跑 migration；
+- 驗證 DB、health、Drive、browser；
+- 可還原原 Development；
+- 不保留 production credential/dump 在 workspace。
 
-1. 清除系統產生的縮圖
-2. 重新掃描 Drive 原圖
-3. 排入縮圖重建
+不得反向用於 Development → Production。
 
-操作前：
+## 12. Dependency Security
 
-- 確認選對相簿或流程
-- 確認 Drive 權限正常
-- 不要連續重複按
-- 等待目前工作完成
+2026-08-02 SCA 是 dated evidence，不是 current lockfile verdict。
 
-它不是一般查看照片時需要使用的按鈕。
+Dependency remediation 前：
 
-## 13. 常見事故判斷
+1. Frozen install current `main`。
+2. 重新產生 dependency tree、SBOM、pnpm audit、OSV、license。
+3. 分 production runtime／build／codegen／preview exposure。
+4. Small parent-package batch。
+5. Full tests／Playwright／build。
+6. Post-change SCA tied to final commit。
+7. Deploy observation／rollback。
+
+不要盲用：
+
+```text
+pnpm audit fix --force
+```
+
+Runbook：[`docs/security-remediation-readiness-2026-08-04.md`](docs/security-remediation-readiness-2026-08-04.md)
+
+## 13. Incident Triage
 
 | 現象 | 優先方向 |
 | --- | --- |
-| Health 失敗、server 未啟動 | migration、環境變數、port、server log |
-| Health 正常但整頁空白 | 瀏覽器 console、`pageerror`、production transform output |
-| 所有縮圖都失敗 | Drive Integration 或資料夾權限 |
-| 少數照片壞掉 | 個別檔案、原圖、metadata 或 thumbnail row |
-| 管理後台突然離開 | session 過期或 cookie 問題 |
-| 設定存了但前台不變 | 儲存結果、重新整理、public settings/bootstrap |
-| 上傳原圖成功但分類失敗 | 找到照片後補上相簿／流程，不要重複上傳 |
-| 精選照片出現在其他相簿 | active album／label context、seed reset、paging state |
-| 留言簿載入後位置錯誤 | shared content navigation 與 masonry anchor restoration |
-| Word 匯入內容溢出 | document node、preview width、table/image CSS |
-| 舊網址被改寫 | 正常的穩定身分網址遷移 |
-| Native module 更新後無法啟動 | Sharp/esbuild 安裝、build artifact、deployment platform compatibility |
+| Server/health fail | migration、env、port、startup log |
+| Health green but blank | browser pageerror、console、transform、assets |
+| All thumbnails fail | Drive Integration/account/folder permission |
+| Some files fail | individual original、metadata、Sharp |
+| Admin exits | session/cookie/proxy/secret |
+| Save success but public stale | public settings/bootstrap/cache |
+| Original uploaded, classification missing | repair relation；不要重傳 |
+| Featured photos leak | album/label context/seed/paging |
+| Guestbook positioning wrong | shared navigation/masonry anchor |
+| Word content overflow | document node/table/image CSS |
+| In-App bottom nav wrong | visual viewport/fixed containing block/safe area |
+| Native package crash | Node/OS/architecture/build artifact |
 
-## 14. 已知維運限制
+詳細排錯：[`docs/site-handbook/reference/troubleshooting.md`](docs/site-handbook/reference/troubleshooting.md)
 
-- CI 尚未跑 required Playwright 完整 production React interaction flow。
-- 日期型 SCA 尚未重新對 current lockfile 執行。
-- 直接刪 Drive 不會自動完成 DB cleanup。
-- 刪除是立即永久刪除。
-- 人物分類與自拍找照片尚未實作。
-- 管理員上傳後的分類仍由前端 follow-up PATCH 完成，尚非單一原子 command。
-- 多個 Vite exact-string transforms 仍是 production-only regression 的主要風險。
+## 14. Rollback
 
-## 最小事故處理順序
+1. 記錄 bad revision／first error time。
+2. 停止 risky writes（若需要）。
+3. 確認 previous revision schema-compatible。
+4. Replit deployment history 切回 known-good，或 redeploy known-good commit。
+5. 驗證 health、public、admin、Drive。
+6. 保存 bad revision logs/evidence。
+7. 若 schema 不相容，使用 forward fix。
 
-1. 先記錄第一個真正錯誤，不要先改程式。
-2. 分清楚是 server、database、Drive、browser runtime、dependency/native module 還是資料問題。
-3. 只修已證明的根因。
-4. 執行對應測試與 production build。
-5. Dependency 問題要保存 pre/post SBOM 與 SCA evidence。
-6. 發布後用真實瀏覽器重新驗證。
-7. 將新發現補進對應文件，避免下一次重複猜測。
+Rollback 不刪 migration history。
+
+## 15. Multi-cloud
+
+Current media implementation 使用 Replit-specific `@replit/connectors-sdk` Google Drive Integration。
+
+部署至 On-premise、Google Cloud、AWS、Azure、OCI 或 Kubernetes 前，必須：
+
+- production container；
+- Google Drive API 或 object-storage adapter；
+- provider Secret Manager/runtime identity；
+- managed/self-hosted PostgreSQL；
+- explicit migration job；
+- background worker/scheduler；
+- logs/metrics/alerts；
+- backup/restore。
+
+完整文件：[`docs/site-handbook/deployments/`](docs/site-handbook/deployments/README.md)
+
+## 16. 最小事故處理順序
+
+1. 記錄 first real error、timestamp、revision。
+2. 分 server／DB／Drive／browser／native dependency／data。
+3. 保存 evidence。
+4. 未知原因時停止重複 upload/delete。
+5. 只修 proven root cause。
+6. Run relevant tests/build/Playwright。
+7. Deploy and re-verify。
+8. 更新 runbook。
