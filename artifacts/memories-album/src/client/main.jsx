@@ -1,10 +1,5 @@
-import React, {
-  Component,
-  lazy,
-  Suspense,
-  useEffect,
-  useState,
-} from "react";
+import React, { Component, useEffect, useState } from "react";
+import { lazy, Suspense } from "react";
 import { createRoot } from "react-dom/client";
 import App from "./App.jsx";
 import GalleryEnhancements from "./GalleryEnhancements.jsx";
@@ -29,9 +24,35 @@ import "./process-rich-content.css";
 import "./batch-management.css";
 import "./label-wrapping.css";
 
-const AdminApp = lazy(() => import("./AdminApp.jsx"));
-const AdminLoginPage = lazy(() => import("./AdminLoginPage.jsx"));
-const BatchManagementPage = lazy(() => import("./BatchManagementPage.jsx"));
+const DeferredAdminApp = lazy(() => import("./AdminApp.jsx"));
+const DeferredAdminLoginPage = lazy(() => import("./AdminLoginPage.jsx"));
+const DeferredBatchManagementPage = lazy(() =>
+  import("./BatchManagementPage.jsx"),
+);
+
+function AdminApp() {
+  return (
+    <Suspense fallback={null}>
+      <DeferredAdminApp />
+    </Suspense>
+  );
+}
+
+function AdminLoginPage() {
+  return (
+    <Suspense fallback={null}>
+      <DeferredAdminLoginPage />
+    </Suspense>
+  );
+}
+
+function BatchManagementPage() {
+  return (
+    <Suspense fallback={null}>
+      <DeferredBatchManagementPage />
+    </Suspense>
+  );
+}
 
 startPerformanceMonitoring();
 
@@ -196,17 +217,11 @@ const isBatchManagement = /^\/Memories\/manage\/[^/]+\/?$/.test(
 );
 const surface = adminSurface(window.location.pathname);
 const content = isBatchManagement ? (
-  <Suspense fallback={null}>
-    <BatchManagementPage />
-  </Suspense>
+  <BatchManagementPage />
 ) : surface === "login" ? (
-  <Suspense fallback={null}>
-    <AdminLoginPage />
-  </Suspense>
+  <AdminLoginPage />
 ) : surface === "admin" ? (
-  <Suspense fallback={null}>
-    <AdminApp />
-  </Suspense>
+  <AdminApp />
 ) : (
   <MemoriesRoot />
 );
