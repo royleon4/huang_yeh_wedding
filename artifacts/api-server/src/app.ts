@@ -1,4 +1,8 @@
-import express, { type Express } from "express";
+import express, {
+  type ErrorRequestHandler,
+  type Express,
+  type RequestHandler,
+} from "express";
 import cors from "cors";
 import pinoHttp from "pino-http";
 import router from "./routes";
@@ -26,9 +30,31 @@ app.use(
   }),
 );
 app.use(cors());
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(express.json({ limit: "100kb" }));
+app.use(express.urlencoded({ extended: true, limit: "100kb" }));
 
 app.use("/api", router);
+
+const notFound: RequestHandler = (_request, response) => {
+  response.status(404).json({
+    error: "API route not found",
+    code: "NOT_FOUND",
+  });
+};
+
+const handleError: ErrorRequestHandler = (error, request, response, _next) => {
+  request.log.error({ error }, "Unhandled API request failure");
+  if (response.headersSent) {
+    response.end();
+    return;
+  }
+  response.status(500).json({
+    error: "The API request could not be completed",
+    code: "INTERNAL_ERROR",
+  });
+};
+
+app.use(notFound);
+app.use(handleError);
 
 export default app;
