@@ -17,3 +17,7 @@ await cp("src/site-style.mjs", "dist/site-style.mjs");
 await cp("src/upload-settings.mjs", "dist/upload-settings.mjs");
 await cp("src/server", "dist/server", { recursive: true });
 await cp("db", "dist/db", { recursive: true });
+
+for (const file of ["manifest.webmanifest", "offline.html", "sw.js"]) {
+  await cp(file, `dist/public/${file}`);
+}
