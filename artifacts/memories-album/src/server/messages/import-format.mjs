@@ -19,8 +19,8 @@ const HEADER_ALIASES = new Map([
   ["留言日期", "dateTime"],
 ]);
 
-const SIMPLE_DATE_TIME =
-  /^(\d{4})-(\d{2})-(\d{2})(?:[ T](\d{2}):(\d{2}))?$/;
+const LOCAL_DATE_TIME =
+  /^(\d{4})-(\d{2})-(\d{2})(?:[ T](\d{2}):(\d{2})(?::(\d{2})(?:\.(\d{1,3}))?)?)?$/;
 const MIN_TIME_ZONE_OFFSET_MINUTES = -14 * 60;
 const MAX_TIME_ZONE_OFFSET_MINUTES = 14 * 60;
 
@@ -119,14 +119,22 @@ function normalizedTimeZoneOffsetMinutes(value) {
   return parsed;
 }
 
+function normalizedMaximumRows(value) {
+  const parsed = Number(value);
+  if (!Number.isSafeInteger(parsed) || parsed < 1) {
+    throw invalidImport("The maximum import row count must be a positive integer");
+  }
+  return parsed;
+}
+
 function invalidDateTime(rowNumber) {
   return invalidImport(
-    `Row ${rowNumber}: datetime is invalid; use YYYY-MM-DD HH:mm, YYYY-MM-DDTHH:mm, or ISO 8601`,
+    `Row ${rowNumber}: datetime is invalid; use YYYY-MM-DD HH:mm, YYYY-MM-DDTHH:mm, or ISO 8601 with an explicit timezone`,
   );
 }
 
-function simpleDateTime(raw, rowNumber, timeZoneOffsetMinutes) {
-  const match = raw.match(SIMPLE_DATE_TIME);
+function localDateTime(raw, rowNumber, timeZoneOffsetMinutes) {
+  const match = raw.match(LOCAL_DATE_TIME);
   if (!match) return null;
 
   const year = Number(match[1]);
@@ -134,6 +142,8 @@ function simpleDateTime(raw, rowNumber, timeZoneOffsetMinutes) {
   const day = Number(match[3]);
   const hour = Number(match[4] ?? 0);
   const minute = Number(match[5] ?? 0);
+  const second = Number(match[6] ?? 0);
+  const millisecond = Number((match[7] ?? "0").padEnd(3, "0"));
   if (
     year < 1000 ||
     month < 1 ||
@@ -143,18 +153,24 @@ function simpleDateTime(raw, rowNumber, timeZoneOffsetMinutes) {
     hour < 0 ||
     hour > 23 ||
     minute < 0 ||
-    minute > 59
+    minute > 59 ||
+    second < 0 ||
+    second > 59
   ) {
     throw invalidDateTime(rowNumber);
   }
 
-  const nominalUtc = new Date(Date.UTC(year, month - 1, day, hour, minute, 0, 0));
+  const nominalUtc = new Date(
+    Date.UTC(year, month - 1, day, hour, minute, second, millisecond),
+  );
   if (
     nominalUtc.getUTCFullYear() !== year ||
     nominalUtc.getUTCMonth() !== month - 1 ||
     nominalUtc.getUTCDate() !== day ||
     nominalUtc.getUTCHours() !== hour ||
-    nominalUtc.getUTCMinutes() !== minute
+    nominalUtc.getUTCMinutes() !== minute ||
+    nominalUtc.getUTCSeconds() !== second ||
+    nominalUtc.getUTCMilliseconds() !== millisecond
   ) {
     throw invalidDateTime(rowNumber);
   }
@@ -164,33 +180,36 @@ function simpleDateTime(raw, rowNumber, timeZoneOffsetMinutes) {
   );
 }
 
-function normalizedDateTime(
-  value,
-  rowNumber,
-  timeZoneOffsetMinutes,
-) {
+function normalizedDateTime(value, rowNumber, timeZoneOffsetMinutes) {
   const raw = String(value ?? "").trim();
   if (!raw) return new Date().toISOString();
 
-  const simple = simpleDateTime(raw, rowNumber, timeZoneOffsetMinutes);
-  const isoCandidate = raw.replace(
-    /^(\d{4}-\d{2}-\d{2})\s+(?=\d{2}:\d{2})/,
-    "$1T",
-  );
-  const parsed = simple ?? new Date(isoCandidate);
+  const local = localDateTime(raw, rowNumber, timeZoneOffsetMinutes);
+  if (local) return local.toISOString();
+
+  const parsed = new Date(raw);
   if (!Number.isFinite(parsed.getTime())) {
     throw invalidDateTime(rowNumber);
   }
   return parsed.toISOString();
 }
 
+function assertUniqueColumns(columns) {
+  for (const column of ["name", "message", "dateTime"]) {
+    if (columns.filter((value) => value === column).length > 1) {
+      throw invalidImport(`The first row contains more than one ${column} column`);
+    }
+  }
+}
+
 export function parseMessageImport(
   content,
   {
-    maximumRows = 500,
+    maximumRows: rawMaximumRows = 500,
     timeZoneOffsetMinutes: rawTimeZoneOffsetMinutes = 0,
   } = {},
 ) {
+  const maximumRows = normalizedMaximumRows(rawMaximumRows);
   const timeZoneOffsetMinutes = normalizedTimeZoneOffsetMinutes(
     rawTimeZoneOffsetMinutes,
   );
@@ -202,6 +221,7 @@ export function parseMessageImport(
   const rows = parseDelimited(text, delimiterFor(text));
   const header = rows.shift() ?? [];
   const columns = header.map((value) => HEADER_ALIASES.get(normalizedHeader(value)));
+  assertUniqueColumns(columns);
   const nameIndex = columns.indexOf("name");
   const messageIndex = columns.indexOf("message");
   const dateTimeIndex = columns.indexOf("dateTime");
