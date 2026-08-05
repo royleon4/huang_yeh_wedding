@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite --config vite.routes.config.js --host 0.0.0.0",
-    "build": "node scripts/ensure-build-dependencies.mjs && vite build --config vite.routes.config.js && node scripts/build.mjs",
+    "build": "node scripts/ensure-build-dependencies.mjs && vite build --config vite.routes.config.js && node scripts/build.mjs && node scripts/analyze-bundle.mjs --check",
     "start": "node dist/server.mjs",
     "test": "node --test",
     "test:impact": "node scripts/select-tests.mjs",
@@ -13,6 +13,7 @@
     "test:layout-guestbook": "node scripts/verify-guestbook-layout.mjs",
     "test:layout-browser": "pnpm run test:layout-navigation && pnpm run test:layout-guestbook",
     "test:drive-live": "node scripts/test-drive-live.mjs",
+    "analyze:bundle": "node scripts/analyze-bundle.mjs --check",
     "db:migrate": "node scripts/migrate.mjs"
   },
   "dependencies": {

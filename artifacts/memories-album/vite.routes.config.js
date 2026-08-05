@@ -26,6 +26,10 @@ const nonReactBasePlugins = basePlugins.filter(
 
 export default defineConfig({
   ...baseConfig,
+  build: {
+    ...baseConfig.build,
+    manifest: true,
+  },
   plugins: [
     ...nonReactBasePlugins,
     logicalRouteUiTransform(),
