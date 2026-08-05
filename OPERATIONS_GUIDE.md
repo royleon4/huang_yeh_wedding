@@ -1,24 +1,26 @@
 # 婚禮照片網站｜部署與維運說明
 
-> **適用環境：** Current Replit production  
-> **Reviewed：** 2026-08-05T10:31:00+08:00  
-> **Baseline：** `21dc25543de6dd2bfa7e9019a2a9244c8a2ef186`
+> **Environment:** Current Replit production  
+> **Status:** Phase 2.1 browser／In-App／performance gates active  
+> **Reviewed:** 2026-08-05T10:31:00+08:00  
+> **Baseline:** `09293817935f5548aa4c7ef6918db9afd0a62b98`
 
-其他環境部署請讀 [`docs/site-handbook/deployments/`](docs/site-handbook/deployments/README.md)。
+其他環境部署：[`docs/site-handbook/deployments/`](docs/site-handbook/deployments/README.md)
 
 ## 先記住
 
-1. Secret、Database URL、OAuth、Drive ID、private token 不進 GitHub／browser／一般 logs。
+1. Secret、database URL、OAuth、Drive ID、private token 不進 GitHub、browser 或一般 logs。
 2. Memories production schema 不使用 `drizzle-kit push`。
 3. Publish plan 出現 unexpected DROP 就停止。
 4. 不直接從 Google Drive 手動刪網站原圖。
 5. Liveness 使用 `/Memories/api/health`。
-6. Automated Playwright 已存在，但 representative In-App profile 不等於真機 evidence。
-7. Package／lockfile 改變後，舊 SCA 只能視為 dated evidence。
+6. Automated Playwright profile 不等於 physical-device evidence。
+7. Package／lockfile 改變後，舊 SCA 只算 dated evidence。
+8. Bundle budgets 是 regression ceilings，不是效能目標。
 
-## 1. Replit Production 必要條件
+## 1. Replit Production
 
-Published App Secrets：
+Required Published App Secrets:
 
 ```text
 DATABASE_URL
@@ -26,11 +28,7 @@ MEMORIES_DRIVE_PHOTOS_FOLDER_ID
 MEMORIES_ADMIN_TOKEN
 ```
 
-並連接 Replit Google Drive Integration。
-
-Workspace Secrets 不應被假設會自動成為 Published App Secrets；每次發佈前在 deployment settings 確認。
-
-Current `.replit`：
+並連接 Replit Google Drive Integration。Workspace Secrets 不應被假設會自動成為 Published App Secrets。
 
 | Artifact | Port | Route |
 | --- | ---: | --- |
@@ -39,13 +37,11 @@ Current `.replit`：
 | Legacy API | 8080 | `/api/*` |
 | Mockup Sandbox | 8081 | `/__mockup` |
 
-Current deployment target：Autoscale。
-
-完整 Replit 步驟：[`docs/site-handbook/deployments/replit.md`](docs/site-handbook/deployments/replit.md)
+Current deployment target is Autoscale。完整步驟：[`docs/site-handbook/deployments/replit.md`](docs/site-handbook/deployments/replit.md)
 
 ## 2. Google Drive
 
-連接 account 必須可讀寫：
+Connected account must read/write:
 
 ```text
 婚禮 root
@@ -55,12 +51,12 @@ Current deployment target：Autoscale。
 系統縮圖
 ```
 
-| Error | 代表 | 優先處理 |
+| Error | Meaning | First action |
 | --- | --- | --- |
-| `DRIVE_AUTHORIZATION_REQUIRED` | 401/403、account/scope/folder permission | reconnect、確認 account/editor access |
-| `DRIVE_RETRYABLE` | 429、5xx、timeout | bounded retry、quota/provider status |
+| `DRIVE_AUTHORIZATION_REQUIRED` | 401/403、account/scope/folder permission | reconnect and verify editor access |
+| `DRIVE_RETRYABLE` | 429、5xx、timeout | bounded retry and provider/quota check |
 
-Background summary：
+A background job may finish with failures. Always inspect:
 
 ```text
 attempted
@@ -69,25 +65,35 @@ failureCount
 failureCodes
 ```
 
-`completed` 只代表 job 到達結尾，不代表全部成功。
+## 3. Health、Browser and Performance
 
-## 3. Health 與 Browser
-
-Liveness：
+Liveness:
 
 ```text
 /Memories/api/health
 ```
 
-Health 200 不證明：
+Health 200 does not prove React render、Drive access、guestbook、Word layout or browser interaction。
 
-- React render 成功；
-- transform 後 JS 沒有 runtime error；
-- Albums／labels／guestbook 可操作；
-- Drive media 可讀；
-- Word content 無 overflow。
+Current browser/performance evidence:
 
-每次發佈後仍需 browser smoke。
+| Evidence | Current behavior |
+| --- | --- |
+| Cross-browser | Chromium、Firefox、WebKit、Samsung/WeChat/LINE/Facebook/Instagram representatives |
+| Failure artifacts | Screenshot、trace、video、HTML report |
+| Public first page | 24 photo records |
+| Route splitting | Admin、login、private management remain lazy routes |
+| Web Vitals | `window.__MEMORIES_WEB_VITALS__` |
+| Console diagnostics | Add `?performance=1` |
+| Bundle reports | `dist/performance/bundle-report.json` and `.md` |
+
+Bundle ceilings:
+
+| Budget | Ceiling |
+| --- | ---: |
+| Public entry gzip | 450 KiB |
+| Any JS chunk gzip | 800 KiB |
+| Total JS gzip | 2 MiB |
 
 ## 4. 發佈前驗證
 
@@ -100,253 +106,155 @@ pnpm --filter @workspace/memories-album run test:layout-browser
 pnpm --filter @workspace/memories-album build
 ```
 
-UI／Playwright 路徑還會觸發 `.github/workflows/memories-cross-browser.yml`：
-
-- Chromium desktop/mobile
-- Firefox desktop
-- WebKit desktop/mobile
-- Samsung Internet representative
-- WeChat Android/iOS representative
-- LINE Android/iOS representative
-- Facebook Android/iOS representative
-- Instagram Android/iOS representative
-
-失敗保存 screenshot、trace、video、HTML report。
-
-真機 evidence matrix：[`docs/memories/phase-2-device-validation-2026-08-05.md`](docs/memories/phase-2-device-validation-2026-08-05.md)
+For UI/route/transform/performance changes, confirm the cross-browser workflow and bundle report。Live Drive tests may use only a safe test folder。
 
 ## 5. Migration
 
-位置：
+Location:
 
 ```text
 artifacts/memories-album/db
 ```
 
-Current latest：
+Current latest:
 
 ```text
 016_explicit_guest_album_membership.sql
 ```
 
-規則：
+Rules:
 
-- 新增下一個 numbered SQL。
-- 不改已套用 migration。
-- Runner 保存 filename/checksum。
-- Advisory lock 防多 instance 同時 migrate。
-- Migration 成功後才啟動 production listener。
-- Unexpected `DROP TABLE`、`DROP COLUMN`、constraint removal → 停止。
+- Add the next numbered SQL file only。
+- Never modify an applied migration。
+- Preserve filename/checksum and advisory lock behavior。
+- Start production listening only after migration success。
+- Stop on unexpected `DROP TABLE`、`DROP COLUMN` or constraint removal。
+- Never use `drizzle-kit push` for Memories production tables。
 
-Production → Development copy/rollback：[`docs/memories/production-to-development-database-runbook.md`](docs/memories/production-to-development-database-runbook.md)
+Production → Development copy/rollback: [`docs/memories/production-to-development-database-runbook.md`](docs/memories/production-to-development-database-runbook.md)
 
 ## 6. 安全發佈流程
 
-1. 確認 `main` candidate commit。
-2. Required CI green。
-3. Database backup/PITR healthy。
-4. Review migration／Publish plan。
-5. Confirm Published App Secrets。
-6. Confirm Drive Integration/account/folder permissions。
-7. 記錄 last-known-good deployment revision。
-8. 發佈。
-9. Health check。
-10. Browser smoke。
-11. 觀察 logs／errors 30–60 分鐘。
-12. 完成或 rollback。
+1. Record candidate `main` commit。
+2. Required CI and bundle budgets green。
+3. Confirm database backup/PITR。
+4. Review migrations and Publish plan。
+5. Confirm Published App Secrets and Drive Integration。
+6. Record last-known-good revision。
+7. Deploy。
+8. Verify health。
+9. Perform browser and performance smoke。
+10. Observe logs/errors for 30–60 minutes。
+11. Complete or rollback。
 
 ## 7. 發佈後 Smoke
 
 ### Public
 
-- [ ] `/Memories/`
-- [ ] `/Memories/en/`
-- [ ] Album switch／active album repeat click
-- [ ] Labels／processes
-- [ ] Guestbook load、sort、modal
-- [ ] Featured photos 不跨 context
-- [ ] Bottom navigation 貼可視範圍底部
-- [ ] Back／Forward／refresh
-- [ ] Thumbnail／original／viewer
-- [ ] Word content/table/image 不 overflow
-- [ ] Upload dialog 顯示正確限制
+- [ ] `/Memories/` and `/Memories/en/`
+- [ ] Album repeat-click、labels、processes
+- [ ] Guestbook load/sort/modal
+- [ ] Featured photos stay in current context
+- [ ] Bottom navigation stays at visible viewport bottom
+- [ ] Back/Forward/refresh/deep links
+- [ ] Thumbnail/original/viewer
+- [ ] Word content/table/image has no overflow
+- [ ] Upload dialog displays current limits
 
 ### Admin
 
-- [ ] `/Memories/admin/login`
-- [ ] General
-- [ ] Albums／labels
-- [ ] Photos／filters／bulk actions
-- [ ] Categories／process content
-- [ ] Guestbook accordion 預設收合、展開後才 load
-- [ ] One safe save（條件允許時）
+- [ ] Login
+- [ ] General、Albums/labels、Photos、Categories/content
+- [ ] Guestbook accordion stays collapsed until opened
+- [ ] One safe save where appropriate
 
-### Runtime
+### Performance
 
-- [ ] No unexpected 5xx
-- [ ] No browser pageerror/error boundary
-- [ ] No repeated process restart
-- [ ] DB connection healthy
-- [ ] No Drive auth batch failure
-- [ ] Thumbnail backlog stable
+- [ ] Admin/login/private modules remain out of public entry
+- [ ] First public photo request remains 24
+- [ ] Bundle reports exist and budgets pass
+- [ ] LCP/CLS snapshot captured
+- [ ] An eligible interaction occurs before interpreting INP diagnostic
+- [ ] No pageerror、Error Boundary or unexpected console error
 
 ## 8. Admin Login
 
-Route：
+Route:
 
 ```text
 /Memories/admin/login
 ```
 
-Secret：
+Secret:
 
 ```text
 MEMORIES_ADMIN_TOKEN
 ```
 
-成功登入建立約 30 分鐘 signed HttpOnly、Secure、SameSite=Strict cookie，Path `/Memories/admin`。
+Login creates an approximately 30-minute signed HttpOnly、Secure、SameSite=Strict cookie with Path `/Memories/admin`。
 
-登入後跳回 public：
+If login returns to public, check session expiry、secret、proxy HTTPS headers、cookie creation and route。Do not move the password/session to localStorage。
 
-- session expired；
-- secret changed/missing；
-- proxy 未正確標示 HTTPS；
-- cookie 未建立；
-- 使用舊 route。
+## 9. Photos and Thumbnails
 
-不要改成 localStorage password/session。
+If thumbnails are blank, inspect original existence、Drive read access、`系統縮圖` write access、Sharp output、PostgreSQL references and stale cache。
 
-## 9. 照片與縮圖
-
-縮圖空白依序檢查：
-
-1. Original 是否存在。
-2. Drive account 可否 read original。
-3. `系統縮圖` 可否 write。
-4. Sharp decode/output 是否成功。
-5. PostgreSQL photo/thumbnail reference。
-6. Cache 是否保留舊 404。
-7. Refresh tool 是否選對 album/process。
-
-重新整理原始照片工具會：
-
-1. 清 generated thumbnails。
-2. Rescan originals。
-3. Queue derivative rebuild。
-
-不要連續重複按；等目前工作完成。
+The refresh tool clears generated thumbnails、rescans originals and queues rebuilding。Do not repeatedly start it while a run is active。
 
 ## 10. Delete
 
-完整 permanent delete 使用：
+Use Admin permanent delete or the uploader private-management page。Manual Drive deletion does not clean PostgreSQL relations、thumbnails or pinned references。Current delete has no trash/restore period。
 
-- Admin permanent delete；或
-- Uploader private management page。
+## 11. Dependency Security
 
-手動刪 Drive original 不會完整清理：
+The 2026-08-02 SCA is dated evidence, not the current-lockfile verdict。
 
-- PostgreSQL photo row；
-- Album/label/process relations；
-- Thumbnail；
-- Pinned references。
+Before remediation:
 
-Current delete 沒有 trash/restore。
+1. Frozen-install current `main`。
+2. Generate dependency tree、SBOM、pnpm audit、OSV and license evidence。
+3. Classify runtime/build/codegen/preview exposure。
+4. Update small parent-package batches。
+5. Run full Node/build/Playwright/performance gates。
+6. Generate post-change SCA tied to the final commit。
+7. Deploy with an observation and rollback plan。
 
-## 11. Production → Development Database
+Do not blindly use `pnpm audit fix --force`。Runbook: [`docs/security-remediation-readiness-2026-08-04.md`](docs/security-remediation-readiness-2026-08-04.md)
 
-只能使用專用 runbook：
+## 12. Incident Triage
 
-[`docs/memories/production-to-development-database-runbook.md`](docs/memories/production-to-development-database-runbook.md)
-
-原則：
-
-- 先 backup Development；
-- Production 只作 read-only `pg_dump`；
-- Target 只能是 Development；
-- Restore 後跑 migration；
-- 驗證 DB、health、Drive、browser；
-- 可還原原 Development；
-- 不保留 production credential/dump 在 workspace。
-
-不得反向用於 Development → Production。
-
-## 12. Dependency Security
-
-2026-08-02 SCA 是 dated evidence，不是 current lockfile verdict。
-
-Dependency remediation 前：
-
-1. Frozen install current `main`。
-2. 重新產生 dependency tree、SBOM、pnpm audit、OSV、license。
-3. 分 production runtime／build／codegen／preview exposure。
-4. Small parent-package batch。
-5. Full tests／Playwright／build。
-6. Post-change SCA tied to final commit。
-7. Deploy observation／rollback。
-
-不要盲用：
-
-```text
-pnpm audit fix --force
-```
-
-Runbook：[`docs/security-remediation-readiness-2026-08-04.md`](docs/security-remediation-readiness-2026-08-04.md)
-
-## 13. Incident Triage
-
-| 現象 | 優先方向 |
+| Symptom | First direction |
 | --- | --- |
-| Server/health fail | migration、env、port、startup log |
-| Health green but blank | browser pageerror、console、transform、assets |
-| All thumbnails fail | Drive Integration/account/folder permission |
-| Some files fail | individual original、metadata、Sharp |
-| Admin exits | session/cookie/proxy/secret |
-| Save success but public stale | public settings/bootstrap/cache |
-| Original uploaded, classification missing | repair relation；不要重傳 |
-| Featured photos leak | album/label context/seed/paging |
-| Guestbook positioning wrong | shared navigation/masonry anchor |
-| Word content overflow | document node/table/image CSS |
-| In-App bottom nav wrong | visual viewport/fixed containing block/safe area |
+| Server/health fail | Migration、environment、port、startup log |
+| Health green but blank | Browser pageerror、console、transform、assets |
+| All thumbnails fail | Drive account/folder permission |
+| Some media fail | Individual original、metadata、Sharp |
+| Admin exits | Session/cookie/proxy/secret |
+| Upload original exists but classification missing | Repair relations；do not re-upload |
+| Featured photos leak | Album/label context、seed、paging |
+| Guestbook positioning wrong | Shared navigation/masonry anchor |
+| Word content overflow | Document/table/image CSS |
+| Bottom nav wrong in In-App browser | Visual viewport、fixed containing block、safe area |
+| Bundle budget fails | New eager import、shared chunk、dependency growth |
+| Web Vitals regression | LCP candidate、layout reservation、interaction/DOM work |
 | Native package crash | Node/OS/architecture/build artifact |
 
-詳細排錯：[`docs/site-handbook/reference/troubleshooting.md`](docs/site-handbook/reference/troubleshooting.md)
+Detailed troubleshooting: [`docs/site-handbook/reference/troubleshooting.md`](docs/site-handbook/reference/troubleshooting.md)
 
-## 14. Rollback
+## 13. Rollback
 
-1. 記錄 bad revision／first error time。
-2. 停止 risky writes（若需要）。
-3. 確認 previous revision schema-compatible。
-4. Replit deployment history 切回 known-good，或 redeploy known-good commit。
-5. 驗證 health、public、admin、Drive。
-6. 保存 bad revision logs/evidence。
-7. 若 schema 不相容，使用 forward fix。
+1. Record bad revision and first-error timestamp。
+2. Stop risky writes if required。
+3. Confirm previous revision is schema-compatible。
+4. Switch to/redeploy the last-known-good revision。
+5. Verify health、public、admin、Drive and bundle/runtime behavior。
+6. Preserve failed-revision evidence。
+7. Use a forward fix if schema compatibility blocks rollback。
 
-Rollback 不刪 migration history。
+Never delete migration history。
 
-## 15. Multi-cloud
+## 14. Multi-cloud
 
-Current media implementation 使用 Replit-specific `@replit/connectors-sdk` Google Drive Integration。
+Current media uses Replit-specific `@replit/connectors-sdk`。Other environments require a production container、Drive API or object-storage adapter、managed PostgreSQL、Secret Manager/runtime identity、explicit migration/background jobs、logs/metrics and backup/restore。
 
-部署至 On-premise、Google Cloud、AWS、Azure、OCI 或 Kubernetes 前，必須：
-
-- production container；
-- Google Drive API 或 object-storage adapter；
-- provider Secret Manager/runtime identity；
-- managed/self-hosted PostgreSQL；
-- explicit migration job；
-- background worker/scheduler；
-- logs/metrics/alerts；
-- backup/restore。
-
-完整文件：[`docs/site-handbook/deployments/`](docs/site-handbook/deployments/README.md)
-
-## 16. 最小事故處理順序
-
-1. 記錄 first real error、timestamp、revision。
-2. 分 server／DB／Drive／browser／native dependency／data。
-3. 保存 evidence。
-4. 未知原因時停止重複 upload/delete。
-5. 只修 proven root cause。
-6. Run relevant tests/build/Playwright。
-7. Deploy and re-verify。
-8. 更新 runbook。
+See [`docs/site-handbook/deployments/`](docs/site-handbook/deployments/README.md)。
