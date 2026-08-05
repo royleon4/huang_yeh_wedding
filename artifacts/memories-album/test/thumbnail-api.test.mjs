@@ -13,7 +13,7 @@ function sourcePhoto(overrides = {}) {
     thumbnailDriveFileId: null,
     originalFilename: "photo.jpg",
     mimeType: "image/jpeg",
-    byteSize: 100,
+    byteSize: 30 * 1024 * 1024,
     contentHash: "hash",
     contentVersion: 1,
     source: "official",
@@ -23,6 +23,28 @@ function sourcePhoto(overrides = {}) {
     processIds: [],
     createdAt: "2026-06-20T01:00:00.000Z",
     updatedAt: "2026-06-20T01:00:00.000Z",
+    ...overrides,
+  };
+}
+
+function transientThumbnailService(overrides = {}) {
+  return {
+    imageProcessor: {
+      async createThumbnail({ bytes, mimeType }) {
+        assert.equal(Buffer.isBuffer(bytes), true);
+        assert.equal(mimeType, "image/jpeg");
+        return {
+          thumbnailBytes: Buffer.from("generated-webp"),
+          thumbnailContentType: "image/webp",
+        };
+      },
+    },
+    async ensurePhotoThumbnail() {
+      throw new Error("public thumbnail GET must not persist to Drive");
+    },
+    async repairPhotoThumbnail() {
+      throw new Error("public thumbnail GET must not repair through Drive");
+    },
     ...overrides,
   };
 }
@@ -38,10 +60,7 @@ async function withApi(
       downloads.push(fileId);
       if (download) return download(fileId);
       const body = Buffer.from(
-        fileId === "generated-thumbnail-id" ||
-          fileId === "existing-thumbnail-id"
-          ? "thumbnail"
-          : "original",
+        fileId === "existing-thumbnail-id" ? "thumbnail" : "original",
       );
       return {
         body,
@@ -71,31 +90,61 @@ async function withApi(
   }
 }
 
-test("thumbnail requests generate or attach a thumbnail before streaming", async () => {
-  let repository;
-  const thumbnailService = {
-    async ensurePhotoThumbnail(photo) {
-      return repository.attachThumbnail(photo.id, "generated-thumbnail-id");
-    },
-  };
+test("missing wedding thumbnails are generated in memory without a Drive write", async () => {
+  const thumbnailService = transientThumbnailService();
 
   await withApi({ thumbnailService }, async (origin, context) => {
-    repository = context.repository;
     const response = await fetch(
       `${origin}/Memories/api/photos/${photoId}/thumbnail`,
     );
     assert.equal(response.status, 200);
-    assert.equal(await response.text(), "thumbnail");
-    assert.deepEqual(context.downloads, ["generated-thumbnail-id"]);
+    assert.equal(await response.text(), "generated-webp");
+    assert.equal(response.headers.get("content-type"), "image/webp");
+    assert.equal(
+      response.headers.get("x-memories-thumbnail-fallback"),
+      "generated",
+    );
     assert.equal(response.headers.get("x-memories-thumbnail-cache"), "miss");
     assert.equal(
       response.headers.get("cache-control"),
-      "public, max-age=31536000, immutable",
+      "public, max-age=3600, stale-while-revalidate=86400",
     );
+    assert.deepEqual(context.downloads, ["private-original-id"]);
   });
 });
 
-test("repeated thumbnail requests reuse the bounded server hot cache", async () => {
+test("repeated generated thumbnail requests reuse the bounded server hot cache", async () => {
+  let generations = 0;
+  const thumbnailService = transientThumbnailService({
+    imageProcessor: {
+      async createThumbnail() {
+        generations += 1;
+        return {
+          thumbnailBytes: Buffer.from("generated-webp"),
+          thumbnailContentType: "image/webp",
+        };
+      },
+    },
+  });
+
+  await withApi({ thumbnailService }, async (origin, context) => {
+    const url = `${origin}/Memories/api/photos/${photoId}/thumbnail`;
+    const first = await fetch(url);
+    assert.equal(first.status, 200);
+    assert.equal(await first.text(), "generated-webp");
+    assert.equal(first.headers.get("x-memories-thumbnail-cache"), "miss");
+
+    const second = await fetch(url);
+    assert.equal(second.status, 200);
+    assert.equal(await second.text(), "generated-webp");
+    assert.equal(second.headers.get("x-memories-thumbnail-cache"), "hit");
+
+    assert.equal(generations, 1);
+    assert.deepEqual(context.downloads, ["private-original-id"]);
+  });
+});
+
+test("repeated Drive thumbnail requests reuse the bounded server hot cache", async () => {
   await withApi(
     {
       photo: sourcePhoto({ thumbnailDriveFileId: "existing-thumbnail-id" }),
@@ -116,16 +165,15 @@ test("repeated thumbnail requests reuse the bounded server hot cache", async () 
   );
 });
 
-test("a stale Drive thumbnail id is cleared, rebuilt, and persisted", async () => {
-  let repository;
-  let repaired = 0;
-  const thumbnailService = {
-    async repairPhotoThumbnail(photo) {
-      repaired += 1;
-      await repository.clearThumbnail(photo.id, photo.thumbnailDriveFileId);
-      return repository.attachThumbnail(photo.id, "generated-thumbnail-id");
+test("an unreadable Drive thumbnail falls back to a generated WebP without repair upload", async () => {
+  let repairCalls = 0;
+  const thumbnailService = transientThumbnailService({
+    async repairPhotoThumbnail() {
+      repairCalls += 1;
+      throw new Error("repair must stay out of the public read path");
     },
-  };
+  });
+
   await withApi(
     {
       photo: sourcePhoto({ thumbnailDriveFileId: "missing-thumbnail-id" }),
@@ -136,33 +184,30 @@ test("a stale Drive thumbnail id is cleared, rebuilt, and persisted", async () =
           error.status = 404;
           throw error;
         }
-        const body = Buffer.from("repaired-thumbnail");
-        return { body, contentType: "image/webp", contentLength: body.length };
+        const body = Buffer.from("large-original-placeholder");
+        return { body, contentType: "image/jpeg", contentLength: body.length };
       },
     },
     async (origin, context) => {
-      repository = context.repository;
       const response = await fetch(
         `${origin}/Memories/api/photos/${photoId}/thumbnail`,
       );
       assert.equal(response.status, 200);
-      assert.equal(await response.text(), "repaired-thumbnail");
-      assert.equal(response.headers.get("x-memories-thumbnail-repaired"), "1");
-      assert.equal(response.headers.get("x-memories-thumbnail-cache"), "miss");
-      assert.equal(repaired, 1);
+      assert.equal(await response.text(), "generated-webp");
+      assert.equal(
+        response.headers.get("x-memories-thumbnail-fallback"),
+        "generated",
+      );
+      assert.equal(repairCalls, 0);
       assert.deepEqual(context.downloads, [
         "missing-thumbnail-id",
-        "generated-thumbnail-id",
+        "private-original-id",
       ]);
-      assert.equal(
-        (await repository.findPublicPhoto(photoId)).thumbnailDriveFileId,
-        "generated-thumbnail-id",
-      );
     },
   );
 });
 
-test("a broken thumbnail temporarily serves the original instead of a blank card", async () => {
+test("a degraded runtime without an image processor preserves the original fallback", async () => {
   await withApi({}, async (origin, context) => {
     const response = await fetch(
       `${origin}/Memories/api/photos/${photoId}/thumbnail`,
