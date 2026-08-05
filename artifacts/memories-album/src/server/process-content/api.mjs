@@ -4,25 +4,21 @@ import { Readable } from "node:stream";
 import { recoverUtf8Filename } from "../../filename-encoding.mjs";
 import { sendAdminJson } from "../admin/auth.mjs";
 import { readAdminJson, requireAdmin } from "../admin/request.mjs";
+import { decodePathSegment } from "../http/path-segment.mjs";
 import { normalizeYoutubeVideoId } from "../processes/youtube.mjs";
 import { ALL_PROCESS_KEY } from "./repository.mjs";
 
 const MAX_ATTACHMENT_BYTES = 25 * 1024 * 1024;
 const MAX_HTML_CHARACTERS = 200_000;
-const ALLOWED_MIME_TYPES = new Set([
-  "image/jpeg",
-  "image/png",
-  "image/webp",
-  "image/gif",
-  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-]);
-const ALLOWED_EXTENSIONS = new Set([
-  "jpg",
-  "jpeg",
-  "png",
-  "webp",
-  "gif",
-  "docx",
+const ALLOWED_ATTACHMENT_EXTENSIONS = new Map([
+  ["image/jpeg", new Set(["jpg", "jpeg"])],
+  ["image/png", new Set(["png"])],
+  ["image/webp", new Set(["webp"])],
+  ["image/gif", new Set(["gif"])],
+  [
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    new Set(["docx"]),
+  ],
 ]);
 
 function publicJson(response, status, body) {
@@ -73,6 +69,14 @@ function boundedPadding(value, fallback = 12) {
   return number;
 }
 
+function strictBoolean(body, key, fallback) {
+  if (!Object.hasOwn(body, key)) return fallback;
+  if (typeof body[key] !== "boolean") {
+    throw errorWith(422, "INVALID_PROCESS_CONTENT", `${key} must be a boolean`);
+  }
+  return body[key];
+}
+
 function safeFilename(filename) {
   const value = String(recoverUtf8Filename(filename) || "attachment")
     .normalize("NFKC")
@@ -85,6 +89,11 @@ function safeFilename(filename) {
 
 function extension(filename) {
   return safeFilename(filename).split(".").at(-1)?.toLowerCase() ?? "";
+}
+
+function attachmentTypeIsAllowed(filename, mimeType) {
+  const extensions = ALLOWED_ATTACHMENT_EXTENSIONS.get(mimeType);
+  return Boolean(extensions?.has(extension(filename)));
 }
 
 function attachmentPayload(attachment) {
@@ -149,15 +158,15 @@ function parseAttachmentMultipart(request) {
       if (record.truncated) {
         return reject(errorWith(413, "ATTACHMENT_TOO_LARGE", "Attachment exceeds 25 MB"));
       }
-      if (
-        !ALLOWED_MIME_TYPES.has(record.mimeType) &&
-        !ALLOWED_EXTENSIONS.has(extension(record.filename))
-      ) {
+      if (record.bytes.length === 0) {
+        return reject(errorWith(422, "EMPTY_ATTACHMENT", "Attachment must not be empty"));
+      }
+      if (!attachmentTypeIsAllowed(record.filename, record.mimeType)) {
         return reject(
           errorWith(
             415,
             "UNSUPPORTED_ATTACHMENT",
-            "This attachment type is not supported",
+            "Attachment MIME type and filename extension must identify the same supported format",
           ),
         );
       }
@@ -187,8 +196,10 @@ function normalizeContentPatch(processKey, body) {
     patch.labelZh = boundedText(body.labelZh, 80, { required: true });
     patch.labelEn = boundedText(body.labelEn || body.labelZh, 80, { required: true });
     patch.youtubeVideoId = videoInput ? normalizeYoutubeVideoId(videoInput) : null;
-    patch.youtubeAutoplay = Boolean(body.youtubeAutoplay && patch.youtubeVideoId);
-    patch.showAllPhotos = body.showAllPhotos !== false;
+    patch.youtubeAutoplay = patch.youtubeVideoId
+      ? strictBoolean(body, "youtubeAutoplay", false)
+      : false;
+    patch.showAllPhotos = strictBoolean(body, "showAllPhotos", true);
   }
   return patch;
 }
@@ -233,7 +244,7 @@ export function createProcessContentApi({ repository, drive }) {
   ) {
     const match = url.pathname.match(/^\/Memories\/api\/process-attachments\/([^/]+)$/);
     if (request.method !== "GET" || !match) return false;
-    const attachment = await repository.findAttachment(decodeURIComponent(match[1]));
+    const attachment = await repository.findAttachment(decodePathSegment(match[1]));
     if (!attachment) {
       publicJson(response, 404, { error: "Attachment not found", code: "NOT_FOUND" });
       return true;
@@ -283,7 +294,7 @@ export function createAdminProcessContentApi({
       }
 
       if (itemMatch && request.method === "GET") {
-        const processKey = decodeURIComponent(itemMatch[1]);
+        const processKey = decodePathSegment(itemMatch[1]);
         await ensureProcessKey(processKey, processRepository);
         const [content, attachments] = await Promise.all([
           repository.findContent(processKey),
@@ -294,7 +305,7 @@ export function createAdminProcessContentApi({
       }
 
       if (itemMatch && request.method === "PATCH") {
-        const processKey = decodeURIComponent(itemMatch[1]);
+        const processKey = decodePathSegment(itemMatch[1]);
         await ensureProcessKey(processKey, processRepository);
         const body = await readAdminJson(request, { maxBytes: 500_000 });
         const content = await repository.updateContent(
@@ -307,7 +318,7 @@ export function createAdminProcessContentApi({
       }
 
       if (attachmentCollectionMatch && request.method === "POST") {
-        const processKey = decodeURIComponent(attachmentCollectionMatch[1]);
+        const processKey = decodePathSegment(attachmentCollectionMatch[1]);
         await ensureProcessKey(processKey, processRepository);
         const file = await parseAttachmentMultipart(request);
         const id = createId();
@@ -338,7 +349,7 @@ export function createAdminProcessContentApi({
       }
 
       if (attachmentItemMatch && request.method === "DELETE") {
-        const id = decodeURIComponent(attachmentItemMatch[1]);
+        const id = decodePathSegment(attachmentItemMatch[1]);
         const attachment = await repository.findAttachment(id);
         if (!attachment) {
           sendAdminJson(response, 404, { error: "Attachment not found", code: "NOT_FOUND" });

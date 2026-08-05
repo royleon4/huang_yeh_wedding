@@ -1,10 +1,18 @@
 import { randomUUID } from "node:crypto";
 import { sendAdminJson } from "../admin/auth.mjs";
 import { readAdminJson, requireAdmin } from "../admin/request.mjs";
+import { decodePathSegment } from "../http/path-segment.mjs";
 import {
   normalizeYoutubeVideoId,
   youtubeWatchUrl,
 } from "../processes/youtube.mjs";
+
+function apiError(message, status, code) {
+  const error = new Error(message);
+  error.status = status;
+  error.code = code;
+  return error;
+}
 
 function categoryPayload(category) {
   return {
@@ -22,19 +30,29 @@ function categoryPayload(category) {
 }
 
 function normalizeLabel(value, { required = false } = {}) {
-  const label = String(value ?? "")
-    .normalize("NFKC")
-    .replace(/\s+/g, " ")
-    .trim();
+  if (value == null && !required) return "";
+  if (typeof value !== "string") {
+    throw apiError("Category name must be text", 422, "INVALID_CATEGORY");
+  }
+  const label = value.normalize("NFKC").replace(/\s+/g, " ").trim();
   if ((required && !label) || Array.from(label).length > 80) {
-    const error = new Error(
-      "Category name is required and must be 80 characters or fewer",
+    throw apiError(
+      required
+        ? "Category name is required and must be 80 characters or fewer"
+        : "Category name must be 80 characters or fewer",
+      422,
+      "INVALID_CATEGORY",
     );
-    error.status = 422;
-    error.code = "INVALID_CATEGORY";
-    throw error;
   }
   return label;
+}
+
+function strictOptionalBoolean(body, key, fallback) {
+  if (!Object.hasOwn(body, key)) return fallback;
+  if (typeof body[key] !== "boolean") {
+    throw apiError(`${key} must be a boolean`, 422, "INVALID_CATEGORY");
+  }
+  return body[key];
 }
 
 function videoSettings(body, existing = null) {
@@ -42,9 +60,11 @@ function videoSettings(body, existing = null) {
     ? normalizeYoutubeVideoId(body.youtubeUrl)
     : (existing?.youtubeVideoId ?? null);
   const youtubeAutoplay = youtubeVideoId
-    ? Object.hasOwn(body, "youtubeAutoplay")
-      ? Boolean(body.youtubeAutoplay)
-      : Boolean(existing?.youtubeAutoplay)
+    ? strictOptionalBoolean(
+        body,
+        "youtubeAutoplay",
+        Boolean(existing?.youtubeAutoplay),
+      )
     : false;
   return { youtubeVideoId, youtubeAutoplay };
 }
@@ -63,6 +83,27 @@ async function eligibleAlbumMap(repository) {
   return new Map(
     (await repository.listEligibleLabelAlbums()).map((album) => [album.id, album]),
   );
+}
+
+function normalizedCategoryOrder(value) {
+  if (!Array.isArray(value) || value.length === 0) {
+    throw apiError(
+      "categoryIds must be a non-empty array of strings without duplicates",
+      422,
+      "INVALID_CATEGORY_ORDER",
+    );
+  }
+  if (
+    value.some((id) => typeof id !== "string" || !id.trim()) ||
+    new Set(value.map((id) => id.trim())).size !== value.length
+  ) {
+    throw apiError(
+      "categoryIds must be a non-empty array of strings without duplicates",
+      422,
+      "INVALID_CATEGORY_ORDER",
+    );
+  }
+  return value.map((id) => id.trim());
 }
 
 export function createAdminCategoryApi({
@@ -130,7 +171,7 @@ export function createAdminCategoryApi({
 
       if (request.method === "POST" && labelCollectionPath) {
         const body = await readAdminJson(request);
-        const albumId = String(body.albumId ?? "").trim();
+        const albumId = typeof body.albumId === "string" ? body.albumId.trim() : "";
         const albums = await eligibleAlbumMap(repository);
         if (!albums.has(albumId)) {
           sendAdminJson(response, 422, {
@@ -175,7 +216,7 @@ export function createAdminCategoryApi({
       }
 
       if (request.method === "PATCH" && itemMatch) {
-        const id = decodeURIComponent(itemMatch[1]);
+        const id = decodePathSegment(itemMatch[1]);
         const categories = await repository.listProcesses();
         const existing = categories.find((category) => category.id === id);
         if (!existing) {
@@ -211,19 +252,8 @@ export function createAdminCategoryApi({
 
       if (request.method === "PUT" && orderPath) {
         const body = await readAdminJson(request);
-        if (
-          !Array.isArray(body.categoryIds) ||
-          body.categoryIds.length === 0 ||
-          new Set(body.categoryIds).size !== body.categoryIds.length
-        ) {
-          sendAdminJson(response, 422, {
-            error: "categoryIds must be a non-empty array without duplicates",
-            code: "INVALID_CATEGORY_ORDER",
-          });
-          return true;
-        }
         const categories = await synchronizer.reorderProcesses(
-          body.categoryIds.map(String),
+          normalizedCategoryOrder(body.categoryIds),
         );
         sendAdminJson(response, 200, {
           categories: categories.map(categoryPayload),

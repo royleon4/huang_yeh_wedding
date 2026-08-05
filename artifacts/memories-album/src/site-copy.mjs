@@ -110,9 +110,9 @@ export const DEFAULT_SITE_COPY = {
     lifeNote: "婚禮之外的日常片刻。",
     emptyTitle: "這個分類還在等待照片",
     emptyBody: "回憶會慢慢被收藏進來。",
-    comingSoon: "即將推出",
+    comingSoon: "尚未開放",
     comingBody:
-      "人物分類與自拍找照片會在第二階段開放。現在不會要求自拍，也不會進行人臉辨識。",
+      "人物分類與自拍找照片目前尚未開放。現在不會要求自拍，也不會進行人臉辨識。",
     errorTitle: "檔案館暫時無法開啟",
     errorBody: "請稍後再試，已收藏的照片不會受到影響。",
     offlineTitle: "目前沒有網路",
@@ -137,9 +137,9 @@ export const DEFAULT_SITE_COPY = {
     lifeNote: "Everyday memories outside the wedding.",
     emptyTitle: "This collection is waiting for photos",
     emptyBody: "Memories will be carefully added here.",
-    comingSoon: "Coming soon",
+    comingSoon: "Not available yet",
     comingBody:
-      "People and selfie search arrive in Phase 2. No selfie or face recognition is requested now.",
+      "People and selfie search are not available yet. No selfie is requested and no face recognition is performed now.",
     errorTitle: "The archive is temporarily unavailable",
     errorBody: "Please try again later. Stored photos are not affected.",
     offlineTitle: "You are offline",
@@ -155,21 +155,31 @@ const FIELD_LIMITS = new Map(
   ),
 );
 
+function textLength(value) {
+  return Array.from(value).length;
+}
+
+function truncateText(value, maxLength) {
+  return Array.from(value).slice(0, maxLength).join("");
+}
+
 function normalizeText(value, fallback, maxLength) {
   if (typeof value !== "string") return fallback;
   const normalized = value
     .replace(/\r\n?/g, "\n")
     .replace(/[ \t]+\n/g, "\n")
     .trim();
-  return normalized.slice(0, maxLength);
+  return truncateText(normalized, maxLength);
 }
 
 export function normalizeSiteCopy(value) {
-  const source = value && typeof value === "object" ? value : {};
+  const source = value && typeof value === "object" && !Array.isArray(value) ? value : {};
   return Object.fromEntries(
     ["zh", "en"].map((language) => {
       const languageSource =
-        source[language] && typeof source[language] === "object"
+        source[language] &&
+        typeof source[language] === "object" &&
+        !Array.isArray(source[language])
           ? source[language]
           : {};
       return [
@@ -197,8 +207,9 @@ export function normalizeSiteCopyPatch(value) {
       if (!source || typeof source !== "object" || Array.isArray(source)) return [];
       const fields = Object.fromEntries(
         Object.entries(source)
-          .filter(([key, fieldValue]) =>
-            FIELD_LIMITS.has(key) && typeof fieldValue === "string",
+          .filter(
+            ([key, fieldValue]) =>
+              FIELD_LIMITS.has(key) && typeof fieldValue === "string",
           )
           .map(([key, fieldValue]) => [
             key,
@@ -227,7 +238,7 @@ export function isValidSiteCopy(value) {
     const copy = value[language];
     if (!copy || typeof copy !== "object" || Array.isArray(copy)) return false;
     for (const [key, limit] of FIELD_LIMITS) {
-      if (typeof copy[key] !== "string" || copy[key].length > limit) return false;
+      if (typeof copy[key] !== "string" || textLength(copy[key]) > limit) return false;
     }
     if (Object.keys(copy).some((key) => !FIELD_LIMITS.has(key))) return false;
   }
@@ -242,7 +253,11 @@ export function isValidSiteCopyPatch(value) {
     if (!patch || typeof patch !== "object" || Array.isArray(patch)) return false;
     for (const [key, fieldValue] of Object.entries(patch)) {
       const limit = FIELD_LIMITS.get(key);
-      if (!limit || typeof fieldValue !== "string" || fieldValue.length > limit) {
+      if (
+        !limit ||
+        typeof fieldValue !== "string" ||
+        textLength(fieldValue) > limit
+      ) {
         return false;
       }
       fields += 1;

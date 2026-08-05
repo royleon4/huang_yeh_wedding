@@ -1,7 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { DriveProcessSynchronizer } from "../src/server/processes/sync.mjs";
-import { parseManagedProcessFolder } from "../src/server/processes/model.mjs";
+import {
+  formatManagedProcessFolder,
+  parseManagedProcessFolder,
+} from "../src/server/processes/model.mjs";
 
 class FakeDrive {
   constructor() {
@@ -128,6 +131,13 @@ test("parses numbered process folders and rejects reserved folders", () => {
   assert.equal(parseManagedProcessFolder("訪客上傳"), null);
   assert.equal(parseManagedProcessFolder("生活照"), null);
   assert.equal(parseManagedProcessFolder("not numbered"), null);
+});
+
+test("formatter only creates folder names accepted by the parser", () => {
+  assert.equal(formatManagedProcessFolder(7, " 新人   進場 "), "07 新人 進場");
+  for (const order of [0, 1.5, 100, Number.NaN, Number.POSITIVE_INFINITY]) {
+    assert.throws(() => formatManagedProcessFolder(order, "進場"), RangeError);
+  }
 });
 
 test("initializes reserved folders idempotently", async () => {
@@ -264,6 +274,21 @@ test("website create, rename, and reorder mutate Drive folders", async () => {
   assert.ok(names.includes("02 新人進場"));
 });
 
+test("process creation reuses the first gap instead of reporting a false limit", async () => {
+  const drive = new FakeDrive();
+  await drive.createFolder({ parentId: "root", name: "01 進場" });
+  await drive.createFolder({ parentId: "root", name: "03 祈禱" });
+  await drive.createFolder({ parentId: "root", name: "99 送客" });
+  const processRepository = new FakeProcessRepository();
+  const sync = createSync(drive, processRepository, new FakePhotoRepository());
+  await sync.syncProcessFoldersFromDrive();
+  const created = await sync.createProcess({ labelZh: "證婚" });
+  assert.equal(created.displayOrder, 2);
+  assert.ok(
+    (await drive.listChildren("root")).some((item) => item.name === "02 證婚"),
+  );
+});
+
 test("website photo reclassification moves an official original instead of copying it", async () => {
   const drive = new FakeDrive();
   const processRepository = new FakeProcessRepository();
@@ -285,5 +310,27 @@ test("website photo reclassification moves an official original instead of copyi
       (item) => item.id === "photo-to-move",
     ).length,
     1,
+  );
+});
+
+test("stale process ids do not silently move photos into unclassified", async () => {
+  const drive = new FakeDrive();
+  const processRepository = new FakeProcessRepository();
+  const photoRepository = new FakePhotoRepository();
+  const source = await drive.createFolder({ parentId: "root", name: "01 進場" });
+  drive.addImage(source.id, "photo-to-keep");
+  const sync = createSync(drive, processRepository, photoRepository);
+  await sync.reconcileFromDrive();
+
+  await assert.rejects(
+    sync.movePhotoToProcess({
+      driveFileId: "photo-to-keep",
+      fromParentId: source.id,
+      processId: "missing-process",
+    }),
+    (error) => error?.status === 404 && error?.code === "PROCESS_NOT_FOUND",
+  );
+  assert.ok(
+    (await drive.listChildren(source.id)).some((item) => item.id === "photo-to-keep"),
   );
 });

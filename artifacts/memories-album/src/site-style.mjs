@@ -72,13 +72,16 @@ function normalizeColor(value, fallback) {
 }
 
 function normalizeOpacity(value) {
+  if (value === null || value === undefined || value === "") {
+    return DEFAULT_SITE_STYLE.heroOverlayOpacity;
+  }
   const opacity = Number(value);
   if (!Number.isFinite(opacity)) return DEFAULT_SITE_STYLE.heroOverlayOpacity;
   return Math.round(Math.min(0.95, Math.max(0, opacity)) * 100) / 100;
 }
 
 export function normalizeSiteStyle(value) {
-  const source = value && typeof value === "object" ? value : {};
+  const source = value && typeof value === "object" && !Array.isArray(value) ? value : {};
   const normalized = {};
   for (const key of SITE_STYLE_COLOR_FIELDS) {
     normalized[key] = normalizeColor(source[key], DEFAULT_SITE_STYLE[key]);
@@ -96,8 +99,13 @@ export function isValidSiteStyle(value) {
   ) {
     return false;
   }
-  const opacity = Number(value.heroOverlayOpacity);
-  return Number.isFinite(opacity) && opacity >= 0 && opacity <= 0.95;
+  const opacity = value.heroOverlayOpacity;
+  return (
+    typeof opacity === "number" &&
+    Number.isFinite(opacity) &&
+    opacity >= 0 &&
+    opacity <= 0.95
+  );
 }
 
 export function normalizeStoredHeroBackground(value) {

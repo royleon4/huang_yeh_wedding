@@ -23,6 +23,10 @@ function normalizedPathname(value) {
   return pathname.length > 1 ? pathname.replace(/\/+$/, "") : pathname;
 }
 
+function isMemoriesPath(pathname) {
+  return pathname === MEMORIES_ROOT || pathname.startsWith(`${MEMORIES_ROOT}/`);
+}
+
 function decodeSegment(value) {
   try {
     return decodeURIComponent(value);
@@ -31,8 +35,12 @@ function decodeSegment(value) {
   }
 }
 
+function normalizedSegment(value) {
+  return String(value ?? "").trim();
+}
+
 function encodeSegment(value) {
-  return encodeURIComponent(String(value ?? "").trim());
+  return encodeURIComponent(normalizedSegment(value));
 }
 
 function positiveNumber(value, fallback = null) {
@@ -47,7 +55,7 @@ function numberedSegment(value, prefix) {
 
 function languageParts(pathname) {
   const normalized = normalizedPathname(pathname);
-  if (!normalized.startsWith(MEMORIES_ROOT)) {
+  if (!isMemoriesPath(normalized)) {
     return { normalized, language: DEFAULT_LANGUAGE, parts: [], validRoot: false };
   }
   const suffix = normalized.slice(MEMORIES_ROOT.length).replace(/^\/+/, "");
@@ -69,9 +77,10 @@ export function publicGalleryPath({
 } = {}) {
   const safeGroupNumber = positiveNumber(groupNumber, DEFAULT_GROUP_NUMBER);
   const safeSubgroupNumber = positiveNumber(subgroupNumber);
+  const safePhotoId = normalizedSegment(photoId);
   let path = `${languageRoot(language)}/group${safeGroupNumber}`;
   if (safeSubgroupNumber) path += `/subgroup${safeSubgroupNumber}`;
-  if (photoId) path += `/photos/${encodeSegment(photoId)}`;
+  if (safePhotoId) path += `/photos/${encodeSegment(safePhotoId)}`;
   return path;
 }
 
