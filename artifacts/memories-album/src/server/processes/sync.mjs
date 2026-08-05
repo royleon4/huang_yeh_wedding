@@ -20,6 +20,14 @@ function processOrder(left, right) {
   );
 }
 
+function firstAvailableProcessOrder(processFolders) {
+  const usedOrders = new Set(processFolders.map((item) => item.parsed.order));
+  for (let order = 1; order <= 99; order += 1) {
+    if (!usedOrders.has(order)) return order;
+  }
+  return null;
+}
+
 export class DriveProcessSynchronizer {
   constructor({ drive, processRepository, photoRepository, rootFolderId }) {
     if (!drive || !processRepository || !photoRepository || !rootFolderId) {
@@ -224,12 +232,8 @@ export class DriveProcessSynchronizer {
   async createProcess({ labelZh, labelEn = "" }) {
     const children = await this.drive.listChildren(this.rootFolderId);
     const currentFolders = this.#processFolders(children);
-    const displayOrder =
-      currentFolders.reduce(
-        (maximum, item) => Math.max(maximum, item.parsed.order),
-        0,
-      ) + 1;
-    if (displayOrder > 99) {
+    const displayOrder = firstAvailableProcessOrder(currentFolders);
+    if (displayOrder === null) {
       const error = new Error("No more numbered process folders are available");
       error.status = 409;
       error.code = "PROCESS_LIMIT_REACHED";
@@ -304,6 +308,12 @@ export class DriveProcessSynchronizer {
     const process = processId
       ? processes.find((item) => item.id === processId)
       : null;
+    if (processId && !process) {
+      const error = new Error("The selected wedding process no longer exists");
+      error.status = 404;
+      error.code = "PROCESS_NOT_FOUND";
+      throw error;
+    }
     const folders = await this.ensureStructure();
     const destinationId = process
       ? process.driveFolderId
