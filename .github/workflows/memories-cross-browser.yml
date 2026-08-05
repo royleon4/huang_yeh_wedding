@@ -38,7 +38,7 @@ jobs:
   browser-layout:
     if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -64,6 +64,12 @@ jobs:
         run: >-
           pnpm --filter @workspace/memories-album add --save-dev
           @playwright/test@1.60.0 --lockfile=false
+
+      - name: Cache Playwright browser engines
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-1.60.0
 
       - name: Install Chromium Firefox and WebKit
         run: >-
