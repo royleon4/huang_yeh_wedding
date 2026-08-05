@@ -12,7 +12,7 @@ const workflowUrl = new URL(
   import.meta.url,
 );
 
-test("cross-browser gate covers desktop mobile and WeChat engine representatives", async () => {
+test("cross-browser gate covers requested browser and in-app representatives", async () => {
   const config = await readFile(configUrl, "utf8");
 
   for (const project of [
@@ -21,7 +21,15 @@ test("cross-browser gate covers desktop mobile and WeChat engine representatives
     "webkit-desktop",
     "chromium-mobile",
     "webkit-mobile",
+    "samsung-internet-android",
     "wechat-android",
+    "wechat-ios",
+    "line-android",
+    "line-ios",
+    "facebook-android",
+    "facebook-ios",
+    "instagram-android",
+    "instagram-ios",
   ]) {
     assert.match(config, new RegExp(`name: "${project}"`));
   }
@@ -30,7 +38,12 @@ test("cross-browser gate covers desktop mobile and WeChat engine representatives
   assert.match(config, /Desktop Safari/);
   assert.match(config, /Pixel 7/);
   assert.match(config, /iPhone 13/);
+  assert.match(config, /SamsungBrowser/);
   assert.match(config, /MicroMessenger/);
+  assert.match(config, /Line\//);
+  assert.match(config, /FBAN\/FB4A/);
+  assert.match(config, /FBAN\/FBIOS/);
+  assert.match(config, /Instagram/);
   assert.match(config, /MEMORIES_ADMIN_TOKEN=/);
   assert.match(config, /pnpm run start/);
 });
