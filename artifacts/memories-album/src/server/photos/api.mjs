@@ -4,6 +4,7 @@ import { createPublicImageCache } from "./public-image-cache.mjs";
 const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const SORT_RANK_CACHE_MS = 2_000;
+const GENERATED_THUMBNAIL_CONCURRENCY = 2;
 const collator = new Intl.Collator(["zh-Hant", "en"], {
   numeric: true,
   sensitivity: "base",
@@ -100,7 +101,7 @@ function thumbnailFailure(response, error) {
   });
 }
 
-function shouldRepairThumbnail(error) {
+function canGenerateThumbnailFallback(error) {
   return (
     error?.status === 404 ||
     error?.code === "DRIVE_AUTHORIZATION_REQUIRED" ||
@@ -109,8 +110,87 @@ function shouldRepairThumbnail(error) {
   );
 }
 
-async function cachedThumbnail(thumbnailCache, drive, fileId) {
-  return thumbnailCache.load(fileId, () => drive.download(fileId));
+async function bodyToBuffer(body) {
+  if (Buffer.isBuffer(body)) return body;
+  if (body instanceof Uint8Array) return Buffer.from(body);
+
+  if (body?.getReader) {
+    const reader = body.getReader();
+    const chunks = [];
+    try {
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        chunks.push(Buffer.from(value));
+      }
+    } finally {
+      reader.releaseLock?.();
+    }
+    return Buffer.concat(chunks);
+  }
+
+  if (body?.[Symbol.asyncIterator]) {
+    const chunks = [];
+    for await (const chunk of body) chunks.push(Buffer.from(chunk));
+    return Buffer.concat(chunks);
+  }
+
+  throw new Error("Unsupported Google Drive response body");
+}
+
+function createConcurrencyGate(maxConcurrent) {
+  const limit = Math.max(1, Number(maxConcurrent) || 1);
+  let active = 0;
+  const waiters = [];
+
+  return async function run(operation) {
+    if (active >= limit) {
+      await new Promise((resolve) => waiters.push(resolve));
+    }
+    active += 1;
+    try {
+      return await operation();
+    } finally {
+      active -= 1;
+      waiters.shift()?.();
+    }
+  };
+}
+
+async function generateTransientThumbnail({
+  photo,
+  drive,
+  thumbnailService,
+  runGeneration,
+}) {
+  if (!thumbnailService?.imageProcessor) {
+    const error = new Error("Thumbnail image processor is unavailable");
+    error.code = "THUMBNAIL_NOT_READY";
+    throw error;
+  }
+
+  return runGeneration(async () => {
+    const original = await drive.download(photo.driveFileId);
+    const originalBytes = await bodyToBuffer(original.body);
+    const generated = await thumbnailService.imageProcessor.createThumbnail({
+      bytes: originalBytes,
+      mimeType: photo.mimeType || original.contentType,
+    });
+    const body = Buffer.from(generated.thumbnailBytes);
+    return {
+      body,
+      contentType: generated.thumbnailContentType,
+      contentLength: body.length,
+      thumbnailSource: "generated",
+    };
+  });
+}
+
+function thumbnailCacheKey(photo) {
+  if (photo.thumbnailDriveFileId) {
+    return `drive:${photo.thumbnailDriveFileId}`;
+  }
+  return `generated:${photo.driveFileId}:${photo.contentVersion ?? 1}`;
 }
 
 async function serveThumbnail({
@@ -119,61 +199,59 @@ async function serveThumbnail({
   drive,
   thumbnailService,
   thumbnailCache,
+  runGeneration,
 }) {
-  let current = photo;
   let lastError = null;
 
   try {
-    if (!current.thumbnailDriveFileId) {
-      if (!thumbnailService) {
-        const error = new Error("Thumbnail service is unavailable");
-        error.code = "THUMBNAIL_NOT_READY";
-        throw error;
+    const cached = await thumbnailCache.load(thumbnailCacheKey(photo), async () => {
+      if (photo.thumbnailDriveFileId) {
+        try {
+          return {
+            ...(await drive.download(photo.thumbnailDriveFileId)),
+            thumbnailSource: "drive",
+          };
+        } catch (error) {
+          lastError = error;
+          if (!canGenerateThumbnailFallback(error)) throw error;
+        }
       }
-      current = await thumbnailService.ensurePhotoThumbnail(current);
-    }
-    const cached = await cachedThumbnail(
-      thumbnailCache,
-      drive,
-      current.thumbnailDriveFileId,
-    );
+
+      return generateTransientThumbnail({
+        photo,
+        drive,
+        thumbnailService,
+        runGeneration,
+      });
+    });
+
+    const generated = cached.file?.thumbnailSource === "generated";
     await pipeBody(
       response,
       cached.file,
-      "public, max-age=31536000, immutable",
-      { "X-Memories-Thumbnail-Cache": cached.status },
+      generated
+        ? "public, max-age=3600, stale-while-revalidate=86400"
+        : "public, max-age=31536000, immutable",
+      {
+        "X-Memories-Thumbnail-Cache": cached.status,
+        ...(generated
+          ? {
+              "X-Memories-Thumbnail-Fallback": "generated",
+              ...(lastError?.code
+                ? { "X-Memories-Thumbnail-Drive-Error": lastError.code }
+                : {}),
+            }
+          : {}),
+      },
     );
     return true;
   } catch (error) {
     lastError = error;
   }
 
-  if (thumbnailService && shouldRepairThumbnail(lastError)) {
-    try {
-      current = await thumbnailService.repairPhotoThumbnail(current);
-      const cached = await cachedThumbnail(
-        thumbnailCache,
-        drive,
-        current.thumbnailDriveFileId,
-      );
-      await pipeBody(
-        response,
-        cached.file,
-        "public, max-age=31536000, immutable",
-        {
-          "X-Memories-Thumbnail-Repaired": "1",
-          "X-Memories-Thumbnail-Cache": cached.status,
-        },
-      );
-      return true;
-    } catch (error) {
-      lastError = error;
-    }
-  }
-
-  // A broken derivative must not leave a permanent blank card. Serve the original
-  // for this request only; because it is not cached, the next request tries the
-  // repair path again and persists a real WebP thumbnail when Drive is available.
+  // The image processor may be unavailable in a degraded environment. Preserve
+  // the legacy final fallback for that case only. Normal production requests
+  // return a generated WebP and never send a 25–30 MB original into the grid.
   try {
     await pipeBody(
       response,
@@ -201,6 +279,9 @@ export function createMemoriesPhotoApi({
     throw new Error("A public thumbnail cache is required");
   }
 
+  const runThumbnailGeneration = createConcurrencyGate(
+    GENERATED_THUMBNAIL_CONCURRENCY,
+  );
   let sortRankCache = null;
   const loadSortRanks = async () => {
     const now = Date.now();
@@ -303,6 +384,7 @@ export function createMemoriesPhotoApi({
           drive,
           thumbnailService,
           thumbnailCache,
+          runGeneration: runThumbnailGeneration,
         });
       }
 
