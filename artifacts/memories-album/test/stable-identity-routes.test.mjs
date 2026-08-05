@@ -9,6 +9,7 @@ import { adminSettingsConsolidationUiTransform } from "../admin-settings-consoli
 import { guestLabelsUiTransform } from "../guest-labels-ui-transform.mjs";
 import { logicalRouteUiTransform } from "../logical-route-ui-transform.mjs";
 import { messageAlbumUiTransform } from "../message-album-ui-transform.mjs";
+import { prioritizedPhotoLoadingUiTransform } from "../prioritized-photo-loading-ui-transform.mjs";
 import { processContentUiTransform } from "../process-content-ui-transform.mjs";
 import { publicAlbumLabelsUiTransform } from "../public-album-labels-ui-transform.mjs";
 import { publicBootstrapUiTransform } from "../public-bootstrap-ui-transform.mjs";
@@ -42,6 +43,7 @@ function productionTransforms() {
     adminAccordionUiTransform(),
     publicLayoutPolishUiTransform(),
     publicBootstrapUiTransform(),
+    prioritizedPhotoLoadingUiTransform(),
     guestLabelsUiTransform(),
     uploadSettingsUiTransform(),
     messageAlbumUiTransform(),
@@ -130,6 +132,21 @@ test("completed production transform keeps custom album labels routable without 
     /<ProcessSelector\s+language=\{lang\}\s+albumId=\{activeCollection\}\s+ariaLabel=\{activeCollectionDefinition\?\.\[lang\] \?\? t\.categories\}/,
   );
   assert.match(source, /const \[photoFeedComplete, setPhotoFeedComplete\] = useState\(false\)/);
+  const loaderDeclaration = source.indexOf(
+    "const photoFeedLoader = useMemo(() => getPublicPhotoFeedLoader(), [])",
+  );
+  const loaderSubscription = source.indexOf("photoFeedLoader.subscribe");
+  const loaderContext = source.indexOf("photoFeedLoader.setContext");
+  const loaderUpload = source.indexOf("photoFeedLoader.addPhoto");
+  assert.ok(loaderDeclaration >= 0, "photo feed loader declaration must survive");
+  assert.ok(loaderSubscription > loaderDeclaration);
+  assert.ok(loaderContext > loaderDeclaration);
+  assert.ok(loaderUpload > loaderDeclaration);
+  assert.equal(
+    source.match(/const photoFeedLoader =/g)?.length ?? 0,
+    1,
+    "the production component must declare one shared loader",
+  );
   assert.match(source, /album\.id !== "guest" \|\| photoFeedComplete \|\| useMockFallback/);
   assert.match(source, /route\.photoId[\s\S]*photoFeedComplete \|\| useMockFallback/);
   assert.doesNotMatch(source, /if \(collectionId !== "guest"\) return \[\];/);
