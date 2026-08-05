@@ -35,7 +35,7 @@ const FULL_AND_BUILD_FILES = new Set([
 ]);
 
 const BUILD_RELEVANT_FILE =
-  /(?:^|\/)(?:vite(?:\.routes)?\.config\.js|.*-ui-transform\.mjs|public-bootstrap-ui-transform\.mjs)$/;
+  /(?:^|\/)(?:vite(?:\.routes)?\.config\.js|.*-ui-transform\.mjs|public-bootstrap-ui-transform\.mjs|src\/server\/.*\.(?:mjs|js))$/;
 const GUESTBOOK_FILE =
   /(?:^|\/)(?:MessageAlbum\.jsx|MessageModal\.jsx|AdminMessagesPanel\.jsx|message-album\.css|admin-messages\.css|message-album-ui-transform\.mjs|album-photo-order\.mjs|messages\/)/;
 const GUESTBOOK_BROWSER_FILE =
