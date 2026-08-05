@@ -17,6 +17,7 @@ import {
 } from "./admin-route-paths.mjs";
 import { adminAuthorized } from "./server/admin/auth.mjs";
 import { createAdminSessionApi } from "./server/admin/session-api.mjs";
+import { decodePathSegment } from "./server/http/path-segment.mjs";
 import { getMemoriesRuntime } from "./server/runtime.mjs";
 import { DOCUMENT_SECURITY_HEADERS } from "./server/security-headers.mjs";
 
@@ -94,10 +95,14 @@ async function sendIndex(response) {
 }
 
 function safeAssetPath(pathname) {
-  const relative = decodeURIComponent(
-    pathname.slice(`${MEMORIES_BASE_PATH}/`.length),
-  );
-  if (!relative || relative.includes("\0")) return null;
+  let relative;
+  try {
+    relative = decodePathSegment(pathname.slice(`${MEMORIES_BASE_PATH}/`.length), {
+      allowSlash: true,
+    });
+  } catch {
+    return null;
+  }
   const resolved = path.resolve(publicDirectory, relative);
   return resolved.startsWith(`${publicDirectory}${path.sep}`) ? resolved : null;
 }
