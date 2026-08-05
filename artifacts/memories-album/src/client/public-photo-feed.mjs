@@ -1,4 +1,4 @@
-export const PUBLIC_PHOTO_PAGE_LIMIT = 24;
+export const PUBLIC_PHOTO_PAGE_LIMIT = 100;
 export const PUBLIC_PHOTO_PAGE_CAP = 20;
 
 function normalizedPhotoPage(body) {
@@ -26,52 +26,13 @@ export function preloadFirstPhotoThumbnail(
   return image;
 }
 
-export async function yieldToBackgroundTurn({
-  signal,
-  requestIdleCallbackImpl = globalThis.requestIdleCallback,
-  cancelIdleCallbackImpl = globalThis.cancelIdleCallback,
-  setTimeoutImpl = globalThis.setTimeout,
-  clearTimeoutImpl = globalThis.clearTimeout,
-} = {}) {
-  if (signal?.aborted) throw signal.reason ?? new DOMException("Aborted", "AbortError");
-
-  await new Promise((resolve, reject) => {
-    let handle;
-    let mode;
-    const cleanup = () => {
-      signal?.removeEventListener("abort", onAbort);
-    };
-    const finish = () => {
-      cleanup();
-      resolve();
-    };
-    const onAbort = () => {
-      if (mode === "idle") cancelIdleCallbackImpl?.(handle);
-      if (mode === "timeout") clearTimeoutImpl?.(handle);
-      cleanup();
-      reject(signal.reason ?? new DOMException("Aborted", "AbortError"));
-    };
-
-    signal?.addEventListener("abort", onAbort, { once: true });
-    if (typeof requestIdleCallbackImpl === "function") {
-      mode = "idle";
-      handle = requestIdleCallbackImpl(finish, { timeout: 250 });
-      return;
-    }
-    mode = "timeout";
-    handle = setTimeoutImpl(finish, 0);
-  });
-}
-
 export async function loadPublicPhotoFeed({
   fetchImpl = globalThis.fetch,
   signal,
   onInitialPage,
-  onPage,
   pageLimit = PUBLIC_PHOTO_PAGE_LIMIT,
   pageCap = PUBLIC_PHOTO_PAGE_CAP,
   ImageConstructor = globalThis.Image,
-  yieldImpl = yieldToBackgroundTurn,
 } = {}) {
   if (typeof fetchImpl !== "function") {
     throw new TypeError("A fetch implementation is required");
@@ -100,12 +61,6 @@ export async function loadPublicPhotoFeed({
       preloadFirstPhotoThumbnail(photos, ImageConstructor);
       if (typeof onInitialPage === "function") onInitialPage([...photos]);
     }
-
-    const complete = !cursor || pages >= pageCap;
-    if (typeof onPage === "function") {
-      onPage([...photos], { page: pages, complete });
-    }
-    if (!complete) await yieldImpl({ signal });
   } while (cursor && pages < pageCap);
 
   return photos;
