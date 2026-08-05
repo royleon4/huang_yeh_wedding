@@ -8,13 +8,24 @@ async function source(path) {
   return readFile(new URL(path, import.meta.url), "utf8");
 }
 
-test("shared lazy image unlocks early and starts immediately once eligible", async () => {
+test("shared lazy image unlocks early and loads legacy photos without dimensions", async () => {
   const lazyImage = await source("../src/client/LazyImage.jsx");
   assert.match(lazyImage, /IntersectionObserver/);
   assert.match(lazyImage, /src=\{allowedToLoad \? src : undefined\}/);
   assert.match(lazyImage, /data-lazy-src/);
   assert.match(lazyImage, /rootMargin = "600px 0px"/);
-  assert.match(lazyImage, /loading=\{allowedToLoad \? "eager" : "lazy"\}/);
+  assert.match(
+    lazyImage,
+    /hasIntrinsicSize = Number\(width\) > 0 && Number\(height\) > 0/,
+  );
+  assert.match(
+    lazyImage,
+    /Boolean\(eager \|\| !hasIntrinsicSize\)/,
+  );
+  assert.match(
+    lazyImage,
+    /eager \|\| \(allowedToLoad && hasIntrinsicSize\) \? "eager" : "lazy"/,
+  );
   assert.match(lazyImage, /fetchPriority = eager \? "high" : "auto"/);
 });
 
