@@ -56,7 +56,6 @@ function BatchManagementPage() {
 }
 
 startPerformanceMonitoring();
-scheduleMemoriesServiceWorkerRegistration();
 
 class MemoriesErrorBoundary extends Component {
   constructor(props) {
@@ -122,6 +121,8 @@ class MemoriesErrorBoundary extends Component {
     return this.props.children;
   }
 }
+
+scheduleMemoriesServiceWorkerRegistration();
 
 function applyServerProcesses(processes, allProcess = null) {
   const normalized = Array.isArray(processes)
