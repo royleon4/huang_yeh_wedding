@@ -10,6 +10,7 @@ import {
 } from "./objectAcl";
 
 const REPLIT_SIDECAR_ENDPOINT = "http://127.0.0.1:1106";
+const MAX_SIGNED_URL_TTL_SECONDS = 24 * 60 * 60;
 
 export const objectStorageClient = new Storage({
   credentials: {
@@ -38,8 +39,6 @@ export class ObjectNotFoundError extends Error {
 }
 
 export class ObjectStorageService {
-  constructor() {}
-
   getPublicObjectSearchPaths(): Array<string> {
     const pathsStr = process.env.PUBLIC_OBJECT_SEARCH_PATHS || "";
     const paths = Array.from(
@@ -52,28 +51,28 @@ export class ObjectStorageService {
     );
     if (paths.length === 0) {
       throw new Error(
-        "PUBLIC_OBJECT_SEARCH_PATHS not set. Create a bucket in 'Object Storage' " +
-          "tool and set PUBLIC_OBJECT_SEARCH_PATHS env var (comma-separated paths).",
+        "PUBLIC_OBJECT_SEARCH_PATHS is not set. Create a bucket in the Object Storage tool and provide comma-separated search paths.",
       );
     }
     return paths;
   }
 
   getPrivateObjectDir(): string {
-    const dir = process.env.PRIVATE_OBJECT_DIR || "";
+    const dir = process.env.PRIVATE_OBJECT_DIR?.trim() || "";
     if (!dir) {
       throw new Error(
-        "PRIVATE_OBJECT_DIR not set. Create a bucket in 'Object Storage' " +
-          "tool and set PRIVATE_OBJECT_DIR env var.",
+        "PRIVATE_OBJECT_DIR is not set. Create a bucket in the Object Storage tool and configure its private directory.",
       );
     }
     return dir;
   }
 
   async searchPublicObject(filePath: string): Promise<File | null> {
-    for (const searchPath of this.getPublicObjectSearchPaths()) {
-      const fullPath = `${searchPath}/${filePath}`;
+    const normalizedFilePath = String(filePath ?? "").replace(/^\/+/, "");
+    if (!normalizedFilePath) return null;
 
+    for (const searchPath of this.getPublicObjectSearchPaths()) {
+      const fullPath = `${searchPath.replace(/\/+$/, "")}/${normalizedFilePath}`;
       const { bucketName, objectName } = parseObjectPath(fullPath);
       const bucket = objectStorageClient.bucket(bucketName);
       const file = bucket.file(objectName);
@@ -88,6 +87,9 @@ export class ObjectStorageService {
   }
 
   async downloadObject(file: File, cacheTtlSec: number = 3600): Promise<Response> {
+    if (!Number.isSafeInteger(cacheTtlSec) || cacheTtlSec < 0) {
+      throw new RangeError("Object cache TTL must be a non-negative integer");
+    }
     const [metadata] = await file.getMetadata();
     const aclPolicy = await getObjectAclPolicy(file);
     const isPublic = aclPolicy?.visibility === "public";
@@ -98,6 +100,7 @@ export class ObjectStorageService {
     const headers: Record<string, string> = {
       "Content-Type": (metadata.contentType as string) || "application/octet-stream",
       "Cache-Control": `${isPublic ? "public" : "private"}, max-age=${cacheTtlSec}`,
+      "X-Content-Type-Options": "nosniff",
     };
     if (metadata.size) {
       headers["Content-Length"] = String(metadata.size);
@@ -108,16 +111,8 @@ export class ObjectStorageService {
 
   async getObjectEntityUploadURL(): Promise<string> {
     const privateObjectDir = this.getPrivateObjectDir();
-    if (!privateObjectDir) {
-      throw new Error(
-        "PRIVATE_OBJECT_DIR not set. Create a bucket in 'Object Storage' " +
-          "tool and set PRIVATE_OBJECT_DIR env var.",
-      );
-    }
-
     const objectId = randomUUID();
-    const fullPath = `${privateObjectDir}/uploads/${objectId}`;
-
+    const fullPath = `${privateObjectDir.replace(/\/+$/, "")}/uploads/${objectId}`;
     const { bucketName, objectName } = parseObjectPath(fullPath);
 
     return signObjectURL({
@@ -139,6 +134,9 @@ export class ObjectStorageService {
     }
 
     const entityId = parts.slice(1).join("/");
+    if (!entityId || entityId.split("/").some((part) => !part || part === "." || part === "..")) {
+      throw new ObjectNotFoundError();
+    }
     let entityDir = this.getPrivateObjectDir();
     if (!entityDir.endsWith("/")) {
       entityDir = `${entityDir}/`;
@@ -206,25 +204,26 @@ export class ObjectStorageService {
   }
 }
 
-function parseObjectPath(path: string): {
+export function parseObjectPath(path: string): {
   bucketName: string;
   objectName: string;
 } {
-  if (!path.startsWith("/")) {
-    path = `/${path}`;
-  }
-  const pathParts = path.split("/");
-  if (pathParts.length < 3) {
-    throw new Error("Invalid path: must contain at least a bucket name");
-  }
-
-  const bucketName = pathParts[1];
+  const normalizedPath = String(path ?? "").trim();
+  const withLeadingSlash = normalizedPath.startsWith("/")
+    ? normalizedPath
+    : `/${normalizedPath}`;
+  const pathParts = withLeadingSlash.split("/");
+  const bucketName = pathParts[1]?.trim() ?? "";
   const objectName = pathParts.slice(2).join("/");
+  if (
+    !bucketName ||
+    !objectName ||
+    objectName.split("/").some((part) => !part || part === "." || part === "..")
+  ) {
+    throw new Error("Object path must contain a bucket and a non-empty object name");
+  }
 
-  return {
-    bucketName,
-    objectName,
-  };
+  return { bucketName, objectName };
 }
 
 function signedURLFromResponse(payload: unknown): string {
@@ -251,6 +250,15 @@ async function signObjectURL({
   method: "GET" | "PUT" | "DELETE" | "HEAD";
   ttlSec: number;
 }): Promise<string> {
+  if (
+    !Number.isSafeInteger(ttlSec) ||
+    ttlSec < 1 ||
+    ttlSec > MAX_SIGNED_URL_TTL_SECONDS
+  ) {
+    throw new RangeError(
+      `Signed URL TTL must be an integer from 1 to ${MAX_SIGNED_URL_TTL_SECONDS} seconds`,
+    );
+  }
   const request = {
     bucket_name: bucketName,
     object_name: objectName,
@@ -270,8 +278,7 @@ async function signObjectURL({
   );
   if (!response.ok) {
     throw new Error(
-      `Failed to sign object URL, errorcode: ${response.status}, ` +
-        `make sure you're running on Replit`,
+      `Object Storage sidecar could not sign the URL (HTTP ${response.status}); verify that the service is running on Replit`,
     );
   }
 
