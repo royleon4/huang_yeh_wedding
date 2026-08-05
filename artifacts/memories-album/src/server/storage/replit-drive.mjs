@@ -1,4 +1,4 @@
-import { GoogleDriveStorage } from "./drive-adapter.mjs";
+import { createResourceAwareDriveStorage } from "./resource-aware-drive.mjs";
 
 function contentRange(value) {
   const match = String(value ?? "").match(/^bytes\s+(\d+)-(\d+)\/(\d+)$/i);
@@ -151,7 +151,7 @@ export async function createReplitDriveStorage(env = process.env) {
 
   const { ReplitConnectors } = await import("@replit/connectors-sdk");
   const connectors = new ReplitConnectors();
-  return new GoogleDriveStorage({
+  return createResourceAwareDriveStorage({
     originalFolderId,
     thumbnailFolderId: env.MEMORIES_DRIVE_THUMBNAILS_FOLDER_ID || null,
     proxy: createReplitDriveProxy(connectors),
