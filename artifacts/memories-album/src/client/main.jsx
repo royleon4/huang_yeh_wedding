@@ -1,15 +1,19 @@
-import React, { Component, useEffect, useState } from "react";
+import React, {
+  Component,
+  lazy,
+  Suspense,
+  useEffect,
+  useState,
+} from "react";
 import { createRoot } from "react-dom/client";
 import App from "./App.jsx";
-import AdminApp from "./AdminApp.jsx";
-import AdminLoginPage from "./AdminLoginPage.jsx";
-import BatchManagementPage from "./BatchManagementPage.jsx";
 import GalleryEnhancements from "./GalleryEnhancements.jsx";
 import { adminSurface } from "./admin-client.mjs";
 import {
   ALL_PROCESS_DEFINITION,
   PROCESS_DEFINITIONS,
 } from "./gallery-model.mjs";
+import { startPerformanceMonitoring } from "./performance-monitor.mjs";
 import "./styles.css";
 import "./site-style-public.css";
 import "./collections.css";
@@ -24,6 +28,12 @@ import "./gallery-tweaks.css";
 import "./process-rich-content.css";
 import "./batch-management.css";
 import "./label-wrapping.css";
+
+const AdminApp = lazy(() => import("./AdminApp.jsx"));
+const AdminLoginPage = lazy(() => import("./AdminLoginPage.jsx"));
+const BatchManagementPage = lazy(() => import("./BatchManagementPage.jsx"));
+
+startPerformanceMonitoring();
 
 class MemoriesErrorBoundary extends Component {
   constructor(props) {
@@ -186,11 +196,17 @@ const isBatchManagement = /^\/Memories\/manage\/[^/]+\/?$/.test(
 );
 const surface = adminSurface(window.location.pathname);
 const content = isBatchManagement ? (
-  <BatchManagementPage />
+  <Suspense fallback={null}>
+    <BatchManagementPage />
+  </Suspense>
 ) : surface === "login" ? (
-  <AdminLoginPage />
+  <Suspense fallback={null}>
+    <AdminLoginPage />
+  </Suspense>
 ) : surface === "admin" ? (
-  <AdminApp />
+  <Suspense fallback={null}>
+    <AdminApp />
+  </Suspense>
 ) : (
   <MemoriesRoot />
 );
