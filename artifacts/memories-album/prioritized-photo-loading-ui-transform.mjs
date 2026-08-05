@@ -24,11 +24,18 @@ function transformApp(source) {
     "public photo feed import",
   );
 
+  code = replaceOnce(
+    code,
+    `  const [photoFeedComplete, setPhotoFeedComplete] = useState(false);`,
+    `  const [photoFeedComplete, setPhotoFeedComplete] = useState(false);\n  const photoFeedLoader = useMemo(() => getPublicPhotoFeedLoader(), []);`,
+    "component-scoped public photo feed loader",
+  );
+
   code = replaceRange(
     code,
     `  useEffect(() => {\n    if (runtimeState !== "ready") return undefined;\n    let cancelled = false;\n    const controller = new AbortController();`,
     `  const sourcePhotos =`,
-    `  const photoFeedLoader = useMemo(() => getPublicPhotoFeedLoader(), []);\n\n  useEffect(() => {\n    if (runtimeState !== "ready") return undefined;\n    return photoFeedLoader.subscribe((snapshot) => {\n      if (snapshot.photos.length > 0 || !useMockFallback) {\n        setRemotePhotos(snapshot.photos);\n      }\n      setPhotoFeedComplete(snapshot.metadataComplete);\n      setGalleryError(\n        Boolean(snapshot.error) && snapshot.photos.length === 0 && !useMockFallback,\n      );\n    });\n  }, [photoFeedLoader, runtimeState, useMockFallback]);\n\n  useEffect(() => {\n    if (runtimeState !== "ready") return;\n    photoFeedLoader.setContext({\n      collectionId: activeCollection,\n      filterId: activeFilter,\n    });\n  }, [\n    photoFeedLoader, runtimeState, activeCollection, activeFilter,\n  ]);\n\n`,
+    `  useEffect(() => {\n    if (runtimeState !== "ready") return undefined;\n    return photoFeedLoader.subscribe((snapshot) => {\n      if (snapshot.photos.length > 0 || !useMockFallback) {\n        setRemotePhotos(snapshot.photos);\n      }\n      setPhotoFeedComplete(snapshot.metadataComplete);\n      setGalleryError(\n        Boolean(snapshot.error) && snapshot.photos.length === 0 && !useMockFallback,\n      );\n    });\n  }, [photoFeedLoader, runtimeState, useMockFallback]);\n\n  useEffect(() => {\n    if (runtimeState !== "ready") return;\n    photoFeedLoader.setContext({\n      collectionId: activeCollection,\n      filterId: activeFilter,\n    });\n  }, [\n    photoFeedLoader, runtimeState, activeCollection, activeFilter,\n  ]);\n\n`,
     "progressive photo feed effect",
   );
 
