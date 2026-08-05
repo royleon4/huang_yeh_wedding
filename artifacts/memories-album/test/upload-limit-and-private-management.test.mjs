@@ -236,8 +236,7 @@ test("client route and runtime wire permanent private management deletion", asyn
     readClient("BatchManagementPage.jsx"),
     readClient("batch-management-client.mjs"),
   ]);
-  assert.match(main, /import\("\.\/BatchManagementPage\.jsx"\)/);
-  assert.match(main, /function BatchManagementPage\(\)/);
+  assert.match(main, /import BatchManagementPage/);
   assert.match(main, /isBatchManagement/);
   assert.match(main, /<BatchManagementPage \/>/);
   assert.match(runtime, /createGuestBatchManagementApi/);

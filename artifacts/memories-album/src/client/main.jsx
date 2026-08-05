@@ -1,14 +1,15 @@
 import React, { Component, useEffect, useState } from "react";
-import { lazy, Suspense } from "react";
 import { createRoot } from "react-dom/client";
 import App from "./App.jsx";
+import AdminApp from "./AdminApp.jsx";
+import AdminLoginPage from "./AdminLoginPage.jsx";
+import BatchManagementPage from "./BatchManagementPage.jsx";
 import GalleryEnhancements from "./GalleryEnhancements.jsx";
 import { adminSurface } from "./admin-client.mjs";
 import {
   ALL_PROCESS_DEFINITION,
   PROCESS_DEFINITIONS,
 } from "./gallery-model.mjs";
-import { startPerformanceMonitoring } from "./performance-monitor.mjs";
 import "./styles.css";
 import "./site-style-public.css";
 import "./collections.css";
@@ -23,38 +24,6 @@ import "./gallery-tweaks.css";
 import "./process-rich-content.css";
 import "./batch-management.css";
 import "./label-wrapping.css";
-
-const DeferredAdminApp = lazy(() => import("./AdminApp.jsx"));
-const DeferredAdminLoginPage = lazy(() => import("./AdminLoginPage.jsx"));
-const DeferredBatchManagementPage = lazy(() =>
-  import("./BatchManagementPage.jsx"),
-);
-
-function AdminApp() {
-  return (
-    <Suspense fallback={null}>
-      <DeferredAdminApp />
-    </Suspense>
-  );
-}
-
-function AdminLoginPage() {
-  return (
-    <Suspense fallback={null}>
-      <DeferredAdminLoginPage />
-    </Suspense>
-  );
-}
-
-function BatchManagementPage() {
-  return (
-    <Suspense fallback={null}>
-      <DeferredBatchManagementPage />
-    </Suspense>
-  );
-}
-
-startPerformanceMonitoring();
 
 class MemoriesErrorBoundary extends Component {
   constructor(props) {
