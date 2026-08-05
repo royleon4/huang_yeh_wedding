@@ -52,7 +52,11 @@ jobs:
       - name: Install frozen workspace
         run: pnpm install --frozen-lockfile
 
+      - name: Run API server unit tests
+        run: pnpm --filter @workspace/api-server run test
+
       - name: Typecheck and build workspace
         env:
           PORT: 19315
+          DEFAULT_OBJECT_STORAGE_BUCKET_ID: ci-placeholder-bucket
         run: pnpm run build
