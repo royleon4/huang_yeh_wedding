@@ -44,6 +44,10 @@ test("route builders use logical ordinal groups and encode photo identifiers", (
     }),
     "/Memories/en/group2/subgroup3/photos/drive%3A123%2F456",
   );
+  assert.equal(
+    publicGalleryPath({ language: "en", groupNumber: 2, photoId: "   " }),
+    "/Memories/en/group2",
+  );
   assert.equal(publicModalPath("upload", "en"), "/Memories/en/upload");
   assert.equal(publicModalPath("people"), "/Memories/people");
 });
@@ -57,6 +61,14 @@ test("Chinese and English roots recover to their first logical group", () => {
   const invalid = readPublicRoute("/Memories/en/group1/subgroup0");
   assert.equal(invalid.kind, "invalid");
   assert.equal(invalid.canonicalPath, "/Memories/en/group1");
+});
+
+test("similarly prefixed paths are not treated as Memories routes", () => {
+  for (const path of ["/MemoriesX/group1", "/Memories-admin/group1"]) {
+    const parsed = readPublicRoute(path);
+    assert.equal(parsed.kind, "invalid");
+    assert.equal(parsed.canonicalPath, "/Memories/group1");
+  }
 });
 
 test("semantic routes from the previous release remain readable for migration", () => {
