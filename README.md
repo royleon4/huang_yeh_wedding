@@ -1,151 +1,83 @@
 # 詠葉的婚禮
 
-婚禮邀請網站與照片檔案館的 pnpm monorepo。
+婚禮邀請網站與 **Standalone Memories** 照片檔案館的 pnpm monorepo。
 
-> **Product status:** Standalone Memories Phase 1 complete; post-Phase-1 maintenance active  
-> **Reviewed:** 2026-08-04T03:11:00+08:00 (Asia/Taipei)  
-> **Review baseline:** `52008c1470b5fe74764a5b7f1956a676622f52f7`  
-> **Documentation index:** [`DOCUMENTATION.md`](DOCUMENTATION.md)  
-> **Developer handoff:** [`MAINTAINER_GUIDE.md`](MAINTAINER_GUIDE.md)  
-> **Security remediation preparation:** [`docs/security-remediation-readiness-2026-08-04.md`](docs/security-remediation-readiness-2026-08-04.md)  
-> **Dated SCA evidence:** [`docs/software-composition-analysis-2026-08-02.md`](docs/software-composition-analysis-2026-08-02.md)  
-> **Production → Development database runbook:** [`docs/memories/production-to-development-database-runbook.md`](docs/memories/production-to-development-database-runbook.md)  
-> **Phase 1 closeout and next steps:** [`docs/phase-1-closeout-2026-08-01.md`](docs/phase-1-closeout-2026-08-01.md)
+[![Memories CI](https://github.com/royleon4/huang_yeh_wedding/actions/workflows/memories-ci.yml/badge.svg)](https://github.com/royleon4/huang_yeh_wedding/actions/workflows/memories-ci.yml)
+[![Cross-browser](https://github.com/royleon4/huang_yeh_wedding/actions/workflows/memories-cross-browser.yml/badge.svg)](https://github.com/royleon4/huang_yeh_wedding/actions/workflows/memories-cross-browser.yml)
+[![Legacy boundary](https://github.com/royleon4/huang_yeh_wedding/actions/workflows/memories-legacy-boundary.yml/badge.svg)](https://github.com/royleon4/huang_yeh_wedding/actions/workflows/memories-legacy-boundary.yml)
 
-## Choose your role
+> **目前階段：** Product Phase 1 已完成；Phase 2.1 瀏覽器與 In-App Browser 驗證進行中  
+> **文件基準：** `21dc25543de6dd2bfa7e9019a2a9244c8a2ef186`  
+> **從零架站與多雲部署：** [`docs/site-handbook/`](docs/site-handbook/README.md)  
+> **文件總索引：** [`DOCUMENTATION.md`](DOCUMENTATION.md)
 
-| Role | Start here | Purpose |
-| --- | --- | --- |
-| Guest viewing photos or messages | [`EASY_USER_GUIDE.md`](EASY_USER_GUIDE.md#我只想看照片) | Browse albums, processes, labels, guestbook messages and photos; switch language |
-| Guest sharing photos | [`EASY_USER_GUIDE.md`](EASY_USER_GUIDE.md#我想上傳照片) | Upload photos and save the private management link |
-| Previous uploader | [`EASY_USER_GUIDE.md`](EASY_USER_GUIDE.md#我想管理自己上傳的照片) | Manage or permanently delete one uploaded batch |
-| Content administrator | [`ADMIN_GUIDE.md`](ADMIN_GUIDE.md) | Manage appearance, copy, albums, labels, messages, processes, photos and upload settings |
-| Deployment/operator | [`OPERATIONS_GUIDE.md`](OPERATIONS_GUIDE.md) | Replit, Drive, Secrets, migrations, releases and incidents |
-| Dependency remediation operator | [`docs/security-remediation-readiness-2026-08-04.md`](docs/security-remediation-readiness-2026-08-04.md) | Refresh SCA evidence, plan dependency batches, validate and roll back safely |
-| Database copy/rollback operator | [`docs/memories/production-to-development-database-runbook.md`](docs/memories/production-to-development-database-runbook.md) | Back up Development, copy Production into Development, validate and roll back safely |
-| Developer/maintainer | [`MAINTAINER_GUIDE.md`](MAINTAINER_GUIDE.md) | Safe changes, tests, architecture risks and release discipline |
-| Detailed Memories developer | [`artifacts/memories-album/README.md`](artifacts/memories-album/README.md) | Current product, API, storage and implementation contracts |
+![系統架構](docs/site-handbook/assets/system-architecture.svg)
 
-## Product Phase 1 and current maintenance state
+## 專案內容
 
-Product Phase 1 established the accepted first production baseline for **Standalone Memories** under `/Memories/`.
-
-The current product includes:
-
-- bilingual public wedding archive;
-- stable album, label, photo and administrator routes;
-- wedding-process video, rich content, Word document import, image attachments, dividers and pinned photos;
-- traditional and wheel-based navigation with independent per-album looping;
-- album-scoped labels for every non-guest album, with an automatically generated all-album label;
-- dedicated guest labels for all visitors, latest photos and uploader names;
-- a guestbook/message album with public submission, sorting and administrator moderation;
-- configurable random featured-photo ranges per album, scoped to the active album and label;
-- responsive masonry layouts, bottom navigation and fullscreen photo viewer;
-- guest uploads with configurable 1–100 photo limits, bounded concurrency and retry;
-- private batch management with token rotation and permanent deletion;
-- Google Drive originals, image attachments and WebP thumbnails;
-- PostgreSQL application state and immutable SQL migrations through `016_explicit_guest_album_membership.sql`;
-- administrator appearance, copy, icon, album, label, message, process, photo and upload management;
-- impact-focused PR validation, full `main` integration validation, focused Chrome layout checks, production build, health smoke and legacy-boundary CI;
-- guest, administrator, operations, maintainer and security-remediation documentation.
-
-“Phase 1 complete” does **not** mean every architecture hardening item or future feature is complete. A required Playwright production-browser gate, transform removal, trash/restore, people classification and selfie search remain future work.
-
-## Repository applications
-
-| Area | Package | Route or port | Status |
+| 應用 | Package | Route／Port | 責任 |
 | --- | --- | --- | --- |
-| Wedding Invitation | `@workspace/wedding-invitation` | `/`, port `19315` | Existing legacy application |
-| Standalone Memories | `@workspace/memories-album` | `/Memories/*`, port `19316` | Product Phase 1 baseline plus active maintenance features |
-| Legacy API | `@workspace/api-server` | `/api/*`, port `8080` | Legacy Express/Object Storage boundary |
-| Mockup Sandbox | `@workspace/mockup-sandbox` | `/__mockup`, port `8081` | Replit Canvas development tool |
+| Wedding Invitation | `@workspace/wedding-invitation` | `/` · `19315` | 婚禮邀請與 legacy UI |
+| Standalone Memories | `@workspace/memories-album` | `/Memories/*` · `19316` | 相簿、上傳、留言、內容與管理後台 |
+| Legacy API | `@workspace/api-server` | `/api/*` · `8080` | 舊照片牆與 Object Storage 邊界 |
+| Mockup Sandbox | `@workspace/mockup-sandbox` | `/__mockup` · `8081` | Replit Canvas／元件預覽 |
 
-## Application boundary
+Ordinary Memories changes must not modify the legacy invitation/photo API boundary without explicit owner approval. GitHub Actions enforces this separation.
 
-Standalone Memories and the legacy invitation/photo wall are different systems.
+## Standalone Memories 現有能力
 
-- `/Memories/*` is owned by `artifacts/memories-album`.
-- The old photo wall uses legacy `/api/photos*` and Object Storage.
-- Ordinary Memories changes must not import or modify legacy photo-wall code.
-- `.github/workflows/memories-legacy-boundary.yml` protects the boundary.
-- A protected-path change requires explicit owner approval and narrowly scoped regression evidence.
-
-See [`docs/memories/architecture-boundary.md`](docs/memories/architecture-boundary.md) and [`docs/memories/legacy-protection.md`](docs/memories/legacy-protection.md).
-
-## Data ownership
-
-| Data | Canonical owner |
+| 領域 | 已實作 |
 | --- | --- |
-| Original photos and process image attachments | Google Drive |
-| Generated WebP thumbnails | Google Drive `系統縮圖` |
-| Numbered wedding-process names and order | Google Drive, mirrored to PostgreSQL |
-| Visibility, albums, labels, processes, author and capture time | PostgreSQL |
-| Guestbook messages and moderation state | PostgreSQL |
-| Upload batches, token hashes, content hashes and resumable state | PostgreSQL |
-| Videos, rich content, pinned photos, featured-photo settings and application settings | PostgreSQL |
-| Administrator password | Replit Secret `MEMORIES_ADMIN_TOKEN` |
+| 公開網站 | 中文／English、stable routes、albums、album labels、process navigation、photo deep links |
+| 照片 | Masonry、lazy loading、pagination、featured photos、fullscreen viewer、controlled original |
+| 婚禮內容 | YouTube、Tiptap rich text、Word import、image attachments、divider、pinned photos |
+| 訪客互動 | 批次照片上傳、private management link、guestbook/message album |
+| 管理後台 | Appearance、copy、albums、labels、messages、processes、photos、bulk actions、refresh tools |
+| 資料 | PostgreSQL metadata；Google Drive originals／attachments／WebP thumbnails |
+| 安全 | HttpOnly admin session、hashed private tokens、upload limits、migration checksum、legacy boundary |
+| 品質 | Impact-focused PR CI、full `main` integration、Playwright Chromium／Firefox／WebKit／In-App profiles |
 
-Drive IDs, folder IDs, connector responses, OAuth details, raw private tokens and database credentials remain server-side.
+自動化 In-App profile 是 engine、viewport 與 representative user-agent 驗證；真實 LINE、WeChat、Facebook、Instagram、Samsung Internet 與 Safari 仍需獨立真機證據。
 
-## Main routes
+## 技術棧
 
-| Purpose | Route |
+| Layer | Technology |
 | --- | --- |
-| Public archive | `/Memories/` |
-| Chinese album | `/Memories/albums/:albumKey` |
-| English album | `/Memories/en/albums/:albumKey` |
-| Label | `/Memories/albums/:albumKey/labels/:labelKey` |
-| Open photo | append `/photos/:photoId` |
-| Guest upload | `/Memories/upload` or `/Memories/en/upload` |
-| Private batch management | `/Memories/manage/:batchId#token=...` |
-| Administrator login | `/Memories/admin/login` |
-| Administrator tabs | `/Memories/admin/general`, `albums`, `photos`, `categories` |
-| Health | `/Memories/api/health` |
+| Runtime／Workspace | Node.js 24、pnpm 10、GitHub Actions |
+| Frontend | React 19、Vite 7、Tiptap |
+| Server／Data | Node HTTP APIs、PostgreSQL、immutable SQL migrations |
+| Media | Replit Google Drive Integration、Sharp、WebP derivatives |
+| Import | Mammoth、docx-preview |
+| Testing | Node test runner、focused Chrome checks、Playwright cross-browser production gate |
 
-A message album uses the same stable album route and renders messages instead of a photo feed according to its persisted album type. Display order never defines canonical URLs. Old ordinal and semantic routes are migration aliases only. See [`artifacts/memories-album/docs/logical-routes.md`](artifacts/memories-album/docs/logical-routes.md).
+詳細說明：[`docs/site-handbook/01-technology-stack.md`](docs/site-handbook/01-technology-stack.md)
 
-## Local development
-
-Requirements: Node.js 24 and pnpm 10.x.
+## 快速開始
 
 ```bash
-pnpm install
-pnpm run typecheck
-pnpm run build
-```
-
-Use a frozen install for CI reproduction, security work and release validation:
-
-```bash
+git clone https://github.com/royleon4/huang_yeh_wedding.git
+cd huang_yeh_wedding
+corepack enable
 pnpm install --frozen-lockfile
-```
-
-Run applications:
-
-```bash
-pnpm --filter @workspace/wedding-invitation dev
-pnpm --filter @workspace/memories-album dev
-pnpm --filter @workspace/api-server dev
-pnpm --filter @workspace/mockup-sandbox dev
-```
-
-Standalone Memories checks:
-
-```bash
+pnpm run typecheck
 pnpm --filter @workspace/memories-album test
-pnpm --filter @workspace/memories-album run test:impact
-pnpm --filter @workspace/memories-album run test:layout-browser
 pnpm --filter @workspace/memories-album build
-pnpm --filter @workspace/memories-album start
-pnpm --filter @workspace/memories-album db:migrate
-pnpm --filter @workspace/memories-album test:drive-live
+pnpm --filter @workspace/memories-album dev
 ```
 
-`test:drive-live` requires an approved test folder and configured Replit Google Drive Integration. Do not run destructive diagnostics against the production wedding root.
+本機開啟：
 
-## Production requirements
+```text
+http://localhost:19316/Memories/
+http://localhost:19316/Memories/admin/login
+http://localhost:19316/Memories/api/health
+```
 
-Required settings:
+Development 仍需要 PostgreSQL。普通本機環境沒有 Replit Google Drive Integration；Live Drive 功能需在已連接 Integration 的 Replit 環境，或先實作 portable media adapter。
+
+完整步驟：[`docs/site-handbook/03-local-development.md`](docs/site-handbook/03-local-development.md)
+
+## 必要 Production 設定
 
 ```text
 DATABASE_URL
@@ -153,90 +85,80 @@ MEMORIES_DRIVE_PHOTOS_FOLDER_ID
 MEMORIES_ADMIN_TOKEN
 ```
 
-The Published App must also connect Replit Google Drive Integration.
+Replit Published App 還必須連接 Google Drive Integration。Secret、database URL、OAuth credential、Drive folder ID、private token 與 signed URL 不得提交 repository 或送到 browser bundle。
 
-Do not commit secrets, folder IDs, OAuth credentials, resumable session URIs, raw management tokens or connector response bodies.
+## 主要 Routes
 
-## Migration safety
+| 功能 | Route |
+| --- | --- |
+| 公開首頁 | `/Memories/` |
+| English | `/Memories/en/` |
+| Album | `/Memories/albums/:albumKey` |
+| Label | `/Memories/albums/:albumKey/labels/:labelKey` |
+| Upload | `/Memories/upload`、`/Memories/en/upload` |
+| Private batch | `/Memories/manage/:batchId#token=...` |
+| Admin login | `/Memories/admin/login` |
+| Health | `/Memories/api/health` |
 
-Standalone Memories uses immutable numbered SQL files under:
+## Migration 與資料安全
 
-```text
-artifacts/memories-album/db
-```
-
-The current sequence extends through:
+Memories migration 位於 `artifacts/memories-album/db`，目前延伸到：
 
 ```text
 016_explicit_guest_album_membership.sql
 ```
 
-- Add a new migration; never edit an applied migration.
-- Never use `drizzle-kit push` for Memories tables.
-- Cancel a Publish plan that unexpectedly proposes `DROP TABLE`, `DROP COLUMN` or constraint removal.
-- Production listening starts only after the migration runner succeeds.
-- Rollback is normally a compatible code rollback or forward fix, not deletion of migration history.
+- 只新增 migration，不修改已套用檔案。
+- 不使用 `drizzle-kit push` 管理 Memories production schema。
+- 發布計畫出現意外 `DROP TABLE`／`DROP COLUMN` 時立即停止。
+- 原圖不要直接從 Google Drive 手動刪除；使用 Admin 或 private management flow。
+- Permanent delete 目前沒有七天垃圾桶。
 
-For the verified Production → Development backup, overwrite, validation and rollback process, use [`docs/memories/production-to-development-database-runbook.md`](docs/memories/production-to-development-database-runbook.md).
+## 測試與發佈
 
-## Testing and current gaps
+```mermaid
+flowchart LR
+  PR[Pull request] --> Impact[Impact-selected tests]
+  Impact --> Build[Production build]
+  Build --> Browser[Playwright cross-browser]
+  Browser --> Main[Merge main]
+  Main --> Full[Full integration gate]
+  Full --> Deploy[Deploy + smoke]
+```
 
-PR validation uses Test Impact Analysis and Selective Test Execution. Draft and ready PRs run the tests, focused Chrome checks and build steps selected by the actual diff. Unknown executable changes fall back to broader validation. A push to `main` or manual dispatch runs the full integration set.
+Cross-browser gate 包含 desktop/mobile Chromium、Firefox、WebKit，以及 Samsung Internet、WeChat、LINE、Facebook、Instagram representative profiles。失敗會保存 screenshot、trace、video 與 HTML report。
 
-Current integration validation includes:
+測試策略：[`docs/memories/testing-strategy.md`](docs/memories/testing-strategy.md)
 
-1. full Node test suite on `main`;
-2. focused Chrome checks for guestbook and navigation layouts;
-3. production client/server build;
-4. `/Memories/api/health` server smoke;
-5. Memories/legacy protected-path boundary.
+## 從零架站與多雲部署
 
-The exact test count is intentionally not pinned here because every regression fix changes it. The CI result for the current commit is the authoritative count. See [`docs/memories/testing-strategy.md`](docs/memories/testing-strategy.md).
+![部署環境](docs/site-handbook/assets/deployment-options.svg)
 
-CI does not yet run a required Playwright production-browser suite against the final deployed interaction flow. Transform-sensitive or user-visible changes still require real-browser validation.
+新文件中心提供完整教學：
 
-## Security and dependency evidence
+- [`從零建置總覽`](docs/site-handbook/README.md)
+- [`Replit`](docs/site-handbook/deployments/replit.md)
+- [`On-premise／VPS`](docs/site-handbook/deployments/on-premise.md)
+- [`Google Cloud`](docs/site-handbook/deployments/google-cloud.md)
+- [`AWS`](docs/site-handbook/deployments/aws.md)
+- [`Microsoft Azure`](docs/site-handbook/deployments/microsoft-azure.md)
+- [`Oracle Cloud`](docs/site-handbook/deployments/oracle-cloud.md)
+- [`Kubernetes`](docs/site-handbook/deployments/kubernetes.md)
 
-The first repository-wide SCA was completed on 2026-08-02 and recorded known vulnerabilities, licenses, deprecated packages, outdated direct dependencies and a CycloneDX SBOM.
+目前 Google Drive 層使用 Replit 專屬 connector。部署到其他雲端前，必須實作 Google Drive API 或對應 Object Storage adapter；部署文件不會把此必要改造假裝成已完成。
 
-That scan is **dated evidence**, not the exact verdict for current `main`: `artifacts/memories-album/package.json` and `pnpm-lock.yaml` changed afterwards, including the addition of Word-import dependencies. A fresh SCA is required before beginning dependency remediation or quoting current vulnerability counts.
+## 文件入口
 
-- Evidence and interpretation: [`docs/software-composition-analysis-2026-08-02.md`](docs/software-composition-analysis-2026-08-02.md)
-- Pre-remediation runbook: [`docs/security-remediation-readiness-2026-08-04.md`](docs/security-remediation-readiness-2026-08-04.md)
-
-Do not use `pnpm audit fix --force` without reviewed, package-specific changes and repository validation.
-
-## Known deferred work
-
-- production Playwright gate and screenshot baseline;
-- incremental removal of the remaining exact-string Vite transforms;
-- central settings and route registries;
-- atomic administrator upload-and-classify command;
-- stronger observability, backup and restore drills;
-- recurring SCA/SBOM automation and dependency remediation;
-- iOS Safari, Android Chrome and embedded webview acceptance matrix;
-- deletion recovery policy;
-- people classification and selfie-search product/privacy decision;
-- long-term legacy invitation/API strategy.
-
-The proposed order and suggested dates are documented in [`docs/phase-1-closeout-2026-08-01.md`](docs/phase-1-closeout-2026-08-01.md).
-
-## Documentation
-
-- [Documentation index and lifecycle](DOCUMENTATION.md)
-- [Developer and maintainer guide](MAINTAINER_GUIDE.md)
-- [Product Phase 1 closeout and next steps](docs/phase-1-closeout-2026-08-01.md)
-- [Dated Software Composition Analysis evidence](docs/software-composition-analysis-2026-08-02.md)
-- [Dependency security remediation readiness](docs/security-remediation-readiness-2026-08-04.md)
-- [Memories test-impact and CI strategy](docs/memories/testing-strategy.md)
-- [Guest guide](EASY_USER_GUIDE.md)
-- [Administrator guide](ADMIN_GUIDE.md)
-- [Operations guide](OPERATIONS_GUIDE.md)
-- [Production → Development database backup, overwrite and rollback runbook](docs/memories/production-to-development-database-runbook.md)
-- [Standalone Memories technical contract](artifacts/memories-album/README.md)
-- [Test-suite conventions](artifacts/memories-album/test/README.md)
-- [Architecture debt audit](docs/code-health-audit-2026-07.md)
+| 讀者 | 文件 |
+| --- | --- |
+| 親友／上傳者 | [`EASY_USER_GUIDE.md`](EASY_USER_GUIDE.md) |
+| 內容管理員 | [`ADMIN_GUIDE.md`](ADMIN_GUIDE.md) |
+| 部署／維運 | [`OPERATIONS_GUIDE.md`](OPERATIONS_GUIDE.md) |
+| 開發／維護 | [`MAINTAINER_GUIDE.md`](MAINTAINER_GUIDE.md) |
+| 從零架站／多雲 | [`docs/site-handbook/`](docs/site-handbook/README.md) |
+| 技術 contract | [`artifacts/memories-album/README.md`](artifacts/memories-album/README.md) |
+| 完整文件 lifecycle | [`DOCUMENTATION.md`](DOCUMENTATION.md) |
 
 ---
 
-願這個專案留下我們婚禮的每一段回憶，也記錄親友與同工的幫助與祝福。
+願這個網站保存婚禮當天、生活片段，以及每一位親友留下的祝福。
