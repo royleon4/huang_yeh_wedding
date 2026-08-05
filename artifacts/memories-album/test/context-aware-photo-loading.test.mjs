@@ -207,6 +207,7 @@ test("production transform connects one session loader without changing gallery 
   const source = `import { loadPublicPhotoFeed } from "./public-photo-feed.mjs";
 function App() {
   const [remotePhotos, setRemotePhotos] = useState(null);
+  const [photoFeedComplete, setPhotoFeedComplete] = useState(false);
   useEffect(() => {
     if (runtimeState !== "ready") return undefined;
     let cancelled = false;
@@ -226,6 +227,13 @@ function App() {
     "/workspace/src/client/App.jsx",
   ).code;
 
+  const loaderDeclaration = transformed.indexOf(
+    "const photoFeedLoader = useMemo(() => getPublicPhotoFeedLoader(), [])",
+  );
+  assert.ok(loaderDeclaration >= 0);
+  assert.ok(transformed.indexOf("photoFeedLoader.subscribe") > loaderDeclaration);
+  assert.ok(transformed.indexOf("photoFeedLoader.setContext") > loaderDeclaration);
+  assert.ok(transformed.indexOf("photoFeedLoader.addPhoto") > loaderDeclaration);
   assert.match(transformed, /getPublicPhotoFeedLoader/);
   assert.match(transformed, /photoFeedLoader\.subscribe/);
   assert.match(transformed, /photoFeedLoader\.setContext\(\{/);
