@@ -21,7 +21,14 @@ export function parseManagedProcessFolder(name) {
 }
 
 export function formatManagedProcessFolder(order, labelZh) {
-  const normalizedOrder = Math.max(1, Math.min(99, Number(order) || 1));
+  const normalizedOrder = Number(order);
+  if (
+    !Number.isInteger(normalizedOrder) ||
+    normalizedOrder < 1 ||
+    normalizedOrder > 99
+  ) {
+    throw new RangeError("Process folder order must be an integer from 1 to 99");
+  }
   const normalizedLabel = String(labelZh ?? "")
     .normalize("NFKC")
     .replace(/\s+/g, " ")
