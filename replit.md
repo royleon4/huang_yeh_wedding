@@ -1,9 +1,9 @@
 # Replit Workspace
 
-> **Product:** Phase 1 complete；Phase 2.1 browser／In-App validation active  
+> **Product:** Phase 1 complete；Phase 2.1 browser／In-App／performance gates active  
 > **Reviewed:** 2026-08-05T10:31:00+08:00 (Asia/Taipei)  
-> **Baseline:** `21dc25543de6dd2bfa7e9019a2a9244c8a2ef186`  
-> **Replit deployment guide:** [`docs/site-handbook/deployments/replit.md`](docs/site-handbook/deployments/replit.md)
+> **Baseline:** `09293817935f5548aa4c7ef6918db9afd0a62b98`  
+> **Deployment guide:** [`docs/site-handbook/deployments/replit.md`](docs/site-handbook/deployments/replit.md)
 
 ## Runtime applications
 
@@ -14,9 +14,9 @@
 | `@workspace/api-server` | `/api/*` | 8080 | Legacy API/Object Storage |
 | `@workspace/mockup-sandbox` | `/__mockup` | 8081 | Canvas preview artifact |
 
-`mockup-sandbox` 由 `.replit` Canvas artifact 使用，不是 dead code。
+`mockup-sandbox` is registered by `.replit` and is not dead code。
 
-## Current Replit configuration
+## Current deployment contract
 
 ```toml
 modules = ["nodejs-24", "python-base-3.13"]
@@ -26,7 +26,7 @@ router = "application"
 deploymentTarget = "autoscale"
 ```
 
-Memories workflow：
+Memories workflow:
 
 ```text
 PORT=19316
@@ -34,7 +34,7 @@ MEMORIES_BASE_PATH=/Memories
 pnpm --filter @workspace/memories-album run dev
 ```
 
-不要在 `.replit` 放 production Secret。
+Never place production Secrets in `.replit`。
 
 ## Required Published App configuration
 
@@ -44,20 +44,17 @@ MEMORIES_DRIVE_PHOTOS_FOLDER_ID
 MEMORIES_ADMIN_TOKEN
 ```
 
-並連接 Replit Google Drive Integration。
-
-Workspace Secrets 不應被假設會自動出現在 Published App。每次 deployment 都要在 Published App settings 確認。
+Published runtime also needs Replit Google Drive Integration。Workspace Secrets may not automatically become Published App Secrets；verify every deployment configuration。
 
 ## Toolchain
 
-- Node.js 24
-- pnpm 10.x
-- React 19 + Vite 7
+- Node.js 24、pnpm 10
+- React 19、Vite 7
 - PostgreSQL
 - Google Drive via `@replit/connectors-sdk`
-- Sharp
-- Tiptap／Mammoth／docx-preview
-- Node tests、focused Chrome、Playwright Chromium/Firefox/WebKit/In-App profiles
+- Sharp、Tiptap、Mammoth、docx-preview
+- Node tests、focused Chrome and Playwright Chromium/Firefox/WebKit/In-App profiles
+- Vite manifest、Web Vitals diagnostics and bundle budgets
 
 ## Commands
 
@@ -78,69 +75,70 @@ pnpm --filter @workspace/memories-album db:migrate
 pnpm --filter @workspace/memories-album test:drive-live
 ```
 
-Live Drive test 只可使用 safe test folder。
+Live Drive tests may use only a safe test folder。
 
 ## Database safety
 
-Memories 使用 `artifacts/memories-album/db` immutable SQL migrations，current latest：
+Memories uses checksum-protected SQL migrations under `artifacts/memories-album/db`。Current latest:
 
 ```text
 016_explicit_guest_album_membership.sql
 ```
 
-- 不使用 `drizzle-kit push`。
-- 不修改 applied migration。
-- Unexpected DROP → stop Publish。
-- Rollback 是 compatible code rollback/forward fix，不刪 migration history。
+- Never use `drizzle-kit push`。
+- Never modify an applied migration。
+- Stop Publish on unexpected DROP operations。
+- Rollback is compatible code rollback/forward fix, not deletion of migration history。
 
-Legacy API 的 Drizzle schema 與 Memories migration model 是不同 ownership。
+The legacy API Drizzle schema and Memories migration model have separate ownership。
 
 ## Repository boundary
 
-Ordinary Memories work 不修改：
+Ordinary Memories work must not modify:
 
 ```text
 artifacts/wedding-invitation/**
 artifacts/api-server/src/routes/photos.ts
 ```
 
-`Memories legacy boundary` workflow 強制此規則。Intentional legacy change 需要 `owner-approved-legacy-change` 與具體 regression evidence。
+`Memories legacy boundary` enforces this。Intentional legacy changes require `owner-approved-legacy-change` and exact regression evidence。
 
 ## Browser validation
 
-Current cross-browser production workflow：
+The production workflow uses a pinned Playwright runner and covers Chromium、Firefox、WebKit、desktop/mobile and representative Samsung Internet、WeChat、LINE、Facebook and Instagram profiles。Failures retain screenshots、traces、video and HTML reports。
 
-- production build；
-- pinned Playwright 1.60.0 runner；
-- Chromium、Firefox、WebKit；
-- desktop/mobile；
-- Samsung Internet、WeChat、LINE、Facebook、Instagram representative profiles；
-- fail on pageerror/console error；
-- screenshots、traces、video、HTML report。
+Automated profiles are not physical-device proof。See [`docs/memories/phase-2-device-validation-2026-08-05.md`](docs/memories/phase-2-device-validation-2026-08-05.md)。
 
-Automated profile 不等於 physical-device proof。真機 matrix：[`docs/memories/phase-2-device-validation-2026-08-05.md`](docs/memories/phase-2-device-validation-2026-08-05.md)。
+## Performance gate
+
+Current behavior:
+
+- Admin、login and private-management routes remain dynamic imports。
+- First public photo request is 24 records。
+- First page renders before later cursor pages continue。
+- `window.__MEMORIES_WEB_VITALS__` records LCP、CLS、interaction and navigation timing。
+- `?performance=1` prints the diagnostic snapshot only。
+- Production build writes `dist/performance/bundle-report.json` and `.md`。
+
+Budgets:
+
+```text
+Public entry: 450 KiB gzip
+Any JS chunk: 800 KiB gzip
+Total JS: 2 MiB gzip
+```
+
+See [`docs/memories/phase-2-performance-gate-2026-08-05.md`](docs/memories/phase-2-performance-gate-2026-08-05.md)。
 
 ## Architecture warning
 
-Memories 仍有 exact-string Vite transforms 修改 `App.jsx`／`AdminApp.jsx`。任何 transform/Vite change 必須：
-
-1. 測 final transform chain；
-2. production build；
-3. cross-browser Playwright；
-4. 檢查 blank page、missing control、overflow、console/pageerror；
-5. 優先 direct React composition 並刪 transform。
+Memories still has exact-string Vite transforms against `App.jsx` and `AdminApp.jsx`。Transform/Vite changes must validate the final chain、production build、bundle report and cross-browser runtime。Prefer direct React composition and delete replaced transforms。
 
 ## Portability
 
-Replit Google Drive Integration 是 platform-specific。移植到 Cloud Run、ECS、Azure、OCI、Kubernetes 或 On-premise 前需要：
+Replit Google Drive Integration is platform-specific。Cloud Run、ECS、Azure、OCI、Kubernetes and On-premise deployments need a production container、Drive API/object-storage adapter、provider Secret Manager/runtime identity、explicit migration/background jobs and backup/observability。
 
-- production container；
-- Google Drive API 或 object-storage adapter；
-- provider Secret Manager/runtime identity；
-- explicit migration/background jobs；
-- logs/metrics/backup/rollback。
-
-完整手冊：[`docs/site-handbook/README.md`](docs/site-handbook/README.md)
+See [`docs/site-handbook/README.md`](docs/site-handbook/README.md)。
 
 ## Documentation
 
