@@ -1,28 +1,35 @@
 # Standalone Memories
 
-`@workspace/memories-album` owns the independent wedding archive under `/Memories/*`：public gallery、guest uploads、private batch management、guestbook、administrator app、Node APIs、PostgreSQL migrations 與 Google Drive media。
+`@workspace/memories-album` owns the wedding archive under `/Memories/*`: public gallery、guest uploads、private batch management、guestbook、administrator application、Node APIs、PostgreSQL migrations and Google Drive media。
 
-它不負責 legacy invitation photo wall 或 legacy `/api/photos*` Object Storage。
+It does **not** own the legacy invitation photo wall or legacy `/api/photos*` Object Storage implementation。
 
-- 文件索引：[`../../DOCUMENTATION.md`](../../DOCUMENTATION.md)
-- Maintainer guide：[`../../MAINTAINER_GUIDE.md`](../../MAINTAINER_GUIDE.md)
-- 從零架站／多雲：[`../../docs/site-handbook/README.md`](../../docs/site-handbook/README.md)
-- Replit operations：[`../../OPERATIONS_GUIDE.md`](../../OPERATIONS_GUIDE.md)
+| Start here | Document |
+| --- | --- |
+| Role-based index | [`../../DOCUMENTATION.md`](../../DOCUMENTATION.md) |
+| Maintainer guide | [`../../MAINTAINER_GUIDE.md`](../../MAINTAINER_GUIDE.md) |
+| Operations | [`../../OPERATIONS_GUIDE.md`](../../OPERATIONS_GUIDE.md) |
+| From-zero/multi-cloud | [`../../docs/site-handbook/`](../../docs/site-handbook/README.md) |
+| Device evidence | [`../../docs/memories/phase-2-device-validation-2026-08-05.md`](../../docs/memories/phase-2-device-validation-2026-08-05.md) |
+| Performance gate | [`../../docs/memories/phase-2-performance-gate-2026-08-05.md`](../../docs/memories/phase-2-performance-gate-2026-08-05.md) |
 
-## Runtime 與 Route
+## Runtime
 
-| 項目 | Current contract |
+| Item | Current contract |
 | --- | --- |
 | Runtime | Node.js 24 |
-| Dev/build | React 19 + Vite 7 |
-| Package | pnpm 10 workspace |
-| Port | `19316` in Replit artifact；cloud runtime uses `$PORT` |
+| Frontend/build | React 19 + Vite 7 |
+| Package manager | pnpm 10 workspace |
+| Replit port | `19316` |
 | Base path | `/Memories` |
 | Health | `/Memories/api/health` |
 | Database | PostgreSQL |
 | Media | Google Drive via `@replit/connectors-sdk` |
+| Images | Sharp + WebP derivatives |
+| Rich content | Tiptap、Mammoth、docx-preview |
+| Browser gate | Playwright Chromium、Firefox、WebKit and In-App representatives |
 
-### Canonical public routes
+## Canonical routes
 
 | Route | Purpose |
 | --- | --- |
@@ -35,13 +42,13 @@
 | `/Memories/manage/:batchId#token=...` | Private batch management |
 | `/Memories/admin/login` | Admin login |
 | `/Memories/admin/general` | General tab |
-| `/Memories/admin/albums` | Album/label tab |
-| `/Memories/admin/photos` | Photo tab |
-| `/Memories/admin/categories` | Process/content/message tab |
+| `/Memories/admin/albums` | Albums/labels tab |
+| `/Memories/admin/photos` | Photos tab |
+| `/Memories/admin/categories` | Processes/content/messages tab |
 
-Display order 不定義 URL。舊 ordinal/semantic routes 只作 migration aliases。完整規則：[`docs/logical-routes.md`](docs/logical-routes.md)。
+Display order never defines canonical URLs. Old ordinal/semantic routes are migration aliases only。See [`docs/logical-routes.md`](docs/logical-routes.md)。
 
-## 系統邊界
+## System boundary and data ownership
 
 ```mermaid
 flowchart LR
@@ -49,28 +56,23 @@ flowchart LR
   App --> PG[(PostgreSQL)]
   App --> Drive[(Google Drive originals/attachments/thumbnails)]
   App --> Sharp[Sharp processing]
-  App --> Public[Public/Admin/Private APIs]
 ```
-
-### Data ownership
 
 | Data | Owner |
 | --- | --- |
-| Originals／image attachments | Google Drive |
+| Originals and image attachments | Google Drive |
 | WebP thumbnails | Google Drive `系統縮圖` |
-| Album/label/process relations | PostgreSQL |
-| Visibility、author、capture time | PostgreSQL |
+| Albums、labels、processes、visibility、author、capture time | PostgreSQL |
 | Guestbook messages | PostgreSQL |
-| Upload batch、token hash、content hash、resume state | PostgreSQL |
-| Rich content、video、pinned/featured settings | PostgreSQL |
-| Site copy/appearance/settings | PostgreSQL |
+| Upload batches、token/content hashes、resume state | PostgreSQL |
+| Rich content、video、pinned/featured settings、site settings | PostgreSQL |
 | Admin secret | Replit Secret `MEMORIES_ADMIN_TOKEN` |
 
-Browser 不取得 Drive ID、folder ID、connector raw response、credential、token hash 或 database URL。
+Browser payloads expose opaque Memories IDs and controlled media routes, never provider IDs、credentials、token hashes or connection strings。
 
 ## Public bootstrap
 
-`src/client/public-bootstrap.mjs` 在第一次 render 前平行取得：
+Before the first public render, `src/client/public-bootstrap.mjs` requests in parallel:
 
 ```text
 /Memories/api/albums
@@ -78,98 +80,79 @@ Browser 不取得 Drive ID、folder ID、connector raw response、credential、t
 /Memories/api/processes
 ```
 
-Normalized snapshot 供：
+The normalized snapshot drives album types、labels、processes、copy/style/icon、navigation/wheel、featured/pinned photos and upload classification。Resources fail independently and use bounded fallback behavior。
 
-- albums／album types；
-- labels／guest virtual labels；
-- processes／media order；
-- site copy/style/icon；
-- wheel/navigation settings；
-- featured/pinned photos；
-- upload classification UI。
-
-各 resource 可獨立 fallback，避免成功資料被單一 endpoint failure 全部覆蓋。
-
-## Albums、Labels 與 Messages
+## Albums、Labels and Messages
 
 ### Photo albums
 
-- 每個 non-guest album 可有 album-scoped labels。
-- Generated **全部{相簿名}** label 固定第一位。
-- Custom labels 可 create、rename、reorder、show/hide、delete。
-- Photo 可有 explicit album membership，不必只靠 label。
-- Changing album resets active label to a valid identity。
-- Wedding process bilingual titles 可覆蓋 public label text。
+- Every non-guest album can own album-scoped labels。
+- Generated **全部{相簿名}** remains first。
+- Custom labels support create、rename、reorder、show/hide and delete。
+- Photo album membership can exist independently of labels。
+- Changing album resolves a valid label for that album。
+- Wedding-process bilingual titles may override public label text。
 
 ### Guest album
 
-Guest album 使用 virtual labels：
-
-- All visitors；
-- Latest photos；
-- Uploader names。
-
-Latest count、visibility 與 name order 可由 Admin 設定。
+Guest virtual labels include all visitors、latest photos and uploader names。Visibility、latest count and uploader-name order are configurable。
 
 ### Message album
 
-Message album 使用同一 stable album route，但 renderer 改為 guestbook：
+A message album uses the same stable album route but renders PostgreSQL-backed guestbook content:
 
-- Public message listing／sorting／composer／modal；
-- PostgreSQL persistence；
-- Admin moderation；
-- Admin accordion 預設收合，展開後才 load；
-- Initial async load 完成後使用 shared content-navigation positioning。
+- Public listing、sorting、composer and modal。
+- Admin moderation and import/export tools。
+- Admin accordion stays collapsed and does not load messages until opened。
+- Initial async load reuses shared content-positioning logic。
 
-## Photos 與 Featured Photos
+## Photos and Media
 
-- Public 只回 `visibility = public`。
-- Album sort 只影響 photo group，不重排 video/rich content/pinned group。
-- Cursor/API loading 與 explicit “load more” 控制 DOM growth。
-- Masonry layout、lazy loading、fullscreen viewer。
-- Original 經 controlled route 新分頁開啟。
-- Missing derivative 可暫時 fallback original，使用 bounded cache policy。
+- Public API returns only public visibility rows。
+- Album sort applies inside photo groups, not video/rich-content/pinned groups。
+- Masonry、lazy loading、controlled originals and fullscreen viewing。
+- Featured-photo selection is scoped to active album、label/filter、eligible set and page-load seed。
+- Changing context must discard previous featured IDs。
+- Missing derivatives may temporarily fall back to originals with bounded caching。
 
-每個 album 可獨立設定 random featured-photo enablement 與 min/max range。
+## Current performance gate
 
-Selection context 包含：
+| Area | Current implementation |
+| --- | --- |
+| Public entry splitting | Admin、admin login and private management are dynamic imports |
+| First request | 24 photo records |
+| Progressive loading | First page renders immediately；later cursor pages yield to idle/timer |
+| First image | First thumbnail remains high priority |
+| Browser metrics | `window.__MEMORIES_WEB_VITALS__` |
+| Debug | `?performance=1` prints current snapshot only |
+| Reports | `dist/performance/bundle-report.json` and `.md` |
 
-```text
-active album
-active label/filter
-eligible photo set
-page-load seed
-```
+Build regression ceilings:
 
-Changing album/label 必須建立新 context，不能保留 previous featured IDs。
+| Budget | Ceiling |
+| --- | ---: |
+| Public entry gzip | 450 KiB |
+| Any JS chunk gzip | 800 KiB |
+| Total JS gzip | 2 MiB |
 
-## Process Content
+`src/client/performance-monitor.mjs` records LCP、CLS、largest observed interaction duration and navigation timing。`scripts/analyze-bundle.mjs` validates Vite manifest output、dynamic route splitting and bundle budgets。
 
-Wedding process 可包含：
+Responsive image variants and truly on-demand server cursor loading remain future work。
 
-- YouTube video/autoplay；
-- bilingual Tiptap content；
-- Word document import；
-- image attachments；
-- divider spacing；
-- 1–3 pinned photos；
-- continuous photo wall。
+## Process content
 
-Current import contract：
+Processes may contain YouTube video/autoplay、bilingual Tiptap content、Word import、image attachments、divider spacing、1–3 pinned photos and a continuous photo wall。
 
-| Input | Status |
+| Input | Current status |
 | --- | --- |
 | Word-related documents | Supported |
-| PDF | Not supported |
-| PowerPoint | Not supported |
+| PDF/PPT import | Not supported |
 | General image attachment | Supported |
-| Non-image general attachment | Not supported |
+| General non-image attachment | Not supported |
 
-Mammoth/docx-preview 內容需在 mobile/desktop viewport 內顯示；table、image、filename 不得水平溢出。
+Imported tables/images/filenames must remain within mobile and desktop viewports。
 
-## Guest Upload
-
-流程：
+## Guest upload
 
 ```mermaid
 sequenceDiagram
@@ -190,104 +173,51 @@ sequenceDiagram
   A->>D: Background thumbnail build
 ```
 
-Current rules：
+Current rules:
 
-- Guest/Admin selection limits：1–100 configurable；defaults 10/30。
-- Fixed worker concurrency；limit 不直接增加 parallel work。
+- Guest/Admin selection limits: 1–100 configurable；defaults 10/30。
+- Fixed worker concurrency, independent of selection limit。
 - JPEG、PNG、WebP、HEIC、HEIF；25 MB per photo。
-- `(batchId, clientUploadId)` durable identity。
-- Duplicate 依 content，不依 filename。
-- Bounded first/deferred retry pass。
-- Offline wait 不消耗 attempt。
-- Resume 使用相同 batch/upload ID/session。
-- Reserved uploader `婚禮攝影` 受 guest validation 與 delete protection。
+- Durable `(batchId, clientUploadId)` identity。
+- Duplicate identity is content-based, not filename-based。
+- Bounded first/deferred retry passes and resumable sessions。
+- Reserved uploader `婚禮攝影` receives validation/delete protection。
 
-## Drive Upload 與 Background Sync
+## Private batch management
 
-New originals 使用 resumable session：
+Raw token is carried in the URL fragment and sent explicitly as a Bearer token；PostgreSQL stores only its hash。The uploader can list the exact batch、permanently delete eligible photos and rotate the private link。
 
-- `single`：同一 resumable session 內一次 PUT 完整檔案。
-- `chunked`：4 MiB chunks，保存 session URI／offset／updated time。
+Permanent deletion handles original、thumbnail、relations、photo row and pinned references。A non-404 storage failure must not produce a false successful DB deletion。There is no trash/restore lifecycle。
 
-Background sync：
+## Administrator application
 
-- discovery reserved folders；
-- process/photo reconciliation；
-- missing process deactivation；
-- thumbnail backfill；
-- default periodic interval 5 minutes；
-- job summary 可同時是 completed + failures。
-
-Operator 必須看 `attempted`、`createdOrAttached`、`failureCount`、`failureCodes`。
-
-## Private Batch Management
-
-Raw token 放 URL fragment，request 時以 Bearer token 明確送出；PostgreSQL 只存 hash。
-
-Uploader 可：
-
-- list exact batch photos；
-- permanent delete own eligible photos；
-- rotate private link。
-
-Delete 必須處理 original、thumbnail、relations、photo row、pinned references。Storage non-404 failure 不得先刪 DB 再回 success。
-
-Current product 沒有 trash/restore。
-
-## Administrator App
-
-Admin secret：
-
-```text
-MEMORIES_ADMIN_TOKEN
-```
-
-Login 產生約 30 分鐘 HMAC-signed cookie：
+Admin authentication uses `MEMORIES_ADMIN_TOKEN` and an approximately 30-minute signed cookie:
 
 ```text
 HttpOnly; Secure; SameSite=Strict; Path=/Memories/admin
 ```
 
-Capabilities：
+Admin capabilities include appearance/copy/icon、albums/types/sort/featured ranges、album labels、process video/content/Word/image attachments、pinned photos、upload settings、guest labels、guestbook moderation、photo filters/upload/edit/bulk actions and refresh/rebuild tools。
 
-- site appearance、hero、copy、icon；
-- selector/wheel/media order；
-- albums/types/sort/featured range；
-- album-scoped labels；
-- Drive-backed processes、video、content、Word/image attachments；
-- pinned photos；
-- upload limits/mode/guidance；
-- guest labels；
-- guestbook moderation；
-- photo filters、pagination、upload、edit、bulk actions；
-- refresh/rescan/rebuild derivatives；
-- global save coordinator。
+Admin upload classification still completes through follow-up PATCH calls and remains a known atomicity limitation。
 
-Admin upload classification 目前由 upload 後 follow-up PATCH 完成，仍是待原子化的架構限制。
+## Background synchronization
+
+Background work discovers reserved folders、reconciles process/photo metadata and backfills thumbnails。A run may complete while reporting individual failures；operators must inspect attempted、successful and failure codes。
+
+Manual Drive deletion is not complete application deletion。
 
 ## Migrations
 
-Migrations 在 `db/`，current latest：
+Current latest:
 
 ```text
 016_explicit_guest_album_membership.sql
 ```
 
-Runner：
+The runner records filename/checksum、refuses modified applied files、uses a PostgreSQL advisory lock and starts production listening only after success。
 
-- filename + SHA-256 checksum；
-- applied file immutable；
-- PostgreSQL advisory lock；
-- pending-only；
-- production listen after success。
-
-禁止：
-
-```text
-drizzle-kit push
-```
-
-Unexpected `DROP TABLE`／`DROP COLUMN`／constraint removal → stop deployment。
+Never use `drizzle-kit push` for Memories production tables。Stop deployment on unexpected DROP operations。
 
 ## Commands
 
@@ -303,40 +233,18 @@ pnpm --filter @workspace/memories-album db:migrate
 pnpm --filter @workspace/memories-album test:drive-live
 ```
 
-## CI 與 Browser Gate
+## CI
 
 | Workflow | Purpose |
 | --- | --- |
-| `memories-fast-ci.yml` | Draft PR impact-selected validation |
-| `memories-ci.yml` | Ready PR impact validation；full `main` integration |
-| `memories-cross-browser.yml` | Production Playwright Chromium/Firefox/WebKit/In-App profiles |
+| `memories-fast-ci.yml` | Draft PR impact validation |
+| `memories-ci.yml` | Ready PR impact validation and full `main` integration |
+| `memories-cross-browser.yml` | Production Playwright cross-browser/In-App gate |
 | `memories-legacy-boundary.yml` | Protect invitation/legacy API paths |
 
-Cross-browser profiles：
+Automated In-App profiles are not physical-device proof。Use the Phase 2 evidence matrix for real-device acceptance。
 
-- Chromium desktop/mobile；
-- Firefox desktop；
-- WebKit desktop/mobile；
-- Samsung Internet representative；
-- WeChat、LINE、Facebook、Instagram Android/iOS representative。
-
-Failure artifacts：screenshot、trace、video、HTML report。
-
-Automated UA profile 不是 physical-device proof。真機 matrix：[`../../docs/memories/phase-2-device-validation-2026-08-05.md`](../../docs/memories/phase-2-device-validation-2026-08-05.md)。
-
-## Current Architecture Risks
-
-- Exact-string Vite transforms 仍修改 `App.jsx`／`AdminApp.jsx`。
-- Settings 分散多層，需 central registry。
-- Admin upload/classification 尚非 atomic command。
-- Direct Drive delete 不會完整 DB cleanup。
-- Permanent delete 無 recovery period。
-- People classification/selfie search 尚未批准或實作。
-- 其他雲端需 portable media adapter/background job model。
-
-重構順序：[`../../docs/code-health-audit-2026-07.md`](../../docs/code-health-audit-2026-07.md)。
-
-## Production Requirements
+## Required production configuration
 
 ```text
 DATABASE_URL
@@ -344,6 +252,14 @@ MEMORIES_DRIVE_PHOTOS_FOLDER_ID
 MEMORIES_ADMIN_TOKEN
 ```
 
-Published App 還需 Replit Google Drive Integration。
+Published App also requires Replit Google Drive Integration。Never commit Secrets、OAuth、Drive IDs、private tokens、resumable session URIs、signed URLs or provider raw responses。
 
-不提交：Secret、Database URL、OAuth、Drive IDs、private token、resumable session URI、signed URL、provider raw response。
+## Current architecture risks
+
+- Exact-string Vite transforms still modify `App.jsx`／`AdminApp.jsx`。
+- Settings remain distributed across multiple layers。
+- Admin upload/classification is not one atomic command。
+- Direct Drive deletion does not fully clean PostgreSQL state。
+- Permanent delete has no recovery period。
+- People classification/selfie search are not approved or implemented。
+- Other clouds require a portable media adapter and explicit worker/job model。
