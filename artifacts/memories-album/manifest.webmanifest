@@ -1,0 +1,23 @@
+{
+  "id": "/Memories/",
+  "name": "詠葉婚禮照片檔案館",
+  "short_name": "詠葉婚禮",
+  "description": "保存 2026 年 6 月 20 日婚禮回憶的雙語照片檔案館。",
+  "lang": "zh-Hant",
+  "dir": "ltr",
+  "start_url": "/Memories/?source=pwa",
+  "scope": "/Memories/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#f3eee2",
+  "theme_color": "#f3eee2",
+  "categories": ["photo", "lifestyle"],
+  "icons": [
+    {
+      "src": "/Memories/api/settings/site-icon",
+      "sizes": "any",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}

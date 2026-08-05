@@ -9,6 +9,7 @@ import {
   PROCESS_DEFINITIONS,
 } from "./gallery-model.mjs";
 import { startPerformanceMonitoring } from "./performance-monitor.mjs";
+import { scheduleMemoriesServiceWorkerRegistration } from "./pwa-registration.mjs";
 import "./styles.css";
 import "./site-style-public.css";
 import "./collections.css";
@@ -120,6 +121,8 @@ class MemoriesErrorBoundary extends Component {
     return this.props.children;
   }
 }
+
+scheduleMemoriesServiceWorkerRegistration();
 
 function applyServerProcesses(processes, allProcess = null) {
   const normalized = Array.isArray(processes)

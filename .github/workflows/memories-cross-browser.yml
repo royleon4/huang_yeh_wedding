@@ -38,7 +38,7 @@ jobs:
   browser-layout:
     if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -65,14 +65,27 @@ jobs:
           pnpm --filter @workspace/memories-album add --save-dev
           @playwright/test@1.60.0 --lockfile=false
 
+      - name: Cache Playwright browser engines
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-1.60.0
+
       - name: Install Chromium Firefox and WebKit
         run: >-
           pnpm --filter @workspace/memories-album exec playwright install
           --with-deps chromium firefox webkit
 
+      - name: Allocate an unused browser-test port
+        id: e2e-port
+        run: |
+          PORT=$(node -e 'const net = require("node:net"); const server = net.createServer(); server.listen(0, "127.0.0.1", () => { console.log(server.address().port); server.close(); });')
+          echo "port=$PORT" >> "$GITHUB_OUTPUT"
+
       - name: Run cross-browser production layout gate
         env:
           CI: "true"
+          MEMORIES_E2E_PORT: ${{ steps.e2e-port.outputs.port }}
         run: >-
           pnpm --filter @workspace/memories-album exec playwright test
           --config playwright.config.mjs

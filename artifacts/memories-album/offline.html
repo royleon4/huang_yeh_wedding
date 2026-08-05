@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#f3eee2" />
+    <title>詠葉婚禮照片檔案館｜離線</title>
+    <style>
+      :root { color-scheme: light; font-family: system-ui, sans-serif; }
+      body { margin: 0; min-height: 100vh; display: grid; place-items: center; background: #f3eee2; color: #2f2b27; }
+      main { width: min(32rem, calc(100% - 3rem)); text-align: center; }
+      h1 { font-size: 1.5rem; }
+      p { line-height: 1.7; }
+      button { font: inherit; padding: 0.65rem 1rem; border: 1px solid currentColor; border-radius: 999px; background: transparent; cursor: pointer; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>目前沒有網路</h1>
+      <p>已開啟過的靜態畫面可能仍可使用。重新連線後，照片檔案館會繼續載入。</p>
+      <p lang="en">You are offline. Reconnect to continue loading the wedding archive.</p>
+      <button type="button" onclick="location.reload()">重新載入 / Reload</button>
+    </main>
+  </body>
+</html>
