@@ -13,6 +13,14 @@ test("parses bilingual CSV headers and a local datetime to the minute", () => {
   assert.equal(messages[0].messageAt, "2026-06-20T03:03:00.000Z");
 });
 
+test("local ISO values with seconds use the administrator timezone", () => {
+  const messages = parseMessageImport(
+    "name,message,datetime\nAn,God bless you,2026-06-20T11:03:45.125\n",
+    { timeZoneOffsetMinutes: -480 },
+  );
+  assert.equal(messages[0].messageAt, "2026-06-20T03:03:45.125Z");
+});
+
 test("parses ISO datetime values with an explicit timezone", () => {
   const messages = parseMessageImport(
     "name,message,datetime\nAn,God bless you,2026-06-20T11:03:00+08:00\n",
@@ -37,8 +45,12 @@ test("parses TSV and defaults an omitted datetime", () => {
   assert.ok(Number.isFinite(new Date(messages[0].messageAt).getTime()));
 });
 
-test("rejects an invalid hour or minute", () => {
-  for (const value of ["2026-06-20 24:00", "2026-06-20T11:60"]) {
+test("rejects an invalid hour minute or second", () => {
+  for (const value of [
+    "2026-06-20 24:00",
+    "2026-06-20T11:60",
+    "2026-06-20T11:03:60",
+  ]) {
     assert.throws(
       () => parseMessageImport(`name,message,datetime\nAn,Blessings,${value}\n`),
       (error) => error?.code === "INVALID_MESSAGE_IMPORT",
@@ -58,18 +70,30 @@ test("rejects an invalid administrator timezone offset", () => {
   }
 });
 
-test("rejects a missing required header", () => {
-  assert.throws(
-    () => parseMessageImport("name,datetime\nAn,2026-06-20 11:03\n"),
-    (error) => error?.code === "INVALID_MESSAGE_IMPORT",
-  );
+test("rejects a missing or duplicated required header", () => {
+  for (const content of [
+    "name,datetime\nAn,2026-06-20 11:03\n",
+    "name,姓名,message\nAn,小安,Blessings\n",
+    "name,message,body\nAn,Blessings,Duplicate\n",
+  ]) {
+    assert.throws(
+      () => parseMessageImport(content),
+      (error) => error?.code === "INVALID_MESSAGE_IMPORT",
+    );
+  }
 });
 
-test("rejects imports over the configured row limit", () => {
+test("rejects imports over an invalid or exceeded row limit", () => {
   assert.throws(
     () => parseMessageImport("name,message\nA,One\nB,Two\n", { maximumRows: 1 }),
     (error) => error?.code === "INVALID_MESSAGE_IMPORT",
   );
+  for (const maximumRows of [0, 1.5, Number.NaN, Number.POSITIVE_INFINITY]) {
+    assert.throws(
+      () => parseMessageImport("name,message\nA,One\n", { maximumRows }),
+      (error) => error?.code === "INVALID_MESSAGE_IMPORT",
+    );
+  }
 });
 
 test("rejects overlong message content", () => {
