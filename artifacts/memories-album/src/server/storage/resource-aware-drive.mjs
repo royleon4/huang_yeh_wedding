@@ -3,6 +3,7 @@ import {
   GoogleDriveStorage,
 } from "./drive-adapter.mjs";
 
+const SHORTCUT_MIME = "application/vnd.google-apps.shortcut";
 const LIST_FIELDS = [
   "id",
   "name",
@@ -54,6 +55,26 @@ function rememberFiles(resourceKeys, downloadTargets, files) {
   }
 }
 
+function normalizeLifeFolderShortcuts(storage, parentId, files) {
+  if (!storage.lifeFolderId || parentId !== storage.lifeFolderId) return files;
+  return files.map((file) => {
+    const targetMimeType = file?.shortcutDetails?.targetMimeType;
+    if (
+      file?.mimeType !== SHORTCUT_MIME ||
+      !targetMimeType?.startsWith("image/") ||
+      file.capabilities?.canDownload === false
+    ) {
+      return file;
+    }
+    return {
+      ...file,
+      mimeType: targetMimeType,
+      size: file.size ?? "0",
+      imageMediaMetadata: file.imageMediaMetadata ?? null,
+    };
+  });
+}
+
 function downloadIdentity(resourceKeys, downloadTargets, requestedFileId) {
   const fileId = downloadTargets.get(requestedFileId) ?? requestedFileId;
   return { fileId, resourceKey: resourceKeys.get(fileId) ?? null };
@@ -98,7 +119,7 @@ export function createResourceAwareDriveStorage({
     const data = await response.json();
     const files = Array.isArray(data?.files) ? data.files : [];
     rememberFiles(resourceKeys, downloadTargets, files);
-    return files;
+    return normalizeLifeFolderShortcuts(storage, parentId, files);
   };
 
   const requestMedia = (identity) =>
