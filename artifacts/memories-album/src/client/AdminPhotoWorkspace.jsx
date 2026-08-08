@@ -470,24 +470,24 @@ export default function AdminPhotoWorkspace({
               ))}
             </fieldset>
 
-            <label className="admin-photo-process-field">
-              流程分類
-              <select
-                value={uploadCategoryId}
-                onChange={(event) => setUploadCategoryId(event.target.value)}
-                disabled={controlsLocked || !uploadAlbumIds.includes("wedding")}
-              >
-                <option value="">不指定流程</option>
-                {categories.map((category) => (
-                  <option key={category.id} value={category.id}>
-                    {String(category.displayOrder).padStart(2, "0")} {category.labelZh}
-                  </option>
-                ))}
-              </select>
-              {!uploadAlbumIds.includes("wedding") && (
-                <small>勾選「婚禮流程」相簿後才可選擇。</small>
-              )}
-            </label>
+        <label className="admin-photo-process-field">
+          流程分類
+          <select
+            value={uploadCategoryId}
+            onChange={(event) => setUploadCategoryId(event.target.value)}
+            disabled={controlsLocked || !uploadAlbumIds.includes("wedding")}
+          >
+            <option value="">不指定流程</option>
+            {categories.map((category) => (
+              <option key={category.id} value={category.id}>
+                {String(category.displayOrder).padStart(2, "0")} {category.labelZh}
+              </option>
+            ))}
+          </select>
+          {!uploadAlbumIds.includes("wedding") && (
+            <small>勾選「婚禮流程」相簿後才可選擇。</small>
+          )}
+        </label>
 
             {items.length > 0 && (
               <div className="admin-photo-upload-queue" aria-live="polite">
