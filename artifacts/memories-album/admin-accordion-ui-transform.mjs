@@ -1,5 +1,4 @@
 const ADMIN_APP_SUFFIX = "/src/client/AdminApp.jsx";
-const ADMIN_WORKSPACE_SUFFIX = "/src/client/AdminPhotoWorkspace.jsx";
 const ADMIN_REFRESH_SUFFIX = "/src/client/AdminRefreshManagement.jsx";
 
 function replaceOnce(source, search, replacement, label) {
@@ -144,25 +143,6 @@ function transformAdminApp(source) {
   });
 }
 
-function transformPhotoWorkspace(source) {
-  let code = replaceOnce(
-    source,
-    `import "./admin-photo-workspace.css";`,
-    `import "./admin-photo-workspace.css";\nimport "./admin-accordion.css";`,
-    "photo workspace accordion stylesheet",
-  );
-  return wrapElementInRegion(code, {
-    regionMarker: `  return (`,
-    elementMarker: `<form className="admin-photo-batch-card" onSubmit={startUpload}>`,
-    tagName: "form",
-    wrapperClass: "admin-photo-upload-accordion",
-    summary:
-      `<span className="admin-accordion-title">新增照片</span>\n${"        "}<span className="admin-accordion-secondary">\n${"          "}{files.length > 0 ? files.length + " 張待上傳" : "一次最多 30 張"}\n${"        "}</span>`,
-    removeHeading: /\n\s*<h3>新增照片<\/h3>/,
-    label: "new photo upload form",
-  });
-}
-
 function transformRefreshManagement(source) {
   let code = replaceOnce(
     source,
@@ -202,9 +182,6 @@ export function adminAccordionUiTransform() {
       const normalizedId = id.split("?")[0].replace(/\\/g, "/");
       if (normalizedId.endsWith(ADMIN_APP_SUFFIX)) {
         return { code: transformAdminApp(source), map: null };
-      }
-      if (normalizedId.endsWith(ADMIN_WORKSPACE_SUFFIX)) {
-        return { code: transformPhotoWorkspace(source), map: null };
       }
       if (normalizedId.endsWith(ADMIN_REFRESH_SUFFIX)) {
         return { code: transformRefreshManagement(source), map: null };
