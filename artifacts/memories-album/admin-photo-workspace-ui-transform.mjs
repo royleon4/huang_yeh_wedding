@@ -2,7 +2,6 @@ import { adminResponsiveLayoutUiTransform } from "./admin-responsive-layout-ui-t
 import { albumPhotoOrderUiTransform } from "./album-photo-order-ui-transform.mjs";
 
 const ADMIN_APP_SUFFIX = "/src/client/AdminApp.jsx";
-const ADMIN_WORKSPACE_SUFFIX = "/src/client/AdminPhotoWorkspace.jsx";
 const UPLOAD_MODAL_SUFFIX = "/src/client/UploadModal.jsx";
 
 function replaceOnce(source, search, replacement, label) {
@@ -130,76 +129,6 @@ function transformUploadModal(source) {
   );
 }
 
-function transformAdminWorkspace(source) {
-  let code = replaceOnce(
-    source,
-    `import "./admin-photo-workspace.css";`,
-    `import "./admin-photo-workspace.css";\nimport AdminPhotoBulkActions from "./AdminPhotoBulkActions.jsx";`,
-    "bulk action component import",
-  );
-  code = replaceOnce(
-    code,
-    `  setPhotos,\n  renderPhoto,\n}) {`,
-    `  setPhotos,\n  setPhotoDrafts,\n  renderPhoto,\n}) {`,
-    "photo draft setter property",
-  );
-  code = replaceOnce(
-    code,
-    `  const [photoError, setPhotoError] = useState("");`,
-    `  const [photoError, setPhotoError] = useState("");\n  const [selectedIds, setSelectedIds] = useState([]);\n  const [bulkBusy, setBulkBusy] = useState(false);\n  const [selectingAllFiltered, setSelectingAllFiltered] = useState(false);\n  const [filteredCount, setFilteredCount] = useState(() => photos.length);`,
-    "bulk selection state",
-  );
-  code = replaceOnce(
-    code,
-    `  const visiblePhotos = useMemo(\n    () => visibleIds.map((id) => photosById.get(id)).filter(Boolean),\n    [photosById, visibleIds],\n  );`,
-    `  const visiblePhotos = useMemo(\n    () => visibleIds.map((id) => photosById.get(id)).filter(Boolean),\n    [photosById, visibleIds],\n  );\n  const selectedIdSet = useMemo(() => new Set(selectedIds), [selectedIds]);\n  const allFilteredSelected =\n    filteredCount > 0 && selectedIds.length === filteredCount;\n\n  useEffect(() => {\n    const available = new Set(photos.map((photo) => photo.id));\n    setSelectedIds((current) => {\n      const next = current.filter((id) => available.has(id));\n      return next.length === current.length ? current : next;\n    });\n  }, [photos]);`,
-    "all loaded photo selection pruning",
-  );
-  code = replaceOnce(
-    code,
-    `  const controlsLocked = busy || uploading || Boolean(batch);`,
-    `  const controlsLocked =\n    busy || uploading || bulkBusy || selectingAllFiltered || Boolean(batch);`,
-    "bulk busy upload lock",
-  );
-  code = replaceOnce(
-    code,
-    `        const incoming = Array.isArray(payload.photos) ? payload.photos : [];\n        setPhotos((current) => mergeAdminPhotos(current, incoming));`,
-    `        const incoming = Array.isArray(payload.photos) ? payload.photos : [];\n        if (Number.isInteger(payload.total)) {\n          setFilteredCount(payload.total);\n        } else if (!append) {\n          setFilteredCount(incoming.length);\n        }\n        setPhotos((current) => mergeAdminPhotos(current, incoming));`,
-    "filtered photo count hydration",
-  );
-  code = replaceOnce(
-    code,
-    `  useEffect(() => {\n    if (firstFilterEffect.current) {\n      firstFilterEffect.current = false;\n      return;\n    }\n    void loadPhotos();\n  }, [albumId, categoryId, uploaderNameFilter, loadPhotos]);`,
-    `  useEffect(() => {\n    if (firstFilterEffect.current) {\n      firstFilterEffect.current = false;\n      return;\n    }\n    setSelectedIds([]);\n    void loadPhotos();\n  }, [albumId, categoryId, uploaderNameFilter, loadPhotos]);`,
-    "clear selection when filters change",
-  );
-  code = replaceOnce(
-    code,
-    `  const handleFiles = (event) => {`,
-    `  const selectAllFilteredPhotos = async () => {\n    const requestId = ++requestRef.current;\n    setSelectingAllFiltered(true);\n    setPhotoError("");\n    try {\n      const selectedPhotos = [];\n      let cursor = null;\n      let total = 0;\n      do {\n        const payload = await adminRequest(\n          buildPhotoQuery(filters, cursor, { limit: 100, selection: true }),\n          { timeoutMs: 120_000 },\n        );\n        if (requestId !== requestRef.current) return;\n        const incoming = Array.isArray(payload.photos) ? payload.photos : [];\n        selectedPhotos.push(...incoming);\n        if (Number.isInteger(payload.total)) total = payload.total;\n        cursor = payload.nextCursor ?? null;\n      } while (cursor);\n\n      const uniquePhotos = [\n        ...new Map(selectedPhotos.map((photo) => [photo.id, photo])).values(),\n      ];\n      setPhotos((current) => mergeAdminPhotos(current, uniquePhotos));\n      setSelectedIds(uniquePhotos.map((photo) => photo.id));\n      setFilteredCount(total || uniquePhotos.length);\n    } catch (error) {\n      if (error?.status === 401) {\n        window.location.replace("/Memories/");\n        return;\n      }\n      if (requestId === requestRef.current) setPhotoError(adminErrorMessage(error));\n    } finally {\n      if (requestId === requestRef.current) setSelectingAllFiltered(false);\n    }\n  };\n\n  const handleFiles = (event) => {`,
-    "select every filtered photo",
-  );
-  code = replaceOnce(
-    code,
-    `    uploading: "上傳中",`,
-    `    uploading: "正在傳送到伺服器",\n    processing: "伺服器正在整理並儲存到 Google Drive",`,
-    "administrator upload processing label",
-  );
-  code = replaceOnce(
-    code,
-    `        <span>{visiblePhotos.length} 張符合條件</span>`,
-    `        <span>\n          {filteredCount} 張符合條件\n          {filteredCount > visiblePhotos.length\n            ? \`，目前顯示 \${visiblePhotos.length} 張\`\n            : ""}\n        </span>`,
-    "filtered photo total heading",
-  );
-  code = replaceOnce(
-    code,
-    `      {visiblePhotos.length > 0 ? (\n        <div className="admin-photo-list">\n          {visiblePhotos.map((photo) => (\n            <Fragment key={photo.id}>{renderPhoto(photo)}</Fragment>\n          ))}\n        </div>`,
-    `      <AdminPhotoBulkActions\n        albums={albums}\n        albumLabels={albumLabels}\n        photos={photos}\n        visiblePhotos={visiblePhotos}\n        selectedIds={selectedIds}\n        setSelectedIds={setSelectedIds}\n        setPhotos={setPhotos}\n        setPhotoDrafts={setPhotoDrafts}\n        disabled={busy || uploading || bulkBusy || selectingAllFiltered}\n        onBusyChange={setBulkBusy}\n        onReload={() => Promise.all([loadPhotos(), loadAuthors()])}\n        onSelectAllFiltered={selectAllFilteredPhotos}\n        selectingAllFiltered={selectingAllFiltered}\n        allFilteredSelected={allFilteredSelected}\n        filteredCount={filteredCount}\n      />\n\n      {visiblePhotos.length > 0 ? (\n        <div className="admin-photo-list">\n          {visiblePhotos.map((photo) => (\n            <div\n              className={\`admin-photo-selectable\${\n                selectedIdSet.has(photo.id) ? " is-selected" : ""\n              }\`}\n              key={photo.id}\n            >\n              <label className="admin-photo-select-control">\n                <input\n                  type="checkbox"\n                  checked={selectedIdSet.has(photo.id)}\n                  onChange={(event) =>\n                    setSelectedIds((current) =>\n                      event.target.checked\n                        ? [...new Set([...current, photo.id])]\n                        : current.filter((id) => id !== photo.id),\n                    )\n                  }\n                  disabled={busy || uploading || bulkBusy || selectingAllFiltered}\n                />\n                <span>選取</span>\n                {photo.deleteProtected && <small>婚禮攝影・不可刪除</small>}\n              </label>\n              {renderPhoto(photo, bulkBusy, albumLabels)}\n            </div>\n          ))}\n        </div>`,
-    "selectable photo list",
-  );
-  return code;
-}
-
 export function adminPhotoWorkspaceUiTransform() {
   const responsiveLayout = adminResponsiveLayoutUiTransform();
   const albumPhotoOrder = albumPhotoOrderUiTransform();
@@ -213,9 +142,6 @@ export function adminPhotoWorkspaceUiTransform() {
 
       if (normalizedId.endsWith(UPLOAD_MODAL_SUFFIX)) {
         return { code: transformUploadModal(code), map: null };
-      }
-      if (normalizedId.endsWith(ADMIN_WORKSPACE_SUFFIX)) {
-        return { code: transformAdminWorkspace(code), map: null };
       }
       if (!normalizedId.endsWith(ADMIN_APP_SUFFIX)) {
         return albumOrderResult ? { code, map: null } : null;

@@ -168,14 +168,24 @@ test("admin transforms expose label-aware editors and complete filtered selectio
   assert.match(appCode, /子分類／標籤/);
   assert.match(appCode, /buildAlbumLabelGroups\(albums, categories\)/);
 
+  assert.match(workspaceSource, /AdminPhotoBulkActions/);
+  assert.match(workspaceSource, /selectAllFilteredPhotos/);
+  assert.match(workspaceSource, /selection: true/);
+  assert.match(workspaceSource, /admin-photo-select-control/);
+  assert.match(workspaceSource, /photo\.deleteProtected/);
+
   const labeledWorkspace = albumLabelsUiTransform().transform(
     workspaceSource,
     "/workspace/src/client/AdminPhotoWorkspace.jsx",
   ).code;
-  const workspace = adminPhotoWorkspaceUiTransform().transform(
-    labeledWorkspace,
-    "/workspace/src/client/AdminPhotoWorkspace.jsx",
-  ).code;
+  assert.equal(
+    adminPhotoWorkspaceUiTransform().transform(
+      labeledWorkspace,
+      "/workspace/src/client/AdminPhotoWorkspace.jsx",
+    ),
+    null,
+  );
+  const workspace = labeledWorkspace;
   assert.match(workspace, /AdminPhotoBulkActions/);
   assert.match(workspace, /albumLabels=\{albumLabels\}/);
   assert.match(workspace, /photos=\{photos\}/);
