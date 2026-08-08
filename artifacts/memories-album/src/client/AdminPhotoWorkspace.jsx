@@ -6,6 +6,7 @@ import {
   uploadQueue,
 } from "./upload-client.mjs";
 import "./admin-photo-workspace.css";
+import "./admin-accordion.css";
 
 const MAX_FILES = 30;
 
@@ -406,61 +407,68 @@ export default function AdminPhotoWorkspace({
         )}
       </div>
 
-      <form className="admin-photo-batch-card" onSubmit={startUpload}>
-        <div className="admin-photo-batch-heading">
-          <div>
-            <h3>新增照片</h3>
-            <p>沿用訪客端的可靠批次上傳流程，一次最多 30 張。</p>
-          </div>
-          {items.length > 0 && <strong>{overallProgress}%</strong>}
-        </div>
+      <details className="admin-accordion admin-photo-upload-accordion">
+        <summary className="admin-accordion-summary">
+          <span className="admin-accordion-title">新增照片</span>
+          <span className="admin-accordion-secondary">
+            {files.length > 0 ? files.length + " 張待上傳" : "一次最多 30 張"}
+          </span>
+        </summary>
+        <div className="admin-accordion-body">
+          <form className="admin-photo-batch-card" onSubmit={startUpload}>
+            <div className="admin-photo-batch-heading">
+              <div>
+                <p>沿用訪客端的可靠批次上傳流程，一次最多 30 張。</p>
+              </div>
+              {items.length > 0 && <strong>{overallProgress}%</strong>}
+            </div>
 
-        <div className="admin-photo-upload-grid">
-          <label>
-            上傳者／作者
-            <input
-              type="text"
-              value={uploaderName}
-              onChange={(event) => setUploaderName(event.target.value)}
-              placeholder="例如：婚禮攝影、小安"
-              maxLength={80}
-              required
-              disabled={controlsLocked}
-            />
-          </label>
-          <label className="admin-photo-file-field">
-            選擇照片
-            <input
-              key={uploadInputKey}
-              type="file"
-              accept="image/jpeg,image/png,image/webp,image/heic,image/heif"
-              multiple
-              onChange={handleFiles}
-              disabled={controlsLocked}
-            />
-            <small>JPEG、PNG、WebP、HEIC／HEIF；每張上限 25 MB。</small>
-          </label>
-        </div>
+            <div className="admin-photo-upload-grid">
+              <label>
+                上傳者／作者
+                <input
+                  type="text"
+                  value={uploaderName}
+                  onChange={(event) => setUploaderName(event.target.value)}
+                  placeholder="例如：婚禮攝影、小安"
+                  maxLength={80}
+                  required
+                  disabled={controlsLocked}
+                />
+              </label>
+              <label className="admin-photo-file-field">
+                選擇照片
+                <input
+                  key={uploadInputKey}
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp,image/heic,image/heif"
+                  multiple
+                  onChange={handleFiles}
+                  disabled={controlsLocked}
+                />
+                <small>JPEG、PNG、WebP、HEIC／HEIF；每張上限 25 MB。</small>
+              </label>
+            </div>
 
-        <fieldset className="admin-photo-upload-albums" disabled={controlsLocked}>
-          <legend>所屬相簿</legend>
-          {albums.map((album) => (
-            <label key={album.id} className="admin-check">
-              <input
-                type="checkbox"
-                checked={uploadAlbumIds.includes(album.id)}
-                onChange={(event) => {
-                  setUploadAlbumIds((current) =>
-                    event.target.checked
-                      ? [...new Set([...current, album.id])]
-                      : current.filter((id) => id !== album.id),
-                  );
-                }}
-              />
-              {album.titleZh}
-            </label>
-          ))}
-        </fieldset>
+            <fieldset className="admin-photo-upload-albums" disabled={controlsLocked}>
+              <legend>所屬相簿</legend>
+              {albums.map((album) => (
+                <label key={album.id} className="admin-check">
+                  <input
+                    type="checkbox"
+                    checked={uploadAlbumIds.includes(album.id)}
+                    onChange={(event) => {
+                      setUploadAlbumIds((current) =>
+                        event.target.checked
+                          ? [...new Set([...current, album.id])]
+                          : current.filter((id) => id !== album.id),
+                      );
+                    }}
+                  />
+                  {album.titleZh}
+                </label>
+              ))}
+            </fieldset>
 
         <label className="admin-photo-process-field">
           流程分類
@@ -481,66 +489,68 @@ export default function AdminPhotoWorkspace({
           )}
         </label>
 
-        {items.length > 0 && (
-          <div className="admin-photo-upload-queue" aria-live="polite">
-            <progress max="100" value={overallProgress} />
-            <ol>
-              {items.map((item, index) => (
-                <li key={`${item.file.name}-${item.file.lastModified}-${index}`}>
-                  <div>
-                    <strong>{item.file.name}</strong>
-                    <small>
-                      {statusLabel(item.status)}
-                      {item.attempts > 1 ? ` · 第 ${item.attempts} 次` : ""}
-                      {item.error ? ` · ${item.error}` : ""}
-                    </small>
-                  </div>
-                  <span>{item.progress ?? 0}%</span>
-                </li>
-              ))}
-            </ol>
-          </div>
-        )}
+            {items.length > 0 && (
+              <div className="admin-photo-upload-queue" aria-live="polite">
+                <progress max="100" value={overallProgress} />
+                <ol>
+                  {items.map((item, index) => (
+                    <li key={`${item.file.name}-${item.file.lastModified}-${index}`}>
+                      <div>
+                        <strong>{item.file.name}</strong>
+                        <small>
+                          {statusLabel(item.status)}
+                          {item.attempts > 1 ? ` · 第 ${item.attempts} 次` : ""}
+                          {item.error ? ` · ${item.error}` : ""}
+                        </small>
+                      </div>
+                      <span>{item.progress ?? 0}%</span>
+                    </li>
+                  ))}
+                </ol>
+              </div>
+            )}
 
-        {uploadError && (
-          <p className="admin-photo-inline-status error" role="alert">
-            {uploadError}
-          </p>
-        )}
-        {summary && (
-          <p className="admin-photo-inline-status" role="status">
-            完成 {summary.success} 張
-            {summary.failed ? `，${summary.failed} 張尚未完成` : ""}
-            {summary.cancelled ? `，${summary.cancelled} 張已暫停` : ""}。
-          </p>
-        )}
+            {uploadError && (
+              <p className="admin-photo-inline-status error" role="alert">
+                {uploadError}
+              </p>
+            )}
+            {summary && (
+              <p className="admin-photo-inline-status" role="status">
+                完成 {summary.success} 張
+                {summary.failed ? `，${summary.failed} 張尚未完成` : ""}
+                {summary.cancelled ? `，${summary.cancelled} 張已暫停` : ""}。
+              </p>
+            )}
 
-        <div className="admin-photo-upload-actions">
-          {!uploading && !hasUnfinished && (
-            <button
-              type="submit"
-              disabled={
-                busy ||
-                files.length === 0 ||
-                !uploaderName.trim() ||
-                uploadAlbumIds.length === 0
-              }
-            >
-              上傳 {files.length || ""} 張照片
-            </button>
-          )}
-          {uploading && (
-            <button type="button" onClick={() => controllerRef.current?.abort()}>
-              暫停上傳
-            </button>
-          )}
-          {!uploading && hasUnfinished && batch && (
-            <button type="button" onClick={() => void retryUnfinished()} disabled={busy}>
-              繼續未完成照片
-            </button>
-          )}
+            <div className="admin-photo-upload-actions">
+              {!uploading && !hasUnfinished && (
+                <button
+                  type="submit"
+                  disabled={
+                    busy ||
+                    files.length === 0 ||
+                    !uploaderName.trim() ||
+                    uploadAlbumIds.length === 0
+                  }
+                >
+                  上傳 {files.length || ""} 張照片
+                </button>
+              )}
+              {uploading && (
+                <button type="button" onClick={() => controllerRef.current?.abort()}>
+                  暫停上傳
+                </button>
+              )}
+              {!uploading && hasUnfinished && batch && (
+                <button type="button" onClick={() => void retryUnfinished()} disabled={busy}>
+                  繼續未完成照片
+                </button>
+              )}
+            </div>
+          </form>
         </div>
-      </form>
+      </details>
 
       {visiblePhotos.length > 0 ? (
         <div className="admin-photo-list">
