@@ -6,6 +6,7 @@ import {
   uploadQueue,
 } from "./upload-client.mjs";
 import "./admin-photo-workspace.css";
+import AdminPhotoBulkActions from "./AdminPhotoBulkActions.jsx";
 
 const MAX_FILES = 30;
 
@@ -44,7 +45,8 @@ function uploadClassification(albumIds, categoryId) {
 function statusLabel(status) {
   return {
     queued: "等待中",
-    uploading: "上傳中",
+    uploading: "正在傳送到伺服器",
+    processing: "伺服器正在整理並儲存到 Google Drive",
     retrying: "連線不穩，正在重試",
     success: "已上傳",
     failed: "尚未完成",
@@ -60,6 +62,7 @@ export default function AdminPhotoWorkspace({
   busy,
   refreshToken,
   setPhotos,
+  setPhotoDrafts,
   renderPhoto,
 }) {
   const [albumId, setAlbumId] = useState("");
@@ -70,6 +73,10 @@ export default function AdminPhotoWorkspace({
   const [pageCursor, setPageCursor] = useState(initialNextCursor ?? null);
   const [photoLoading, setPhotoLoading] = useState(false);
   const [photoError, setPhotoError] = useState("");
+  const [selectedIds, setSelectedIds] = useState([]);
+  const [bulkBusy, setBulkBusy] = useState(false);
+  const [selectingAllFiltered, setSelectingAllFiltered] = useState(false);
+  const [filteredCount, setFilteredCount] = useState(() => photos.length);
 
   const [uploadInputKey, setUploadInputKey] = useState(0);
   const [uploaderName, setUploaderName] = useState("");
@@ -98,6 +105,17 @@ export default function AdminPhotoWorkspace({
     () => visibleIds.map((id) => photosById.get(id)).filter(Boolean),
     [photosById, visibleIds],
   );
+  const selectedIdSet = useMemo(() => new Set(selectedIds), [selectedIds]);
+  const allFilteredSelected =
+    filteredCount > 0 && selectedIds.length === filteredCount;
+
+  useEffect(() => {
+    const available = new Set(photos.map((photo) => photo.id));
+    setSelectedIds((current) => {
+      const next = current.filter((id) => available.has(id));
+      return next.length === current.length ? current : next;
+    });
+  }, [photos]);
   const overallProgress = useMemo(() => {
     if (items.length === 0) return 0;
     return Math.round(
@@ -105,7 +123,8 @@ export default function AdminPhotoWorkspace({
         items.length,
     );
   }, [items]);
-  const controlsLocked = busy || uploading || Boolean(batch);
+  const controlsLocked =
+    busy || uploading || bulkBusy || selectingAllFiltered || Boolean(batch);
   const hasUnfinished = Boolean(summary?.failed || summary?.cancelled);
 
   useEffect(() => {
@@ -144,6 +163,11 @@ export default function AdminPhotoWorkspace({
         const payload = await adminRequest(buildPhotoQuery(filters, cursor));
         if (requestId !== requestRef.current) return;
         const incoming = Array.isArray(payload.photos) ? payload.photos : [];
+        if (Number.isInteger(payload.total)) {
+          setFilteredCount(payload.total);
+        } else if (!append) {
+          setFilteredCount(incoming.length);
+        }
         setPhotos((current) => mergeAdminPhotos(current, incoming));
         setVisibleIds((current) => {
           const ids = incoming.map((photo) => photo.id);
@@ -172,6 +196,7 @@ export default function AdminPhotoWorkspace({
       firstFilterEffect.current = false;
       return;
     }
+    setSelectedIds([]);
     void loadPhotos();
   }, [albumId, categoryId, uploaderNameFilter, loadPhotos]);
 
@@ -194,6 +219,43 @@ export default function AdminPhotoWorkspace({
     },
     [],
   );
+
+  const selectAllFilteredPhotos = async () => {
+    const requestId = ++requestRef.current;
+    setSelectingAllFiltered(true);
+    setPhotoError("");
+    try {
+      const selectedPhotos = [];
+      let cursor = null;
+      let total = 0;
+      do {
+        const payload = await adminRequest(
+          buildPhotoQuery(filters, cursor, { limit: 100, selection: true }),
+          { timeoutMs: 120_000 },
+        );
+        if (requestId !== requestRef.current) return;
+        const incoming = Array.isArray(payload.photos) ? payload.photos : [];
+        selectedPhotos.push(...incoming);
+        if (Number.isInteger(payload.total)) total = payload.total;
+        cursor = payload.nextCursor ?? null;
+      } while (cursor);
+
+      const uniquePhotos = [
+        ...new Map(selectedPhotos.map((photo) => [photo.id, photo])).values(),
+      ];
+      setPhotos((current) => mergeAdminPhotos(current, uniquePhotos));
+      setSelectedIds(uniquePhotos.map((photo) => photo.id));
+      setFilteredCount(total || uniquePhotos.length);
+    } catch (error) {
+      if (error?.status === 401) {
+        window.location.replace("/Memories/");
+        return;
+      }
+      if (requestId === requestRef.current) setPhotoError(adminErrorMessage(error));
+    } finally {
+      if (requestId === requestRef.current) setSelectingAllFiltered(false);
+    }
+  };
 
   const handleFiles = (event) => {
     const selected = Array.from(event.target.files ?? []).slice(0, MAX_FILES);
@@ -330,7 +392,12 @@ export default function AdminPhotoWorkspace({
           <p className="admin-kicker">PHOTOS</p>
           <h2 id="photos-title">照片</h2>
         </div>
-        <span>{visiblePhotos.length} 張符合條件</span>
+        <span>
+          {filteredCount} 張符合條件
+          {filteredCount > visiblePhotos.length
+            ? `，目前顯示 ${visiblePhotos.length} 張`
+            : ""}
+        </span>
       </div>
 
       <div className="admin-photo-filter-card" aria-label="照片篩選">
@@ -542,10 +609,51 @@ export default function AdminPhotoWorkspace({
         </div>
       </form>
 
+      <AdminPhotoBulkActions
+        albums={albums}
+        albumLabels={albumLabels}
+        photos={photos}
+        visiblePhotos={visiblePhotos}
+        selectedIds={selectedIds}
+        setSelectedIds={setSelectedIds}
+        setPhotos={setPhotos}
+        setPhotoDrafts={setPhotoDrafts}
+        disabled={busy || uploading || bulkBusy || selectingAllFiltered}
+        onBusyChange={setBulkBusy}
+        onReload={() => Promise.all([loadPhotos(), loadAuthors()])}
+        onSelectAllFiltered={selectAllFilteredPhotos}
+        selectingAllFiltered={selectingAllFiltered}
+        allFilteredSelected={allFilteredSelected}
+        filteredCount={filteredCount}
+      />
+
       {visiblePhotos.length > 0 ? (
         <div className="admin-photo-list">
           {visiblePhotos.map((photo) => (
-            <Fragment key={photo.id}>{renderPhoto(photo)}</Fragment>
+            <div
+              className={`admin-photo-selectable${
+                selectedIdSet.has(photo.id) ? " is-selected" : ""
+              }`}
+              key={photo.id}
+            >
+              <label className="admin-photo-select-control">
+                <input
+                  type="checkbox"
+                  checked={selectedIdSet.has(photo.id)}
+                  onChange={(event) =>
+                    setSelectedIds((current) =>
+                      event.target.checked
+                        ? [...new Set([...current, photo.id])]
+                        : current.filter((id) => id !== photo.id),
+                    )
+                  }
+                  disabled={busy || uploading || bulkBusy || selectingAllFiltered}
+                />
+                <span>選取</span>
+                {photo.deleteProtected && <small>婚禮攝影・不可刪除</small>}
+              </label>
+              {renderPhoto(photo, bulkBusy, albumLabels)}
+            </div>
           ))}
         </div>
       ) : (
